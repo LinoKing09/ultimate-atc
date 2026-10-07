@@ -4,9 +4,53 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-10-07
+
+Feedback round 1.
+
 ### Added
 
 - MIT license (`LICENSE`).
+- **ATIS editor**: click `RWY`, `ATIS`, wind or QNH in the toolbar to set the runway in use, wind, QNH and the information letter. Runway changes re-plan departures that are not yet taxiing (runway and SID) and re-sequence arrivals further out than 3.5 NM. The ATIS no longer changes on its own.
+- **Extended phraseology**:
+  - `cancel pushback` / `stop pushback` / `continue pushback`,
+  - conditional clearances (`behind the A320 passing from left to right, ...`, `when clear of DLH5AB, ...`),
+  - queue positions (`number 2 for pushback`),
+  - expected delays (`expect pushback in 5 minutes`),
+  - incomplete taxi instructions with a clearance limit (`taxi via N, hold short of F`),
+  - `along` as a synonym for `via`.
+- **Voice control for voice-only operation**:
+  - the best of up to five recognition alternatives is used,
+  - fuzzy telephony and flight-number matching,
+  - corrections for common misrecognitions, number words ("twenty five") and "point" in frequencies,
+  - the pilot who called last is addressed when no callsign was understood and nothing is selected,
+  - pilots stop speaking while you transmit,
+  - additional push-to-talk keys: Right Ctrl and Insert.
+- **EuroScope-like tags**: tag items are clickable (callsign/type: flight plan card with the radiotelephony callsign, cleared-to: taxi menu, status: aircraft menu). Hovering over the callsign shows the telephony (e.g. `SPEEDBIRD 947`), which is also shown in front of the command line.
+- **Special events** (Connect dialog, default on): medical emergencies on arrival (2%) and while taxiing out (1%), with a bonus for parking within 6 minutes; rejected take-offs (1.5%).
+- Aircraft menu: stop / cancel pushback, `number ... for ...`.
+- Research documentation on tower operations and separation minima (`docs/tower-operations.md`).
+
+### Changed
+
+- **AI Tower rewritten**:
+  - departure separation (2 min behind heavy, 1 min on diverging / 2 min on the same SID route),
+  - line-up behind landing or rolling traffic,
+  - immediate departures,
+  - take-off when the next arrival is about 2 NM or more away,
+  - RRSM-like landing behind a departure,
+  - blocked exits are skipped.
+
+  In a two-hour heavy-traffic test the mean wait at the holding point dropped from ~5.5 min to under 2 min, with no go-arounds.
+- **Approach spacing**: wake turbulence minima; 4 NM base, 6 NM gaps when departures are waiting, 8 NM with a long queue.
+- The runway is no longer chosen in the Connect dialog; it follows the wind (ATIS).
+- Taxi routing no longer plans turns sharper than 150° or U-turns. A turn-around on the spot is only used as a last resort.
+- Landing aircraft on their exit now keep visual separation like taxiing aircraft.
+
+### Fixed
+
+- Arrivals briefly turned back towards the runway when they got their taxi instruction.
+- After a pushback facing west, aircraft wanted to taxi the "wrong way" (requiring a 180° turn) instead of via D, N.
 
 ## [0.1.0] - 2026-10-07
 

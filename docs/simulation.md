@@ -13,6 +13,7 @@ This page describes how the simulated world behaves: AI pilots, the AI Tower, tr
 - [Traffic generation](#traffic-generation)
 - [Radio model](#radio-model)
 - [Weather and ATIS](#weather-and-atis)
+- [Special events](#special-events)
 
 ---
 
@@ -58,7 +59,7 @@ taxi --(reaches stand)--> arrived --(150-300 s)--> gone
 | Final approach      | Appears 9 NM from the threshold (initial traffic: 4-6 NM), at its approach speed on a 3° glide path. |
 | Touchdown           | 350 m past the landing threshold.                                                           |
 | Roll-out            | Brakes at 1.6 m/s² to reach the chosen exit at 25 kt (rapid exit) or 14 kt (normal exit).   |
-| Exit choice         | The first exit that can be reached at that deceleration. 85% prefer the north side, 15% the south side. |
+| Exit choice         | The first exit that can be reached at that deceleration. 85% prefer the north side, 15% the south side. Exits whose vacate point is blocked by a waiting aircraft (within 70 m) are skipped. |
 | Vacated             | Stops between the holding point and the parallel taxiway, switches to Ground, and calls `vacated runway 25 via E` after a short delay. |
 | Stand               | A suggested stand is allocated when the arrival appears (if one is free). You can use any free stand that is big enough. |
 | Turn-around         | 150-300 s after parking, the aircraft is removed and the stand becomes free.                |
@@ -90,11 +91,11 @@ Acceleration is 0.6 m/s². Braking is up to 2.5 m/s².
 | `holdShort`   | ~40 m before the node where the route joins or crosses the named taxiway           | `continue taxi`                |
 | `destination` | End of the route (holding point, stand)                                            | A new taxi instruction         |
 
-**Route finding** is described in [architecture.md](architecture.md#taxi-routing). If an aircraft has to reverse direction to follow a new route (for example after a head-on encounter), it makes a tight U-turn; the router penalises this with 400 m extra cost.
+**Route finding** is described in [architecture.md](architecture.md#taxi-routing). Routes never contain turns sharper than **150°** at a junction (a hairpin from a rapid exit back onto the parallel taxiway, at about 143°, is still possible). A route that needs the aircraft to turn around where it stands is only used if nothing else works: the router adds 5000 m of cost for it.
 
 ## Pilot see-and-avoid
 
-Pilots don't collide on purpose. Every step, each aircraft that is moving along a path looks ahead along its **own path** by
+Pilots don't collide on purpose. Every step, each aircraft that is moving along a path looks ahead along its **own path** by (this includes landing aircraft on their exit)
 
 ```
 look-ahead = v² / (2 · 1.2 m/s²) + 55 m + own length
@@ -110,7 +111,7 @@ If so, it plans to stop `max(5 m, (length A + length B)/2 + 12 m - r)` before th
 
 **Mutual conflicts**: if two aircraft each see the other on their path (for example converging at an intersection), the one **closer** to the conflict point continues and the other waits. If both are already stopped, for example nose-to-nose on the same taxiway, nothing moves. This is a **deadlock**: after 60 s the pilots report `we have opposite traffic ahead, request instructions`, and you have to re-route one of them.
 
-**Give way**: an aircraft told to `give way to X` stops and waits until X is gone, X is more than 250 m away, or the distance has been increasing for 4 s while being larger than half the combined wingspans plus 40 m. After 4 minutes it continues anyway.
+**Give way and conditional clearances**: an aircraft told to `give way to X`, or given a conditional clearance (`behind X, ...`), waits until X **has passed**. That means X is airborne or gone, or its distance has grown at least 40 m beyond the closest distance so far and is larger than half the combined wingspans plus 40 m. It also continues if X stopped more than 300 m away (after 20 s), or after 4 minutes at the latest.
 
 ## AI pilots: communication
 
@@ -128,7 +129,11 @@ Pilots only talk on the frequency they are tuned to. Aircraft with Tower are sil
 | `blocked`  | Head-on / mutual deadlock for 60 s                                            | `hold position`, `give way`, a new route |
 | `route`    | Held short of a taxiway for 2 min, a taxi instruction became invalid, or Tower sent the aircraft back | `continue taxi`, a new route |
 
-**Reminders**: if a request isn't answered, the pilot calls again every 60-89 s (a fixed interval per callsign), up to 5 times. `standby` suppresses reminders for 120 s and counts as an answer for the waiting-time statistics.
+**Reminders**: if a request isn't answered, the pilot calls again every 60-89 s (a fixed interval per callsign), up to 5 times. These count as an answer for the waiting-time statistics and suppress reminders:
+
+- `standby`: for 120 s,
+- `number N for ...`: for 60 s + 45 s per queue position,
+- `expect ... in N minutes`: for N minutes + 20 s.
 
 **Answering** a request records the waiting time (time since the first call). Every 15 s of waiting beyond 30 s costs one point.
 
@@ -136,23 +141,37 @@ Pilots only talk on the frequency they are tuned to. Aircraft with Tower are sil
 
 ## AI Tower
 
-Tower owns the active runway. Each step it:
+Tower owns the runway. Its rules are a simplified model of ICAO PANS-ATM practice; the reasoning and the sources are in [tower-operations.md](tower-operations.md). Each step it:
 
 1. **Flies arrivals** down the final approach and lands them (see above).
-2. **Sequences departures**: candidates are aircraft on Tower frequency waiting at a holding point, in the order they reached it. The first one may **line up** when
-   - nobody is on the runway or inside the runway strip (see below), and no take-off roll or landing roll is in progress,
-   - no arrival is within 4.5 NM of the threshold,
-   - the previous take-off started at least 75 s ago (120 s after a heavy).
+2. **Sequences departures**: candidates are aircraft on Tower frequency waiting at a holding point, in the order they reached it. Only one aircraft lines up at a time. The first one may **line up** ("line up and wait") when
+   - nobody is inside the runway area, except a departure that is already rolling, or a landing aircraft that is more than 300 m past the departure's entry point ("behind the landing traffic, line up"),
+   - its departure separation will be met within 45 s (see below),
+   - no arrival with an emergency is within 8 NM,
+   - the next arrival is far enough out: its time to the threshold must exceed `35 s (line-up) + max(5 s, remaining departure separation, time until the landing aircraft ahead has vacated) + roll time + 15 s`. The roll time is `Vr / 2.0 m/s² + 12 s`, about 50 s for an A320.
 3. **Lines up** the aircraft: it moves onto the runway at 9 kt and stops 50 m along the runway heading. If less than 1500 m of runway would remain (an aircraft sent to a holding point at the wrong end), Tower sends it back to Ground.
-4. **Take-off**: after 8-20 s lined up, and once the runway is free, the aircraft accelerates at 2.0 m/s². At its rotation speed it becomes airborne, climbs at its climb rate, and accelerates to 200 kt.
-5. **Crossings for its own traffic**: aircraft already handed to Tower that stop at a runway holding point on their route get a crossing as soon as the runway is free and no arrival is within 3 NM.
+4. **Take-off** ("ready for immediate departure"): 3-8 s after lining up, when
+   - nobody else is in the runway area, the preceding departure is airborne, and the preceding landing aircraft has vacated,
+   - **departure separation** is met, measured from the moment the previous departure became airborne:
+     - **2 minutes behind a heavy** (wake turbulence; 3 minutes if this departure starts from an intersection),
+     - otherwise **2 minutes** if both use the same departure route (same first SID fix) and **1 minute** if the routes diverge,
+   - the next arrival is more than `roll time + 8 s` from the threshold (about 2 NM).
+
+   The aircraft then accelerates at 2.0 m/s². At its rotation speed it becomes airborne, climbs at its climb rate, and accelerates to 200 kt.
+5. **Crossings for its own traffic**: aircraft already handed to Tower that stop at a runway holding point on their route get a crossing as soon as the runway is free and the next arrival is more than 90 s away.
 
 The **runway area** used for occupancy checks extends 70 m either side of the centre line (the holding positions are at 95 m) and 60 m beyond each runway end.
+
+**Arrival spacing** (provided by the simulated Approach controller, see [traffic generation](#traffic-generation)): at least the wake turbulence minimum, and wider gaps when departures are waiting, so that one departure fits between two arrivals.
 
 ## Runway incursions and go-arounds
 
 - **Runway incursion**: a taxiing aircraft (phase `taxi`) enters the runway area while an arrival is within 2.5 NM, or while another aircraft is lining up, taking off or landing. Taxiing aircraft only enter the runway area with a crossing clearance, so every incursion is caused by a crossing clearance given at the wrong moment. **-50 points.**
-- **Go-around**: an arrival inside 0.9 NM finds the runway area occupied, or within 0.5 NM finds a take-off or landing roll still in progress. It climbs away, is removed, and is reported together with the aircraft that blocked the runway. **-15 points.**
+- **Go-around**: an arrival inside **0.5 NM** goes around if
+  - any aircraft is on the ground inside the runway area: lined up, crossing, or a preceding landing aircraft that hasn't vacated yet,
+  - except a departure on its take-off roll that is already beyond 1200 m or faster than 100 kt. That departure will be airborne and beyond 2400 m when the arrival crosses the threshold, which is the reduced runway separation rule.
+
+  It climbs away, is removed, and is reported together with the aircraft that blocked the runway. **-15 points.**
 
 ## Collisions
 
@@ -168,7 +187,9 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 
 - **Initial situation**: about 55% of an hour's departures are already parked at stands, with ready times spread over the first 25 minutes (the first one calls after 5-20 s). One arrival is on a 4-6 NM final.
 - **New departures** appear at exponentially distributed intervals (a Poisson process) with the mean given by the rate.
-- **New arrivals** follow the same kind of process, but at least 150 s apart, and only if no other arrival is still further out than 6 NM.
+- **New arrivals** follow the same kind of process. A new arrival is only released onto the final (at 9 NM) when the distance to the previous arrival is at least the **required spacing**, which is the larger of:
+  - the **wake turbulence minimum**: 3 NM normally; 4 NM heavy behind heavy, 5 NM medium behind heavy, 6 NM light behind heavy, 5 NM light behind medium (larger values behind an A380, category J),
+  - the **runway spacing**: 4 NM when no departures are waiting, **6 NM** when at least one departure is holding or taxiing to a holding point, **8 NM** with four or more. These are the "departure gaps" Approach gives on request.
 - **Operators, types and destinations** are taken from [`src/data/airlines.ts`](../src/data/airlines.ts) and weighted by frequency. The mix reflects carriers that typically serve Stuttgart (Eurowings, Lufthansa, Condor, TUI, Turkish, SunExpress, ...) plus some business jets.
 - **Callsigns** are unique within a session: alphanumeric (`EWG7TK`), numeric (`THY1734`) or registrations (`DCMGB`), depending on the operator.
 - **Flight plans** contain the destination, a SID for the active runway (placeholder names), cruise level and a squawk.
@@ -186,6 +207,24 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 
 ## Weather and ATIS
 
-- **Wind** is drawn at session start: within ±30° of the active runway's magnetic heading, 3-14 kt.
+- **Wind** is drawn at session start: 70% westerly (220-290°), 30% easterly (040-110°), 3-14 kt.
+- **Runway in use** at session start: the first runway of the airport (25 at EDDS), unless it has more than 3 kt tailwind; then the runway with the most headwind.
 - **QNH** 1003-1028 hPa.
-- **ATIS** starts at a random letter and advances every 30 minutes (Z wraps to A). Pilots quote the current letter on first contact.
+- **ATIS** starts at a random letter. It only changes when **you** broadcast a new ATIS in the ATIS editor. Pilots quote the current letter on first contact.
+- **Runway change** (via the ATIS):
+  - Departures that are parked, pushing back or starting up and have no taxi instruction yet get the new runway, and a SID with the same first fix for the new runway.
+  - Arrivals further out than 3.5 NM are moved onto the new final (Approach re-sequences them, at least 6 NM out).
+  - Arrivals closer in land on the old runway; Tower doesn't line anyone up until they have landed.
+  - Taxiing departures keep their clearance.
+
+## Special events
+
+Enabled with **Special events** in the Connect dialog (default on). All of them are rare:
+
+| Event                          | Chance                          | What happens                                                                 |
+| ------------------------------ | ------------------------------- | ---------------------------------------------------------------------------- |
+| Medical emergency, arrival     | 2% of arrivals                  | Declared on final (system message). Lands with priority: no line-ups while it is within 8 NM. After vacating, the pilot calls `PAN PAN, medical emergency ..., request expedited taxi to the stand`. |
+| Medical emergency, departure   | 1% of departures                | 40 s after starting to taxi, the pilot calls `PAN PAN ... request immediate return to the stand`. A stand is suggested; give it a route back (`taxi to stand ...`). |
+| Rejected take-off              | 1.5% of take-offs               | The take-off is aborted at 60-110 kt. The aircraft brakes at 3 m/s², vacates at the next usable exit and calls you. 60% want to return to a stand (technical problem), 40% request taxi for another departure. The runway is blocked meanwhile, so arrivals may have to go around. |
+
+A medical emergency counts as handled when the aircraft reaches a stand. Within **6 minutes** of the emergency call, that earns a **+15 point bonus**. Emergency aircraft are shown with `PAN` and a flashing magenta symbol and tag.

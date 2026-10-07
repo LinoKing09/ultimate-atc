@@ -48,7 +48,7 @@ The tests live in `tests/`:
 | -------------------------- | -------------------------------------------------------------------------------- |
 | `tests/routing.test.ts`    | EDDS data consistency, taxi route finding with `via` constraints, one-way exits  |
 | `tests/parser.test.ts`     | Phraseology parser (typed and spoken forms), text-to-speech formatting           |
-| `tests/simulation.test.ts` | End-to-end scenarios: departure push/taxi/handoff/take-off, arrival landing and parking, runway crossing, separation, a one-hour soak test |
+| `tests/simulation.test.ts` | End-to-end scenarios: departure push/taxi/handoff/take-off, arrival landing and parking, runway crossing, separation, routing realism (no turn-backs / U-turns), extended phraseology (cancel/stop pushback, queue numbers, clearance limits, conditional clearances), ATIS and runway change, special events, tower flow (waiting times, go-arounds), a one-hour soak test |
 
 ## Deploying to GitHub Pages
 
@@ -65,4 +65,4 @@ The repository contains two workflows in `.github/workflows/`:
 
 - **Text-to-speech** (TTS button) uses the browser's built-in voices. The available voices depend on the operating system. English voices are preferred when installed.
 - **Speech recognition** (MIC button, or hold the key left of `1`, which is `^` on German keyboards and `` ` `` on US keyboards) uses the Web Speech API. Chrome sends the audio to Google's speech service for recognition. If you don't want that, don't use the microphone; everything can be typed.
-- **Settings** (last airport, runway, traffic density, TTS on/off, route display) are stored in your browser's `localStorage`. If storage is blocked, for example in some private-browsing modes, the app still works with default settings.
+- **Settings** (last airport, traffic density, special events, TTS on/off, route display) are stored in your browser's `localStorage`. If storage is blocked, for example in some private-browsing modes, the app still works with default settings.

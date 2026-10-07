@@ -19,7 +19,7 @@ ultimate-atc/
 │   │   ├── airport/
 │   │   │   ├── types.ts       # serialisable AirportData format
 │   │   │   ├── airport.ts     # runtime Airport: local coordinates, taxi graph, lookups
-│   │   │   └── routing.ts     # taxi route finding with "via" constraints
+│   │   │   └── routing.ts     # taxi route finding with "via" constraints and turn limits
 │   │   ├── aircraft.ts        # Aircraft state, flight plan, phases
 │   │   ├── movement.ts        # path following, speed control, see-and-avoid, collisions
 │   │   ├── pilot.ts           # AI pilots: executing instructions, read-backs, own calls
@@ -112,12 +112,14 @@ Runway holding positions are **nodes** with a `holdingPoint` attribute. Moving f
 
 ### Taxi routing
 
-`findRoute(airport, start, destination, via)` in `core/airport/routing.ts` runs **Dijkstra on the state (node, k)**, where `k` is the number of `via` taxiways joined so far. An edge may be used if
+`findRoute(airport, start, destination, via)` in `core/airport/routing.ts` runs **Dijkstra on the state (node, k, incoming edge)**, where `k` is the number of `via` taxiways joined so far. The incoming edge is part of the state so that **turns sharper than 150°** (hairpins, reversing on a taxiway) can be rejected. An edge may be used if
 
 - its name is the current via taxiway `via[k-1]` (stay on it), or the next one `via[k]` (k + 1), or
 - it is a "free" edge that controllers usually don't mention: a stand lead-in or taxilane at the start or end of the route, the taxiway the aircraft is currently on (k = 0), or the taxiway the destination lies on (k = len(via)).
 
-The goal state is `(destination, len(via))`. With an empty `via` list, the router returns the overall shortest route and adds a large penalty to runway strips, so it avoids crossing runways whenever possible. Routes can start at a node (a stand) or at an arbitrary position and heading. The start then snaps to the nearest edge, and a start node behind the aircraft costs a 400 m U-turn penalty.
+The goal is any state at `(destination, len(via))`. With an empty `via` list, the router returns the overall shortest route and adds a large penalty to runway strips, so it avoids crossing runways whenever possible. Routes can start at a node (a stand) or at an arbitrary position and heading. The start then snaps to the nearest edge; both edge ends are candidates. The first turn is checked against the aircraft's direction of travel, so it can't immediately reverse. A start node *behind* the aircraft means turning around on the spot and costs 5000 m, so it is only used as a last resort.
+
+`resolveClearanceLimit` (pilot.ts) handles incomplete instructions like `taxi via N, hold short of F`. It tries every junction of the last via taxiway with F (or every holding point of the runway) as destination and keeps the shortest valid route.
 
 ### Paths
 

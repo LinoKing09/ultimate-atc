@@ -11,9 +11,22 @@ const RATES: Record<Density, { departures: number; arrivals: number }> = {
   heavy: { departures: 22, arrivals: 18 },
 };
 
-/** Minimum spacing between two arrivals on final, in seconds. */
-const MIN_ARRIVAL_SPACING = 150;
 const SPAWN_DISTANCE_NM = 9;
+/** Chance that a generated arrival declares a medical emergency (with special events on). */
+const ARRIVAL_MEDICAL_CHANCE = 0.02;
+/** Chance that a departure declares a medical emergency while taxiing (with special events on). */
+const DEPARTURE_MEDICAL_CHANCE = 0.01;
+
+/**
+ * Wake turbulence distance minima on final (NM) for leader/follower
+ * categories; 3 NM radar minimum otherwise.
+ */
+function wakeSpacingNm(leader: string, follower: string): number {
+  if (leader === 'J') return follower === 'J' ? 4 : follower === 'H' ? 6 : follower === 'M' ? 7 : 8;
+  if (leader === 'H') return follower === 'H' ? 4 : follower === 'M' ? 5 : 6;
+  if (leader === 'M' && follower === 'L') return 5;
+  return 3;
+}
 
 /**
  * Generates traffic: departures that appear on free stands and call for
@@ -22,7 +35,6 @@ const SPAWN_DISTANCE_NM = 9;
 export class TrafficGenerator {
   private nextDepartureAt = 0;
   private nextArrivalAt = 0;
-  private lastArrivalAt = -Infinity;
   private usedCallsigns = new Set<string>();
 
   constructor(private readonly sim: Simulation) {}
@@ -43,7 +55,7 @@ export class TrafficGenerator {
     }
     // A couple of arrivals already inbound.
     this.spawnArrival(sim.rng.range(4, 6));
-    this.nextArrivalAt = sim.time + sim.rng.range(120, 240);
+    this.nextArrivalAt = sim.time + sim.rng.range(60, 180);
     this.nextDepartureAt = sim.time + sim.rng.exponential(3600 / r.departures);
   }
 
@@ -55,17 +67,59 @@ export class TrafficGenerator {
       this.nextDepartureAt = sim.time + sim.rng.exponential(3600 / r.departures);
     }
     if (sim.time >= this.nextArrivalAt) {
-      if (sim.time - this.lastArrivalAt >= MIN_ARRIVAL_SPACING && !this.finalCongested()) {
-        this.spawnArrival(SPAWN_DISTANCE_NM);
-        this.nextArrivalAt = sim.time + Math.max(MIN_ARRIVAL_SPACING, sim.rng.exponential(3600 / r.arrivals));
+      // Pick the next arrival first: the required gap depends on its wake category.
+      this.pendingArrival ??= this.pickArrivalSpec();
+      if (this.arrivalGapAvailable(this.pendingArrival.type.wake)) {
+        this.spawnArrival(SPAWN_DISTANCE_NM, { airline: this.pendingArrival.airline, type: this.pendingArrival.type.icao });
+        this.pendingArrival = undefined;
+        this.nextArrivalAt = sim.time + sim.rng.exponential(3600 / r.arrivals);
       } else {
-        this.nextArrivalAt = sim.time + 20;
+        this.nextArrivalAt = sim.time + 10;
       }
     }
   }
 
-  private finalCongested(): boolean {
-    return this.sim.aircraft.some((a) => a.phase === 'approach' && this.sim.distanceToThresholdNm(a) > SPAWN_DISTANCE_NM - 3);
+  /**
+   * Approach spacing: the new arrival must be at least the wake turbulence
+   * minimum behind the last one; when departures are waiting, Approach
+   * provides wider gaps so departures can go in between (6 NM, 8 NM with a
+   * long queue).
+   */
+  requiredArrivalSpacingNm(followerWake: string): number {
+    const sim = this.sim;
+    const last = this.lastArrivalOnFinal();
+    const wake = last ? wakeSpacingNm(last.type.wake, followerWake) : 3;
+    const demand = sim.tower.departureDemand();
+    const gap = demand >= 4 ? 8 : demand >= 1 ? 6 : 4;
+    return Math.max(wake, gap);
+  }
+
+  private lastArrivalOnFinal(): Aircraft | undefined {
+    let best: Aircraft | undefined;
+    for (const a of this.sim.aircraft) {
+      if (a.phase !== 'approach') continue;
+      if (!best || this.sim.distanceToThresholdNm(a) > this.sim.distanceToThresholdNm(best)) best = a;
+    }
+    return best;
+  }
+
+  private arrivalGapAvailable(followerWake: string): boolean {
+    const last = this.lastArrivalOnFinal();
+    if (!last) return true;
+    return SPAWN_DISTANCE_NM - this.sim.distanceToThresholdNm(last) >= this.requiredArrivalSpacingNm(followerWake);
+  }
+
+  private pendingArrival?: { airline: Airline; type: AircraftType };
+
+  private pickArrivalSpec(): { airline: Airline; type: AircraftType } {
+    const airline = this.pickAirline();
+    return { airline, type: aircraftType(this.sim.rng.pick(airline.types)) };
+  }
+
+  /** Allocates a free stand for an aircraft that needs one (arrival, returning departure). */
+  allocateStand(ac: Aircraft): Stand | undefined {
+    const airline = AIRLINES.find((a) => ac.callsign.startsWith(a.icao)) ?? AIRLINES.find((a) => a.callsignStyle === 'reg')!;
+    return this.pickStand(ac.type, airline);
   }
 
   // ------------------------------------------------------------------ helpers
@@ -125,7 +179,7 @@ export class TrafficGenerator {
     const stand = opts.stand ? sim.airport.stand(opts.stand) : this.pickStand(type, airline);
     if (!stand) return undefined;
     const callsign = opts.callsign ?? this.makeCallsign(airline);
-    const rwy = sim.config.runway;
+    const rwy = sim.runway;
     const sids = sim.config.airport.sids.filter((s) => s.runway === rwy);
     const sid = sids.length ? sim.rng.pick(sids) : undefined;
     const destination = sim.rng.pick(airline.destinations);
@@ -153,13 +207,14 @@ export class TrafficGenerator {
     ac.stand = stand.id;
     ac.runway = rwy;
     ac.readyAt = sim.time + readyIn;
+    ac.plannedMedical = sim.config.events !== false && sim.rng.chance(DEPARTURE_MEDICAL_CHANCE);
     sim.aircraft.push(ac);
     return ac;
   }
 
-  spawnArrival(distanceNm: number, opts: { callsign?: string; type?: string } = {}): Aircraft | undefined {
+  spawnArrival(distanceNm: number, opts: { callsign?: string; type?: string; airline?: Airline; medical?: boolean } = {}): Aircraft | undefined {
     const sim = this.sim;
-    const airline = this.pickAirline();
+    const airline = opts.airline ?? this.pickAirline();
     const type = aircraftType(opts.type ?? sim.rng.pick(airline.types));
     const stand = this.pickStand(type, airline);
     const callsign = opts.callsign ?? this.makeCallsign(airline);
@@ -168,7 +223,7 @@ export class TrafficGenerator {
       departure: origin,
       destination: sim.config.airport.icao,
       route: `DCT ${sim.config.airport.icao}`,
-      runway: sim.config.runway,
+      runway: sim.runway,
       cruiseFl: sim.rng.int(28, 39) * 10,
       squawk: this.squawk(),
     };
@@ -185,9 +240,13 @@ export class TrafficGenerator {
       now: sim.time,
     });
     ac.assignedStand = stand?.id;
+    if (opts.medical ?? (sim.config.events !== false && sim.rng.chance(ARRIVAL_MEDICAL_CHANCE))) {
+      ac.emergency = 'medical';
+      ac.emergencySince = sim.time;
+      sim.system(`Approach: ${callsign} has declared PAN PAN (medical emergency) and will land with priority.`, 'warning', callsign);
+    }
     sim.tower.setupApproach(ac, distanceNm);
     sim.aircraft.push(ac);
-    this.lastArrivalAt = sim.time;
     return ac;
   }
 }

@@ -42,6 +42,7 @@ export function clearedTo(ac: Aircraft): string {
   if (d) {
     if (d.kind === 'holdingPoint') return d.name;
     if (d.kind === 'runway') return `R${d.runway}`;
+    if (d.kind === 'holdShort') return `HS ${d.name}`;
     return `S${d.stand}`;
   }
   return '';

@@ -49,17 +49,31 @@ export class PilotVoices {
   cancel(): void {
     if (this.supported) window.speechSynthesis.cancel();
   }
+
+  /** Pauses speech while the controller is transmitting (so the microphone doesn't hear the pilots). */
+  pause(): void {
+    if (this.supported) window.speechSynthesis.pause();
+  }
+
+  resume(): void {
+    if (this.supported) window.speechSynthesis.resume();
+  }
 }
 
 // Minimal typings for the (prefixed) SpeechRecognition API.
+interface RecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
 interface RecognitionResultEvent {
   resultIndex: number;
-  results: ArrayLike<{ isFinal: boolean; 0: { transcript: string } }>;
+  results: ArrayLike<{ isFinal: boolean; length: number; [i: number]: RecognitionAlternative }>;
 }
 interface Recognition {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  maxAlternatives: number;
   onresult: ((e: RecognitionResultEvent) => void) | null;
   onend: (() => void) | null;
   onerror: ((e: { error: string }) => void) | null;
@@ -69,12 +83,14 @@ interface Recognition {
 
 export class VoiceInput {
   private rec?: Recognition;
-  private finalText = '';
+  /** Final results so far; each entry holds the recogniser's alternatives for one phrase. */
+  private finals: string[][] = [];
   listening = false;
 
   constructor(
     private readonly onInterim: (text: string) => void,
-    private readonly onFinal: (text: string) => void,
+    /** Called with candidate transcripts (best guess first) when the transmission ends. */
+    private readonly onFinal: (candidates: string[]) => void,
     private readonly onState: (listening: boolean, error?: string) => void,
   ) {
     const w = window as unknown as { SpeechRecognition?: new () => Recognition; webkitSpeechRecognition?: new () => Recognition };
@@ -84,21 +100,25 @@ export class VoiceInput {
     rec.lang = 'en-US';
     rec.continuous = true;
     rec.interimResults = true;
+    rec.maxAlternatives = 5;
     rec.onresult = (e) => {
       let interim = '';
       for (let i = e.resultIndex; i < e.results.length; i++) {
         const r = e.results[i];
-        if (r.isFinal) this.finalText += r[0].transcript + ' ';
-        else interim += r[0].transcript;
+        if (r.isFinal) {
+          const alts: string[] = [];
+          for (let k = 0; k < r.length; k++) alts.push(r[k].transcript.trim());
+          this.finals.push(alts);
+        } else interim += r[0].transcript;
       }
-      this.onInterim((this.finalText + interim).trim());
+      this.onInterim(`${this.finals.map((f) => f[0]).join(' ')} ${interim}`.trim());
     };
     rec.onend = () => {
-      const text = this.finalText.trim();
+      const candidates = combineAlternatives(this.finals);
       this.listening = false;
       this.onState(false);
-      if (text) this.onFinal(text);
-      this.finalText = '';
+      if (candidates.length) this.onFinal(candidates);
+      this.finals = [];
     };
     rec.onerror = (e) => {
       this.listening = false;
@@ -113,7 +133,7 @@ export class VoiceInput {
 
   start(): void {
     if (!this.rec || this.listening) return;
-    this.finalText = '';
+    this.finals = [];
     try {
       this.rec.start();
       this.listening = true;
@@ -127,4 +147,23 @@ export class VoiceInput {
     if (!this.rec || !this.listening) return;
     this.rec.stop();
   }
+}
+
+/**
+ * Builds complete candidate transcripts from per-phrase alternatives: the
+ * best guess, plus variants where one phrase is replaced by one of its
+ * alternatives (at most ~25 candidates).
+ */
+export function combineAlternatives(finals: string[][]): string[] {
+  if (!finals.length) return [];
+  const best = finals.map((f) => f[0]);
+  const out = [best.join(' ')];
+  finals.forEach((alts, i) => {
+    for (let k = 1; k < alts.length; k++) {
+      const v = [...best];
+      v[i] = alts[k];
+      out.push(v.join(' '));
+    }
+  });
+  return [...new Set(out.map((t) => t.trim()).filter(Boolean))].slice(0, 25);
 }

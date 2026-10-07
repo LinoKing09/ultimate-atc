@@ -32,12 +32,18 @@ const C = {
   request: '#ffcf4d',
   late: '#ff7b54',
   danger: '#ff5a5a',
+  emergency: '#ff5cf0',
   selected: '#6fe3ff',
 };
+
+/** Clickable items of a data tag (EuroScope style). */
+export type TagItem = 'callsign' | 'type' | 'target' | 'status';
 
 export interface ScopeCallbacks {
   onSelect(callsign: string | undefined): void;
   onContextMenu(callsign: string, clientX: number, clientY: number): void;
+  /** Left click on a specific tag item. */
+  onTagItem(callsign: string, item: TagItem, clientX: number, clientY: number): void;
 }
 
 interface TagRect {
@@ -46,6 +52,7 @@ interface TagRect {
   y: number;
   w: number;
   h: number;
+  items: { item: TagItem; x: number; y: number; w: number; h: number }[];
 }
 
 export class Scope {
@@ -65,7 +72,16 @@ export class Scope {
   preview?: { points: Vec2[]; ok: boolean };
   showAllRoutes = true;
 
-  private drag?: { mode: 'pan' | 'tag'; callsign?: string; lastX: number; lastY: number; moved: boolean };
+  private drag?: {
+    mode: 'pan' | 'tag';
+    callsign?: string;
+    item?: TagItem;
+    clientX?: number;
+    clientY?: number;
+    lastX: number;
+    lastY: number;
+    moved: boolean;
+  };
   private pointers = new Map<number, { x: number; y: number }>();
   private pinchDist?: number;
 
@@ -127,10 +143,15 @@ export class Scope {
 
   // ------------------------------------------------------------------ input
 
-  private hitTest(sx: number, sy: number): { callsign: string; kind: 'tag' | 'symbol' } | undefined {
+  private hover?: { callsign: string; item?: TagItem };
+
+  private hitTest(sx: number, sy: number): { callsign: string; kind: 'tag' | 'symbol'; item?: TagItem } | undefined {
     for (let i = this.tagRects.length - 1; i >= 0; i--) {
       const t = this.tagRects[i];
-      if (sx >= t.x && sx <= t.x + t.w && sy >= t.y && sy <= t.y + t.h) return { callsign: t.callsign, kind: 'tag' };
+      if (sx >= t.x && sx <= t.x + t.w && sy >= t.y && sy <= t.y + t.h) {
+        const it = t.items.find((r) => sx >= r.x && sx <= r.x + r.w && sy >= r.y && sy <= r.y + r.h);
+        return { callsign: t.callsign, kind: 'tag', item: it?.item };
+      }
     }
     let best: { callsign: string; d: number } | undefined;
     for (const s of this.symbolHits) {
@@ -176,7 +197,7 @@ export class Scope {
       }
       if (hit?.kind === 'tag') {
         this.cb.onSelect(hit.callsign);
-        this.drag = { mode: 'tag', callsign: hit.callsign, lastX: sx, lastY: sy, moved: false };
+        this.drag = { mode: 'tag', callsign: hit.callsign, item: hit.item, clientX: e.clientX, clientY: e.clientY, lastX: sx, lastY: sy, moved: false };
       } else if (hit) {
         this.cb.onSelect(hit.callsign);
       } else {
@@ -196,6 +217,7 @@ export class Scope {
         return;
       }
       const hover = this.hitTest(sx, sy);
+      this.hover = hover ? { callsign: hover.callsign, item: hover.item } : undefined;
       c.style.cursor = hover ? 'pointer' : this.drag?.mode === 'pan' ? 'grabbing' : 'crosshair';
       if (!this.drag) return;
       const dx = sx - this.drag.lastX;
@@ -218,6 +240,10 @@ export class Scope {
       this.pointers.delete(e.pointerId);
       if (this.pointers.size < 2) this.pinchDist = undefined;
       if (this.drag && this.drag.mode === 'pan' && !this.drag.moved && e.button === 0) this.cb.onSelect(undefined);
+      // A click (no drag) on a tag item opens that item's function, like in EuroScope.
+      if (this.drag && this.drag.mode === 'tag' && !this.drag.moved && this.drag.item && this.drag.callsign) {
+        this.cb.onTagItem(this.drag.callsign, this.drag.item, this.drag.clientX ?? e.clientX, this.drag.clientY ?? e.clientY);
+      }
       this.drag = undefined;
     };
     c.addEventListener('pointerup', end);
@@ -431,6 +457,7 @@ export class Scope {
 
   private colorFor(ac: Aircraft, now: number): string {
     if (ac.incident) return C.danger;
+    if (ac.emergency) return Math.floor(now / 400) % 2 === 0 ? C.emergency : C.mine;
     const mine = this.sim.isOnMyFrequency(ac);
     if (mine && ac.request) {
       const late = this.sim.time - ac.requestSince > 60;
@@ -555,22 +582,32 @@ export class Scope {
     const p = this.toScreen(ac.pos);
     const off = ac.tagOffset ?? defaultTagOffset();
     const mine = this.sim.isOnMyFrequency(ac);
-    const lines: string[] = [];
     const compact = (ac.phase === 'parked' && !ac.request) || ac.phase === 'arrived';
-    lines.push(ac.callsign + (mine && ac.request ? ' *' : ''));
+    const hovered = this.hover?.callsign === ac.callsign;
+    // Each line is a list of items; items are clickable.
+    type Part = { text: string; item?: TagItem; color?: string };
+    const lines: Part[][] = [];
+    const head: Part[] = [{ text: ac.callsign, item: 'callsign' }];
+    if (ac.emergency) head.push({ text: ' PAN', color: C.emergency });
+    if (mine && ac.request) head.push({ text: ' *' });
+    lines.push(head);
+    // Hovering the callsign shows the radiotelephony callsign (e.g. "SPEEDBIRD 947").
+    if (hovered && this.hover?.item === 'callsign') lines.push([{ text: this.sim.tel(ac).toUpperCase(), color: C.selected }]);
     if (!compact) {
       if (ac.onGround) {
-        const target = clearedTo(ac) || (ac.category === 'arrival' && ac.assignedStand ? `>${ac.assignedStand}` : ac.stand ?? '');
-        lines.push(`${ac.type.icao} ${target}`.trim());
-        lines.push(`${statusCode(ac)} ${Math.round(ac.speed / KT_TO_MS)}`);
+        const target = clearedTo(ac) || (ac.assignedStand ? `>${ac.assignedStand}` : ac.stand ?? '');
+        lines.push([{ text: ac.type.icao, item: 'type' }, { text: ' ' }, { text: target || '---', item: 'target' }]);
+        const seq = ac.sequence ? ` #${ac.sequence.number}` : '';
+        lines.push([{ text: statusCode(ac), item: 'status' }, { text: ` ${Math.round(ac.speed / KT_TO_MS)}${seq}` }]);
       } else {
-        lines.push(`${ac.type.icao} ${ac.category === 'arrival' ? 'ARR' : ac.flightPlan.destination}`);
-        lines.push(`A${String(Math.round(ac.altitudeFt / 100)).padStart(3, '0')} ${Math.round(ac.speed / KT_TO_MS)}`);
+        lines.push([{ text: ac.type.icao, item: 'type' }, { text: ` ${ac.category === 'arrival' ? 'ARR' : ac.flightPlan.destination}` }]);
+        lines.push([{ text: `A${String(Math.round(ac.altitudeFt / 100)).padStart(3, '0')} ${Math.round(ac.speed / KT_TO_MS)}` }]);
       }
     }
     ctx.font = '11px Consolas, Menlo, monospace';
     const lh = 12;
-    const w = Math.max(...lines.map((l) => ctx.measureText(l).width)) + 4;
+    const widths = lines.map((l) => ctx.measureText(l.map((x) => x.text).join('')).width);
+    const w = Math.max(...widths) + 4;
     const hgt = lines.length * lh + 2;
     const tx = p.x + off.x;
     const ty = p.y + off.y;
@@ -585,15 +622,30 @@ export class Scope {
     ctx.lineTo(lx, ly);
     ctx.stroke();
     ctx.globalAlpha = 1;
-    if (ac.callsign === this.selected) {
-      ctx.fillStyle = 'rgba(111, 227, 255, 0.12)';
+    if (ac.callsign === this.selected || hovered) {
+      ctx.fillStyle = ac.callsign === this.selected ? 'rgba(111, 227, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)';
       ctx.fillRect(tx, ty, w, hgt);
     }
-    ctx.fillStyle = color;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    lines.forEach((l, i) => ctx.fillText(l, tx + 2, ty + 1 + i * lh));
-    this.tagRects.push({ callsign: ac.callsign, x: tx, y: ty, w, h: hgt });
+    const items: TagRect['items'] = [];
+    lines.forEach((parts, i) => {
+      let x = tx + 2;
+      const y = ty + 1 + i * lh;
+      for (const part of parts) {
+        const pw = ctx.measureText(part.text).width;
+        const isHover = hovered && part.item && this.hover?.item === part.item;
+        if (isHover) {
+          ctx.fillStyle = 'rgba(111, 227, 255, 0.25)';
+          ctx.fillRect(x - 1, y - 1, pw + 2, lh);
+        }
+        ctx.fillStyle = part.color ?? color;
+        ctx.fillText(part.text, x, y);
+        if (part.item) items.push({ item: part.item, x: x - 1, y: y - 1, w: pw + 2, h: lh });
+        x += pw;
+      }
+    });
+    this.tagRects.push({ callsign: ac.callsign, x: tx, y: ty, w, h: hgt, items });
   }
 
   render(now: number): void {

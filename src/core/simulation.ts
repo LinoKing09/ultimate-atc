@@ -16,14 +16,16 @@ export interface SimConfig {
   airport: AirportData;
   /** Position the user is logged in as. Only 'GND' is implemented so far. */
   position: StationType;
-  /** Active runway end, e.g. "25". */
-  runway: string;
+  /** Active runway end, e.g. "25". If omitted, the runway is chosen from the wind. */
+  runway?: string;
   density: Density;
   seed?: number;
   /** UTC start time of the session; defaults to the current time. */
   startTime?: Date;
   /** Set to false to start with an empty airport (used by tests). */
   generateTraffic?: boolean;
+  /** Special events (medical emergencies, rejected take-offs). Default: true. */
+  events?: boolean;
 }
 
 export type IncidentType = 'collision' | 'incursion' | 'goAround';
@@ -48,7 +50,28 @@ export interface Stats {
   incursions: number;
   collisions: number;
   goArounds: number;
+  rejectedTakeoffs: number;
+  emergenciesHandled: number;
+  /** Bonus points (e.g. medical emergencies handled quickly). */
+  bonus: number;
   score: number;
+}
+
+/** Current ATIS (maintained by the controller). */
+export interface AtisInfo {
+  letter: string;
+  runway: string;
+  wind: { direction: number; speedKt: number };
+  qnh: number;
+  /** Simulation time of the last update. */
+  updatedAt: number;
+}
+
+export interface AtisChange {
+  letter?: string;
+  runway?: string;
+  wind?: { direction: number; speedKt: number };
+  qnh?: number;
 }
 
 export interface TransmitResult {
@@ -99,13 +122,13 @@ export class Simulation {
     incursions: 0,
     collisions: 0,
     goArounds: 0,
+    rejectedTakeoffs: 0,
+    emergenciesHandled: 0,
+    bonus: 0,
     score: 0,
   };
 
-  atisLetter: string;
-  private atisChangedAt = 0;
-  wind: { direction: number; speedKt: number };
-  qnh: number;
+  readonly atis: AtisInfo;
 
   private listeners: { [K in keyof Events]: Listener<Events[K]>[] } = {
     message: [],
@@ -120,20 +143,28 @@ export class Simulation {
     this.rng = new Rng(config.seed ?? Math.floor(Math.random() * 2 ** 31));
     const station = this.airport.station(config.position);
     if (!station) throw new Error(`${config.airport.icao} has no ${config.position} station`);
-    if (!this.airport.runwayEnd(config.runway)) throw new Error(`Unknown runway ${config.runway}`);
     this.station = station;
     this.startEpochMs = (config.startTime ?? new Date()).getTime();
     this.frequency = new Frequency(station.frequency, (m) => this.pushMessage(m));
     this.tower = new TowerAI(this);
     this.traffic = new TrafficGenerator(this);
 
-    this.atisLetter = String.fromCharCode(65 + this.rng.int(0, 25));
-    const rwyHeading = this.airport.runwayEnd(config.runway)!.heading - config.airport.magneticVariation;
-    this.wind = {
-      direction: Math.round((rwyHeading + this.rng.range(-30, 30) + 360) % 360 / 10) * 10 || 360,
+    // Wind first; the active runway is the one with the most headwind unless given.
+    const westerly = this.rng.chance(0.7);
+    const wind = {
+      direction: Math.round((westerly ? this.rng.range(220, 290) : this.rng.range(40, 110)) / 10) * 10,
       speedKt: this.rng.int(3, 14),
     };
-    this.qnh = this.rng.int(1003, 1028);
+    const runway = config.runway ?? this.bestRunwayForWind(wind);
+    if (!this.airport.runwayEnd(runway)) throw new Error(`Unknown runway ${runway}`);
+    this.config.runway = runway;
+    this.atis = {
+      letter: String.fromCharCode(65 + this.rng.int(0, 25)),
+      runway,
+      wind,
+      qnh: this.rng.int(1003, 1028),
+      updatedAt: 0,
+    };
 
     if (config.generateTraffic !== false) this.traffic.populateInitial();
   }
@@ -191,11 +222,6 @@ export class Simulation {
 
   private step(dt: number): void {
     this.time += dt;
-    if (this.time - this.atisChangedAt > 1800) {
-      this.atisChangedAt = this.time;
-      this.atisLetter = this.atisLetter === 'Z' ? 'A' : String.fromCharCode(this.atisLetter.charCodeAt(0) + 1);
-      this.system(`ATIS information ${this.atisLetter} is now current.`);
-    }
     if (this.config.generateTraffic !== false) this.traffic.update();
     this.tower.update(dt);
     updateSeparation(this);
@@ -222,15 +248,98 @@ export class Simulation {
    * Transmits a controller message. The text is parsed as ICAO phraseology,
    * the addressed pilot executes the instructions and reads them back.
    */
-  transmit(text: string, selected?: string): TransmitResult {
+  transmit(text: string, selected?: string, opts: { fallbackToLastCaller?: boolean } = {}): TransmitResult {
     const trimmed = text.trim();
     if (!trimmed) return { ok: false };
-    const parsed = parseTransmission(trimmed, {
-      callsigns: this.aircraft.map((a) => a.callsign),
-      taxiways: this.airport.taxiwayNames,
-      selected,
-    });
+    const callsigns = this.aircraft.map((a) => a.callsign);
+    let parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected });
+    // Voice-only operation: without callsign and selection, address the pilot who called last.
+    if (!parsed.callsign && opts.fallbackToLastCaller) {
+      const last = this.lastCaller();
+      if (last) parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected: last.callsign });
+    }
     return executeTransmission(this, parsed, trimmed);
+  }
+
+  /** The pilot on my frequency who most recently made a request that is still open. */
+  lastCaller(): Aircraft | undefined {
+    return this.aircraft
+      .filter((a) => a.request && this.isOnMyFrequency(a))
+      .sort((a, b) => b.lastCallAt - a.lastCallAt)[0];
+  }
+
+  // ------------------------------------------------------------------ ATIS / runway
+
+  /** Active runway end designator. */
+  get runway(): string {
+    return this.config.runway!;
+  }
+
+  get atisLetter(): string {
+    return this.atis.letter;
+  }
+
+  /** Headwind (positive) / tailwind (negative) and crosswind components in knots for a runway end. */
+  windComponents(runwayEnd: string, wind = this.atis.wind): { headwind: number; crosswind: number } {
+    const end = this.airport.runwayEnd(runwayEnd);
+    if (!end) return { headwind: 0, crosswind: 0 };
+    const magHeading = end.heading - this.config.airport.magneticVariation;
+    const diff = ((wind.direction - magHeading) * Math.PI) / 180;
+    return { headwind: wind.speedKt * Math.cos(diff), crosswind: wind.speedKt * Math.sin(diff) };
+  }
+
+  bestRunwayForWind(wind: { direction: number; speedKt: number }): string {
+    const ends = this.config.airport.runwayOps.map((o) => o.runway);
+    // Calm or light wind: keep the first (preferred) runway unless it has more than 3 kt tailwind.
+    const pref = ends[0];
+    if (this.windComponents(pref, wind).headwind >= -3) return pref;
+    return ends.reduce((b, e) => (this.windComponents(e, wind).headwind > this.windComponents(b, wind).headwind ? e : b));
+  }
+
+  /**
+   * Updates the ATIS. A new information letter is issued automatically
+   * (unless one is given) and a runway change is applied to the traffic.
+   */
+  updateAtis(change: AtisChange): void {
+    const a = this.atis;
+    const runwayChanged = change.runway !== undefined && change.runway !== a.runway;
+    if (change.wind) a.wind = { ...change.wind };
+    if (change.qnh !== undefined) a.qnh = change.qnh;
+    if (runwayChanged) {
+      if (!this.airport.runwayEnd(change.runway!)) throw new Error(`Unknown runway ${change.runway}`);
+      a.runway = change.runway!;
+      this.changeRunway(change.runway!);
+    }
+    a.letter = change.letter ?? nextLetter(a.letter);
+    a.updatedAt = this.time;
+    this.system(`ATIS information ${a.letter} is now current: ${this.atisText()}`);
+  }
+
+  /** ATIS broadcast text (abbreviated). */
+  atisText(): string {
+    const a = this.atis;
+    const hhmm = this.utc().toISOString().slice(11, 16).replace(':', '');
+    const w = a.wind.speedKt === 0 ? 'calm' : `${String(a.wind.direction).padStart(3, '0')} degrees ${a.wind.speedKt} knots`;
+    return `${this.station.name.split(' ')[0]} information ${a.letter}, time ${hhmm}, runway in use ${a.runway}, wind ${w}, QNH ${a.qnh}, transition level 70.`;
+  }
+
+  private changeRunway(newEnd: string): void {
+    this.config.runway = newEnd;
+    const sids = this.config.airport.sids;
+    for (const ac of this.aircraft) {
+      if (ac.category === 'departure' && ['parked', 'pushback', 'startup'].includes(ac.phase) && !ac.pendingTaxi) {
+        ac.runway = newEnd;
+        ac.flightPlan.runway = newEnd;
+        const fix = sids.find((x) => x.name === ac.flightPlan.sid)?.fix;
+        const sid = sids.find((x) => x.runway === newEnd && x.fix === fix) ?? sids.find((x) => x.runway === newEnd);
+        ac.flightPlan.sid = sid?.name;
+      }
+      // Approach re-sequences arrivals that are not yet on short final onto the new runway.
+      if (ac.phase === 'approach' && this.distanceToThresholdNm(ac) > 3.5) {
+        this.tower.setupApproach(ac, Math.max(6, this.distanceToThresholdNm(ac)), newEnd);
+      }
+    }
+    this.system(`Runway in use is now ${newEnd}. Taxiing departures keep their clearance - re-route them if needed.`);
   }
 
   // ------------------------------------------------------------------ queries
@@ -267,7 +376,7 @@ export class Simulation {
 
   /** Distance of an airborne arrival to the active runway threshold in NM (Infinity if none). */
   distanceToThresholdNm(ac: Aircraft): number {
-    const end = this.airport.runwayEnd(ac.runway ?? this.config.runway);
+    const end = this.airport.runwayEnd(ac.runway ?? this.runway);
     if (!end) return Infinity;
     return distance(ac.pos, end.threshold) / M_PER_NM;
   }
@@ -287,7 +396,8 @@ export class Simulation {
     const s = this.stats;
     s.score =
       s.departuresHandedOff * 10 +
-      s.arrivalsParked * 10 -
+      s.arrivalsParked * 10 +
+      s.bonus -
       s.sayAgains * 2 -
       s.delayPenalty -
       s.incursions * 50 -
@@ -299,4 +409,8 @@ export class Simulation {
   tel(ac: Aircraft): string {
     return telephony(ac);
   }
+}
+
+function nextLetter(l: string): string {
+  return l === 'Z' ? 'A' : String.fromCharCode(l.charCodeAt(0) + 1);
 }

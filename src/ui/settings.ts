@@ -6,8 +6,8 @@
 export interface Settings {
   airport: string;
   position: string;
-  runway: string;
   density: 'light' | 'medium' | 'heavy';
+  events: boolean;
   tts: boolean;
   ttsVolume: number;
   voiceAutoSend: boolean;
@@ -19,8 +19,8 @@ const KEY = 'ultimate-atc.settings.v1';
 const DEFAULTS: Settings = {
   airport: 'EDDS',
   position: 'GND',
-  runway: '25',
   density: 'medium',
+  events: true,
   tts: false,
   ttsVolume: 1,
   voiceAutoSend: true,

@@ -81,14 +81,19 @@ function makeDraggable(panel: HTMLElement, handle: HTMLElement): void {
 
 function reqCell(ac: Aircraft, sim: Simulation): string {
   if (!ac.request || !sim.isOnMyFrequency(ac)) return '';
-  return `${requestLabel(ac)} ${formatDuration(sim.time - ac.requestSince)}`;
+  const seq = ac.sequence ? ` #${ac.sequence.number}` : '';
+  return `${requestLabel(ac)}${seq} ${formatDuration(sim.time - ac.requestSince)}`;
+}
+
+function csCell(ac: Aircraft): string {
+  return ac.emergency ? `${ac.callsign} PAN` : ac.callsign;
 }
 
 export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList {
   return new TrafficList(
     'DEPARTURES',
     [
-      { key: 'cs', label: 'C/S', cls: 'cs', get: (a) => a.callsign },
+      { key: 'cs', label: 'C/S', cls: 'cs', get: csCell },
       { key: 'type', label: 'TYPE', get: (a) => `${a.type.icao}/${a.type.wake}` },
       { key: 'stand', label: 'STD', get: (a) => a.stand ?? '' },
       { key: 'ades', label: 'ADES', get: (a) => a.flightPlan.destination },
@@ -109,7 +114,7 @@ export function arrivalList(cb: ConstructorParameters<typeof TrafficList>[3]): T
   return new TrafficList(
     'ARRIVALS',
     [
-      { key: 'cs', label: 'C/S', cls: 'cs', get: (a) => a.callsign },
+      { key: 'cs', label: 'C/S', cls: 'cs', get: csCell },
       { key: 'type', label: 'TYPE', get: (a) => `${a.type.icao}/${a.type.wake}` },
       { key: 'adep', label: 'ADEP', get: (a) => a.flightPlan.departure },
       { key: 'rwy', label: 'RWY', get: (a) => a.runway ?? '' },

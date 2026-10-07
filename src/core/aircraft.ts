@@ -109,9 +109,9 @@ export interface Aircraft {
   blockedSince?: number;
   /** Distance along the path the aircraft may still move before reaching traffic ahead. */
   blockDistance?: number;
-  /** Give-way bookkeeping: last distance to the traffic and how long it has been increasing. */
+  /** Give-way bookkeeping: last and smallest distance to the traffic so far. */
   giveWayLastDist?: number;
-  giveWayOpening?: number;
+  giveWayMinDist?: number;
 
   // --- pilot communication
   request: PilotRequest | null;
@@ -136,6 +136,26 @@ export interface Aircraft {
   spawnedAt: number;
   /** Incident flags. */
   incident?: 'collision';
+  /** Emergency declared by the crew (PAN PAN medical). */
+  emergency?: 'medical';
+  /** Simulation time the emergency was declared. */
+  emergencySince?: number;
+  /** Special situation: the take-off was rejected (aborted) on the runway. */
+  rejectedTakeoff?: boolean;
+  /** Speed (m/s) at which a planned take-off rejection happens. */
+  rejectAtSpeed?: number;
+  /** Departure that wants to return to a stand (technical problem or medical emergency). */
+  returnToStand?: boolean;
+  /** Pre-rolled special event: medical emergency while taxiing out. */
+  plannedMedical?: boolean;
+  /** Simulation time the current taxi route was started. */
+  taxiStartedAt?: number;
+  /** Queue position given by the controller ("number 2 for pushback"). */
+  sequence?: { number: number; for: string };
+  /** Simulation time the aircraft became airborne (departures). */
+  airborneAt?: number;
+  /** True if the take-off started from an intersection (not full length). */
+  intersectionDeparture?: boolean;
   /** Tag offset on screen in pixels (UI state kept with the aircraft for convenience). */
   tagOffset?: { x: number; y: number };
 }

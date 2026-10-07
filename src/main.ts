@@ -13,15 +13,15 @@ async function start(): Promise<void> {
   const login = await showLogin(AIRPORTS, settings);
   settings.airport = login.airport.icao;
   settings.position = login.position;
-  settings.runway = login.runway;
   settings.density = login.density;
+  settings.events = login.events;
   saveSettings(settings);
 
   const sim = new Simulation({
     airport: login.airport,
     position: login.position,
-    runway: login.runway,
     density: login.density,
+    events: login.events,
     seed: login.seed,
   });
   const app = new App(document.getElementById('app')!, sim, settings);

@@ -61,6 +61,9 @@ Notation: `[optional]`, `a | b` = alternatives, `X` = taxiway, `HP` = holding po
 | `pushback approved tail east`                                | Same with the tail direction (tail east = facing west)                                       |
 | `push and start approved [facing ...]`                       | Pushback with engine start during the push. The aircraft is ready for taxi sooner.           |
 | `start-up approved` / `startup approved`                     | Engine start on the stand. Combine with a later pushback; it shortens the start-up after the push. |
+| `cancel pushback` / `pushback cancelled`                     | Before the tug moves: the pushback is cancelled, the aircraft stays on the stand and calls again in 1-2.5 minutes. While pushing: like *stop pushback*. |
+| `stop pushback` / `stop the push`                            | The push stops immediately (read-back `stopping pushback`)                                   |
+| `continue pushback` / `continue push`                        | Resumes a stopped pushback                                                                   |
 
 Notes:
 
@@ -71,8 +74,9 @@ Notes:
 ### Taxi
 
 ```
-taxi [to] DESTINATION [via X [,] X ...] [hold short of ...] [cross runway RWY]
+taxi [to] DESTINATION [via|along X [,] X ...] [hold short of ...] [cross runway RWY]
 taxi via X X ... to DESTINATION
+taxi via|along X [,] X ..., hold short of TAXIWAY|runway RWY        (incomplete taxi instruction)
 ```
 
 | Destination                                    | Example                                          |
@@ -92,6 +96,8 @@ taxi via X X ... to DESTINATION
 So after a pushback from stand 10, `taxi to holding point G1 via N` is accepted and gives the route R -> N -> G. Without any `via`, the pilot takes the **shortest route**, avoiding runway crossings where possible. This is convenient, but not proper phraseology.
 
 If the route is impossible, the pilot replies `unable to follow route via S, say again route`. An unknown taxiway gives `confirm taxiway Q, we can't find it`. The live preview in the command line shows these problems **before** you transmit.
+
+**Incomplete taxi instructions** (clearance limit): `taxi via N, hold short of F` or `taxi along R, D, N, hold short of runway 25`. There is no destination; the aircraft taxis along the via taxiways and stops at the hold-short point, which is the clearance limit: about 40 m before the junction with F, or at the runway holding point. The read-back is `Taxi via N, hold short of taxiway F, ...`. Then give the rest of the route with a normal taxi instruction. `continue taxi` at a clearance limit gets `confirm where to taxi`.
 
 **Stand assignments** are checked: `stand 14 is occupied` or `stand 22 is too small for us`.
 
@@ -118,11 +124,30 @@ Hold short can be part of the taxi instruction (`taxi to holding point G1 via N,
 
 Every runway holding position on a route is a **mandatory stop** unless a crossing clearance was given. Aircraft never enter the runway on their own. Read the [simulation model](simulation.md#runway-incursions-and-go-arounds) to see when a crossing counts as an incursion.
 
+### Conditional clearances
+
+```
+behind TRAFFIC [description], INSTRUCTION
+when clear of TRAFFIC [description], INSTRUCTION
+after TRAFFIC [has passed], INSTRUCTION
+```
+
+`TRAFFIC` is a callsign in any form (`behind DLH5AB`, `behind Lufthansa 5AB`) or `the` + an aircraft type: `the A320`, `the A321`, `the 737`, `the Boeing`, `the Airbus`, `the Embraer`, `the Dash`, `the ATR`, `the jet`, `the heavy`. The description after the traffic ("passing from left to right", "on N", "coming out of D") is read back but not interpreted.
+
+```
+DLH5AB, behind the A320 passing from left to right, push and start approved, facing east
+EWG7TK, when clear of the Boeing, taxi to holding point G1 via N, G
+```
+
+- The pilot has to **identify the traffic**: a callsign must be on the ground; a type must match a moving (not parked) aircraft within 1500 m, and the nearest one is taken. If not, the reply is `Negative contact with the A320, say again` and nothing is executed.
+- Pushbacks, taxi instructions, crossings and *continue* then wait until the traffic **has passed**: it came closest and is now at least 40 m further away again, clear of the wingtips. They also start if the traffic stops more than 300 m away, or after at most 4 minutes.
+- The read-back starts with the condition: `Behind the A320 passing from left to right, push and start approved, facing east, Lufthansa 5AB`.
+
 ### Give way / follow
 
 | You say                                   | Effect                                                                                    |
 | ----------------------------------------- | ----------------------------------------------------------------------------------------- |
-| `give way to EWG7TK [from the left]`      | The aircraft stops until the named traffic has passed (distance increasing and clear), then continues on its own |
+| `give way to EWG7TK [from the left]`      | The aircraft stops until the named traffic has passed (see conditional clearances), then continues on its own |
 | `follow EWG7TK`                           | Currently handled like *give way*: wait until the traffic has passed, then continue      |
 
 Words after the callsign ("from the left", "passing left to right") are ignored. The callsign of the traffic can be in any form listed under [Callsigns](#callsigns).
@@ -143,6 +168,8 @@ A wrong frequency gets `confirm frequency 118.700 for Tower`. Departures that ar
 | You say          | Effect                                                                         |
 | ---------------- | ------------------------------------------------------------------------------ |
 | `standby`        | Acknowledges a request; the pilot doesn't call again for 2 minutes            |
+| `number 2 [for pushback\|start-up\|taxi\|departure]` | Queue position in busy periods. The pilot reads it back (`Number 2 for pushback`) and waits 60 s + 45 s per position before reminding you. The number is shown in the tag (`#2`) and in the list. |
+| `expect pushback\|start-up\|taxi\|departure in 5 minutes` | Expected delay. The pilot waits that long (plus 20 s) before reminding you. |
 | `say again`      | The pilot repeats their last transmission                                      |
 | `line up ...`, `cleared for take-off` | Not Ground's job. The pilot asks `confirm, we are on Ground frequency, contact Tower?` |
 
@@ -176,6 +203,10 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | `contact tower`                                     | `Tower 118.805, goodbye, Lufthansa 5AB`                             |
 | `expedite taxi`                                     | `Expediting, Lufthansa 5AB`                                         |
 | `standby`                                           | *(no read-back)*                                                    |
+| `number 2 for pushback`                             | `Number 2 for pushback, Condor 11`                                  |
+| `cancel pushback`                                   | `Pushback cancelled, Lufthansa 5AB`                                 |
+| `taxi via N, hold short of F`                       | `Taxi via N, hold short of taxiway F, Lufthansa 5AB`                |
+| `behind DLH5AB, taxi to ...`                        | `Behind Lufthansa 5AB, taxi to ..., Eurowings 7TK`                  |
 
 ## Pilot calls
 
@@ -191,6 +222,9 @@ Pilots on your frequency call on their own:
 | Head-on with other traffic for over a minute            | `Lufthansa 5AB, we have opposite traffic ahead, EWG7TK, request instructions`          |
 | Held short of a taxiway for over two minutes            | `Lufthansa 5AB, holding short of D, request to continue`                               |
 | Tower refused the departure (too little runway left)    | `Stuttgart Ground, Lufthansa 5AB, tower sent us back, not enough runway at A1 for departure 25, request taxi` |
+| Medical emergency, arrival (after vacating)             | `Stuttgart Ground, Eurowings 7TK, PAN PAN, medical emergency on board, vacated runway 25 via E, request expedited taxi to the stand, ambulance requested` |
+| Medical emergency, departure (while taxiing)            | `Stuttgart Ground, Lufthansa 5AB, PAN PAN, PAN PAN, PAN PAN, medical emergency on board, request immediate return to the stand, ambulance required` |
+| Rejected take-off (after vacating)                      | `Stuttgart Ground, Lufthansa 5AB, we rejected take-off due to a technical problem, vacated runway 25 via D, request taxi back to the stand` (or `..., problem solved, ..., request taxi for another departure`) |
 
 If you don't answer, pilots **call again** after 60-90 seconds, up to five times. Reminders are shorter: `Stuttgart Ground, Lufthansa 5AB, stand 10, request pushback`. `standby` stops the reminders for two minutes.
 
@@ -200,16 +234,32 @@ Speech recognition (see the [user guide](user-guide.md#9-voice)) produces plain 
 
 | Spoken                                       | Becomes   |
 | -------------------------------------------- | --------- |
-| `zero` ... `nine`, `niner`, `tree`, `fife`   | `0` ... `9` |
+| `zero` ... `nine`, `niner`, `tree`, `fife`, `won`, `ate` | `0` ... `9` |
+| `ten` ... `ninety`, `twenty five`            | `10` ... `90`, `25` |
+| `to`/`too`, `for` after `runway`, `stand`, `gate`, `number`, `in` | `2`, `4` |
 | `alpha` (`alfa`) ... `zulu`, `x-ray`         | `a` ... `z` |
 | `two five`                                   | `25` (after `runway`) |
 | `golf one`                                   | `G1`      |
-| `one one eight decimal eight zero five`      | `118.805` |
+| `one one eight decimal eight zero five`, `... point ...` | `118.805` |
 | `lufthansa five alpha bravo`                 | `DLH5AB`  |
+
+Frequent misrecognitions are corrected before parsing:
+
+| Heard                                                      | Becomes                 |
+| ---------------------------------------------------------- | ----------------------- |
+| `push back`, `pushed back`, `push bag`                     | `pushback`              |
+| `start up`, `stand by`                                     | `startup`, `standby`    |
+| `run way`, `holding points`, `hold in point`, `holding position` | `runway`, `holding point` |
+| `gulf`, `eco`, `charley`, `mic`, `fox trot`, `x ray`       | `golf`, `echo`, `charlie`, `mike`, `foxtrot`, `xray` |
+| `approve`, `improved`, `phasing`                           | `approved`, `facing`    |
+| `euro wings`, `speed bird`, `sun express`, `hansa line`, `luft hansa`, `air france`, `tui jet`, `ryan air`, `wiz air` | the telephony designator |
+
+**Fuzzy callsigns**: a telephony word within 1-2 letters of the correct spelling is accepted ("lufthanza"). If the flight number doesn't match exactly, the aircraft of that operator whose flight number is at most one character off is used. If only one aircraft of that operator is on the frequency, it is used even without a flight number.
+
+**Alternatives**: the client parses up to five recognition alternatives and transmits the one that scores best: recognised callsign, number of understood instructions, valid taxi route, no unknown words.
 
 ## Not supported (yet)
 
-- Conditional clearances ("behind the A320 passing left to right, ...") - only the explicit `give way to <callsign>`.
 - Taxi via a runway (backtrack) and line-up instructions; these are Tower's job and come with the Tower position.
 - `follow` with real follow-the-leader behaviour.
 - Clearance delivery phraseology (IFR clearances, squawks) - planned for the Delivery position.

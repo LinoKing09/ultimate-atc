@@ -1,5 +1,5 @@
 import type { AirportData, StationType } from '../core/airport/types';
-import type { Density } from '../core/simulation';
+import type { Density, Simulation } from '../core/simulation';
 import { h } from './dom';
 import type { Settings } from './settings';
 
@@ -24,12 +24,12 @@ const POSITIONS: { type: StationType; label: string; available: boolean }[] = [
 export interface LoginResult {
   airport: AirportData;
   position: StationType;
-  runway: string;
   density: Density;
+  events: boolean;
   seed?: number;
 }
 
-/** EuroScope-like "connect" dialog: pick airport, position, runway and traffic. */
+/** EuroScope-like "connect" dialog: pick airport, position and traffic. The runway follows the wind (ATIS). */
 export function showLogin(airports: AirportData[], settings: Settings): Promise<LoginResult> {
   return new Promise((resolve) => {
     const airportSel = h('select');
@@ -50,7 +50,8 @@ export function showLogin(airports: AirportData[], settings: Settings): Promise<
       return b;
     });
 
-    const runwaySel = h('select');
+    const eventsBox = h('input', { type: 'checkbox' });
+    eventsBox.checked = settings.events;
     const densitySel = h('select');
     for (const d of ['light', 'medium', 'heavy']) densitySel.append(h('option', { value: d, text: d }));
     densitySel.value = settings.density;
@@ -63,9 +64,6 @@ export function showLogin(airports: AirportData[], settings: Settings): Promise<
       const ap = airport();
       const st = ap.stations.find((s) => s.type === position);
       callsign.textContent = st ? `${st.callsign}  ${st.frequency}  "${st.name}"` : '-';
-      const prev = runwaySel.value || settings.runway;
-      runwaySel.replaceChildren(...ap.runwayOps.map((o) => h('option', { value: o.runway, text: `Runway ${o.runway}` })));
-      runwaySel.value = ap.runwayOps.some((o) => o.runway === prev) ? prev : ap.runwayOps[0].runway;
       notice.textContent = ap.dataNotice;
     };
     airportSel.addEventListener('change', update);
@@ -90,13 +88,14 @@ export function showLogin(airports: AirportData[], settings: Settings): Promise<
           h('div.positions', {}, ...posButtons),
           h('label', { text: 'Callsign' }),
           callsign,
-          h('label', { text: 'Active runway' }),
-          runwaySel,
           h('label', { text: 'Traffic' }),
           densitySel,
+          h('label', { text: 'Special events' }),
+          h('label', {}, eventsBox, ' emergencies, rejected take-offs (rare)'),
           h('label', { text: 'Scenario seed' }),
           seedInput,
         ),
+        h('div.sub', { text: 'The runway in use is chosen from the wind. You can change it at any time in the ATIS (click ATIS in the toolbar).' }),
         notice,
         h('div.actions', {}, h('a', { href: `${REPO_URL}#readme`, target: '_blank', rel: 'noopener', text: 'Documentation' }), connect),
       ),
@@ -109,8 +108,8 @@ export function showLogin(airports: AirportData[], settings: Settings): Promise<
       resolve({
         airport: airport(),
         position,
-        runway: runwaySel.value,
         density: densitySel.value as Density,
+        events: eventsBox.checked,
         seed,
       });
     });
@@ -123,14 +122,19 @@ const REFERENCE: [string, string][] = [
   ['pushback approved [facing east|west]', 'Approve pushback. Without "facing" the pilot picks the direction towards the runway.'],
   ['push and start approved [facing ...]', 'Pushback and engine start in one go.'],
   ['start-up approved', 'Approve engine start on the stand.'],
+  ['cancel pushback / stop pushback / continue pushback', 'Cancel a pushback that has not started yet, stop a moving pushback, resume it.'],
   ['taxi to holding point G1 [runway 25] via N, G', 'Taxi to a runway holding point along the given taxiways.'],
   ['taxi to runway 25 via N', 'Taxi to the runway; the pilot picks the full-length holding point.'],
   ['taxi to stand 12 via N, R', 'Taxi an arrival to its stand.'],
+  ['taxi via N, hold short of F', 'Incomplete taxi instruction: the clearance limit is the hold-short point.'],
   ['... hold short of taxiway D | runway 25', 'Add a hold-short point to a route (or send it on its own).'],
   ['cross runway 25', 'Clear an aircraft holding short of the runway to cross (also as part of a taxi instruction).'],
+  ['behind the A320 passing left to right, ...', 'Conditional clearance (also "behind DLH5AB", "when clear of the Boeing"). The pilot waits for the traffic.'],
   ['hold position', 'Stop immediately.'],
   ['continue taxi', 'Resume after hold position / hold short of a taxiway.'],
   ['give way to DLH5AB', 'Wait until the named traffic has passed, then continue.'],
+  ['number 2 for pushback | taxi | departure', 'Queue position; the pilot waits without reminding you.'],
+  ['expect pushback in 5 minutes', 'Expected delay; the pilot waits that long.'],
   ['contact tower [118.805]', 'Hand the aircraft over to Tower (do this at or before the holding point).'],
   ['standby', 'Acknowledge a request; the pilot waits two minutes before calling again.'],
   ['expedite taxi', 'Taxi a bit faster.'],
@@ -147,7 +151,9 @@ const KEYS: [string, string][] = [
   ['Left click', 'Select aircraft (commands without callsign go to the selection)'],
   ['Right click', 'Aircraft menu (pushback, taxi, handoff, ...)'],
   ['Double click on list row', 'Centre the scope on the aircraft'],
-  ['Hold ^ / ` (key left of 1)', 'Push-to-talk (speech recognition, Chrome/Edge)'],
+  ['Hold ^ / ` (key left of 1), Right Ctrl or Insert', 'Push-to-talk (speech recognition, Chrome/Edge)'],
+  ['Click a tag item', 'Callsign: flight plan + telephony; cleared-to: taxi menu; status: aircraft menu'],
+  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use, wind, QNH, information letter)'],
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
 ];
@@ -179,7 +185,7 @@ export function showHelp(): void {
         h('table.ref', {}, ...KEYS.map(([a, b]) => h('tr', {}, h('td', {}, h('kbd', { text: a })), h('td', { text: b })))),
         h('h2', { text: 'Colours' }),
         h('p', {
-          text: 'White: on your frequency. Grey: other controller (Tower). Flashing yellow: waiting for your answer (orange after one minute). Red: incident.',
+          text: 'White: on your frequency. Grey: other controller (Tower). Flashing yellow: waiting for your answer (orange after one minute). Magenta "PAN": emergency. Red: incident.',
         }),
         h('p', {}, 'Full documentation: ', h('a', { href: REPO_URL, target: '_blank', rel: 'noopener', text: REPO_URL })),
       ),
@@ -189,4 +195,82 @@ export function showHelp(): void {
   close.addEventListener('click', done);
   overlay.addEventListener('click', (e) => e.target === overlay && done());
   document.body.append(overlay);
+}
+
+/**
+ * ATIS editor: the controller sets the runway in use, wind, QNH and the
+ * information letter. Applying it broadcasts a new ATIS.
+ */
+export function showAtisEditor(sim: Simulation): void {
+  const a = sim.atis;
+  const letterSel = h('select');
+  for (let i = 0; i < 26; i++) {
+    const l = String.fromCharCode(65 + i);
+    letterSel.append(h('option', { value: l, text: l }));
+  }
+  letterSel.value = a.letter === 'Z' ? 'A' : String.fromCharCode(a.letter.charCodeAt(0) + 1);
+  const rwySel = h('select');
+  for (const o of sim.config.airport.runwayOps) rwySel.append(h('option', { value: o.runway, text: `Runway ${o.runway}` }));
+  rwySel.value = a.runway;
+  const dir = h('input', { type: 'number', min: '0', max: '360', step: '10', value: String(a.wind.direction) });
+  const spd = h('input', { type: 'number', min: '0', max: '60', value: String(a.wind.speedKt) });
+  const qnh = h('input', { type: 'number', min: '950', max: '1060', value: String(a.qnh) });
+  const comps = h('div.sub');
+  const update = () => {
+    const wind = { direction: Number(dir.value) || 0, speedKt: Number(spd.value) || 0 };
+    const c = sim.windComponents(rwySel.value, wind);
+    const hw = Math.round(c.headwind);
+    const xw = Math.abs(Math.round(c.crosswind));
+    const best = sim.bestRunwayForWind(wind);
+    comps.textContent = `${hw >= 0 ? `Headwind ${hw} kt` : `TAILWIND ${-hw} kt`}, crosswind ${xw} kt.${best !== rwySel.value ? ` Runway ${best} would be into wind.` : ''}`;
+    comps.style.color = hw < -5 ? 'var(--danger)' : '';
+  };
+  [dir, spd, rwySel].forEach((el) => el.addEventListener('input', update));
+  update();
+
+  const apply = h('button.primary', { type: 'submit', text: 'Broadcast ATIS' });
+  const cancel = h('button', { type: 'button', text: 'Cancel' });
+  const form = h(
+    'form.dialog',
+    {},
+    h('div.dtitle', {}, h('span', { text: `ATIS ${sim.config.airport.icao} - currently information ${a.letter}` })),
+    h(
+      'div.dbody',
+      {},
+      h('div.sub', { text: sim.atisText() }),
+      h(
+        'div.grid',
+        {},
+        h('label', { text: 'Information' }),
+        letterSel,
+        h('label', { text: 'Runway in use' }),
+        rwySel,
+        h('label', { text: 'Wind direction' }),
+        dir,
+        h('label', { text: 'Wind speed (kt)' }),
+        spd,
+        h('label', { text: 'QNH (hPa)' }),
+        qnh,
+      ),
+      comps,
+      h('div.notice', {
+        text: 'Changing the runway: departures that are not yet taxiing get the new runway and SID, arrivals further out than 3.5 NM are re-sequenced by Approach. Aircraft already taxiing keep their clearance - re-route them.',
+      }),
+      h('div.actions', {}, cancel, apply),
+    ),
+  );
+  const overlay = h('div.overlay', {}, form);
+  cancel.addEventListener('click', () => overlay.remove());
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    sim.updateAtis({
+      letter: letterSel.value,
+      runway: rwySel.value,
+      wind: { direction: Number(dir.value) || 0, speedKt: Number(spd.value) || 0 },
+      qnh: Number(qnh.value) || a.qnh,
+    });
+    overlay.remove();
+  });
+  document.body.append(overlay);
+  apply.focus();
 }

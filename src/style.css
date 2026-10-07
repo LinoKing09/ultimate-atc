@@ -107,6 +107,15 @@ button:disabled {
 .toolbar .spacer {
   flex: 1;
 }
+.toolbar .field.clickable {
+  cursor: pointer;
+}
+.toolbar .field.clickable:hover {
+  border-color: var(--accent);
+}
+.toolbar .field b.bad {
+  color: var(--danger);
+}
 .toolbar .score b {
   color: var(--ok);
 }

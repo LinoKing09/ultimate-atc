@@ -7,15 +7,17 @@ import { parseTransmission } from '../core/phraseology/parser';
 import { previewTaxi } from '../core/pilot';
 import type { RadioMessage } from '../core/radio';
 import type { Simulation } from '../core/simulation';
-import { REPO_URL, showHelp } from './dialogs';
+import { REPO_URL, showAtisEditor, showHelp } from './dialogs';
 import { formatTime, h } from './dom';
 import { arrivalList, departureList, type TrafficList } from './lists';
 import { PopupMenu, type MenuItem } from './menu';
-import { Scope } from './scope';
+import { Scope, type TagItem } from './scope';
 import { saveSettings, type Settings } from './settings';
 import { PilotVoices, VoiceInput } from './voice';
 
 const SPEEDS = [1, 2, 4, 8];
+/** Keys that work as push-to-talk (held down). */
+const PTT_KEYS = new Set(['Backquote', 'ControlRight', 'Insert']);
 
 /**
  * The controller client: wires the simulation to the scope, the traffic
@@ -101,6 +103,11 @@ export class App {
       disconnect,
     );
 
+    for (const key of ['rwy', 'atis', 'wind', 'qnh']) {
+      this.fields[key].classList.add('clickable');
+      this.fields[key].addEventListener('click', () => showAtisEditor(this.sim));
+    }
+
     // ---------------------------------------------------------------- scope + panels
     const canvas = h('canvas.scope');
     this.main = h('div.main', {}, canvas);
@@ -125,7 +132,7 @@ export class App {
       spellcheck: 'false',
     });
     this.previewEl = h('span.preview');
-    this.micButton = h('button.mic', { text: 'MIC', title: 'Push-to-talk (hold the ^ / ` key or click to start/stop)' });
+    this.micButton = h('button.mic', { text: 'MIC', title: 'Push-to-talk: hold the ^ / ` key, Right Ctrl or Insert (or click to start/stop)' });
     const sendBtn = h('button', { text: 'SEND', title: 'Transmit (Enter)' });
     sendBtn.addEventListener('click', () => this.submit());
     const comms = h('div.comms', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input, this.previewEl, this.micButton, sendBtn));
@@ -135,6 +142,7 @@ export class App {
     this.scope = new Scope(canvas, sim, {
       onSelect: (cs) => this.select(cs),
       onContextMenu: (cs, x, y) => this.openMenu(cs, x, y),
+      onTagItem: (cs, item, x, y) => this.onTagItem(cs, item, x, y),
     });
     this.scope.showAllRoutes = settings.showRoutes;
     routesBtn.classList.toggle('active', settings.showRoutes);
@@ -148,13 +156,18 @@ export class App {
         this.input.value = interim;
         this.updatePreview();
       },
-      (final) => {
-        this.input.value = final;
+      (candidates) => {
+        const best = this.bestVoiceCandidate(candidates);
+        this.input.value = best;
         this.updatePreview();
-        if (this.settings.voiceAutoSend) this.submit();
+        if (best !== candidates[0]) this.hint(`Heard "${candidates[0]}" - using the alternative "${best}".`);
+        if (this.settings.voiceAutoSend) this.submit(true);
       },
       (listening, error) => {
         this.micButton.classList.toggle('listening', listening);
+        // Pilots stop talking while you transmit, so the microphone doesn't pick them up.
+        if (listening) this.voices.pause();
+        else this.voices.resume();
         if (error && error !== 'aborted' && error !== 'no-speech') this.hint(`Speech recognition error: ${error}`);
       },
     );
@@ -175,7 +188,7 @@ export class App {
     this.input.addEventListener('keydown', (e) => this.onInputKey(e));
     window.addEventListener('keydown', (e) => this.onGlobalKey(e));
     window.addEventListener('keyup', (e) => {
-      if (e.code === 'Backquote') {
+      if (PTT_KEYS.has(e.code)) {
         e.preventDefault();
         this.voiceIn.stop();
       }
@@ -184,7 +197,7 @@ export class App {
     new ResizeObserver(() => this.scope.resize()).observe(this.main);
 
     this.setSpeed(1);
-    this.hint(`Connected as ${sim.station.callsign} (${sim.station.name}, ${sim.station.frequency}). Runway ${sim.config.runway} in use. Press F1 for help.`);
+    this.hint(`Connected as ${sim.station.callsign} (${sim.station.name}, ${sim.station.frequency}). Runway ${sim.runway} in use. Press F1 for help.`);
     requestAnimationFrame((t) => this.frame(t));
   }
 
@@ -208,16 +221,24 @@ export class App {
     for (const l of this.lists) l.update(sim, this.selected);
     const st = sim.station;
     this.fields.station.innerHTML = `<b>${st.callsign}</b> ${st.frequency}`;
-    this.fields.rwy.innerHTML = `RWY <b>${sim.config.runway}</b>`;
+    this.fields.rwy.innerHTML = `RWY <b>${sim.runway}</b>`;
     this.fields.atis.innerHTML = `ATIS <b>${sim.atisLetter}</b>`;
-    this.fields.wind.innerHTML = `<b>${String(sim.wind.direction).padStart(3, '0')}/${String(sim.wind.speedKt).padStart(2, '0')}</b>KT`;
-    this.fields.qnh.innerHTML = `Q<b>${sim.qnh}</b>`;
+    const wind = sim.atis.wind;
+    const tail = sim.windComponents(sim.runway).headwind < -5;
+    this.fields.wind.innerHTML = `<b${tail ? ' class="bad"' : ''}>${String(wind.direction).padStart(3, '0')}/${String(wind.speedKt).padStart(2, '0')}</b>KT`;
+    this.fields.wind.title = tail ? 'Tailwind above 5 kt on the runway in use - consider a runway change (click to edit the ATIS)' : 'Surface wind (click to edit the ATIS)';
+    this.fields.qnh.innerHTML = `Q<b>${sim.atis.qnh}</b>`;
     this.fields.utc.innerHTML = `<b>${formatTime(sim.utc())}</b>Z`;
     const s = sim.stats;
     const bad = s.collisions + s.incursions + s.goArounds;
     this.fields.score.className = 'field score';
     this.fields.score.innerHTML = `SCORE <b>${s.score}</b> | DEP ${s.departuresHandedOff} | ARR ${s.arrivalsParked} | <span class="${bad ? 'bad' : ''}">INC ${bad}</span>`;
-    this.targetEl.textContent = this.selected ? `[${this.selected}]` : '';
+    this.targetEl.textContent = this.targetText();
+  }
+
+  private targetText(): string {
+    const ac = this.sim.find(this.selected);
+    return ac ? `[${ac.callsign} ${this.sim.tel(ac).toUpperCase()}]` : '';
   }
 
   // ------------------------------------------------------------------ controls
@@ -244,7 +265,7 @@ export class App {
   private select(cs: string | undefined): void {
     this.selected = cs;
     this.scope.selected = cs;
-    this.targetEl.textContent = cs ? `[${cs}]` : '';
+    this.targetEl.textContent = this.targetText();
     this.updatePreview();
     for (const l of this.lists) l.update(this.sim, cs);
   }
@@ -282,19 +303,19 @@ export class App {
 
   // ------------------------------------------------------------------ command line
 
-  private submit(): void {
+  private submit(fromVoice = false): void {
     const text = this.input.value.trim();
     if (!text) return;
     this.history.unshift(text);
     this.history = this.history.slice(0, 50);
     this.historyIdx = -1;
-    this.transmit(text);
+    this.transmit(text, fromVoice);
     this.input.value = '';
     this.updatePreview();
   }
 
-  private transmit(text: string): void {
-    const res = this.sim.transmit(text, this.selected);
+  private transmit(text: string, fromVoice = false): void {
+    const res = this.sim.transmit(text, this.selected, { fallbackToLastCaller: fromVoice });
     if (res.hint) this.hint(res.hint);
     if (res.callsign && this.sim.find(res.callsign)) this.select(res.callsign);
   }
@@ -318,7 +339,7 @@ export class App {
 
   private onGlobalKey(e: KeyboardEvent): void {
     if (document.querySelector('.overlay')) return;
-    if (e.code === 'Backquote') {
+    if (PTT_KEYS.has(e.code)) {
       e.preventDefault();
       if (!e.repeat) this.voiceIn.start();
       return;
@@ -404,6 +425,61 @@ export class App {
     this.previewEl.classList.add(ok ? 'ok' : 'err');
   }
 
+  /** Picks the speech recognition alternative that makes the most sense as an instruction. */
+  private bestVoiceCandidate(candidates: string[]): string {
+    const callsigns = this.sim.aircraft.map((a) => a.callsign);
+    let best = candidates[0];
+    let bestScore = -Infinity;
+    candidates.forEach((text, i) => {
+      const p = parseTransmission(text, { callsigns, taxiways: this.sim.airport.taxiwayNames, selected: this.selected });
+      const ac = this.sim.find(p.callsign);
+      let score = p.commands.length * 3 - p.unparsed.length - i * 0.3;
+      if (p.explicitCallsign && ac) score += 4;
+      if (ac && this.sim.isOnMyFrequency(ac)) score += 1;
+      if (ac?.request) score += 1;
+      if (p.condition) score += 1;
+      const taxi = p.commands.find((c) => c.type === 'taxi');
+      if (ac && taxi && taxi.type === 'taxi') score += 'error' in previewTaxi(this.sim, ac, taxi) ? -2 : 2;
+      if (score > bestScore) {
+        bestScore = score;
+        best = text;
+      }
+    });
+    return best;
+  }
+
+  /** EuroScope-style tag item functions. */
+  private onTagItem(cs: string, item: TagItem, x: number, y: number): void {
+    const ac = this.sim.find(cs);
+    if (!ac) return;
+    if (item === 'callsign' || item === 'type') {
+      this.menu.open(`${ac.callsign} - ${this.sim.tel(ac).toUpperCase()}`, this.flightPlanItems(ac), x, y);
+    } else if (item === 'target') {
+      if (!this.sim.isOnMyFrequency(ac)) return;
+      const items = ac.category === 'arrival' || ac.returnToStand ? this.standDestinations(ac) : this.taxiDestinations(ac);
+      this.menu.open(ac.category === 'arrival' || ac.returnToStand ? `${ac.callsign} - taxi to stand` : `${ac.callsign} - taxi to`, items, x, y);
+    } else {
+      this.openMenu(cs, x, y);
+    }
+  }
+
+  private flightPlanItems(ac: Aircraft): MenuItem[] {
+    const fp = ac.flightPlan;
+    const info = (label: string, hint: string): MenuItem => ({ label, hint, disabled: true });
+    const items: MenuItem[] = [
+      info('Telephony', this.sim.tel(ac).toUpperCase()),
+      info('Type', `${ac.type.icao} (${ac.type.name}), wake ${ac.type.wake}`),
+      info('Route', `${fp.departure} - ${fp.destination}`),
+      info('Flight plan', `${fp.sid ? `${fp.sid} ` : ''}${fp.route} FL${fp.cruiseFl}`),
+      info('Runway / squawk', `${fp.runway ?? '-'} / ${fp.squawk}`),
+      info('Stand', ac.stand ?? (ac.assignedStand ? `(${ac.assignedStand})` : '-')),
+      info('Frequency', ac.frequency),
+    ];
+    if (ac.emergency) items.push(info('EMERGENCY', 'PAN PAN - medical'));
+    items.push({ divider: true, label: '' }, { label: 'Aircraft menu', submenu: () => this.menuItems(ac) });
+    return items;
+  }
+
   // ------------------------------------------------------------------ aircraft menu
 
   private openMenu(cs: string, x: number, y: number): void {
@@ -445,7 +521,7 @@ export class App {
       return items;
     }
 
-    const rwy = sim.config.runway;
+    const rwy = sim.runway;
     const tower = sim.airport.station('TWR');
 
     if (ac.phase === 'parked' && ac.category === 'departure') {
@@ -466,7 +542,7 @@ export class App {
       }
       items.push({ label: 'Start-up approved', action: () => this.say(ac, 'start-up approved') });
     } else if (ac.onGround && ['pushback', 'startup', 'taxi', 'holding'].includes(ac.phase)) {
-      if (ac.category === 'arrival') {
+      if (ac.category === 'arrival' || ac.returnToStand) {
         items.push({ label: 'Taxi to stand', submenu: () => this.standDestinations(ac) });
       } else {
         items.push({ label: 'Taxi to', submenu: () => this.taxiDestinations(ac) });
@@ -499,7 +575,18 @@ export class App {
         });
       }
     }
-    if (ac.request) items.push({ label: 'Standby', action: () => this.say(ac, 'standby') });
+    if (ac.phase === 'pushback') {
+      items.push({ label: 'Stop pushback', action: () => this.say(ac, 'stop pushback') });
+      items.push({ label: 'Cancel pushback', action: () => this.say(ac, 'cancel pushback') });
+    }
+    if (ac.request) {
+      const what = ac.request === 'pushback' ? 'pushback' : ac.request === 'handoff' ? 'departure' : 'taxi';
+      items.push({
+        label: `Number ... for ${what}`,
+        submenu: () => [1, 2, 3, 4, 5].map((n) => ({ label: `Number ${n}`, action: () => this.say(ac, `number ${n} for ${what}`) })),
+      });
+      items.push({ label: 'Standby', action: () => this.say(ac, 'standby') });
+    }
     items.push({ label: 'Say again', action: () => this.say(ac, 'say again') });
     items.push({ divider: true, label: '' }, center, resetTag);
     return items;
@@ -513,7 +600,7 @@ export class App {
       for (const e of ops.departureEntries) {
         const label = `${e.holdingPoint}  RWY ${ops.runway}${e.fullLength ? '' : ' (intersection)'}`;
         const item = this.routeItem(ac, label, `holding point ${e.holdingPoint} runway ${ops.runway}`);
-        if (ops.runway !== sim.config.runway) item.label += ' - not in use';
+        if (ops.runway !== sim.runway) item.label += ' - not in use';
         items.push(item);
       }
     }

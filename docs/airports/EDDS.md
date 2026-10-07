@@ -11,6 +11,8 @@
 | Runway             | **07/25**, 3345 m x 45 m, true heading 074° / 254°; landing threshold 07 displaced by 300 m (984 ft) |
 | Data file          | [`src/data/airports/edds.ts`](../../src/data/airports/edds.ts)              |
 
+> **Planned:** the layout will be redrawn from an accurate aerodrome chart (Foxchart / AIP-based) as soon as one is provided, see the [roadmap](../roadmap.md).
+>
 > **Accuracy.** Runway end coordinates, elevation and frequencies are **real-world values** (OurAirports, public domain). The taxiway network, intersection names, holding point names, stand numbers and buildings are a **simplified hand-made approximation**. They reproduce the general arrangement of the airport (one runway, parallel taxiways north and south, terminal apron north of the runway, GA/cargo apron north-west, maintenance area south), but **they do not match the official aerodrome chart**. The SIDs used in flight plans are placeholders. Never use this for real-world navigation.
 
 ## Stations

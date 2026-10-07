@@ -4,7 +4,18 @@ The long-term goal is a simulator that feels as close as possible to controlling
 
 Status legend: **done**, *in progress*, planned.
 
-## v0.1 - Ground at EDDS (current)
+## v0.2 - Feedback round 1 (current)
+
+- **done** - ATIS editor (runway in use, wind, QNH, letter) instead of choosing the runway at login; runway changes during the session
+- **done** - Much better voice control: recognition alternatives, fuzzy callsigns, misrecognition fixes, last-caller fallback, TTS pauses while transmitting
+- **done** - Extended phraseology: cancel/stop/continue pushback, conditional clearances, queue numbers, expected delays, incomplete taxi instructions (clearance limit)
+- **done** - Special events: medical emergencies, rejected take-offs
+- **done** - EuroScope-like clickable tag items, telephony display
+- **done** - Realistic routing (no U-turns / hairpins), arrival turn-around bug fixed
+- **done** - Researched tower separation model (departure/arrival/runway separation, departure gaps), see [tower-operations.md](tower-operations.md)
+- *in progress* - Accurate EDDS layout from an aerodrome chart (waiting for the chart)
+
+## v0.1 - Ground at EDDS
 
 - **done** - Browser app, EuroScope-style ground radar, departure and arrival lists, message window, command line
 - **done** - EDDS layout (approximate), real runway and frequencies
@@ -19,12 +30,12 @@ Status legend: **done**, *in progress*, planned.
 
 ### Gameplay and realism
 
-- planned - Real EDDS layout from OpenStreetMap data (ODbL, with attribution) via an importer script, replacing the hand-made approximation
-- planned - Conditional clearances ("behind the Lufthansa A320 passing left to right, taxi ...") and real `follow` behaviour
+- planned - Real EDDS layout (from the aerodrome chart, or OpenStreetMap data with attribution), replacing the hand-made approximation
+- planned - Real `follow` behaviour (follow-the-leader)
 - planned - Stand allocation per airline and terminal (Schengen / non-Schengen), contact/remote stands
-- planned - De-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short, read-back errors you must catch)
+- planned - More special events (bird strike, blocked taxiway, follow-me, towing), de-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short, read-back errors you must catch)
 - planned - Low visibility procedures (CAT II/III holding points, larger spacing)
-- planned - Runway change during a session; wind changes with ATIS updates
+- planned - Wind that changes during the session (METAR updates)
 - planned - Scenario files (fixed traffic for training) and a tutorial mode
 
 ### Positions

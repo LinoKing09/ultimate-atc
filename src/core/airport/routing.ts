@@ -1,4 +1,4 @@
-import { dot, headingVector, sub, type Vec2 } from '../geo';
+import { dot, headingVector, normalize, sub, type Vec2 } from '../geo';
 import { otherEnd, type Airport, type TaxiEdge, type TaxiNode } from './airport';
 
 /**
@@ -49,7 +49,9 @@ export interface RouteError {
 }
 
 const RUNWAY_CROSSING_PENALTY = 3000;
-const UTURN_PENALTY = 400;
+const UTURN_PENALTY = 5000;
+/** Sharpest turn (degrees) an aircraft can make at a taxiway junction. */
+const MAX_TURN = 150;
 const FREE_EDGE_PENALTY = 1.15;
 
 export function findRoute(
@@ -70,6 +72,8 @@ export function findRoute(
     node: TaxiNode;
     cost: number;
     uTurn: boolean;
+    /** Direction of travel when arriving at the seed node (undefined = any). */
+    dir?: Vec2;
   }
   const seeds: Seed[] = [];
   let startEdgeName: string | undefined;
@@ -77,8 +81,6 @@ export function findRoute(
 
   if (start.node) {
     seeds.push({ node: start.node, cost: 0, uTurn: false });
-    // Taxiway(s) at the start node count as "current taxiway".
-    startEdgeName = undefined;
   } else if (start.position) {
     const near = airport.nearestEdge(start.position);
     if (!near) return { error: 'not on the taxiway network' };
@@ -86,13 +88,15 @@ export function findRoute(
     startEdgeName = near.edge.name.toUpperCase();
     const fwd = start.heading !== undefined ? headingVector(start.heading) : undefined;
     for (const n of [near.edge.from, near.edge.to]) {
-      const d = Math.hypot(n.pos.x - start.position.x, n.pos.y - start.position.y);
-      if (d < 1 && seeds.length > 0) continue;
+      const toNode = sub(n.pos, start.position);
+      const d = Math.hypot(toNode.x, toNode.y);
       let uTurn = false;
-      if (fwd && d > 3) uTurn = dot(sub(n.pos, start.position), fwd) < 0;
+      if (fwd && d > 3) uTurn = dot(toNode, fwd) < 0;
       // Respect one-way edges when moving along them.
       if (near.edge.oneWay && n === near.edge.from && d > 3) continue;
-      seeds.push({ node: n, cost: d + (uTurn ? UTURN_PENALTY : 0), uTurn });
+      // Arriving at the node: we travel along toNode, or (if we are standing on it) along our heading.
+      const dir = d > 1 ? unit(toNode) : fwd;
+      seeds.push({ node: n, cost: d + (uTurn ? UTURN_PENALTY : 0), uTurn, dir });
     }
   } else {
     return { error: 'no start given' };
@@ -103,29 +107,36 @@ export function findRoute(
   if (start.node) for (const e of start.node.edges) startNames.add(e.name.toUpperCase());
   const destNames = new Set(destination.edges.map((e) => e.name.toUpperCase()));
 
-  // ---- Dijkstra over (node, k)
-  const key = (n: TaxiNode, k: number) => `${n.id}|${k}`;
+  // ---- Dijkstra over (node, k, incoming edge). The incoming edge is part of the
+  // state so that turns sharper than MAX_TURN (hairpins / reversing) can be forbidden.
+  interface State {
+    key: string;
+    node: TaxiNode;
+    k: number;
+    cost: number;
+    dir?: Vec2;
+  }
   const dist = new Map<string, number>();
   const prev = new Map<string, { key: string; edge: TaxiEdge | null; seed?: Seed }>();
-  const open: { key: string; node: TaxiNode; k: number; cost: number }[] = [];
+  const open: State[] = [];
 
-  for (const s of seeds) {
-    const k0 = 0;
-    const kk = key(s.node, k0);
-    if ((dist.get(kk) ?? Infinity) > s.cost) {
-      dist.set(kk, s.cost);
-      prev.set(kk, { key: '', edge: null, seed: s });
-      open.push({ key: kk, node: s.node, k: k0, cost: s.cost });
-    }
-  }
+  seeds.forEach((s, i) => {
+    const kk = `${s.node.id}|0|seed${i}`;
+    dist.set(kk, s.cost);
+    prev.set(kk, { key: '', edge: null, seed: s });
+    open.push({ key: kk, node: s.node, k: 0, cost: s.cost, dir: s.dir });
+  });
 
-  const goalKey = key(destination, m);
+  let goalKey: string | undefined;
   while (open.length) {
     let bi = 0;
     for (let i = 1; i < open.length; i++) if (open[i].cost < open[bi].cost) bi = i;
     const cur = open.splice(bi, 1)[0];
     if (cur.cost > (dist.get(cur.key) ?? Infinity)) continue;
-    if (cur.key === goalKey) break;
+    if (cur.node === destination && cur.k === m) {
+      goalKey = cur.key;
+      break;
+    }
 
     for (const e of cur.node.edges) {
       if (e.kind === 'runway') continue;
@@ -133,6 +144,8 @@ export function findRoute(
       const nxt = otherEnd(e, cur.node);
       // Stand lead-in lines may only be used to leave the start stand or to enter the destination stand.
       if (e.kind === 'stand' && nxt !== destination && cur.node !== start.node) continue;
+      const out = unit(sub(nxt.pos, cur.node.pos));
+      if (cur.dir && turnAngle(cur.dir, out) > MAX_TURN) continue;
 
       const name = e.name.toUpperCase();
       let k = cur.k;
@@ -152,17 +165,17 @@ export function findRoute(
       } else {
         continue;
       }
-      const nk = key(nxt, k);
+      const nk = `${nxt.id}|${k}|${e.index}`;
       const nc = cur.cost + cost;
       if (nc < (dist.get(nk) ?? Infinity)) {
         dist.set(nk, nc);
         prev.set(nk, { key: cur.key, edge: e });
-        open.push({ key: nk, node: nxt, k, cost: nc });
+        open.push({ key: nk, node: nxt, k, cost: nc, dir: out });
       }
     }
   }
 
-  if (!dist.has(goalKey)) {
+  if (!goalKey) {
     return { error: auto ? 'no route found' : `no route via ${viaU.join(', ')}` };
   }
 
@@ -201,4 +214,13 @@ export function findRoute(
 
 export function isRouteError(r: TaxiRoute | RouteError): r is RouteError {
   return (r as RouteError).error !== undefined;
+}
+
+function unit(v: Vec2): Vec2 {
+  return normalize(v);
+}
+
+/** Angle in degrees between two unit vectors (0 = straight on, 180 = reversing). */
+function turnAngle(a: Vec2, b: Vec2): number {
+  return (Math.acos(Math.max(-1, Math.min(1, dot(a, b)))) * 180) / Math.PI;
 }

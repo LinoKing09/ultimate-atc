@@ -26,6 +26,55 @@ const NUMBER_WORDS: Record<string, string> = {
   six: '6', seven: '7', eight: '8', nine: '9', niner: '9',
 };
 
+const TENS_WORDS: Record<string, number> = {
+  ten: 10, eleven: 11, twelve: 12, thirteen: 13, fourteen: 14, fifteen: 15, sixteen: 16, seventeen: 17,
+  eighteen: 18, nineteen: 19, twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70,
+  eighty: 80, ninety: 90,
+};
+
+/**
+ * Words speech recognition commonly produces instead of the intended
+ * aviation word. Multi-word keys are matched before single words.
+ */
+const VOICE_FIXES: [string, string][] = [
+  ['push back', 'pushback'],
+  ['pushed back', 'pushback'],
+  ['push bag', 'pushback'],
+  ['start up', 'startup'],
+  ['stand by', 'standby'],
+  ['fox trot', 'foxtrot'],
+  ['x ray', 'xray'],
+  ['hold in point', 'holding point'],
+  ['holding points', 'holding point'],
+  ['holding position', 'holding point'],
+  ['run way', 'runway'],
+  ['run ways', 'runway'],
+  ['euro wings', 'eurowings'],
+  ['speed bird', 'speedbird'],
+  ['sun express', 'sunexpress'],
+  ['sun turk', 'sunturk'],
+  ['hansa line', 'hansaline'],
+  ['luft hansa', 'lufthansa'],
+  ['air france', 'airfrans'],
+  ['air frans', 'airfrans'],
+  ['tui jet', 'tuijet'],
+  ['ryan air', 'ryanair'],
+  ['wiz air', 'wizz air'],
+  ['whiz air', 'wizz air'],
+  ['it arrow', 'itarrow'],
+  ['frequency changed approved', 'frequency change approved'],
+];
+
+const VOICE_WORD_FIXES: Record<string, string> = {
+  gulf: 'golf', eco: 'echo', charley: 'charlie', mic: 'mike', mik: 'mike', juliette: 'juliett', kilos: 'kilo',
+  victa: 'victor', sierr: 'sierra', siera: 'sierra', romio: 'romeo', alfa: 'alpha', bravos: 'bravo',
+  taxis: 'taxi', texi: 'taxi', approve: 'approved', improved: 'approved', proved: 'approved',
+  phasing: 'facing', pacing: 'facing', tails: 'tail', canceled: 'cancelled',
+  pushbacks: 'pushback', clearer: 'clear', won: 'one', ate: 'eight',
+  lufthanza: 'lufthansa', lufthansas: 'lufthansa', eurowing: 'eurowings', condo: 'condor', condors: 'condor',
+  turkis: 'turkish', vueling: 'vueling', veuling: 'vueling', airfrance: 'airfrans', speedbirds: 'speedbird',
+};
+
 const PHONETIC_WORDS: Record<string, string> = {
   alpha: 'a', alfa: 'a', bravo: 'b', charlie: 'c', delta: 'd', echo: 'e', foxtrot: 'f', golf: 'g',
   hotel: 'h', india: 'i', juliett: 'j', juliet: 'j', kilo: 'k', lima: 'l', mike: 'm', november: 'n',
@@ -46,7 +95,17 @@ const KEYWORDS = new Set([
   'to', 'via', 'hold', 'holding', 'short', 'cross', 'runway', 'stand', 'gate', 'parking', 'position',
   'contact', 'monitor', 'give', 'continue', 'push', 'pushback', 'start', 'startup', 'expedite',
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
+  'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop',
 ]);
+
+/** Aircraft type words usable in conditional clearances ("behind the A320"). */
+const TYPE_WORD = /^(a\d{3}|a\d{2}n|b\d{3}|b\d{2}m|7\d7|e\d{3}|crj\d*|dh8d|q400|at\d\d|atr|airbus|boeing|embraer|bombardier|dash|citation|challenger|bizjet|jet|heavy)$/;
+
+/** What a sequence number / expected delay refers to. */
+const SEQUENCE_FOR: Record<string, string> = {
+  push: 'pushback', pushback: 'pushback', start: 'start-up', startup: 'start-up', taxi: 'taxi',
+  departure: 'departure', takeoff: 'departure', take: 'departure', crossing: 'crossing',
+};
 
 /** Multi-word and single-word telephony designators -> ICAO prefix. */
 const TELEPHONY_WORDS: { words: string[]; icao: string }[] = AIRLINES.filter((a) => a.telephony)
@@ -55,23 +114,41 @@ const TELEPHONY_WORDS: { words: string[]; icao: string }[] = AIRLINES.filter((a)
 
 /** Lower-cases, strips punctuation and converts spoken numbers/letters to characters. */
 export function tokenize(input: string): string[] {
-  const cleaned = input
+  let cleaned = input
     .toLowerCase()
-    .replace(/(\d)\s*decimal\s*(\d)/g, '$1.$2')
+    .replace(/(\d)\s*(decimal|point)\s*(\d)/g, '$1.$3')
     .replace(/[,;:!?()]/g, ' ')
     .replace(/\.(?!\d)/g, ' ')
     .replace(/-/g, ' ')
     .replace(/\bx ray\b/g, 'xray');
-  const raw = cleaned.split(/\s+/).filter(Boolean);
+  for (const [from, to] of VOICE_FIXES) cleaned = cleaned.replace(new RegExp(`\\b${from}\\b`, 'g'), to);
+  const raw = cleaned
+    .split(/\s+/)
+    .filter(Boolean)
+    .map((w) => VOICE_WORD_FIXES[w] ?? w);
   const out: string[] = [];
   for (let i = 0; i < raw.length; i++) {
     let t = raw[i];
     const nextRaw = raw[i + 1] ?? '';
-    if (t === 'decimal' && out.length && /^\d+$/.test(out[out.length - 1]) && (/^\d/.test(nextRaw) || NUMBER_WORDS[nextRaw])) {
+    if ((t === 'decimal' || (t === 'point' && raw[i - 1] !== 'holding')) && out.length && /^\d+$/.test(out[out.length - 1]) && (/^\d/.test(nextRaw) || NUMBER_WORDS[nextRaw])) {
       out[out.length - 1] += '.';
       continue;
     }
-    if (NUMBER_WORDS[t]) t = NUMBER_WORDS[t];
+    const prevTok = out[out.length - 1];
+    const numberContext = prevTok !== undefined && ['runway', 'stand', 'number', 'gate', 'in'].includes(prevTok);
+    if (TENS_WORDS[t] !== undefined) {
+      // "twenty five" -> 25, "twenty" -> 20
+      const unit = NUMBER_WORDS[raw[i + 1] ?? ''];
+      const tens = TENS_WORDS[t];
+      if (tens >= 20 && unit && unit !== '0') {
+        out.push(String(tens + Number(unit)));
+        i++;
+      } else out.push(String(tens));
+      continue;
+    }
+    if (numberContext && (t === 'to' || t === 'too')) t = '2';
+    else if (numberContext && t === 'for') t = '4';
+    else if (NUMBER_WORDS[t]) t = NUMBER_WORDS[t];
     else if (PHONETIC_WORDS[t]) t = PHONETIC_WORDS[t];
     // join "118." + "805"
     if (out.length && /^\d+\.\d{0,2}$/.test(out[out.length - 1]) && /^\d+$/.test(t)) {
@@ -190,6 +267,22 @@ function readFrequency(c: Cursor): string | undefined {
   return undefined;
 }
 
+function levenshtein(a: string, b: string): number {
+  const d = Array.from({ length: a.length + 1 }, (_, i) => [i, ...Array(b.length).fill(0)]);
+  for (let j = 1; j <= b.length; j++) d[0][j] = j;
+  for (let i = 1; i <= a.length; i++)
+    for (let j = 1; j <= b.length; j++)
+      d[i][j] = Math.min(d[i - 1][j] + 1, d[i][j - 1] + 1, d[i - 1][j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+  return d[a.length][b.length];
+}
+
+/** Telephony word match that tolerates small recognition errors ("lufthanza"). */
+function telephonyWordMatches(token: string | undefined, word: string): boolean {
+  if (!token) return false;
+  if (token === word) return true;
+  return word.length >= 5 && token.length >= 4 && levenshtein(token, word) <= (word.length >= 8 ? 2 : 1);
+}
+
 interface CallsignMatch {
   callsign: string;
   consumed: number;
@@ -207,18 +300,27 @@ function matchCallsign(tokens: string[], i: number, callsigns: string[]): Callsi
 
   // 2. Telephony + suffix ("lufthansa 5 a b", "wizz air 1 2 3")
   for (const tel of TELEPHONY_WORDS) {
-    if (tel.words.every((w, k) => tokens[i + k] === w)) {
+    if (tel.words.every((w, k) => telephonyWordMatches(tokens[i + k], w))) {
       let j = i + tel.words.length;
       let suffix = '';
       while (j < tokens.length && /^[a-z0-9]+$/.test(tokens[j]) && !KEYWORDS.has(tokens[j]) && suffix.length < 7) {
         const cand = (suffix + tokens[j]).toUpperCase();
         // stop if adding the token no longer matches any callsign prefix
-        if (!upper.some((c) => c.startsWith(tel.icao + cand))) break;
+        if (!upper.some((c) => c.startsWith(tel.icao + cand))) {
+          // ...unless it is a plausible flight-number fragment (recognition errors are fixed below)
+          if (!/^[a-z0-9]{1,3}$/.test(tokens[j]) || FILLER.has(tokens[j]) || suffix.length >= 4) break;
+        }
         suffix += tokens[j];
         j++;
       }
       const cs = (tel.icao + suffix).toUpperCase();
       if (upper.includes(cs)) return { callsign: cs, consumed: j - i };
+      // Fuzzy: closest callsign of this operator (one character off), or the only one.
+      const same = upper.filter((c) => c.startsWith(tel.icao));
+      const scored = same.map((c) => ({ c, d: levenshtein(c.slice(3), suffix.toUpperCase()) })).sort((a, b) => a.d - b.d);
+      if (scored.length && (scored[0].d <= 1 || (scored.length === 1 && scored[0].d <= 2) || (scored.length === 1 && !suffix))) {
+        if (scored.length === 1 || scored[1].d > scored[0].d) return { callsign: scored[0].c, consumed: j - i };
+      }
       return { callsign: cs, consumed: j - i }; // unknown aircraft, reported by the caller
     }
   }
@@ -272,7 +374,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
 
   const readFacing = (): Compass | undefined => {
     // looks ahead a few tokens for "facing east" / "face west" / "tail north"
-    for (let k = 0; k < 5; k++) {
+    for (let k = 0; k < 7; k++) {
       const w = c.peek(k);
       if (w === 'facing' || w === 'face' || w === 'nose') {
         const d = COMPASS[c.peek(k + 1) ?? ''];
@@ -362,8 +464,108 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     return undefined;
   };
 
+  /**
+   * Conditional clearance at the start of an instruction:
+   * "behind DLH5AB", "behind the A320 passing from left to right",
+   * "when clear of the Boeing", "after the A321 has passed".
+   */
+  const readCondition = (): void => {
+    const w = c.peek();
+    const isWhenClear = w === 'when' && c.peek(1) === 'clear';
+    if (w !== 'behind' && w !== 'after' && !isWhenClear) return;
+    const startIdx = c.i;
+    c.i += isWhenClear ? 2 : 1;
+    c.accept('of');
+    c.accept('the');
+    let callsign: string | undefined;
+    let type: string | undefined;
+    const m = matchCallsign(c.t, c.i, ctx.callsigns);
+    if (m && ctx.callsigns.includes(m.callsign)) {
+      callsign = m.callsign;
+      c.i += m.consumed;
+    } else if (c.peek() && TYPE_WORD.test(c.peek()!)) {
+      const word = c.next()!;
+      type = /\d/.test(word) ? word.toUpperCase() : word.charAt(0).toUpperCase() + word.slice(1);
+      // "A3 20" / "7 37" split by recognition
+      if (/^\d+$/.test(c.peek() ?? '') && type.length < 4) type += c.next();
+    } else {
+      c.i = startIdx;
+      return;
+    }
+    // Descriptive words up to the instruction: "passing from left to right", "has passed", "on N".
+    const descr: string[] = [];
+    while (!c.done() && !['push', 'pushback', 'taxi', 'start', 'startup', 'cross', 'continue', 'line', 'hold', 'contact'].includes(c.peek()!)) {
+      descr.push(c.next()!);
+    }
+    const words = c.t.slice(startIdx, startIdx + (c.i - startIdx - descr.length));
+    const lead = words[0] === 'when' ? 'when clear of' : words[0];
+    const subject = callsign ?? `the ${type}`;
+    const tail = descr.filter((d) => !['and', 'then'].includes(d)).join(' ');
+    result.condition = { callsign, type, text: `${lead} ${subject}${tail ? ` ${tail}` : ''}` };
+  };
+
+  readCondition();
+
   while (!c.done()) {
     const w = c.peek()!;
+
+    // ---------- cancel / stop / continue pushback
+    if (w === 'cancel' && ['push', 'pushback', 'startup', 'start'].includes(c.peek(1) ?? '')) {
+      c.i += 2;
+      c.accept('back');
+      result.commands.push({ type: 'cancelPushback' });
+      continue;
+    }
+    if ((w === 'push' || w === 'pushback') && (c.peek(1) === 'cancelled' || (c.peek(1) === 'back' && c.peek(2) === 'cancelled'))) {
+      c.i += c.peek(1) === 'back' ? 3 : 2;
+      result.commands.push({ type: 'cancelPushback' });
+      continue;
+    }
+    if (w === 'stop' && (c.peek(1) === 'push' || c.peek(1) === 'pushback' || (c.peek(1) === 'the' && ['push', 'pushback'].includes(c.peek(2) ?? '')))) {
+      c.i += c.peek(1) === 'the' ? 3 : 2;
+      c.accept('back');
+      c.accept('immediately');
+      result.commands.push({ type: 'stopPushback' });
+      continue;
+    }
+    if (w === 'continue' && (c.peek(1) === 'push' || c.peek(1) === 'pushback')) {
+      c.i += 2;
+      c.accept('back');
+      result.commands.push({ type: 'continue' });
+      continue;
+    }
+
+    // ---------- sequence number / expected delay
+    if (w === 'number' && /^\d$/.test(c.peek(1) ?? '')) {
+      c.next();
+      const n = Number(c.next());
+      let what: string | undefined;
+      if (c.accept('for')) {
+        what = SEQUENCE_FOR[c.peek() ?? ''];
+        if (what) {
+          c.next();
+          c.accept('back', 'up', 'off');
+        }
+      }
+      result.commands.push({ type: 'sequence', number: n, for: what });
+      continue;
+    }
+    if (w === 'expect' && SEQUENCE_FOR[c.peek(1) ?? '']) {
+      const what = SEQUENCE_FOR[c.peek(1)!];
+      const save = c.i;
+      c.i += 2;
+      c.accept('back', 'up', 'off', 'clearance');
+      c.accept('in');
+      c.accept('about', 'approximately');
+      const n = /^\d+$/.test(c.peek() ?? '') ? Number(c.next()) : NaN;
+      if (!Number.isNaN(n)) {
+        c.accept('minutes', 'minute', 'min');
+        result.commands.push({ type: 'expect', what, minutes: n });
+      } else {
+        c.i = save + 1;
+      }
+      continue;
+    }
 
     // ---------- pushback / startup
     if (w === 'push' || w === 'pushback') {
@@ -401,7 +603,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
           if (d) taxi.destination = d;
           continue;
         }
-        if (c.accept('via')) {
+        if (c.accept('via', 'along')) {
           readVia(taxi.via);
           continue;
         }

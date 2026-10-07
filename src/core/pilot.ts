@@ -24,6 +24,9 @@ interface ExecResult {
   answers?: boolean;
 }
 
+/** Medical emergencies parked within this time (s) after the call earn a bonus. */
+const MEDICAL_BONUS_TIME = 360;
+
 const COMPASS_BEARING: Record<Compass, number> = { north: 0, east: 90, south: 180, west: 270 };
 
 function compassOf(heading: number): Compass {
@@ -69,9 +72,10 @@ function readback(sim: Simulation, ac: Aircraft, text: string, after?: () => voi
 
 export function executeTransmission(sim: Simulation, parsed: ParsedTransmission, raw: string): TransmitResult {
   const ac = sim.find(parsed.callsign);
+  const condText = parsed.condition ? `${parsed.condition.text}, ` : '';
   const canonical =
     ac && parsed.commands.length && parsed.unparsed.length === 0
-      ? `${sim.tel(ac)}, ${parsed.commands.map(formatCommand).join(', ')}`
+      ? `${sim.tel(ac)}, ${condText}${parsed.commands.map(formatCommand).join(', ')}`
       : raw;
   sim.frequency.controllerTransmit(sim.time, canonical, ac?.callsign);
 
@@ -91,8 +95,29 @@ export function executeTransmission(sim: Simulation, parsed: ParsedTransmission,
     return { ok: false, callsign: ac.callsign, hint: 'Instruction not understood.' };
   }
 
+  // Conditional clearance: the pilot must identify the traffic first.
+  let conditionTraffic: Aircraft | undefined;
+  if (parsed.condition) {
+    conditionTraffic = resolveConditionTraffic(sim, ac, parsed.condition);
+    if (!conditionTraffic) {
+      const what = parsed.condition.callsign ? sim.tel(sim.find(parsed.condition.callsign) ?? ac) : `the ${parsed.condition.type}`;
+      readback(sim, ac, `Negative contact with ${what}, say again, ${sim.tel(ac)}`);
+      return { ok: false, callsign: ac.callsign, hint: 'The pilot cannot identify the traffic of the conditional clearance.' };
+    }
+  }
+
   const results = parsed.commands.map((c) => execute(sim, ac, c));
+  if (conditionTraffic && parsed.commands.some((c) => ['pushback', 'taxi', 'cross', 'continue'].includes(c.type))) {
+    // Wait for the traffic to pass, then go (same mechanism as "give way").
+    ac.giveWayTo = conditionTraffic.callsign;
+    ac.giveWaySince = sim.time;
+    ac.giveWayLastDist = distance(ac.pos, conditionTraffic.pos);
+    ac.giveWayMinDist = undefined;
+  }
   const parts: string[] = [];
+  if (parsed.condition && conditionTraffic) {
+    parts.push(parsed.condition.callsign ? parsed.condition.text.replace(parsed.condition.callsign, sim.tel(conditionTraffic)) : parsed.condition.text);
+  }
   let ok = true;
   for (const r of results) {
     if (r.readback) parts.push(r.readback);
@@ -105,6 +130,7 @@ export function executeTransmission(sim: Simulation, parsed: ParsedTransmission,
   if (results.some((r) => r.answers)) {
     sim.recordAnswer(ac);
     ac.request = null;
+    ac.sequence = undefined;
   }
   if (parts.length) {
     readback(sim, ac, `${capitalize(parts.join(', '))}, ${sim.tel(ac)}`, () => afters.forEach((f) => f()));
@@ -141,11 +167,28 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       ac.giveWayTo = other.callsign;
       ac.giveWaySince = sim.time;
       ac.giveWayLastDist = distance(ac.pos, other.pos);
-      ac.giveWayOpening = 0;
+      ac.giveWayMinDist = undefined;
       return { readback: `${c.type === 'follow' ? 'follow' : 'give way to'} ${sim.tel(other)}`, answers: ac.request === 'blocked' };
     }
     case 'handoff':
       return execHandoff(sim, ac, c.station, c.frequency);
+    case 'cancelPushback':
+      return execCancelPushback(sim, ac);
+    case 'stopPushback':
+      if (ac.phase !== 'pushback') return { unable: 'we are not pushing back' };
+      ac.holdPosition = true;
+      return { readback: 'stopping pushback' };
+    case 'sequence':
+    case 'expect': {
+      const waitS = c.type === 'sequence' ? 60 + 45 * c.number : c.minutes * 60 + 20;
+      ac.standbyUntil = sim.time + waitS;
+      if (c.type === 'sequence') ac.sequence = { number: c.number, for: c.for ?? 'pushback' };
+      if (ac.request) {
+        sim.recordAnswer(ac);
+        ac.requestSince = sim.time;
+      }
+      return { readback: formatCommand(c) };
+    }
     case 'standby':
       ac.standbyUntil = sim.time + 120;
       if (ac.request) {
@@ -163,6 +206,59 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
     case 'takeoff':
       return { unable: 'confirm, we are on Ground frequency, contact Tower?' };
   }
+}
+
+// ====================================================================== conditional clearances
+
+/** Type designators a word in a conditional clearance may refer to. */
+function typeMatches(word: string, icao: string): boolean {
+  const w = word.toUpperCase();
+  if (w === icao) return true;
+  if (w === 'AIRBUS') return icao.startsWith('A');
+  if (w === 'BOEING') return icao.startsWith('B');
+  if (w === 'EMBRAER') return icao.startsWith('E');
+  if (w === 'BOMBARDIER' || w.startsWith('CRJ')) return icao.startsWith('CRJ') || icao === 'CL35';
+  if (w === 'DASH' || w === 'Q400') return icao === 'DH8D';
+  if (w === 'ATR' || w.startsWith('AT')) return icao.startsWith('AT');
+  if (w === 'JET' || w === 'BIZJET' || w === 'CITATION' || w === 'CHALLENGER') return icao === 'C56X' || icao === 'CL35';
+  if (w === 'HEAVY') return icao.startsWith('A33') || icao.startsWith('B7') || icao.startsWith('B78');
+  if (/^7\d7$/.test(w)) return icao.startsWith(`B${w[0]}${w[1]}`) || icao.startsWith(`B${w[0]}`);
+  // "A320" also matches the neo, "B737" the 737 family
+  return icao.slice(0, 3) === w.slice(0, 3);
+}
+
+/** Finds the traffic a conditional clearance refers to. */
+function resolveConditionTraffic(sim: Simulation, ac: Aircraft, cond: NonNullable<ParsedTransmission['condition']>): Aircraft | undefined {
+  if (cond.callsign) {
+    const o = sim.find(cond.callsign);
+    return o && o !== ac && o.onGround ? o : undefined;
+  }
+  if (!cond.type) return undefined;
+  const candidates = sim.aircraft
+    .filter((o) => o !== ac && o.onGround && !['parked', 'arrived'].includes(o.phase) && typeMatches(cond.type!, o.type.icao))
+    .filter((o) => distance(o.pos, ac.pos) < 1500)
+    .sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos));
+  return candidates[0];
+}
+
+function execCancelPushback(sim: Simulation, ac: Aircraft): ExecResult {
+  if (ac.phase === 'pushback' && ac.s < 1) {
+    // Tug not moving yet: back to the stand, the pilot will call again later.
+    ac.phase = 'parked';
+    ac.path = null;
+    ac.reverse = false;
+    ac.stops = [];
+    ac.pendingTaxi = undefined;
+    ac.request = null;
+    ac.readyAt = sim.time + sim.rng.range(60, 150);
+    return { readback: 'pushback cancelled' };
+  }
+  if (ac.phase === 'pushback') {
+    ac.holdPosition = true;
+    return { readback: 'stopping pushback' };
+  }
+  if (ac.phase === 'parked') return { readback: 'roger, pushback cancelled', answers: ac.request === 'pushback' };
+  return { unable: 'we are not pushing back' };
 }
 
 // ====================================================================== pushback
@@ -198,7 +294,7 @@ function planPushback(sim: Simulation, ac: Aircraft, facing?: Compass): PushPlan
     return planPushback(sim, ac, stand.defaultPushFacing);
   } else {
     // Face the direction that gives the shortest taxi to the departure runway.
-    const rwy = ac.runway ?? sim.config.runway;
+    const rwy = ac.runway ?? sim.runway;
     const entry = sim.airport.runwayOps(rwy)?.departureEntries[0];
     const hp = entry ? sim.airport.holdingPoint(entry.holdingPoint) : undefined;
     if (hp) {
@@ -250,10 +346,14 @@ function resolveDestination(
   dest: TaxiDestination | undefined,
   start: RouteStart,
   via: string[],
+  holdShort: HoldShortTarget[] = [],
 ): { route: TaxiRoute; dest: TaxiDestination } | { error: string } {
+  if (!dest && holdShort.length && via.length) {
+    return resolveClearanceLimit(sim, start, via, holdShort[holdShort.length - 1]);
+  }
   if (!dest) {
     if (ac.routeDestination && via.length) dest = ac.routeDestination;
-    else return { error: 'say again destination' };
+    else return { error: 'say again clearance limit' };
   }
   const tryRoute = (node: Parameters<typeof findRoute>[2]) => findRoute(sim.airport, start, node, via);
 
@@ -295,6 +395,8 @@ function resolveDestination(
         dest: { kind: 'holdingPoint', name: hpNode.holdingPoint?.name ?? '?', runway: dest.runway },
       };
     }
+    case 'holdShort':
+      return resolveClearanceLimit(sim, start, via, { kind: 'taxiway', name: dest.name });
     case 'stand': {
       const stand = sim.airport.stand(dest.stand);
       if (!stand) return { error: `confirm stand ${dest.stand}, we can't find it` };
@@ -306,6 +408,42 @@ function resolveDestination(
       return { route: r, dest };
     }
   }
+}
+
+/**
+ * Incomplete taxi instruction: "taxi via N, hold short of F" (or "... hold
+ * short of runway 25"). The clearance limit is where the last via taxiway
+ * meets the hold-short target.
+ */
+function resolveClearanceLimit(
+  sim: Simulation,
+  start: RouteStart,
+  via: string[],
+  target: HoldShortTarget,
+): { route: TaxiRoute; dest: TaxiDestination } | { error: string } {
+  const last = via[via.length - 1].toUpperCase();
+  let best: { route: TaxiRoute; dest: TaxiDestination } | undefined;
+  if (target.kind === 'runway') {
+    const rwy = sim.airport.runwayNameFor(target.runway);
+    for (const hp of sim.airport.holdingPoints.values()) {
+      if (hp.holdingPoint?.runway !== rwy) continue;
+      if (!hp.edges.some((e) => e.name.toUpperCase() === last)) continue;
+      const r = findRoute(sim.airport, start, hp, via);
+      if (isRouteError(r) || r.edges.some((e) => e.kind === 'runwayStrip')) continue;
+      if (!best || r.length < best.route.length) best = { route: r, dest: { kind: 'holdingPoint', name: hp.holdingPoint!.name, runway: target.runway } };
+    }
+  } else {
+    const X = target.name.toUpperCase();
+    for (const n of sim.airport.nodes.values()) {
+      if (!n.edges.some((e) => e.name.toUpperCase() === X) || !n.edges.some((e) => e.name.toUpperCase() === last)) continue;
+      const r = findRoute(sim.airport, start, n, via);
+      if (isRouteError(r) || r.edges.length === 0) continue;
+      if (r.edges[r.edges.length - 1].name.toUpperCase() === X) continue;
+      if (!best || r.length < best.route.length) best = { route: r, dest: { kind: 'holdShort', name: X } };
+    }
+  }
+  if (!best) return { error: `unable to reach ${target.kind === 'runway' ? `runway ${target.runway}` : `taxiway ${target.name}`} via ${via.join(', ')}, say again route` };
+  return best;
 }
 
 function routeErrorText(err: string, via: string[]): string {
@@ -341,7 +479,7 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
   if (ac.phase === 'arrived') return { unable: 'we are already parked' };
 
   const start = routeStart(sim, ac);
-  const res = resolveDestination(sim, ac, c.destination, toRouteStart(sim, start), c.via);
+  const res = resolveDestination(sim, ac, c.destination, toRouteStart(sim, start), c.via, c.holdShort);
   if ('error' in res) return { unable: res.error };
 
   const resolved: TaxiCommand = { ...c, destination: res.dest };
@@ -354,7 +492,7 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
   }
 
   // Read-back: destination, route, conditions.
-  let rb = `taxi to ${formatDestination(res.dest)}`;
+  let rb = res.dest.kind === 'holdShort' ? 'taxi' : `taxi to ${formatDestination(res.dest)}`;
   const via = c.via.length ? c.via : [];
   if (via.length) rb += ` via ${via.join(', ')}`;
   for (const h of c.holdShort) rb += `, ${formatHoldShort(h)}`;
@@ -398,6 +536,16 @@ export function applyRoute(
     }
   }
   ac.stops = computeStops(sim, ac, holdShort);
+  ac.taxiStartedAt = sim.time;
+  if (dest.kind === 'holdShort') {
+    // The clearance limit itself becomes the destination stop, ~40 m before the junction.
+    const limit = ac.stops.find((st) => st.kind === 'holdShort' && st.target === dest.name) ?? holdShortStop(sim, ac, dest.name, 0);
+    const end = ac.stops.find((st) => st.kind === 'destination');
+    if (limit && end) {
+      ac.stops = ac.stops.filter((st) => st !== limit && st !== end && st.s < limit.s);
+      ac.stops.push({ s: limit.s, kind: 'destination', target: dest.name, nodeId: limit.nodeId });
+    }
+  }
 }
 
 function computeStops(sim: Simulation, ac: Aircraft, holdShort: HoldShortTarget[]): PathStop[] {
@@ -567,10 +715,17 @@ export function onStopReached(sim: Simulation, ac: Aircraft, stop: PathStop): vo
       ac.stand = dest.stand;
       ac.assignedStand = undefined;
       ac.timerUntil = sim.time + sim.rng.range(150, 300);
-      if (ac.category === 'arrival') {
-        sim.stats.arrivalsParked++;
-        sim.updateScore();
+      if (ac.category === 'arrival') sim.stats.arrivalsParked++;
+      if (ac.emergency === 'medical') {
+        const t = sim.time - (ac.emergencySince ?? sim.time);
+        sim.stats.emergenciesHandled++;
+        const quick = t <= MEDICAL_BONUS_TIME;
+        if (quick) sim.stats.bonus += 15;
+        const mmss = `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
+        sim.system(`${ac.callsign} is on stand ${dest.stand}, the ambulance has taken over the patient (${mmss} after the emergency call${quick ? ', +15 points' : ''}).`, 'system', ac.callsign);
+        ac.emergency = undefined;
       }
+      sim.updateScore();
       return;
     }
     if (stop.holdingPoint) {
@@ -582,7 +737,7 @@ export function onStopReached(sim: Simulation, ac: Aircraft, stop: PathStop): vo
 
 function runwayEndsText(sim: Simulation, runway: string): string {
   // Use the active runway designator if it belongs to this runway, else the full name.
-  const active = sim.airport.runwayEnd(sim.config.runway);
+  const active = sim.airport.runwayEnd(sim.runway);
   return active && active.runway === runway ? active.name : runway;
 }
 
@@ -603,7 +758,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       ac.pendingTaxi = undefined;
       ac.phase = 'taxi';
       const start = { position: ac.pos, heading: ac.heading };
-      const res = resolveDestination(sim, ac, c.destination, start, c.via);
+      const res = resolveDestination(sim, ac, c.destination, start, c.via, c.holdShort);
       if ('error' in res) {
         call(sim, ac, 'route', `${sim.tel(ac)}, ready for taxi, ${res.error}`);
         ac.stoppedAt = { s: ac.s, kind: 'destination', target: 'none' };
@@ -615,7 +770,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     }
   }
 
-  // Give way bookkeeping
+  // Give way / conditional clearance bookkeeping: wait until the traffic has passed.
   if (ac.giveWayTo) {
     const o = sim.find(ac.giveWayTo);
     const since = now - (ac.giveWaySince ?? now);
@@ -623,21 +778,40 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       ac.giveWayTo = undefined;
     } else {
       const d = distance(ac.pos, o.pos);
-      if (ac.giveWayLastDist !== undefined && d > ac.giveWayLastDist + 0.02) ac.giveWayOpening = (ac.giveWayOpening ?? 0) + 0.2;
-      else if (ac.giveWayLastDist !== undefined && d < ac.giveWayLastDist - 0.02) ac.giveWayOpening = 0;
+      ac.giveWayMinDist = Math.min(ac.giveWayMinDist ?? d, d);
       ac.giveWayLastDist = d;
       const clearance = (ac.type.wingspanM + o.type.wingspanM) / 2 + 40;
-      if (d > 250 || ((ac.giveWayOpening ?? 0) > 4 && d > clearance) || since > 240) ac.giveWayTo = undefined;
+      // Passed = it came closest and is now clearly moving away again (or it stopped far away).
+      const passed = d - ac.giveWayMinDist > 40 && d > clearance;
+      const parkedAway = o.speed < 0.2 && d > 300 && since > 20;
+      if (passed || parkedAway || since > 240) {
+        ac.giveWayTo = undefined;
+        ac.giveWayMinDist = undefined;
+      }
     }
   }
 
   if (!sim.isOnMyFrequency(ac)) return;
 
+  // Special event: medical emergency while taxiing out.
+  if (ac.plannedMedical && ac.phase === 'taxi' && ac.category === 'departure' && ac.taxiStartedAt !== undefined && now - ac.taxiStartedAt > 40) {
+    ac.plannedMedical = false;
+    ac.emergency = 'medical';
+    ac.emergencySince = now;
+    ac.returnToStand = true;
+    ac.assignedStand = sim.traffic.allocateStand(ac)?.id;
+    ac.request = null;
+    sim.frequency.cancel(ac.callsign);
+    call(sim, ac, 'taxiIn', `${sim.station.name}, ${sim.tel(ac)}, PAN PAN, PAN PAN, PAN PAN, medical emergency on board, request immediate return to the stand, ambulance required`);
+    return;
+  }
+
   const tel = sim.tel(ac);
   const stationName = sim.station.name;
 
-  // Spontaneous first calls
+  // Spontaneous first calls (not while told to wait: standby / number / expect)
   if (ac.request === null) {
+    if (now <= ac.standbyUntil) return;
     if (ac.phase === 'parked' && ac.category === 'departure' && now >= ac.readyAt) {
       const stand = sim.airport.stand(ac.stand ?? '');
       if (stand && !stand.pushback) {
@@ -690,7 +864,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
  */
 export function previewTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): { route: TaxiRoute; dest: TaxiDestination } | { error: string } {
   const start = routeStart(sim, ac);
-  return resolveDestination(sim, ac, c.destination, toRouteStart(sim, start), c.via);
+  return resolveDestination(sim, ac, c.destination, toRouteStart(sim, start), c.via, c.holdShort);
 }
 
 /** Builds a taxi route automatically (shortest path) - used by AI traffic and UI suggestions. */

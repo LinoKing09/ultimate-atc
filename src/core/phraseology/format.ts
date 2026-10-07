@@ -21,6 +21,8 @@ export function formatDestination(d: TaxiDestination): string {
       return `runway ${d.runway}`;
     case 'stand':
       return `stand ${d.stand}`;
+    case 'holdShort':
+      return `holding short of taxiway ${d.name}`;
   }
 }
 
@@ -35,8 +37,16 @@ export function formatCommand(c: Command): string {
       return `${c.startup ? 'push and start approved' : 'pushback approved'}${c.facing ? `, facing ${c.facing}` : ''}`;
     case 'startup':
       return 'start-up approved';
+    case 'cancelPushback':
+      return 'cancel pushback';
+    case 'stopPushback':
+      return 'stop pushback';
+    case 'sequence':
+      return `number ${c.number}${c.for ? ` for ${c.for}` : ''}`;
+    case 'expect':
+      return `expect ${c.what} in ${c.minutes} minute${c.minutes === 1 ? '' : 's'}`;
     case 'taxi': {
-      let s = c.destination ? `taxi to ${formatDestination(c.destination)}` : 'taxi';
+      let s = c.destination && c.destination.kind !== 'holdShort' ? `taxi to ${formatDestination(c.destination)}` : 'taxi';
       if (c.via.length) s += ` via ${c.via.join(', ')}`;
       for (const h of c.holdShort) s += `, ${formatHoldShort(h)}`;
       for (const r of c.cross) s += `, cross runway ${r}`;

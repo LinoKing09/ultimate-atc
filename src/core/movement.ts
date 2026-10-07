@@ -91,7 +91,6 @@ export function updateSeparation(sim: Simulation): void {
   for (const a of ground) {
     a.blockDistance = undefined;
     if (!a.path || !PATH_PHASES.has(a.phase)) continue;
-    if (a.phase === 'landing') continue; // the tower keeps the runway clear
     const remaining = a.path.length - a.s;
     if (remaining < 1) continue;
     const look = Math.min(remaining, (a.speed * a.speed) / (2 * 1.2) + 55 + a.type.lengthM);

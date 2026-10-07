@@ -24,11 +24,11 @@ function lastPilotMessage(sim: Simulation, callsign: string): string {
 describe('departure flow', () => {
   it('push, taxi, handoff and take-off', () => {
     const sim = makeSim();
-    const ac = sim.traffic.spawnDeparture(2, { stand: '10', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     expect(ac).toBeDefined();
 
     expect(runUntil(sim, () => ac.request === 'pushback')).toBe(true);
-    expect(lastPilotMessage(sim, 'DLH5AB')).toMatch(/Stuttgart Ground, Lufthansa 5AB, stand 10, information [A-Z], request (pushback|push and start)/);
+    expect(lastPilotMessage(sim, 'DLH5AB')).toMatch(/Stuttgart Ground, Lufthansa 5AB, stand 14, information [A-Z], request (pushback|push and start)/);
 
     sim.transmit('DLH5AB pushback approved facing east');
     expect(runUntil(sim, () => lastPilotMessage(sim, 'DLH5AB').startsWith('Pushback approved'), 10)).toBe(true);
@@ -37,8 +37,8 @@ describe('departure flow', () => {
     expect(Math.abs(((ac.heading - 74 + 540) % 360) - 180)).toBeLessThan(15);
 
     expect(runUntil(sim, () => ac.request === 'taxi')).toBe(true);
-    sim.transmit('DLH5AB taxi to holding point G1 via R N G');
-    expect(runUntil(sim, () => /Taxi to holding point G1 via R, N, G, Lufthansa 5AB/.test(lastPilotMessage(sim, 'DLH5AB')), 10)).toBe(true);
+    sim.transmit('DLH5AB taxi to holding point A via M H N');
+    expect(runUntil(sim, () => /Taxi to holding point A via M, H, N, Lufthansa 5AB/.test(lastPilotMessage(sim, 'DLH5AB')), 10)).toBe(true);
     expect(runUntil(sim, () => ac.phase === 'holding', 900)).toBe(true);
 
     expect(runUntil(sim, () => ac.request === 'handoff', 60)).toBe(true);
@@ -53,18 +53,18 @@ describe('departure flow', () => {
 
   it('pilot rejects a route that does not exist', () => {
     const sim = makeSim();
-    const ac = sim.traffic.spawnDeparture(2, { stand: '10', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     runUntil(sim, () => ac.request === 'pushback');
     sim.transmit('DLH5AB push and start approved');
     runUntil(sim, () => ac.request === 'taxi');
-    sim.transmit('DLH5AB taxi to holding point G1 via S');
+    sim.transmit('DLH5AB taxi to holding point A via S');
     runUntil(sim, () => lastPilotMessage(sim, 'DLH5AB').includes('unable'), 10);
     expect(lastPilotMessage(sim, 'DLH5AB')).toMatch(/unable to follow route via S/i);
   });
 
   it('pilot says again on gibberish', () => {
     const sim = makeSim();
-    sim.traffic.spawnDeparture(200, { stand: '10', callsign: 'DLH5AB', type: 'A320' });
+    sim.traffic.spawnDeparture(200, { stand: '14', callsign: 'DLH5AB', type: 'A320' });
     sim.transmit('DLH5AB banana split');
     runUntil(sim, () => lastPilotMessage(sim, 'DLH5AB') !== '', 10);
     expect(lastPilotMessage(sim, 'DLH5AB')).toBe('Say again, Lufthansa 5AB?');
@@ -89,14 +89,14 @@ describe('arrival flow', () => {
 describe('runway crossing', () => {
   it('stops at the runway holding point until cleared to cross', () => {
     const sim = makeSim();
-    const ac = sim.traffic.spawnDeparture(2, { stand: '82', callsign: 'THY1734', type: 'A320' }) as Aircraft;
+    const ac = sim.traffic.spawnDeparture(2, { stand: '102', callsign: 'THY1734', type: 'A320' }) as Aircraft;
     runUntil(sim, () => ac.request === 'pushback');
     sim.transmit('THY1734 push and start approved facing east');
     runUntil(sim, () => ac.request === 'taxi');
-    sim.transmit('THY1734 taxi to holding point F1 via S F');
+    sim.transmit('THY1734 taxi to holding point H via V W');
     expect(runUntil(sim, () => ac.request === 'crossing', 600)).toBe(true);
-    expect(ac.stoppedAt?.holdingPoint).toBe('F2');
-    expect(lastPilotMessage(sim, 'THY1734')).toMatch(/holding short runway 25 at F2/);
+    expect(ac.stoppedAt?.holdingPoint).toBe('W');
+    expect(lastPilotMessage(sim, 'THY1734')).toMatch(/holding short runway 25 at W/);
     sim.tick(30);
     expect(ac.speed).toBe(0);
     sim.transmit('THY1734 cross runway 25');
@@ -109,14 +109,14 @@ describe('separation', () => {
   it('a taxiing aircraft stops behind another one', () => {
     const sim = makeSim();
     const a = sim.traffic.spawnDeparture(2, { stand: '12', callsign: 'DLH1AA', type: 'A320' }) as Aircraft;
-    const b = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH2BB', type: 'A320' }) as Aircraft;
+    const b = sim.traffic.spawnDeparture(2, { stand: '15', callsign: 'DLH2BB', type: 'A320' }) as Aircraft;
     runUntil(sim, () => a.request === 'pushback' && b.request === 'pushback');
     sim.transmit('DLH1AA push and start approved facing east');
     sim.transmit('DLH2BB push and start approved facing east');
     runUntil(sim, () => a.request === 'taxi' && b.request === 'taxi', 400);
-    sim.transmit('DLH2BB taxi to holding point G1 via R N G');
+    sim.transmit('DLH2BB taxi to holding point A via M H N');
     sim.tick(5);
-    sim.transmit('DLH1AA taxi to holding point G1 via R N G');
+    sim.transmit('DLH1AA taxi to holding point A via M H N');
     runUntil(sim, () => a.phase === 'holding' || b.phase === 'holding', 900);
     runUntil(sim, () => false, 120);
     expect(sim.incidents.filter((i) => i.type === 'collision')).toEqual([]);
@@ -153,28 +153,28 @@ describe('routing realism (feedback round 1)', () => {
     }
   });
 
-  it('after pushing facing west the aircraft can taxi via D, N and never plans a U-turn', () => {
+  it('after pushing facing west the aircraft taxis west and never plans a U-turn', () => {
     const sim = makeSim();
-    const ac = sim.traffic.spawnDeparture(2, { stand: '10', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     runUntil(sim, () => ac.request === 'pushback');
     sim.transmit('DLH5AB push and start approved facing west');
     runUntil(sim, () => ac.request === 'taxi', 400);
-    sim.transmit('DLH5AB taxi to holding point G1 via D, N');
+    sim.transmit('DLH5AB taxi to holding point K via L3, O');
     sim.tick(5);
-    expect(ac.route?.taxiways).toEqual(['R', 'D', 'N', 'G']);
+    expect(ac.route?.taxiways).toEqual(['M', 'L3', 'O', 'K']);
     expect(ac.route?.requiresUTurn).toBe(false);
     sim.transmit('DLH5AB taxi to runway 25');
     sim.tick(5);
     expect(ac.route?.requiresUTurn).toBe(false);
-    expect(ac.route?.taxiways[0]).toBe('R');
-    expect(ac.route?.taxiways).not.toContain('F');
+    expect(ac.route?.taxiways.slice(0, 2)).toEqual(['M', 'L3']);
+    expect(ac.route?.taxiways).not.toContain('L2');
   });
 });
 
 describe('extended phraseology', () => {
   it('cancels a pushback before the tug moves', () => {
     const sim = makeSim();
-    const ac = sim.traffic.spawnDeparture(2, { stand: '10', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     runUntil(sim, () => ac.request === 'pushback');
     sim.transmit('DLH5AB pushback approved');
     sim.tick(2);
@@ -185,7 +185,7 @@ describe('extended phraseology', () => {
 
   it('stops and continues a pushback', () => {
     const sim = makeSim();
-    const ac = sim.traffic.spawnDeparture(2, { stand: '10', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     runUntil(sim, () => ac.request === 'pushback');
     sim.transmit('DLH5AB pushback approved');
     runUntil(sim, () => ac.speed > 1, 60);
@@ -199,7 +199,7 @@ describe('extended phraseology', () => {
 
   it('assigns queue numbers and suppresses reminders', () => {
     const sim = makeSim();
-    const ac = sim.traffic.spawnDeparture(2, { stand: '10', callsign: 'CFG11', type: 'A320' }) as Aircraft;
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'CFG11', type: 'A320' }) as Aircraft;
     runUntil(sim, () => ac.request === 'pushback');
     sim.transmit('CFG11 number 2 for pushback');
     runUntil(sim, () => lastPilotMessage(sim, 'CFG11').startsWith('Number 2 for pushback'), 10);
@@ -211,30 +211,30 @@ describe('extended phraseology', () => {
 
   it('accepts an incomplete taxi instruction with a clearance limit', () => {
     const sim = makeSim();
-    const ac = sim.traffic.spawnDeparture(2, { stand: '10', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     runUntil(sim, () => ac.request === 'pushback');
     sim.transmit('DLH5AB push and start approved facing west');
     runUntil(sim, () => ac.request === 'taxi', 400);
-    sim.transmit('DLH5AB taxi via R, D, N, hold short of E');
-    runUntil(sim, () => /Taxi via R, D, N, hold short of taxiway E/.test(lastPilotMessage(sim, 'DLH5AB')), 10);
+    sim.transmit('DLH5AB taxi via M, L2, N, hold short of H');
+    runUntil(sim, () => /Taxi via M, L2, N, hold short of taxiway H/.test(lastPilotMessage(sim, 'DLH5AB')), 10);
     runUntil(sim, () => ac.stoppedAt?.kind === 'destination', 400);
-    const nE = sim.airport.node('N_E').pos;
-    const d = Math.hypot(ac.pos.x - nE.x, ac.pos.y - nE.y);
+    const nH = sim.airport.node('N_H').pos;
+    const d = Math.hypot(ac.pos.x - nH.x, ac.pos.y - nH.y);
     expect(d).toBeGreaterThan(30);
     expect(d).toBeLessThan(60);
-    sim.transmit('DLH5AB taxi to holding point A1 via N, A');
-    runUntil(sim, () => ac.phase === 'holding', 400);
-    expect(ac.stoppedAt?.holdingPoint).toBe('A1');
+    sim.transmit('DLH5AB taxi to holding point A via N');
+    runUntil(sim, () => ac.phase === 'holding', 600);
+    expect(ac.stoppedAt?.holdingPoint).toBe('A');
   });
 
   it('executes conditional clearances behind traffic described by type', () => {
     const sim = makeSim();
     const a = sim.traffic.spawnDeparture(2, { stand: '12', callsign: 'DLH1AA', type: 'A321' }) as Aircraft;
-    const b = sim.traffic.spawnDeparture(2, { stand: '6', callsign: 'EWG2BB', type: 'A320' }) as Aircraft;
+    const b = sim.traffic.spawnDeparture(2, { stand: '10', callsign: 'EWG2BB', type: 'A320' }) as Aircraft;
     runUntil(sim, () => a.request === 'pushback' && b.request === 'pushback');
     sim.transmit('EWG2BB push and start approved facing east');
     runUntil(sim, () => b.request === 'taxi', 400);
-    sim.transmit('EWG2BB taxi to holding point G1 via R, F, N, G');
+    sim.transmit('EWG2BB taxi to holding point A via M, H, N');
     runUntil(sim, () => b.speed > 3, 60);
     sim.transmit('DLH1AA behind the A320 passing from left to right, push and start approved facing east');
     runUntil(sim, () => /^Behind the A320 passing from left to right, push and start approved, facing east/.test(lastPilotMessage(sim, 'DLH1AA')), 10);
@@ -248,7 +248,7 @@ describe('ATIS and runway change', () => {
   it('chooses the runway from the wind and changes it via the ATIS', () => {
     const sim = new Simulation({ airport: EDDS, position: 'GND', density: 'light', seed: 5, generateTraffic: false });
     expect(['25', '07']).toContain(sim.runway);
-    const dep = sim.traffic.spawnDeparture(600, { stand: '10', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const dep = sim.traffic.spawnDeparture(600, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     const before = sim.atis.letter;
     const other = sim.runway === '25' ? '07' : '25';
     sim.updateAtis({ runway: other, wind: { direction: other === '25' ? 250 : 70, speedKt: 10 } });
@@ -273,11 +273,11 @@ describe('special events', () => {
 
   it('rejected take-off: aircraft vacates and calls Ground', () => {
     const sim = makeSim();
-    const ac = sim.traffic.spawnDeparture(2, { stand: '10', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     runUntil(sim, () => ac.request === 'pushback');
     sim.transmit('DLH5AB push and start approved facing east');
     runUntil(sim, () => ac.request === 'taxi', 400);
-    sim.transmit('DLH5AB taxi to holding point G1 via R, F, N, G');
+    sim.transmit('DLH5AB taxi to holding point A via M, H, N');
     runUntil(sim, () => ac.request === 'handoff', 900);
     sim.transmit('DLH5AB contact tower');
     runUntil(sim, () => ac.phase === 'takeoff', 400);

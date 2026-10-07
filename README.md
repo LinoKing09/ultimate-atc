@@ -2,16 +2,16 @@
 
 **Ultimate ATC** is an air traffic control simulator that runs in your browser. It aims to come as close as possible to [EuroScope](https://www.euroscope.hu/), the radar client used on the [VATSIM](https://vatsim.net/) network. You log in to a controller position at a real airport, and AI pilots respond to your instructions in ICAO phraseology, whether you type them or speak them.
 
-> **Status: early development (v0.2).** One position is playable: **Ground at Stuttgart (EDDS)**. The code is built so that more positions (Delivery, Tower, Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
+> **Status: early development (v0.3).** One position is playable: **Ground at Stuttgart (EDDS)**. The code is built so that more positions (Delivery, Tower, Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
 
 ![Ultimate ATC - EDDS Ground overview](docs/images/screenshot-overview.png)
 
 ## Features
 
-- **EuroScope-style ground radar:** a dark scope with runways, taxiways, holding points, stands and buildings. Each aircraft has a symbol at real size and a data tag you can drag. **Tag items are clickable**: callsign (flight plan and radiotelephony callsign such as `SPEEDBIRD 947`), cleared-to (taxi menu) and status (aircraft menu). Zoom, pan, and the **departure and arrival lists** work as in EuroScope.
+- **EuroScope-style ground radar:** a dark scope with runways, taxiways, holding points, stands and buildings. Each aircraft has a symbol at real size and a data tag you can drag. **Tag items are clickable**, and the scope can be shown **runway-aligned like the aerodrome chart** (default) or north-up: callsign (flight plan and radiotelephony callsign such as `SPEEDBIRD 947`), cleared-to (taxi menu) and status (aircraft menu). Zoom, pan, and the **departure and arrival lists** work as in EuroScope.
 - **Logging in like on VATSIM:** choose the airport, position and traffic density. You then work as `EDDS_GND` on 118.605 "Stuttgart Ground".
 - **ATIS editor:** set the runway in use, wind, QNH and information letter during the session. A runway change re-plans departures and arrivals.
-- **ICAO phraseology parser:** type `DLH5AB taxi to holding point G1 via N, G` or `Lufthansa five alpha bravo, push and start approved, facing east`. It also understands:
+- **ICAO phraseology parser:** type `DLH5AB taxi to holding point A via L2, S` or `Lufthansa five alpha bravo, push and start approved, facing east`. It also understands:
   - conditional clearances: `behind the A320 passing from left to right, ...`,
   - queue positions: `CFG11, number 2 for pushback`,
   - incomplete taxi instructions: `taxi via N, hold short of F`,
@@ -58,11 +58,11 @@ The build is a fully static site. It is deployed to GitHub Pages automatically; 
 ## Your first minutes as Stuttgart Ground
 
 1. Press **Connect** with the default settings: EDDS, Ground, medium traffic. The runway in use follows the wind (usually 25); click `ATIS` in the toolbar to change it.
-2. A departure calls: `Stuttgart Ground, Lufthansa 5AB, stand 10, information E, request pushback`. The row flashes in the departure list and on the scope.
+2. A departure calls: `Stuttgart Ground, Lufthansa 5AB, stand 14, information E, request pushback`. The row flashes in the departure list and on the scope.
 3. Answer with `DLH5AB pushback approved facing east`. You can also press **Tab** to select the caller and type only `push and start approved`, or right-click the aircraft.
-4. When it reports `ready for taxi`, send it to the runway: `taxi to holding point G1 via R, N, G`.
-5. When it reaches G1, hand it to Tower: `contact tower 118.805`. Tower lines it up and it takes off.
-6. Arrivals call after vacating the runway, for example `vacated runway 25 via E`. Taxi them to a stand: `taxi to stand 14 via N, R`. The suggested stand is shown in brackets in the arrival list.
+4. When it reports `ready for taxi`, send it to the runway: `taxi to holding point A via M, L2, S` (runway 25; after a pushback facing east).
+5. When it reaches A, hand it to Tower: `contact tower 118.805`. Tower lines it up and it takes off.
+6. Arrivals call after vacating the runway, for example `vacated runway 25 via E`. Taxi them to a stand: `taxi to stand 14 via N, L2`. The suggested stand is shown in brackets in the arrival list.
 
 Press **F1** in the app for the in-game reference.
 
@@ -84,7 +84,7 @@ Press **F1** in the app for the in-game reference.
 
 ## Data accuracy
 
-Runway coordinates, elevation and frequencies for EDDS are real-world values from [OurAirports](https://ourairports.com/) (public domain). The **taxiway network, stand numbers and buildings are a simplified, hand-made approximation**. They follow the general layout of the real airport, but many details differ from the official aerodrome chart. The SIDs in the flight plans are placeholders. **Never use this simulator for real-world navigation or flight planning.** The [EDDS page](docs/airports/EDDS.md) describes exactly what is approximated.
+The EDDS layout (taxiways, holding points, stand numbers, aprons) was **digitised by hand from the AIP Germany aerodrome charts** (AD 2 EDDS 2-5 and 2-7). The accuracy is about ±10 m, and some areas (de-icing pads, GA apron, US airfield) are simplified. Runway end coordinates come from [OurAirports](https://ourairports.com/) (public domain). The SIDs in the flight plans are placeholders. **Never use this simulator for real-world navigation or flight planning.** The [EDDS page](docs/airports/EDDS.md) describes exactly what is approximated.
 
 ## License
 

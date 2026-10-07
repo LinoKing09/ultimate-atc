@@ -123,10 +123,10 @@ const REFERENCE: [string, string][] = [
   ['push and start approved [facing ...]', 'Pushback and engine start in one go.'],
   ['start-up approved', 'Approve engine start on the stand.'],
   ['cancel pushback / stop pushback / continue pushback', 'Cancel a pushback that has not started yet, stop a moving pushback, resume it.'],
-  ['taxi to holding point G1 [runway 25] via N, G', 'Taxi to a runway holding point along the given taxiways.'],
-  ['taxi to runway 25 via N', 'Taxi to the runway; the pilot picks the full-length holding point.'],
-  ['taxi to stand 12 via N, R', 'Taxi an arrival to its stand.'],
-  ['taxi via N, hold short of F', 'Incomplete taxi instruction: the clearance limit is the hold-short point.'],
+  ['taxi to holding point A [runway 25] via L2, S', 'Taxi to a runway holding point along the given taxiways.'],
+  ['taxi to runway 25 via L2, S', 'Taxi to the runway; the pilot picks the full-length holding point.'],
+  ['taxi to stand 14 via N, L2', 'Taxi an arrival to its stand.'],
+  ['taxi via S, hold short of E', 'Incomplete taxi instruction: the clearance limit is the hold-short point.'],
   ['... hold short of taxiway D | runway 25', 'Add a hold-short point to a route (or send it on its own).'],
   ['cross runway 25', 'Clear an aircraft holding short of the runway to cross (also as part of a taxi instruction).'],
   ['behind the A320 passing left to right, ...', 'Conditional clearance (also "behind DLH5AB", "when clear of the Boeing"). The pilot waits for the traffic.'],
@@ -156,6 +156,7 @@ const KEYS: [string, string][] = [
   ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use, wind, QNH, information letter)'],
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
+  ['ROT (toolbar)', 'Rotate the scope: runway horizontal like the aerodrome chart / north-up'],
 ];
 
 export function showHelp(): void {

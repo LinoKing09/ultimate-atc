@@ -269,6 +269,8 @@ export class TowerAI {
       return;
     }
     if (ac.emergency === 'medical') {
+      // Ground's part starts now: the bonus clock runs from this call.
+      ac.emergencySince = sim.time;
       call(sim, ac, 'taxiIn', `${head}, PAN PAN, medical emergency on board, ${via}, request expedited taxi to the stand, ambulance requested`);
       return;
     }

@@ -45,14 +45,14 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 ```ts
 taxiNodes: [
   { id: 'N_G', pos: {lat, lon} },
-  { id: 'G1',  pos: {lat, lon}, holdingPoint: { name: 'G1', runway: '07/25' } },
+  { id: 'G',   pos: {lat, lon}, holdingPoint: { name: 'G', runway: '07/25' } },
   { id: 'RWY_G', pos: {lat, lon} },
 ]
 taxiEdges: [
   { from: 'N_F', to: 'N_G', name: 'N', kind: 'taxiway' },
-  { from: 'N_G', to: 'G1', name: 'G', kind: 'taxiway' },
-  { from: 'RWY_G', to: 'G1', name: 'G', kind: 'runwayStrip' },
-  { from: 'RWY_E', to: 'E1', name: 'E', kind: 'runwayStrip', oneWay: true },
+  { from: 'S_G', to: 'G', name: 'G', kind: 'taxiway' },
+  { from: 'G', to: 'RWY_G', name: 'G', kind: 'runwayStrip' },
+  { from: 'M_52', to: 'STAND_52', name: '52', kind: 'stand', oneWay: true },
 ]
 ```
 
@@ -63,19 +63,20 @@ Rules:
 3. **Kinds**: `taxiway`, `taxilane`, `stand`, `runwayStrip`, `runway`. See [architecture.md](architecture.md#taxi-graph).
 4. **Holding points**: put a node with `holdingPoint` on every connector at the runway holding position. Connect it to the runway centre-line node with a `runwayStrip` edge and to the rest of the taxiway with `taxiway` edges.
 5. **Runway centre line**: chain the runway nodes (one where each connector meets the runway) with edges of kind `runway`, named after the runway (`07/25`).
-6. **One-way edges** (`oneWay: true`) can only be used from `from` to `to`. Use them for rapid exit taxiways.
-7. **Vacate stop point**: put a node a little behind each holding point on the side away from the runway (EDDS: 45 m). Arrivals stop there after vacating, clear of both the runway and the parallel taxiway.
-8. Keep the parallel taxiway at least ~90 m from the holding points and stand centres at least ~50 m from taxilane centre lines. The see-and-avoid logic treats aircraft closer than `0.38 · (span A + span B) + 6 m` as being in the way.
+6. **One-way edges** (`oneWay: true`) can only be used from `from` to `to`. Use them for one-way taxiways and for **drive-through stands**: a one-way stand edge from the entry lane to the stand and another from the stand to the exit lane (set `pushback: false`).
+7. **Turns**: routes never use turns sharper than 150° at a node, so model junctions with realistic angles. A connector that meets a taxiway at a very acute angle can only be used in one direction.
+8. **Vacate stop point**: put a node a little behind each holding point on the side away from the runway (EDDS: 45 m). Arrivals stop there after vacating, clear of both the runway and the parallel taxiway.
+9. Keep the parallel taxiway at least ~90 m from the holding points and stand centres at least ~50 m from taxilane centre lines. The see-and-avoid logic treats aircraft closer than `0.38 · (span A + span B) + 6 m` as being in the way.
 
 ## Stands
 
 ```ts
 {
   id: '14',
-  apron: 'Apron 1',
+  apron: 'Apron North',
   pos: {lat, lon},          // aircraft reference point when parked
   heading: 344,             // nose heading (true) when parked
-  laneNode: 'R_14',         // taxi node where the lead-in line starts
+  laneNode: 'M_14',         // taxi node where the lead-in line starts
   maxWingspanM: 36,
   pushback: true,           // false = taxi-out stand
   defaultPushFacing: 'east' // optional
@@ -91,19 +92,24 @@ runwayOps: [
   {
     runway: '25',
     departureEntries: [
-      { holdingPoint: 'G1', intersection: 'G', fullLength: true },
-      { holdingPoint: 'F1', intersection: 'F', fullLength: false },
+      { holdingPoint: 'A', intersection: 'A', fullLength: true },
+      { holdingPoint: 'D', intersection: 'D', fullLength: false },
     ],
     exits: [
-      { name: 'E', path: ['RWY_E', 'E1', 'E_CLR1'], rapid: true },
-      { name: 'D', path: ['RWY_D', 'D1', 'D_CLR1'], rapid: false },
+      { name: 'F', path: ['RWY_F', 'F', 'FG_X', 'F_CLR'], rapid: true },
+      { name: 'E', path: ['RWY_E', 'E', 'E_CLR'], rapid: false },
+    ],
+    flows: [
+      { taxiway: 'S', direction: 'east' },
+      { taxiway: 'N', direction: 'west' },
     ],
   },
 ]
 ```
 
 - `departureEntries` drive `taxi to runway 25` (full-length entries are preferred) and the *Taxi to* menu.
-- `exits[].path` is the node sequence from the runway centre line, through the holding point, to the vacate stop point. Its second node must be the holding point; the Tower uses it to detect "vacated".
+- `exits[].path` is the node sequence from the runway centre line, through the holding point, to the vacate stop point. Its second node must be the holding point; the Tower uses it to detect "vacated". The last node is where the aircraft stops.
+- `flows` (optional) are the **standard taxi flows** while this runway is in use. `east` / `west` mean towards the higher / lower runway coordinate of the lower-numbered runway end (for 07/25: east = towards the 25 end). Automatic routes avoid taxiing against them.
 
 ## Stations
 
@@ -121,10 +127,10 @@ Most aerodrome charts are drawn relative to the runway. `src/data/airports/build
 const b = new RunwayFrameBuilder(ARP, RWY_07_END, RWY_25_END);
 // (along, lateral) in metres: along = distance from RWY_07_END towards RWY_25_END,
 // lateral = perpendicular offset, positive = left of that direction
-b.node('N_G', 3340, 190);
-b.node('G1', 3340, 95, { name: 'G1', runway: '07/25' });
-b.chain('G', 'taxiway', ['N_G', 'G1']);
-const area = b.area('Apron 1', [[1460, 280], [3150, 280], [3150, 425], [1460, 425]]);
+b.node('S_G', 1142, 190);
+b.node('G', 1142, 93, { name: 'G', runway: '07/25' });
+b.chain('G', 'taxiway', ['S_G', 'G']);
+const area = b.area('Apron South', [[-30, -215], [560, -215], [560, -375], [-30, -375]]);
 ```
 
 `b.nodes`, `b.edges` and the `area(...)` results go straight into the `AirportData`. See `edds.ts` for a complete example.
@@ -132,6 +138,7 @@ const area = b.area('Apron 1', [[1460, 280], [3150, 280], [3150, 425], [1460, 42
 ## Adding an airport - checklist
 
 1. Create `src/data/airports/<icao>.ts` exporting an `AirportData`. Use real runway end coordinates; [OurAirports](https://ourairports.com/data/) (`runways.csv`) is a convenient public-domain source.
+   - **Digitising from an aerodrome chart** (how EDDS was made): render the chart at high resolution with a coordinate grid. Measure the runway ends to get the scale, and check it against a known distance (e.g. a displaced threshold). Then read every junction, holding point and stand position into the runway frame (`along`, `lateral`). The EDDS file shows how chart coordinates map to the builder.
 2. Register it in `AIRPORTS` in `src/main.ts`, and remove it from `PLANNED_AIRPORTS` in `src/ui/dialogs.ts` if it is listed there.
 3. Add tests (copy the "EDDS data" block in `tests/routing.test.ts`): every stand must reach every departure holding point, and every exit path must exist.
 4. Add operators and destinations that fit the airport to `src/data/airlines.ts`. The traffic generator currently uses the global list; per-airport traffic mixes are on the roadmap.
@@ -140,4 +147,4 @@ const area = b.area('Apron 1', [[1460, 280], [3150, 280], [3150, 425], [1460, 42
 
 ### Licensing of source data
 
-Only use data you are allowed to redistribute. Public-domain sources (OurAirports) and openly licensed sources (OpenStreetMap, ODbL, which requires attribution) are fine. Official AIP charts and commercial or community sector files usually are not. If you derive a layout from OpenStreetMap, credit "© OpenStreetMap contributors" in the airport's documentation page and in `dataNotice`.
+Only use data you are allowed to redistribute. Public-domain sources (OurAirports) and openly licensed sources (OpenStreetMap, ODbL, which requires attribution) are fine. Official AIP charts and commercial or community sector files must not be copied. They may be used as a **reference to digitise facts** (designators, topology, approximate positions) by hand, as done for EDDS; cite the chart in the airport page and in `dataNotice`, and never commit the chart files themselves. If you derive a layout from OpenStreetMap, credit "© OpenStreetMap contributors" in the airport's documentation page and in `dataNotice`.

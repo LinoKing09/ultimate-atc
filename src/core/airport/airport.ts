@@ -189,6 +189,19 @@ export class Airport {
     return this.data.runwayOps.find((o) => o.runway === endName);
   }
 
+  /** Standard taxi flows for a runway end as unit vectors per taxiway. */
+  flowVectors(endName: string): Map<string, Vec2> {
+    const out = new Map<string, Vec2>();
+    const end = this.runwayEnd(endName);
+    const ops = this.runwayOps(endName);
+    if (!end || !ops?.flows) return out;
+    // "east" = towards the higher runway coordinate of the reference (lower-numbered) runway end.
+    const ref = [...this.runwayEnds.values()].filter((e) => e.runway === end.runway).sort((a, b) => a.name.localeCompare(b.name))[0];
+    const east = normalize(sub(ref.farEnd, ref.start));
+    for (const f of ops.flows) out.set(f.taxiway.toUpperCase(), f.direction === 'east' ? east : { x: -east.x, y: -east.y });
+    return out;
+  }
+
   exits(endName: string): ExitData[] {
     return this.runwayOps(endName)?.exits ?? [];
   }

@@ -4,16 +4,32 @@
 | ------------------ | --------------------------------------------------------------------------- |
 | ICAO / IATA        | EDDS / STR                                                                  |
 | Location           | Stuttgart / Leinfelden-Echterdingen, Germany                                |
-| Reference point    | 48°41'24"N 009°13'20"E                                                      |
+| Reference point    | 48°41'23.56"N 009°13'19.07"E                                                |
 | Elevation          | 1276 ft                                                                     |
 | Magnetic variation | 3.5° E (simulation value)                                                   |
 | Transition altitude | 5000 ft                                                                    |
-| Runway             | **07/25**, 3345 m x 45 m, true heading 074° / 254°; landing threshold 07 displaced by 300 m (984 ft) |
+| Runway             | **07/25**, 3345 m x 45 m, true heading 074° / 254°; landing threshold 07 displaced by 300 m (984 ft); threshold elevations 1267 ft (07) / 1181 ft (25) |
 | Data file          | [`src/data/airports/edds.ts`](../../src/data/airports/edds.ts)              |
 
-> **Planned:** the layout will be redrawn from an accurate aerodrome chart (Foxchart / AIP-based) as soon as one is provided, see the [roadmap](../roadmap.md).
->
-> **Accuracy.** Runway end coordinates, elevation and frequencies are **real-world values** (OurAirports, public domain). The taxiway network, intersection names, holding point names, stand numbers and buildings are a **simplified hand-made approximation**. They reproduce the general arrangement of the airport (one runway, parallel taxiways north and south, terminal apron north of the runway, GA/cargo apron north-west, maintenance area south), but **they do not match the official aerodrome chart**. The SIDs used in flight plans are placeholders. Never use this for real-world navigation.
+## Data sources and accuracy
+
+| Data                                         | Source                                                                  |
+| -------------------------------------------- | ----------------------------------------------------------------------- |
+| Runway end coordinates                       | [OurAirports](https://ourairports.com/) (public domain)                 |
+| ARP, elevations, frequencies, taxiway designators, holding points, stand numbers, layout | AIP Germany, **AD 2 EDDS 2-5 Aerodrome Chart** and **AD 2 EDDS 2-7 Aerodrome Ground Movement Chart** (AMDT 10/26) |
+
+The geometry was **digitised by hand**. Positions were measured on the charts, using the 3345 m runway as scale and the 300 m displaced threshold as a check, and converted into the simulator's runway-aligned frame. The accuracy is roughly ±10 m. Only facts are used (topology, designators, approximate positions); no chart graphics are reproduced or distributed.
+
+**Simplified or not modelled:**
+
+- de-icing pads DP1-DP4 on taxiway S, the run-up areas and the holding bays P1/P2 at the 25 end,
+- the general aviation apron (EXIT 1-3), the US Army airfield, helicopter routes,
+- the "A" stands that overlap others (9A, 24A, 26A, 28A, 71A, 74A) and stands 206, 207, 300-303,
+- the intersection geometry inside the "circle" (the hot spot west of N/S, chart note 1), reduced to one junction node,
+- building outlines, which are rough rectangles,
+- the SIDs used in flight plans, which are placeholders and not the published procedures.
+
+**Never use this simulator for real-world navigation.**
 
 ## Stations
 
@@ -21,88 +37,119 @@
 | ----------- | --------------------- | --------- | ---------------- |
 | EDDS_DEL    | Stuttgart Delivery    | 121.915   | AI (clearances are assumed to be issued before pushback) |
 | **EDDS_GND** | **Stuttgart Ground** | **118.605** | **You**        |
-| EDDS_TWR    | Stuttgart Tower       | 118.805   | AI Tower         |
+| EDDS_TWR    | Stuttgart Tower       | 118.805 (also 119.055) | AI Tower |
 | EDDS_APP    | Langen Radar          | 119.200   | (not simulated)  |
-| EDDS_ATIS   | Stuttgart Information | 126.130   | ATIS letter in the toolbar |
+| EDDS_ATIS   | Stuttgart Information | 126.130   | You (ATIS editor) |
 
 ## Layout
 
-![EDDS overview](../images/screenshot-overview.png)
+![EDDS overview (runway-aligned scope)](../images/screenshot-overview.png)
 
-The layout is described in a runway-aligned frame: "along" is measured from the runway 07 end towards 25, "lateral" is the perpendicular distance (positive = north).
+The layout uses a runway-aligned frame, the same orientation as the aerodrome chart: "along" is measured from the runway 07 end towards 25, "lateral" is the perpendicular distance in metres (positive = north). In the simulator, the **ROT** button switches the scope between this orientation (the default) and north-up.
 
 ```
  lateral (m)
-   380   terminal stands 1-22 (Apron 1)               GA / cargo stands 50-57 (Apron 3) at 350
-   330   ======= taxilane R =======                    taxilane V at 300
-   190   ---------------------------- taxiway N ----------------------------
-    95   A1   B1        E1      D1    C1          F1   G1        runway holding points (north)
-     0   [========================= RUNWAY 07/25 ==========================]
-   -95   A2   B2                D2                F2   G2        runway holding points (south)
-  -190   ---------------------------- taxiway S ----------------------------
-  -240                    stands 80-84 (Apron South)
-         ^ 07 end (west)                                    25 end (east) ^
+  ~520   stands 24-29, 30-36                       (handling / hangars behind)
+  ~450   stands 9-19 (Terminals 1-4)
+ 376-481 taxilane M (Apron North)        stands 60-65 / 71-75 between M and N
+  ~370   stands 50-56 (M -> N)           ~311 stands 40-48 (M -> O)
+   279   L3 --- O ---(circle)----------------------- N -------------------------------
+   229        O                          L2 joins the circle from M
+   190        Z     (circle)-------------------------- S -------------------------------\
+    93           K   I        H        G   F      E      D   C      B          A    (north holding points)
+     0   [07]====|===|========|========|===|======|======|===|======|==========|==[25]
+   -90           Y            W                                                     (south holding points)
+  -262   Z --- R --- V ------(stands 100-107, Apron South)--- W
 ```
 
 ### Taxiways
 
-| Taxiway | Description                                                                                      |
-| ------- | ------------------------------------------------------------------------------------------------ |
-| **N**   | Parallel taxiway north of the runway, full length from A (west) to G (east)                      |
-| **S**   | Parallel taxiway south of the runway, full length from A to G; passes Apron South                |
-| **A**   | Connector at the west end (runway 07 threshold area), both sides; holding points A1 (north), A2 (south) |
-| **B**   | Connector at 480 m, both sides; continues north from N to taxilane V; holding points B1, B2      |
-| **C**   | **One-way rapid exit** for runway 07 arrivals, from the runway (2000 m) north-east to N; holding point C1 |
-| **D**   | Connector at 1750 m, both sides; continues north from N to taxilane R; holding points D1, D2     |
-| **E**   | **One-way rapid exit** for runway 25 arrivals, from the runway (1500 m) north-west to N; holding point E1 |
-| **F**   | Connector at 2900 m, both sides; continues north from N to taxilane R; holding points F1, F2     |
-| **G**   | Connector at the east end (runway 25 threshold), both sides; holding points G1, G2               |
-| **R**   | Terminal apron taxilane (Apron 1). Joins N at its west end (1500 m) and east end (3100 m); D and F join it in between |
-| **V**   | GA / cargo apron taxilane (Apron 3). Joins N at 1150 m; B joins it at 480 m; dead end at the west |
+| Taxiway | Description                                                                                       |
+| ------- | ------------------------------------------------------------------------------------------------- |
+| **N**   | Outer parallel taxiway north of the runway (279 m), from the circle to the 25 end, where it joins A |
+| **S**   | Inner parallel taxiway north of the runway (190 m), from the circle to A                          |
+| **O**   | West of the circle (229 m), along the drive-through stands 40-48, to L3                           |
+| **M**   | Apron North taxilane. It runs from L3 along the terminal stands 9-19 (376 m), up past 24-29 (437 m) and 30-36 (481 m), then down to N east of stand 75 |
+| **L2**  | From M (near stand 18) down into the circle                                                       |
+| **L3**  | West end of the apron: links M and O; Z continues south                                           |
+| **K / Y** | At the 07 end: K runs from the circle to the runway (holding point K), Y from the runway south to R/V (holding point Y) |
+| **I**   | Angled from the circle to the runway near the 07 threshold: rapid exit for 25, intersection entry for 07 (holding point I) |
+| **H / W** | H runs from Apron North (M) across N and S, angled to the runway: rapid exit for 25, entry for 07 (holding point H). W continues south from the same runway point to V (holding point W) |
+| **G**   | Perpendicular from N/S to the runway (holding point G); crosses F just north of the holding points |
+| **F**   | Angled rapid exit for 25 from the runway to S/N (holding point F)                                 |
+| **E**   | Perpendicular (holding point E)                                                                   |
+| **D**   | Angled from S/N to the runway: rapid exit for 07, intersection entry for 25 (holding point D)     |
+| **C**   | Perpendicular from S; shares the junction with D (holding point C)                                |
+| **B**   | Angled: rapid exit for 07, intersection entry for 25 (holding point B)                            |
+| **A**   | At the 25 end, where N and S end (holding point A, full length for 25)                            |
+| **Z / R / V** | South: Z runs from L3/O around the 07 end to R; R to Y; V along Apron South to W            |
 
-Holding point names follow the scheme **`<connector><side>`**: `1` = north of the runway, `2` = south.
+Holding points carry the name of their taxiway (`holding point A`, `holding point K`, ...). The 07 end has K (north) and Y (south); H and W share one runway entry.
+
+### Standard taxi flows
+
+To keep traffic on the two parallel taxiways from meeting head-on, automatic routes follow these directions. Automatic routes are the ones pilots take without a `via` list, and the suggestions in the *Taxi to* menu:
+
+| Runway in use | N         | S         | Idea                                                        |
+| ------------- | --------- | --------- | ----------------------------------------------------------- |
+| 25            | westbound | eastbound | departures on S to A, arrivals from F/H/I/E/G on N to the aprons |
+| 07            | westbound | westbound | departures on S/N to K, arrivals from D/B/C/A west to the aprons |
+
+These are a simulator convention for the dual parallel layout, not a published procedure. Your own `via` instructions are always followed as given.
 
 ### Runway entries and exits
 
-| Runway | Departure holding points                                      | Arrival exits (in order of distance from the threshold) |
-| ------ | ------------------------------------------------------------- | ------------------------------------------------------- |
-| **25** | **G1**, G2 (full length); F1, F2 (intersection, ~2900 m remaining) | **E** (rapid, north), D (north/south), B (north/south), A (north) |
-| **07** | **A1**, A2 (full length); B1, B2 (intersection)               | D (north/south), **C** (rapid, north), F (north/south), G (north) |
+| Runway | Departure holding points                                  | Arrival exits (from the threshold onwards)                                |
+| ------ | --------------------------------------------------------- | ------------------------------------------------------------------------- |
+| **25** | **A** (full length); B, C, D (intersections)              | F (rapid), E, G, H (rapid), W (south), I (rapid), K, Y (south)            |
+| **07** | **K** / **Y** (full length, north / south); I, H, W (intersections) | G, E, D (rapid), C, B (rapid), A                                |
 
-About 85% of arrivals vacate to the north. The others vacate to the south via D, B, F or G, and then **have to cross the runway** to reach the terminal.
+About 85% of arrivals vacate to the north. On runway 25 the others vacate to the south via W or Y. They then need a **runway crossing** (at W/H or Y/K) to reach Apron North, unless they park on Apron South.
 
 ### Stands
 
-| Apron          | Stands      | Max. wingspan | Pushback onto | Typical users                      |
-| -------------- | ----------- | ------------- | ------------- | ---------------------------------- |
-| Apron 1 (terminal) | 1, 2    | 65 m          | R             | Wide-bodies (A330, B767, B787)     |
-| Apron 1 (terminal) | 3-18    | 36 m          | R             | A319-A321, B737, E-Jets, CRJ, Q400 |
-| Apron 1 (terminal) | 19, 20  | 65 m          | R             | Wide-bodies                        |
-| Apron 1 (terminal) | 21, 22  | 36 m          | R             | Narrow-bodies                      |
-| Apron 3 (GA/cargo) | 50      | 65 m          | V             | Large cargo / GA                   |
-| Apron 3 (GA/cargo) | 51-57   | 52 m          | V             | Business jets, narrow-bodies       |
-| Apron South        | 80-84   | 52 m          | S             | Maintenance; manual overflow       |
+| Apron / area   | Stands        | Max. wingspan | Type                                  | Lane |
+| -------------- | ------------- | ------------- | ------------------------------------- | ---- |
+| Apron North    | 9-19          | 36 m (9, 19: 65 m) | nose-in, pushback                | M    |
+| Apron North    | 24-29         | 36 m (24, 29: 65 m) | nose-in, pushback               | M    |
+| Apron North    | 30-36         | 36 m          | nose-in, pushback                     | M    |
+| Apron North    | 60-65         | 36 m          | nose-in (nose south), pushback        | M    |
+| Apron North    | 71-75         | 36 m          | nose-in, pushback onto N              | N    |
+| Apron North    | 40-43, 45-48  | 36 m          | **drive-through**: in from M, out forwards to O | M -> O |
+| Apron North    | 50-56         | 36 m          | **drive-through**: in from M, out forwards to N | M -> N |
+| Apron South    | 100-104       | 36 m          | nose-in (nose south), pushback (cargo) | V   |
+| Apron South    | 105-107       | 65 m          | nose-in, pushback (cargo widebodies)  | V    |
 
-All stands are nose-in stands that need a pushback. Terminal stands face north towards the terminal. A pushback ends on the taxilane, about 45 m to the side of the stand's lead-in line, with the nose pointing **east** or **west**.
+Departures on drive-through stands don't need a pushback: they call `request taxi` and leave forwards. The stand allocation prefers Apron North; business jets go to stands 60-65. Apron South is only used when Apron North is full, but you can taxi any aircraft there.
 
-The stand allocation (suggested stand for arrivals, stand for new departures) prefers Apron 1 for airlines and Apron 3 for business jets. It picks the smallest free stand that fits. Apron South is not used by the automatic allocation, but you can taxi arrivals there yourself.
+## Typical routes
 
-## Typical routes (runway 25)
+**Runway 25**
 
-| From                     | To            | Instruction                                             |
-| ------------------------ | ------------- | ------------------------------------------------------- |
-| Terminal stands 3-18, pushed facing east | G1 | `taxi to holding point G1 via R, F, N, G` (or `via R, N, G` along R to its east end) |
-| Terminal stands 19-22    | G1            | `taxi to holding point G1 via R, N, G`                  |
-| Apron 3 stands           | G1            | `taxi to holding point G1 via V, N, G`                  |
-| Apron South stands       | G2            | `taxi to holding point G2 via S, G` (no crossing)       |
-| Arrival vacated via E    | terminal stand | `taxi to stand 14 via N, R` (or `via N, D, R`)         |
-| Arrival vacated via D2 (south) | terminal | `taxi to stand 14 via D, R, cross runway 25`          |
-| Arrival vacated via B    | Apron 3       | `taxi to stand 52 via B, V`                             |
+| From                                  | Instruction                                                    |
+| ------------------------------------- | -------------------------------------------------------------- |
+| Stands 9-19, pushed facing east       | `taxi to holding point A via M, L2, S`                         |
+| Stands 24-29, pushed facing east      | `taxi to holding point A via M, H, S`                          |
+| Stands 30-36, 60-65, pushed facing west | `taxi to holding point A via M, H, S`                        |
+| Stands 71-75 (pushed onto N)          | `taxi to holding point A via N, G, S`                          |
+| Stands 40-48 (drive-through)          | `taxi to holding point A via O, S`                             |
+| Stands 50-56 (drive-through)          | `taxi to holding point A via N, H, S`                          |
+| Apron South, pushed facing east       | `taxi to holding point A via V, W, H, S, cross runway 25`      |
+| Arrival vacated via F, G or H         | `taxi to stand 14 via N, L2` / `taxi to stand 33 via N, H, M`  |
+| Arrival vacated via W (south)         | `taxi to stand 105 via V`                                      |
 
-For **runway 07**, departures go to **A1** (`via R, N, A` from the terminal, `via V, B, N, A` or `via V, N, A` from Apron 3). Arrivals vacate mostly via C (rapid) or D.
+**Runway 07**
+
+| From                                  | Instruction                                                    |
+| ------------------------------------- | -------------------------------------------------------------- |
+| Stands 9-19, pushed facing east       | `taxi to holding point K via M, L2`                            |
+| Stands 9-19, pushed facing west       | `taxi to holding point K via M, L3, O`                         |
+| Stands 30-36, pushed facing west      | `taxi to holding point K via M, H, S` (westbound on S)         |
+| Apron South, pushed facing west       | `taxi to holding point Y via V`                                |
+| Arrival vacated via D, B or C         | `taxi to stand 30 via S, H, M` / `taxi to stand 14 via N, L2`  |
 
 ### Ground planning tips
 
-- With runway 25 in use, departures from the terminal go **east**, while arrivals vacating via E come from the **west** on N. Use R and N in one direction where possible, and use D or F to get onto or off the apron to avoid head-on traffic on R.
-- The rapid exits C and E are one-way. Departures cannot use them.
-- G1 and G2 lead onto the same runway entry. Only one aircraft lines up at a time, and Tower takes them in the order they reached the holding points.
+- Taxilane **M** is a single lane used in both directions. Push departures so that they leave in the direction they will taxi. Use `give way` or conditional clearances (`behind the A320 passing left to right, push and start approved`) when arrivals are coming in on M.
+- The **circle** west of N/S (a hot spot on the chart) joins N, S, O, K, I and L2. Avoid sending two aircraft through it at the same time.
+- Keep the vacate points behind the exits free. The Tower won't use an exit whose vacate point is blocked, which costs runway capacity.

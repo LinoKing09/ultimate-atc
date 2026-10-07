@@ -17,10 +17,10 @@ The parser lives in [`src/core/phraseology/parser.ts`](../src/core/phraseology/p
 
 ## General rules
 
-- **Case and punctuation don't matter.** `DLH5AB Taxi To Holding Point G1, via N, G.` and `dlh5ab taxi to holding point g1 via n g` are the same.
+- **Case and punctuation don't matter.** `DLH5AB Taxi To Holding Point A, via L2, S.` and `dlh5ab taxi to holding point a via l2 s` are the same.
 - **Filler words are ignored:** `roger`, `please`, `thanks`, `good day`, `bye`, `correction`, `the`, `and` ...
 - **Words that are not understood** are listed in the preview (`ignored: ...`). If nothing at all is understood, the pilot replies `Say again, <callsign>?` (-2 points).
-- **Designators** can be typed (`G1`, `25`, `118.805`) or spelled in words (`golf one`, `two five`, `one one eight decimal eight zero five`).
+- **Designators** can be typed (`A`, `L2`, `25`, `118.805`) or spelled in words (`alpha`, `lima two`, `two five`, `one one eight decimal eight zero five`).
 
 ## Callsigns
 
@@ -67,7 +67,7 @@ Notation: `[optional]`, `a | b` = alternatives, `X` = taxiway, `HP` = holding po
 
 Notes:
 
-- Facing is matched to the nearest compass direction of the taxilane: at EDDS terminal stands, `east` means towards taxiway F/G and `west` towards D/R.
+- Facing is matched to the nearest compass direction of the taxilane: at EDDS terminal stands (taxilane M), `east` means towards L2 / H and `west` towards L3.
 - A pilot who hasn't called yet and is still boarding replies `negative, we are still boarding, we will call you when ready`.
 - Stands without pushback (none at EDDS yet) reply `no pushback required ...`.
 
@@ -81,23 +81,23 @@ taxi via|along X [,] X ..., hold short of TAXIWAY|runway RWY        (incomplete 
 
 | Destination                                    | Example                                          |
 | ---------------------------------------------- | ------------------------------------------------ |
-| Holding point                                  | `taxi to holding point G1 via N, G`              |
-| Holding point with runway                      | `taxi to holding point F1 runway 25 via R, F`    |
+| Holding point                                  | `taxi to holding point A via L2, S`              |
+| Holding point with runway                      | `taxi to holding point D runway 25 via H, S`     |
 | Runway (the pilot picks the full-length holding point on the shortest route) | `taxi to runway 25 via N` |
-| Runway at an intersection                      | `taxi to runway 25 at F1`                        |
+| Runway at an intersection                      | `taxi to runway 25 at D`                         |
 | Stand                                          | `taxi to stand 14 via N, R` (also `gate 14`, `parking position 14`) |
 
 **The `via` list** must name the taxiways in the order they are used. The router finds the shortest path that follows exactly these taxiways. Taxiways that controllers usually leave out may be omitted:
 
 - the apron taxilane the aircraft starts on (for example `R` after pushback at the terminal),
 - the taxiway the aircraft is currently on,
-- the taxilane or taxiway the destination lies on (for example `R` for a terminal stand, `G` for holding point G1).
+- the taxilane or taxiway the destination lies on (for example `M` for a terminal stand, `A` for holding point A).
 
-So after a pushback from stand 10, `taxi to holding point G1 via N` is accepted and gives the route R -> N -> G. Without any `via`, the pilot takes the **shortest route**, avoiding runway crossings where possible. This is convenient, but not proper phraseology.
+So after a pushback from stand 14 facing east, `taxi to holding point A via L2, S` is accepted and gives the route M -> L2 -> S -> A. Without any `via`, the pilot takes the **shortest route**, avoiding runway crossings where possible. This is convenient, but not proper phraseology.
 
 If the route is impossible, the pilot replies `unable to follow route via S, say again route`. An unknown taxiway gives `confirm taxiway Q, we can't find it`. The live preview in the command line shows these problems **before** you transmit.
 
-**Incomplete taxi instructions** (clearance limit): `taxi via N, hold short of F` or `taxi along R, D, N, hold short of runway 25`. There is no destination; the aircraft taxis along the via taxiways and stops at the hold-short point, which is the clearance limit: about 40 m before the junction with F, or at the runway holding point. The read-back is `Taxi via N, hold short of taxiway F, ...`. Then give the rest of the route with a normal taxi instruction. `continue taxi` at a clearance limit gets `confirm where to taxi`.
+**Incomplete taxi instructions** (clearance limit): `taxi via S, hold short of E` or `taxi along R, D, N, hold short of runway 25`. There is no destination; the aircraft taxis along the via taxiways and stops at the hold-short point, which is the clearance limit: about 40 m before the junction with E, or at the runway holding point. The read-back is `Taxi via S, hold short of taxiway E, ...`. Then give the rest of the route with a normal taxi instruction. `continue taxi` at a clearance limit gets `confirm where to taxi`.
 
 **Stand assignments** are checked: `stand 14 is occupied` or `stand 22 is too small for us`.
 
@@ -113,7 +113,7 @@ If the route is impossible, the pilot replies `unable to follow route via S, say
 | `continue taxi` / `continue`                   | Cancels *hold position*, *give way* and the current or next *hold short of taxiway*       |
 | `expedite taxi`                                | Taxis about 5 kt faster                                                                    |
 
-Hold short can be part of the taxi instruction (`taxi to holding point G1 via N, G, hold short of taxiway F`) or sent on its own to an aircraft that is already taxiing. `continue taxi` does **not** clear an aircraft across a runway. The pilot then asks `confirm cleared to cross runway 07/25`.
+Hold short can be part of the taxi instruction (`taxi to holding point A via L2, S, hold short of taxiway H`) or sent on its own to an aircraft that is already taxiing. `continue taxi` does **not** clear an aircraft across a runway. The pilot then asks `confirm cleared to cross runway 07/25`.
 
 ### Runway crossing
 
@@ -132,11 +132,11 @@ when clear of TRAFFIC [description], INSTRUCTION
 after TRAFFIC [has passed], INSTRUCTION
 ```
 
-`TRAFFIC` is a callsign in any form (`behind DLH5AB`, `behind Lufthansa 5AB`) or `the` + an aircraft type: `the A320`, `the A321`, `the 737`, `the Boeing`, `the Airbus`, `the Embraer`, `the Dash`, `the ATR`, `the jet`, `the heavy`. The description after the traffic ("passing from left to right", "on N", "coming out of D") is read back but not interpreted.
+`TRAFFIC` is a callsign in any form (`behind DLH5AB`, `behind Lufthansa 5AB`) or `the` + an aircraft type: `the A320`, `the A321`, `the 737`, `the Boeing`, `the Airbus`, `the Embraer`, `the Dash`, `the ATR`, `the jet`, `the heavy`. The description after the traffic ("passing from left to right", "on M", "coming out of L2") is read back but not interpreted.
 
 ```
 DLH5AB, behind the A320 passing from left to right, push and start approved, facing east
-EWG7TK, when clear of the Boeing, taxi to holding point G1 via N, G
+EWG7TK, when clear of the Boeing, taxi to holding point A via L2, S
 ```
 
 - The pilot has to **identify the traffic**: a callsign must be on the ground; a type must match a moving (not parked) aircraft within 1500 m, and the nearest one is taken. If not, the reply is `Negative contact with the A320, say again` and nothing is executed.
@@ -179,9 +179,9 @@ Several instructions can be sent in one transmission, in any order:
 
 ```
 DLH5AB push and start approved facing east
-EWG7TK taxi to holding point G1 via N, G, hold short of taxiway F
+EWG7TK taxi to holding point A via L2, S, hold short of taxiway H
 THY1734 hold position, give way to DLH5AB
-CFG123 cross runway 25, taxi to stand 14 via D, N, R
+CFG123 cross runway 25, taxi to stand 105 via W, V
 ```
 
 The pilot reads back all instructions in one transmission. If one of them can't be executed, that part is answered with the reason (for example `unable ...`), and the others are still executed.
@@ -194,8 +194,8 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | --------------------------------------------------- | ------------------------------------------------------------------- |
 | `pushback approved facing east`                     | `Pushback approved, facing east, Lufthansa 5AB`                     |
 | `push and start approved`                           | `Push and start approved, Lufthansa 5AB`                            |
-| `taxi to runway 25 via N`                           | `Taxi to holding point G1 runway 25 via N, Lufthansa 5AB` (the chosen holding point is named) |
-| `taxi to stand 14 via N, R, hold short of taxiway D` | `Taxi to stand 14 via N, R, hold short of taxiway D, Eurowings 7TK` |
+| `taxi to runway 25 via L2, S`                       | `Taxi to holding point A runway 25 via L2, S, Lufthansa 5AB` (the chosen holding point is named) |
+| `taxi to stand 14 via N, L2, hold short of taxiway H` | `Taxi to stand 14 via N, L2, hold short of taxiway H, Eurowings 7TK` |
 | `cross runway 25`                                   | `Cross runway 25, Turkish 1734`                                     |
 | `hold position`                                     | `Holding position, Lufthansa 5AB`                                   |
 | `continue taxi`                                     | `Continue taxi, Lufthansa 5AB`                                      |
@@ -205,7 +205,7 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | `standby`                                           | *(no read-back)*                                                    |
 | `number 2 for pushback`                             | `Number 2 for pushback, Condor 11`                                  |
 | `cancel pushback`                                   | `Pushback cancelled, Lufthansa 5AB`                                 |
-| `taxi via N, hold short of F`                       | `Taxi via N, hold short of taxiway F, Lufthansa 5AB`                |
+| `taxi via S, hold short of E`                       | `Taxi via S, hold short of taxiway E, Lufthansa 5AB`                |
 | `behind DLH5AB, taxi to ...`                        | `Behind Lufthansa 5AB, taxi to ..., Eurowings 7TK`                  |
 
 ## Pilot calls
@@ -214,19 +214,19 @@ Pilots on your frequency call on their own:
 
 | Situation                                               | Example                                                                                |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
-| Departure ready (first contact)                         | `Stuttgart Ground, Lufthansa 5AB, stand 10, information E, request pushback` (sometimes `request push and start`) |
+| Departure ready (first contact)                         | `Stuttgart Ground, Lufthansa 5AB, stand 14, information E, request pushback` (sometimes `request push and start`) |
 | Pushback and start-up complete                          | `Lufthansa 5AB, ready for taxi`                                                        |
 | Arrival has vacated the runway (first contact)          | `Stuttgart Ground, Eurowings 7TK, vacated runway 25 via E`                             |
-| Departure at the holding point and still with you       | `Lufthansa 5AB, holding point G1, ready for departure`                                 |
-| Runway holding point on the route, no crossing clearance | `Turkish 1734, holding short runway 25 at F2`                                        |
+| Departure at the holding point and still with you       | `Lufthansa 5AB, holding point A, ready for departure`                                 |
+| Runway holding point on the route, no crossing clearance | `Turkish 1734, holding short runway 25 at W`                                        |
 | Head-on with other traffic for over a minute            | `Lufthansa 5AB, we have opposite traffic ahead, EWG7TK, request instructions`          |
 | Held short of a taxiway for over two minutes            | `Lufthansa 5AB, holding short of D, request to continue`                               |
-| Tower refused the departure (too little runway left)    | `Stuttgart Ground, Lufthansa 5AB, tower sent us back, not enough runway at A1 for departure 25, request taxi` |
+| Tower refused the departure (too little runway left)    | `Stuttgart Ground, Lufthansa 5AB, tower sent us back, not enough runway at K for departure 25, request taxi` |
 | Medical emergency, arrival (after vacating)             | `Stuttgart Ground, Eurowings 7TK, PAN PAN, medical emergency on board, vacated runway 25 via E, request expedited taxi to the stand, ambulance requested` |
 | Medical emergency, departure (while taxiing)            | `Stuttgart Ground, Lufthansa 5AB, PAN PAN, PAN PAN, PAN PAN, medical emergency on board, request immediate return to the stand, ambulance required` |
 | Rejected take-off (after vacating)                      | `Stuttgart Ground, Lufthansa 5AB, we rejected take-off due to a technical problem, vacated runway 25 via D, request taxi back to the stand` (or `..., problem solved, ..., request taxi for another departure`) |
 
-If you don't answer, pilots **call again** after 60-90 seconds, up to five times. Reminders are shorter: `Stuttgart Ground, Lufthansa 5AB, stand 10, request pushback`. `standby` stops the reminders for two minutes.
+If you don't answer, pilots **call again** after 60-90 seconds, up to five times. Reminders are shorter: `Stuttgart Ground, Lufthansa 5AB, stand 14, request pushback`. `standby` stops the reminders for two minutes.
 
 ## Spoken input
 
@@ -239,7 +239,7 @@ Speech recognition (see the [user guide](user-guide.md#9-voice)) produces plain 
 | `to`/`too`, `for` after `runway`, `stand`, `gate`, `number`, `in` | `2`, `4` |
 | `alpha` (`alfa`) ... `zulu`, `x-ray`         | `a` ... `z` |
 | `two five`                                   | `25` (after `runway`) |
-| `golf one`                                   | `G1`      |
+| `lima two`                                   | `L2`      |
 | `one one eight decimal eight zero five`, `... point ...` | `118.805` |
 | `lufthansa five alpha bravo`                 | `DLH5AB`  |
 

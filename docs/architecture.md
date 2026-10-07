@@ -40,7 +40,7 @@ ultimate-atc/
 │   │       └── edds.ts        # Stuttgart
 │   └── ui/                    # browser client
 │       ├── app.ts             # wires sim <-> scope, lists, messages, command line, menus
-│       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input
+│       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input, rotation (runway-aligned / north-up)
 │       ├── lists.ts           # departure / arrival lists
 │       ├── menu.ts            # popup menus
 │       ├── dialogs.ts         # connect dialog, help
@@ -118,6 +118,8 @@ Runway holding positions are **nodes** with a `holdingPoint` attribute. Moving f
 - it is a "free" edge that controllers usually don't mention: a stand lead-in or taxilane at the start or end of the route, the taxiway the aircraft is currently on (k = 0), or the taxiway the destination lies on (k = len(via)).
 
 The goal is any state at `(destination, len(via))`. With an empty `via` list, the router returns the overall shortest route and adds a large penalty to runway strips, so it avoids crossing runways whenever possible. Routes can start at a node (a stand) or at an arbitrary position and heading. The start then snaps to the nearest edge; both edge ends are candidates. The first turn is checked against the aircraft's direction of travel, so it can't immediately reverse. A start node *behind* the aircraft means turning around on the spot and costs 5000 m, so it is only used as a last resort.
+
+**Standard taxi flows**: `findRoute(..., { flows })` takes the preferred direction per taxiway (`Airport.flowVectors(runway)`, built from `runwayOps[].flows`). Automatic routes pay 4x the distance against a flow; routes with a `via` list are not affected.
 
 `resolveClearanceLimit` (pilot.ts) handles incomplete instructions like `taxi via N, hold short of F`. It tries every junction of the last via taxiway with F (or every holding point of the runway) as destination and keeps the shortest valid route.
 

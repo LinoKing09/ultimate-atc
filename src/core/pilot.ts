@@ -300,7 +300,7 @@ function planPushback(sim: Simulation, ac: Aircraft, facing?: Compass): PushPlan
     if (hp) {
       let bestLen = Infinity;
       for (const o of options) {
-        const r = findRoute(sim.airport, { position: o.end, heading: o.nose }, hp);
+        const r = findRoute(sim.airport, { position: o.end, heading: o.nose }, hp, [], { flows: sim.airport.flowVectors(rwy) });
         const len = isRouteError(r) ? Infinity : r.length;
         if (len < bestLen) {
           bestLen = len;
@@ -355,7 +355,8 @@ function resolveDestination(
     if (ac.routeDestination && via.length) dest = ac.routeDestination;
     else return { error: 'say again clearance limit' };
   }
-  const tryRoute = (node: Parameters<typeof findRoute>[2]) => findRoute(sim.airport, start, node, via);
+  const flows = sim.airport.flowVectors(sim.runway);
+  const tryRoute = (node: Parameters<typeof findRoute>[2]) => findRoute(sim.airport, start, node, via, { flows });
 
   switch (dest.kind) {
     case 'holdingPoint': {
@@ -460,13 +461,14 @@ function routeStart(sim: Simulation, ac: Aircraft): { position: Vec2; heading: n
   }
   if (ac.phase === 'parked') {
     const stand = sim.airport.stand(ac.stand ?? '');
-    if (stand) return { position: stand.pos, heading: stand.heading, node: stand.node.id };
+    // Drive-through stands can only be left forwards; pushback stands are left backwards (planned separately).
+    if (stand) return { position: stand.pos, heading: stand.pushback ? (stand.heading + 180) % 360 : stand.heading, node: stand.node.id };
   }
   return { position: ac.pos, heading: ac.heading };
 }
 
 function toRouteStart(sim: Simulation, s: { position: Vec2; heading: number; node?: string }): RouteStart {
-  return s.node ? { node: sim.airport.node(s.node) } : { position: s.position, heading: s.heading };
+  return s.node ? { node: sim.airport.node(s.node), heading: s.heading } : { position: s.position, heading: s.heading };
 }
 
 function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {

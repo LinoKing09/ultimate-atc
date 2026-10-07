@@ -4,6 +4,30 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-07
+
+Real EDDS layout.
+
+### Added
+
+- **EDDS digitised from the AIP aerodrome charts** (AD 2 EDDS 2-5 / 2-7, AMDT 10/26):
+  - real taxiways: parallels N and S, O, M, L2, L3, rapid exits I/H/F/D/B, connectors K/Y, G, E, C, A, W, south taxiways Z/R/V,
+  - real holding point names (A-K, W, Y),
+  - real stands: 9-19, 24-36, 40-48 and 50-56 (drive-through), 60-65, 71-75, Apron South 100-107,
+  - aprons, terminals and other buildings.
+- **Scope rotation** (`ROT` button): runway horizontal like the aerodrome chart (default) or north-up.
+- **Standard taxi flows** per runway in use (EDDS 25: S eastbound, N westbound; 07: both westbound). Automatic routes and menu suggestions follow them.
+- Drive-through stands: no pushback, the aircraft leaves forwards.
+
+### Changed
+
+- Holding points are named after their taxiway (`holding point A`) instead of the old invented `G1`, `F2` ...
+- Business jets prefer stands 60-65; Apron South (cargo) is used when Apron North is full.
+
+### Fixed
+
+- A node a few metres behind the aircraft was treated as "ahead", so a route could silently reverse direction.
+
 ## [0.2.0] - 2026-10-07
 
 Feedback round 1.

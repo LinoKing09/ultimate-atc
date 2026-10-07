@@ -10,8 +10,11 @@ describe('EDDS data', () => {
     for (const e of airport.edges) {
       expect(e.length).toBeGreaterThan(0.5);
     }
-    expect(airport.stands.size).toBeGreaterThan(30);
-    expect(airport.holdingPoint('G1')?.holdingPoint?.runway).toBe('07/25');
+    expect(airport.stands.size).toBeGreaterThan(50);
+    for (const hp of ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'W', 'Y']) {
+      expect(airport.holdingPoint(hp)?.holdingPoint?.runway, hp).toBe('07/25');
+    }
+    for (const t of ['N', 'S', 'M', 'O', 'L2', 'L3', 'R', 'V', 'Z']) expect(airport.taxiwayNames.has(t), t).toBe(true);
   });
 
   it('has a runway of about 3345 m pointing ~074 true', () => {
@@ -35,54 +38,61 @@ describe('EDDS data', () => {
     }
   });
 
-  it('every stand can reach every departure holding point', () => {
+  it('every stand can reach every departure holding point without turning around', () => {
     for (const s of airport.stands.values()) {
-      for (const hp of ['G1', 'A1']) {
-        const r = findRoute(airport, { node: s.node }, airport.holdingPoint(hp)!);
-        expect(isRouteError(r), `stand ${s.id} -> ${hp}`).toBe(false);
+      for (const ops of EDDS.runwayOps) {
+        for (const e of ops.departureEntries) {
+          const heading = s.pushback ? (s.heading + 180) % 360 : s.heading;
+          const r = findRoute(airport, { node: s.node, heading }, airport.holdingPoint(e.holdingPoint)!);
+          expect(isRouteError(r), `stand ${s.id} -> ${e.holdingPoint}`).toBe(false);
+        }
       }
     }
   });
 });
 
 describe('findRoute', () => {
+  const stand14 = () => airport.stand('14')!.node;
+
   it('follows the given via taxiways', () => {
-    const r = findRoute(airport, { node: airport.stand('10')!.node }, airport.holdingPoint('G1')!, ['R', 'N', 'G']);
+    const r = findRoute(airport, { node: stand14() }, airport.holdingPoint('A')!, ['M', 'H', 'N']);
     if (isRouteError(r)) throw new Error(r.error);
-    expect(r.taxiways).toEqual(['10', 'R', 'N', 'G'].filter((t) => t !== '10'));
-    expect(r.nodes[r.nodes.length - 1].id).toBe('G1');
+    expect(r.taxiways).toEqual(['M', 'H', 'N', 'A']);
+    expect(r.nodes[r.nodes.length - 1].id).toBe('A');
   });
 
-  it('allows the taxilane to be omitted when leaving a stand', () => {
-    const r = findRoute(airport, { node: airport.stand('10')!.node }, airport.holdingPoint('G1')!, ['N']);
-    expect(isRouteError(r)).toBe(false);
+  it('allows the apron taxilane to be omitted when leaving a stand', () => {
+    const r = findRoute(airport, { node: stand14() }, airport.holdingPoint('K')!, ['L2']);
+    if (isRouteError(r)) throw new Error(r.error);
+    expect(r.taxiways).toEqual(['M', 'L2', 'K']);
   });
 
   it('rejects routes that do not connect', () => {
-    const r = findRoute(airport, { node: airport.stand('10')!.node }, airport.holdingPoint('G1')!, ['S']);
+    const r = findRoute(airport, { node: stand14() }, airport.holdingPoint('A')!, ['S']);
     expect(isRouteError(r)).toBe(true);
   });
 
   it('rejects unknown taxiways', () => {
-    const r = findRoute(airport, { node: airport.stand('10')!.node }, airport.holdingPoint('G1')!, ['Q']);
+    const r = findRoute(airport, { node: stand14() }, airport.holdingPoint('A')!, ['Q']);
     expect(isRouteError(r) && r.error).toContain('unknown taxiway');
   });
 
   it('auto-routes avoid crossing the runway when possible', () => {
-    const r = findRoute(airport, { node: airport.stand('10')!.node }, airport.holdingPoint('A1')!);
+    const r = findRoute(airport, { node: stand14() }, airport.holdingPoint('K')!);
     if (isRouteError(r)) throw new Error(r.error);
     expect(r.edges.some((e) => e.kind === 'runwayStrip')).toBe(false);
   });
 
-  it('respects one-way rapid exits', () => {
-    // Taxiing from N into rapid exit E towards the runway is not allowed.
-    const r = findRoute(airport, { node: airport.node('N_E') }, airport.holdingPoint('E1')!, ['E']);
-    expect(isRouteError(r)).toBe(true);
+  it('drive-through stands are left forwards', () => {
+    const s = airport.stand('52')!;
+    const r = findRoute(airport, { node: s.node, heading: s.heading }, airport.holdingPoint('K')!);
+    if (isRouteError(r)) throw new Error(r.error);
+    expect(r.nodes[1].id).toBe('N_52');
   });
 
   it('routes from an arbitrary position on the network', () => {
-    const n = airport.node('N_D').pos;
-    const r = findRoute(airport, { position: { x: n.x + 30, y: n.y }, heading: 254 }, airport.holdingPoint('A1')!, ['N', 'A']);
+    const n = airport.node('N_G').pos;
+    const r = findRoute(airport, { position: { x: n.x - 30, y: n.y }, heading: 254 }, airport.holdingPoint('K')!, ['N']);
     expect(isRouteError(r)).toBe(false);
   });
 });

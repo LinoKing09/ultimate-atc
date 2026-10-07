@@ -5,4 +5,4 @@
 - **Architecture**: `src/core` must not access the DOM. Browser-specific code lives in `src/ui`.
 - **Determinism**: use `sim.rng` (seeded) inside the simulation, never `Math.random()`.
 - **Checks before committing**: `npm run typecheck`, `npm test`, `npm run build`.
-- **Airport data**: only use data that may be redistributed (OurAirports public domain, OpenStreetMap with attribution). Mark approximations clearly in `dataNotice` and in `docs/airports/<ICAO>.md`.
+- **Airport data**: only use data that may be redistributed (OurAirports public domain, OpenStreetMap with attribution). Official charts (AIP) may only be used as a reference to digitise facts by hand (designators, topology, approximate positions); never commit chart files or chart graphics. Mark sources and approximations in `dataNotice` and in `docs/airports/<ICAO>.md`.

@@ -40,7 +40,7 @@ taxi --(reaches destination holding point)--> holding --(contact Tower)--> [Towe
 | ------------------- | ------------------------------------------------------------------------------------------- |
 | Boarding            | A departure appears on a free stand. It calls for pushback when its **ready time** is reached (4-15 min after it appears; initial traffic 0.5-25 min). |
 | Tug connection      | 6-15 s after the pushback approval, the push starts.                                       |
-| Pushback            | 1.3 m/s (~2.5 kt) backwards along the stand lead-in line, then about 45 m along the taxilane. |
+| Pushback            | 1.3 m/s (~2.5 kt) backwards along the stand lead-in line, then 45 m (at most 90% of the taxilane segment) along the taxilane. Drive-through stands have no pushback: the aircraft calls `request taxi` and leaves forwards. |
 | Engine start        | After the push: 15-35 s with *push and start* or *start-up approved*, otherwise 40-80 s.    |
 | Ready for taxi      | The pilot calls `ready for taxi`. A taxi instruction received earlier is executed now.      |
 | Holding point       | When stopped at the destination holding point, the aircraft reports `ready for departure` after 8 s if it is still on your frequency. |
@@ -91,7 +91,9 @@ Acceleration is 0.6 m/s². Braking is up to 2.5 m/s².
 | `holdShort`   | ~40 m before the node where the route joins or crosses the named taxiway           | `continue taxi`                |
 | `destination` | End of the route (holding point, stand)                                            | A new taxi instruction         |
 
-**Route finding** is described in [architecture.md](architecture.md#taxi-routing). Routes never contain turns sharper than **150°** at a junction (a hairpin from a rapid exit back onto the parallel taxiway, at about 143°, is still possible). A route that needs the aircraft to turn around where it stands is only used if nothing else works: the router adds 5000 m of cost for it.
+**Route finding** is described in [architecture.md](architecture.md#taxi-routing). Routes never contain turns sharper than **150°** at a junction (a hairpin from a rapid exit back onto the parallel taxiway, at about 143°, is still possible). A route that needs the aircraft to turn around where it stands is only used if nothing else works: the router adds 5000 m of cost for it. A node behind the aircraft counts as "turning around" even if it is only a few metres away.
+
+**Automatic routes** (no `via` list: pilots' own choice, menu suggestions, pushback direction) also follow the airport's **standard taxi flows** for the runway in use: taxiing against a flow costs 4 times the distance. They avoid runway crossings (3000 m extra cost per crossing).
 
 ## Pilot see-and-avoid
 
@@ -193,7 +195,7 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 - **Operators, types and destinations** are taken from [`src/data/airlines.ts`](../src/data/airlines.ts) and weighted by frequency. The mix reflects carriers that typically serve Stuttgart (Eurowings, Lufthansa, Condor, TUI, Turkish, SunExpress, ...) plus some business jets.
 - **Callsigns** are unique within a session: alphanumeric (`EWG7TK`), numeric (`THY1734`) or registrations (`DCMGB`), depending on the operator.
 - **Flight plans** contain the destination, a SID for the active runway (placeholder names), cruise level and a squawk.
-- **Stands**: the smallest free stand that fits the wingspan. Airlines use Apron 1, business jets Apron 3.
+- **Stands**: the smallest free stand that fits the wingspan on Apron North. Business jets prefer stands 60-65, airlines the others. Apron South (cargo) is only used when Apron North is full.
 
 ## Radio model
 

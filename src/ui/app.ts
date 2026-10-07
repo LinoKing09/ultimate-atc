@@ -72,6 +72,13 @@ export class App {
       this.settings.showRoutes = this.scope.showAllRoutes;
       saveSettings(this.settings);
     });
+    const rotBtn = h('button', { text: 'ROT', title: 'Rotate the scope: runway horizontal (like the aerodrome chart) / north up' });
+    rotBtn.addEventListener('click', () => {
+      this.scope.setRotation(!this.scope.runwayAligned);
+      rotBtn.classList.toggle('active', this.scope.runwayAligned);
+      this.settings.runwayAligned = this.scope.runwayAligned;
+      saveSettings(this.settings);
+    });
     const helpBtn = h('button', { text: 'HELP', title: 'Phraseology and controls (F1)' });
     helpBtn.addEventListener('click', () => showHelp());
     const docsBtn = h('a', { href: REPO_URL, target: '_blank', rel: 'noopener' }, h('button', { text: 'DOCS', type: 'button' }));
@@ -96,6 +103,7 @@ export class App {
       h('span.sep'),
       this.ttsButton,
       routesBtn,
+      rotBtn,
       h('span.spacer'),
       field('score', 'Score: +10 per departure handed off / arrival parked, penalties for incidents, delays and "say again"'),
       helpBtn,
@@ -127,7 +135,7 @@ export class App {
     this.targetEl = h('span.target');
     this.input = h('input', {
       type: 'text',
-      placeholder: 'Type an instruction, e.g. "DLH5AB taxi to holding point G1 via N, G" - F1 for help',
+      placeholder: 'Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help',
       autocomplete: 'off',
       spellcheck: 'false',
     });
@@ -146,6 +154,8 @@ export class App {
     });
     this.scope.showAllRoutes = settings.showRoutes;
     routesBtn.classList.toggle('active', settings.showRoutes);
+    this.scope.setRotation(settings.runwayAligned);
+    rotBtn.classList.toggle('active', settings.runwayAligned);
 
     // ---------------------------------------------------------------- voice
     this.voices.volume = settings.ttsVolume;

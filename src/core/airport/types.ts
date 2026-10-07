@@ -133,6 +133,13 @@ export interface RunwayOpsData {
   departureEntries: { holdingPoint: string; intersection: string; fullLength: boolean }[];
   /** Exits arrivals may use, ordered by distance from the threshold. */
   exits: ExitData[];
+  /**
+   * Standard taxi flows while this runway is in use: the preferred direction
+   * of travel on a taxiway ('east' / 'west' are along the runway axis, towards
+   * the higher / lower runway coordinate). Automatic routes avoid taxiing
+   * against these directions.
+   */
+  flows?: { taxiway: string; direction: 'east' | 'west' }[];
 }
 
 export interface ExitData {

@@ -60,6 +60,10 @@ export class Scope {
   private cx = 0;
   private cy = 0;
   private zoom = 0.3;
+  /** World heading (degrees true) that points up on the screen: 0 = north up. */
+  private viewHeading = 0;
+  private up: Vec2 = { x: 0, y: 1 };
+  private right: Vec2 = { x: 1, y: 0 };
   private width = 0;
   private height = 0;
   private dpr = 1;
@@ -110,12 +114,42 @@ export class Scope {
     this.canvas.height = Math.max(1, Math.round(r.height * this.dpr));
   }
 
+  /**
+   * Rotates the scope. With `runwayUp` false the scope is north-up; with true
+   * the runway is horizontal (like the aerodrome chart), the first runway end
+   * on the left.
+   */
+  setRotation(runwayAligned: boolean): void {
+    const ends = [...this.sim.airport.runwayEnds.values()].sort((a, b) => a.name.localeCompare(b.name));
+    this.viewHeading = runwayAligned && ends.length ? (ends[0].heading - 90 + 360) % 360 : 0;
+    this.up = headingVector(this.viewHeading);
+    this.right = headingVector(this.viewHeading + 90);
+    this.resetView();
+  }
+
+  get runwayAligned(): boolean {
+    return this.viewHeading !== 0;
+  }
+
   resetView(): void {
-    const b = this.sim.airport.bounds();
-    this.cx = (b.minX + b.maxX) / 2;
-    this.cy = (b.minY + b.maxY) / 2;
-    const w = b.maxX - b.minX + 300;
-    const hgt = b.maxY - b.minY + 300;
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    for (const n of this.sim.airport.nodes.values()) {
+      const vx = n.pos.x * this.right.x + n.pos.y * this.right.y;
+      const vy = n.pos.x * this.up.x + n.pos.y * this.up.y;
+      minX = Math.min(minX, vx);
+      maxX = Math.max(maxX, vx);
+      minY = Math.min(minY, vy);
+      maxY = Math.max(maxY, vy);
+    }
+    const cxv = (minX + maxX) / 2;
+    const cyv = (minY + maxY) / 2;
+    this.cx = this.right.x * cxv + this.up.x * cyv;
+    this.cy = this.right.y * cxv + this.up.y * cyv;
+    const w = maxX - minX + 300;
+    const hgt = maxY - minY + 400;
     this.zoom = Math.min(this.width / w, this.height / hgt) || 0.3;
   }
 
@@ -134,11 +168,23 @@ export class Scope {
   }
 
   toScreen(p: Vec2): Vec2 {
-    return { x: (p.x - this.cx) * this.zoom + this.width / 2, y: this.height / 2 - (p.y - this.cy) * this.zoom };
+    const dx = p.x - this.cx;
+    const dy = p.y - this.cy;
+    return {
+      x: (dx * this.right.x + dy * this.right.y) * this.zoom + this.width / 2,
+      y: this.height / 2 - (dx * this.up.x + dy * this.up.y) * this.zoom,
+    };
   }
 
   toWorld(sx: number, sy: number): Vec2 {
-    return { x: (sx - this.width / 2) / this.zoom + this.cx, y: (this.height / 2 - sy) / this.zoom + this.cy };
+    const r = (sx - this.width / 2) / this.zoom;
+    const u = (this.height / 2 - sy) / this.zoom;
+    return { x: this.cx + r * this.right.x + u * this.up.x, y: this.cy + r * this.right.y + u * this.up.y };
+  }
+
+  /** Canvas rotation (radians) for something pointing at world heading `h`. */
+  private screenAngle(h: number): number {
+    return ((h - this.viewHeading) * Math.PI) / 180;
   }
 
   // ------------------------------------------------------------------ input
@@ -226,8 +272,8 @@ export class Scope {
       this.drag.lastX = sx;
       this.drag.lastY = sy;
       if (this.drag.mode === 'pan') {
-        this.cx -= dx / this.zoom;
-        this.cy += dy / this.zoom;
+        this.cx -= (dx * this.right.x - dy * this.up.x) / this.zoom;
+        this.cy -= (dx * this.right.y - dy * this.up.y) / this.zoom;
       } else if (this.drag.callsign) {
         const ac = this.sim.find(this.drag.callsign);
         if (ac) {
@@ -364,7 +410,7 @@ export class Scope {
       ctx.save();
       ctx.translate(p.x, p.y);
       // text "up" points along the landing direction, as painted on the runway
-      ctx.rotate((end.heading * Math.PI) / 180);
+      ctx.rotate(this.screenAngle(end.heading));
       ctx.fillStyle = C.runwayMark;
       ctx.font = `bold ${Math.max(10, Math.min(28, 22 * z))}px Consolas, monospace`;
       ctx.textAlign = 'center';
@@ -522,7 +568,7 @@ export class Scope {
     const k = Math.max(z, minPx / L);
     ctx.save();
     ctx.translate(p.x, p.y);
-    ctx.rotate((ac.heading * Math.PI) / 180);
+    ctx.rotate(this.screenAngle(ac.heading));
     ctx.scale(k, k);
     // simple top-down silhouette, nose towards -y
     const fw = ac.type.silhouette === 'widebody' ? 3.2 : 2.0;

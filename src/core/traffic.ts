@@ -162,8 +162,11 @@ export class TrafficGenerator {
 
   private pickStand(type: AircraftType, airline: Airline): Stand | undefined {
     const ga = airline.callsignStyle === 'reg';
-    const preferred = this.sim.freeStands(type.wingspanM, (s) => (ga ? s.apron === 'Apron 3' : s.apron === 'Apron 1'));
-    const any = preferred.length ? preferred : this.sim.freeStands(type.wingspanM, (s) => s.apron !== 'Apron South');
+    // Business jets prefer the small stands 60-65, airlines the rest of Apron North; Apron South is cargo.
+    const preferred = this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron North' && (ga ? /^6\d$/.test(s.id) : !/^6\d$/.test(s.id)));
+    const any = preferred.length
+      ? preferred
+      : this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron North').concat(this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron South'));
     if (!any.length) return undefined;
     // Smallest stand that fits, to keep large stands available.
     const minSpan = Math.min(...any.map((s) => s.maxWingspanM));

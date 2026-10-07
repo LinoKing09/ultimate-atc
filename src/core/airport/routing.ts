@@ -54,11 +54,20 @@ const UTURN_PENALTY = 5000;
 const MAX_TURN = 150;
 const FREE_EDGE_PENALTY = 1.15;
 
+export interface RouteOptions {
+  /** Preferred directions of travel (unit vectors) per taxiway name, used for automatic routes. */
+  flows?: Map<string, Vec2>;
+}
+
+/** Cost factor for automatic routes taxiing against a standard flow. */
+const AGAINST_FLOW_FACTOR = 4;
+
 export function findRoute(
   airport: Airport,
   start: RouteStart,
   destination: TaxiNode,
   via: string[] = [],
+  options: RouteOptions = {},
 ): TaxiRoute | RouteError {
   const viaU = via.map((v) => v.toUpperCase());
   for (const v of viaU) {
@@ -80,7 +89,8 @@ export function findRoute(
   let startPosition: Vec2 | undefined;
 
   if (start.node) {
-    seeds.push({ node: start.node, cost: 0, uTurn: false });
+    // A parked aircraft can only leave its stand forwards (drive-through stands) - the heading constrains the first turn.
+    seeds.push({ node: start.node, cost: 0, uTurn: false, dir: start.heading !== undefined ? headingVector(start.heading) : undefined });
   } else if (start.position) {
     const near = airport.nearestEdge(start.position);
     if (!near) return { error: 'not on the taxiway network' };
@@ -90,10 +100,10 @@ export function findRoute(
     for (const n of [near.edge.from, near.edge.to]) {
       const toNode = sub(n.pos, start.position);
       const d = Math.hypot(toNode.x, toNode.y);
-      let uTurn = false;
-      if (fwd && d > 3) uTurn = dot(toNode, fwd) < 0;
+      // A node behind the aircraft (even a few metres) can only be reached by turning around.
+      const uTurn = !!fwd && d > 1 && dot(toNode, fwd) < 0;
       // Respect one-way edges when moving along them.
-      if (near.edge.oneWay && n === near.edge.from && d > 3) continue;
+      if (near.edge.oneWay && n === near.edge.from && d > 1) continue;
       // Arriving at the node: we travel along toNode, or (if we are standing on it) along our heading.
       const dir = d > 1 ? unit(toNode) : fwd;
       seeds.push({ node: n, cost: d + (uTurn ? UTURN_PENALTY : 0), uTurn, dir });
@@ -152,6 +162,8 @@ export function findRoute(
       let cost = e.length;
       if (auto) {
         if (e.kind === 'runwayStrip') cost += RUNWAY_CROSSING_PENALTY / 2;
+        const flow = options.flows?.get(name);
+        if (flow && dot(flow, out) < -0.5) cost *= AGAINST_FLOW_FACTOR;
       } else if (k < m && name === viaU[k] && !(k > 0 && name === viaU[k - 1])) {
         k += 1;
       } else if (k > 0 && name === viaU[k - 1]) {

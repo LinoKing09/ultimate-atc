@@ -12,6 +12,8 @@ export interface Settings {
   ttsVolume: number;
   voiceAutoSend: boolean;
   showRoutes: boolean;
+  /** Scope rotated so that the runway is horizontal. */
+  runwayAligned: boolean;
 }
 
 const KEY = 'ultimate-atc.settings.v1';
@@ -25,6 +27,7 @@ const DEFAULTS: Settings = {
   ttsVolume: 1,
   voiceAutoSend: true,
   showRoutes: true,
+  runwayAligned: true,
 };
 
 export function loadSettings(): Settings {

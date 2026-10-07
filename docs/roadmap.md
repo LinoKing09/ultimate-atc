@@ -13,7 +13,7 @@ Status legend: **done**, *in progress*, planned.
 - **done** - EuroScope-like clickable tag items, telephony display
 - **done** - Realistic routing (no U-turns / hairpins), arrival turn-around bug fixed
 - **done** - Researched tower separation model (departure/arrival/runway separation, departure gaps), see [tower-operations.md](tower-operations.md)
-- *in progress* - Accurate EDDS layout from an aerodrome chart (waiting for the chart)
+- **done** - Accurate EDDS layout digitised from the AIP aerodrome charts (v0.3), scope rotation, standard taxi flows
 
 ## v0.1 - Ground at EDDS
 
@@ -30,7 +30,7 @@ Status legend: **done**, *in progress*, planned.
 
 ### Gameplay and realism
 
-- planned - Real EDDS layout (from the aerodrome chart, or OpenStreetMap data with attribution), replacing the hand-made approximation
+- planned - EDDS details: de-icing pads DP1-DP4, holding bays P1/P2, GA apron, A-stands (9A, 24A ...)
 - planned - Real `follow` behaviour (follow-the-leader)
 - planned - Stand allocation per airline and terminal (Schengen / non-Schengen), contact/remote stands
 - planned - More special events (bird strike, blocked taxiway, follow-me, towing), de-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short, read-back errors you must catch)

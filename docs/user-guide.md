@@ -41,7 +41,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 ```
 +--------------------------------------------------------------------------------------+
 | ULTIMATE ATC | EDDS_GND 118.605 | RWY 25 | ATIS E | 250/08KT | Q1013 | 14:32:10Z |  |
-|   II 1x 2x 4x 8x | TTS ROUTES |            SCORE ... | HELP | DOCS | DISCONNECT       |
+|   II 1x 2x 4x 8x | TTS ROUTES ROT |            SCORE ... | HELP | DOCS | DISCONNECT       |
 +--------------------------------------------------------------------------------------+
 | [DEPARTURES list]                                              [ARRIVALS list]       |
 |                                                                                      |
@@ -67,6 +67,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `1x 2x 4x 8x`         | Simulation rate. Pilots and Tower run faster too; text-to-speech gets slightly faster.          |
 | `TTS`                 | Pilots read their transmissions aloud (text-to-speech).                                         |
 | `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
+| `ROT`                 | Rotates the scope: **runway horizontal** like the aerodrome chart (default, runway 07 on the left) or north-up. |
 | `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#11-score). |
 | `HELP`                | In-game reference (also **F1**).                                                                |
 | `DOCS`                | Opens this documentation on GitHub.                                                             |
@@ -89,14 +90,14 @@ Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS:
 
 ## 3. The scope
 
-The scope is a north-up ground radar showing the aerodrome chart:
+The scope is a ground radar showing the aerodrome chart. By default it is rotated like the official aerodrome chart, with the runway horizontal; **ROT** switches to north-up:
 
 | Element                                | Drawn as                                                                       |
 | -------------------------------------- | ------------------------------------------------------------------------------ |
 | Runway                                 | Black strip with a dashed centre line, threshold bars and designators          |
 | Taxiways and taxilanes                 | Grey bands with a thin yellow centre line                                      |
 | Taxiway designators                    | Yellow letters in dark boxes (`N`, `S`, `R`, `D` ...)                          |
-| Runway holding positions               | Thick yellow bar across the taxiway, labelled with the holding point (`G1`, `D2` ...) |
+| Runway holding positions               | Thick yellow bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
 | Stands                                 | Thin yellow lead-in line plus the stand number                                 |
 | Aprons                                 | Slightly lighter areas                                                         |
 | Buildings                              | Brown areas with names                                                         |
@@ -123,7 +124,7 @@ Every aircraft is drawn as a top-down silhouette at real size (with a minimum si
 
 ```
 DLH5AB PAN *    callsign; "PAN" = emergency, "*" = waiting for your answer
-A320 G1         aircraft type + where it is cleared to (G1 = holding point, S14 = stand 14, HS F = hold short of F, >14 = suggested stand)
+A320 A          aircraft type + where it is cleared to (A = holding point, S14 = stand 14, HS F = hold short of F, >14 = suggested stand)
 TAXI 15 #2      ground status + ground speed in knots + queue number you gave ("number 2 for ...")
 ```
 
@@ -133,7 +134,7 @@ Like in EuroScope, **the tag items are clickable**. Hovered items are highlighte
 | ----------------------------- | ----------------------------------------------------------------------- |
 | Callsign                      | Flight plan card: **radiotelephony callsign** (e.g. `SPEEDBIRD 947`), type, route, SID, runway, squawk, stand, frequency |
 | Aircraft type                 | Same flight plan card                                                   |
-| Cleared-to (`G1`, `S14`, `---`) | Taxi menu: holding points for departures, stands for arrivals         |
+| Cleared-to (`A`, `S14`, `---`) | Taxi menu: holding points for departures, stands for arrivals         |
 | Status (`TAXI`, `RQST`, ...)  | The full [aircraft menu](#7-aircraft-menu)                              |
 
 **Hovering over the callsign** adds a line with the radiotelephony callsign below it, so you know how to address the aircraft. The selected aircraft's telephony is also shown in front of the command line (`[BAW947 SPEEDBIRD 947]`).
@@ -244,7 +245,7 @@ Type an instruction and press **Enter** (or click **SEND**). The full grammar is
 ```
 [callsign] instruction[, instruction ...]
 DLH5AB pushback approved facing east
-Lufthansa 5AB, taxi to holding point G1 via N, G, hold short of taxiway F
+Lufthansa 5AB, taxi to holding point A via L2, S, hold short of taxiway H
 taxi to stand 14 via N R          <- goes to the selected aircraft
 ```
 
@@ -253,7 +254,7 @@ taxi to stand 14 via N R          <- goes to the selected aircraft
   - **green**: understood, and the route (if any) is valid. The route is drawn on the scope.
   - **red**: understood, but it won't work, for example `unable to follow route via S`, or the aircraft is not on your frequency.
   - **grey** `? ...`: words that were not understood.
-- When you transmit, the message window shows your instruction in clean phraseology. For example, `dlh5ab taxi g1 via n g` becomes `Lufthansa 5AB, taxi to holding point G1 via N, G`, unless parts of it were not understood; then your raw text is shown.
+- When you transmit, the message window shows your instruction in clean phraseology. For example, `dlh5ab taxi a via l2 s` becomes `Lufthansa 5AB, taxi to holding point A via L2, S`, unless parts of it were not understood; then your raw text is shown.
 - **Up / Down** browse the history of your last 50 transmissions. **Esc** clears the line, or deselects if the line is already empty.
 - Typing anywhere on the page focuses the command line.
 
@@ -266,7 +267,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Pushback approved -> facing    | `pushback approved [facing east/west/...]`         | Departure parked on a pushback stand          |
 | Push and start approved -> ... | `push and start approved [facing ...]`            | same                                          |
 | Start-up approved             | `start-up approved`                                | Parked                                        |
-| Taxi to -> holding point       | `taxi to holding point G1 via ...` (shortest route) | Departure after pushback, or on a taxi-out stand |
+| Taxi to -> holding point       | `taxi to holding point A via ...` (shortest route, following the standard flows) | Departure after pushback, or on a taxi-out stand |
 | Taxi to stand -> stand         | `taxi to stand 14 via ...` (assigned stand first, then free stands nearby) | Arrival on the ground, or a departure returning to a stand |
 | Stop pushback / Cancel pushback | `stop pushback` / `cancel pushback`              | During pushback                               |
 | Hold position                 | `hold position`                                    | Taxiing                                       |
@@ -325,9 +326,9 @@ The goal is to work **by voice only**. Several things help with recognition erro
 
 Responsibilities in this simulator:
 
-- **Departures** start on your frequency with their IFR clearance already received from Delivery (simulated).
+- **Departures** start on your frequency with their IFR clearance already received from Delivery (simulated). Departures on drive-through stands (EDDS 40-48, 50-56) don't need a pushback; they call `request taxi` and leave forwards.
   1. Approve **pushback** (and start-up), choosing a facing direction that fits the traffic.
-  2. When the pilot is **ready for taxi**, give a **taxi route to a runway holding point**. For runway 25 that is normally `G1` (full length). `F1` is an intersection departure.
+  2. When the pilot is **ready for taxi**, give a **taxi route to a runway holding point**. For runway 25 that is normally `A` (full length); `B`, `C` and `D` are intersection departures. For runway 07 it is `K` (or `Y` from the south), `I`, `H` and `W` are intersections.
   3. **Hand the aircraft over to Tower** (`contact tower 118.805`) when it is at or close to the holding point. Tower then lines it up and clears it for take-off on its own.
 - **Arrivals** are landed by Tower. After vacating, they switch to you and call `vacated runway 25 via E`. **Taxi them to a stand.** The suggested stand is shown in brackets; you can give any free stand that is big enough.
 - **Runway crossings**: some routes cross the runway, for example from the south apron or for arrivals that vacated to the south. Aircraft stop at the runway holding point and request crossing. Clear them with `cross runway 25` **only when the runway is free**: no arrival on short final, nobody lining up or rolling. Otherwise you cause a runway incursion and possibly a go-around.
@@ -351,8 +352,8 @@ Responsibilities in this simulator:
 ## 12. Tips
 
 - Use **Tab** to work through requests in order. Then you only need to type the instruction, without the callsign.
-- Hover over destinations in the **Taxi to** menu to compare routes before you send one.
-- Plan **pushback direction** with the departure runway in mind. For runway 25 the holding point G1 is at the east end, so departures from the terminal usually push facing **east**. If you don't specify, the pilot picks the direction with the shortest taxi.
+- Hover over destinations in the **Taxi to** menu to compare routes before you send one. The suggestions follow the airport's **standard taxi flows** (at EDDS with runway 25: S eastbound for departures, N westbound for arrivals), see the [airport page](airports/EDDS.md#standard-taxi-flows).
+- Plan **pushback direction** with the departure runway in mind. For runway 25 the holding point A is at the east end, so departures from the terminal usually push facing **east** and taxi via L2 or H onto S (the standard flow for 25). If you don't specify, the pilot picks the direction with the shortest taxi.
 - Use **`standby`** if you can't answer right away. The pilot then waits two minutes before calling again, instead of reminding you every minute.
 - If two aircraft meet **head-on** on a taxiway, neither can pass. Prevent it by holding one at an intersection. Aircraft can't make U-turns on taxiways; if a pilot has no other way, they accept a route that requires turning around, but the router avoids it whenever possible.
 - Run at **2x or 4x** during quiet phases and pause (**Space**) when it gets busy.

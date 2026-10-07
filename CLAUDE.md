@@ -1,0 +1,8 @@
+# Project rules for Claude
+
+- **Language**: everything in the repository (code, comments, UI text, documentation, commit messages) is written in **English**, even if the conversation with the user is in another language.
+- **Documentation is mandatory**: every change must update the affected documentation in `docs/`, `README.md` and the in-app help (`src/ui/dialogs.ts`) where relevant, and add an entry to `CHANGELOG.md` under `## [Unreleased]`. See the mapping table in `docs/contributing.md`. Numbers in `docs/simulation.md` must match the code.
+- **Architecture**: `src/core` must not access the DOM. Browser-specific code lives in `src/ui`.
+- **Determinism**: use `sim.rng` (seeded) inside the simulation, never `Math.random()`.
+- **Checks before committing**: `npm run typecheck`, `npm test`, `npm run build`.
+- **Airport data**: only use data that may be redistributed (OurAirports public domain, OpenStreetMap with attribution). Mark approximations clearly in `dataNotice` and in `docs/airports/<ICAO>.md`.

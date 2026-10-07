@@ -1,0 +1,318 @@
+# User guide
+
+This guide explains the controller client screen by screen. It assumes the **Ground** position at **EDDS**, which is the only position available in v0.1.
+
+- [1. Connecting](#1-connecting)
+- [2. Screen layout](#2-screen-layout)
+- [3. The scope](#3-the-scope)
+- [4. Aircraft tags and colours](#4-aircraft-tags-and-colours)
+- [5. Departure and arrival lists](#5-departure-and-arrival-lists)
+- [6. Messages and the command line](#6-messages-and-the-command-line)
+- [7. Aircraft menu](#7-aircraft-menu)
+- [8. Keyboard and mouse reference](#8-keyboard-and-mouse-reference)
+- [9. Voice](#9-voice)
+- [10. Your job as Ground](#10-your-job-as-ground)
+- [11. Score](#11-score)
+- [12. Tips](#12-tips)
+
+---
+
+## 1. Connecting
+
+When the app starts, the **Connect** dialog opens. It works like the connect dialog in EuroScope or a VATSIM login:
+
+| Field             | Meaning                                                                                              |
+| ----------------- | ---------------------------------------------------------------------------------------------------- |
+| **Airport**       | Airport to control. Only EDDS has data so far; planned airports are listed but disabled.             |
+| **Position**      | Controller position. Only **Ground** is available in v0.1; Delivery, Tower, Approach/Departure and Center are planned. |
+| **Callsign**      | Shows the resulting station callsign, frequency and radio name, for example `EDDS_GND 118.605 "Stuttgart Ground"`. |
+| **Active runway** | Runway in use for departures and arrivals (`25` or `07` at EDDS). It changes the runway pilots expect, where they hold, and where arrivals come from. |
+| **Traffic**       | `light`, `medium` or `heavy` (see [simulation model](simulation.md#traffic-generation)).          |
+| **Scenario seed** | Optional number. The same seed with the same settings always gives the same traffic. Leave it empty for a random session. |
+
+The yellow notice shows how accurate the airport data is. Press **Connect** to start. The session begins immediately and the clock runs.
+
+## 2. Screen layout
+
+![Overview](images/screenshot-overview.png)
+
+```
++--------------------------------------------------------------------------------------+
+| ULTIMATE ATC | EDDS_GND 118.605 | RWY 25 | ATIS E | 250/08KT | Q1013 | 14:32:10Z |  |
+|   II 1x 2x 4x 8x | TTS ROUTES |            SCORE ... | HELP | DOCS | DISCONNECT       |
++--------------------------------------------------------------------------------------+
+| [DEPARTURES list]                                              [ARRIVALS list]       |
+|                                                                                      |
+|                          ground radar scope                                          |
+|                                                                                      |
++--------------------------------------------------------------------------------------+
+| message window (radio log)                                                           |
+| [DLH5AB] > command line ......................... preview ............ MIC SEND      |
++--------------------------------------------------------------------------------------+
+```
+
+### Toolbar
+
+| Element               | Description                                                                                     |
+| --------------------- | ----------------------------------------------------------------------------------------------- |
+| `EDDS_GND 118.605`    | Your station and frequency.                                                                     |
+| `RWY 25`              | Active runway.                                                                                  |
+| `ATIS E`              | Current ATIS letter. Pilots report it on first contact. It advances every 30 simulated minutes. |
+| `250/08KT`            | Surface wind (magnetic), favouring the active runway.                                           |
+| `Q1013`               | QNH in hPa.                                                                                     |
+| `14:32:10Z`           | Simulation time in UTC. The session starts at the current real time.                            |
+| `II` / `>`            | Pause / resume. **Space** does the same when the command line is empty.                         |
+| `1x 2x 4x 8x`         | Simulation rate. Pilots and Tower run faster too; text-to-speech gets slightly faster.          |
+| `TTS`                 | Pilots read their transmissions aloud (text-to-speech).                                         |
+| `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
+| `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#11-score). |
+| `HELP`                | In-game reference (also **F1**).                                                                |
+| `DOCS`                | Opens this documentation on GitHub.                                                             |
+| `DISCONNECT`          | Ends the session and returns to the Connect dialog.                                             |
+
+## 3. The scope
+
+The scope is a north-up ground radar showing the aerodrome chart:
+
+| Element                                | Drawn as                                                                       |
+| -------------------------------------- | ------------------------------------------------------------------------------ |
+| Runway                                 | Black strip with a dashed centre line, threshold bars and designators          |
+| Taxiways and taxilanes                 | Grey bands with a thin yellow centre line                                      |
+| Taxiway designators                    | Yellow letters in dark boxes (`N`, `S`, `R`, `D` ...)                          |
+| Runway holding positions               | Thick yellow bar across the taxiway, labelled with the holding point (`G1`, `D2` ...) |
+| Stands                                 | Thin yellow lead-in line plus the stand number                                 |
+| Aprons                                 | Slightly lighter areas                                                         |
+| Buildings                              | Brown areas with names                                                         |
+| Scale bar                              | Bottom left                                                                    |
+
+Details appear and disappear depending on zoom: centre lines and stand numbers only show when zoomed in.
+
+**Navigation**
+
+- **Mouse wheel**: zoom around the mouse cursor. On touch screens, pinch with two fingers.
+- **Drag** on empty space, with the left or right mouse button: pan.
+- **Home**: reset the view to the whole airport.
+- **Double-click a list row**, or use *Centre view* in the aircraft menu: centre on an aircraft.
+
+**Routes on the scope**
+
+- The **selected aircraft's** cleared route is a solid cyan line. With `ROUTES` on, the routes of all aircraft taxiing on your frequency are dashed lines.
+- Small squares mark where the aircraft will stop: **red** = runway holding point without a crossing clearance, **yellow** = hold short of a taxiway, **cyan/grey** = destination.
+- While you type a taxi instruction, the resulting route is previewed as a **green dashed line**.
+
+## 4. Aircraft tags and colours
+
+Every aircraft is drawn as a top-down silhouette at real size (with a minimum size, so it stays visible when zoomed out) and carries a data tag:
+
+```
+DLH5AB *        callsign; "*" = waiting for your answer
+A320 G1         aircraft type + where it is cleared to (G1 = holding point, S14 = stand 14, >14 = suggested stand)
+TAXI 15         ground status + ground speed in knots
+```
+
+Airborne aircraft (arrivals on final, departures after take-off) show altitude in hundreds of feet and speed, for example `A034 140`, plus a speed vector line.
+
+To keep the apron readable, parked aircraft with no pending request only get a tag when you zoom in or select them. **Drag a tag** with the mouse to move it; *Reset tag position* in the aircraft menu puts it back.
+
+### Ground status codes
+
+| Code    | Meaning                                                     |
+| ------- | ----------------------------------------------------------- |
+| `----`  | Parked on the stand, not ready yet                          |
+| `RQST`  | Parked, requesting pushback (or taxi)                       |
+| `PUSH`  | Pushback in progress                                        |
+| `ST-UP` | Pushback complete, starting engines                         |
+| `TAXI`  | Taxiing                                                     |
+| `HOLD`  | Holding position on your instruction                        |
+| `HS-R`  | Holding short of a runway, waiting for a crossing clearance |
+| `H/P`   | At the runway holding point (destination)                   |
+| `L/U`   | Lined up on the runway (Tower)                              |
+| `DEPA`  | Departing (take-off roll and climb)                         |
+| `APP`   | On final approach                                           |
+| `LAND`  | Landing roll                                                |
+| `VAC`   | Vacating the runway                                         |
+| `VACD`  | Vacated, waiting for taxi instructions                      |
+| `PARK`  | Arrived on the stand                                        |
+| `G/A`   | Going around                                                |
+
+### Colours
+
+| Colour                       | Meaning                                                         |
+| ---------------------------- | --------------------------------------------------------------- |
+| White                        | On your frequency                                               |
+| Grey                         | On another frequency (Tower)                                    |
+| Flashing yellow              | Waiting for your answer (a request is pending)                  |
+| Flashing orange              | Waiting for more than a minute                                  |
+| Red                          | Involved in a collision                                         |
+| Cyan circle                  | Selected aircraft                                               |
+
+## 5. Departure and arrival lists
+
+The lists work like EuroScope's departure and arrival lists. Aircraft waiting for you are sorted to the top, the longest-waiting first. Drag a list by its title bar; the `_` button collapses it.
+
+**DEPARTURES**
+
+| Column | Content                                                                            |
+| ------ | ---------------------------------------------------------------------------------- |
+| C/S    | Callsign                                                                           |
+| TYPE   | ICAO aircraft type / wake category (L, M, H)                                       |
+| STD    | Stand (empty once pushed back)                                                     |
+| ADES   | Destination                                                                        |
+| SID    | Standard instrument departure from the flight plan (placeholder names)             |
+| RWY    | Departure runway                                                                   |
+| CLR    | Where the aircraft is cleared to taxi (holding point)                              |
+| STS    | Ground status (see above)                                                          |
+| FRQ    | Frequency the pilot is on: `GND` (you) or `TWR`                                    |
+| REQ    | Pending request and how long the pilot has been waiting                            |
+
+**ARRIVALS**
+
+| Column | Content                                                                            |
+| ------ | ---------------------------------------------------------------------------------- |
+| C/S, TYPE | as above                                                                        |
+| ADEP   | Origin airport                                                                     |
+| RWY    | Landing runway                                                                     |
+| DIST   | Distance to the threshold while on final; afterwards the exit used                 |
+| STD    | Cleared stand, or the **suggested stand in brackets** (from the stand allocation)  |
+| STS, FRQ, REQ | as above                                                                    |
+
+Request codes in the `REQ` column:
+
+| Code   | The pilot ...                                               |
+| ------ | ----------------------------------------------------------- |
+| `PUSH` | requests pushback                                           |
+| `TAXI` | is ready for taxi (after pushback, or on a taxi-out stand)  |
+| `TXIN` | has vacated the runway and needs taxi instructions          |
+| `RDY`  | is at the holding point, ready for departure (hand over to Tower!) |
+| `XRWY` | is holding short of a runway on the route, requesting to cross |
+| `BLKD` | is stuck in front of opposing traffic and needs instructions |
+| `RTE?` | needs further instructions (route problem, long hold short) |
+
+Click a row to select the aircraft, double-click to centre the scope on it, right-click for the [aircraft menu](#7-aircraft-menu).
+
+## 6. Messages and the command line
+
+### Message window
+
+Shows all radio traffic on your frequency plus system messages:
+
+| Colour        | Line                                                                        |
+| ------------- | --------------------------------------------------------------------------- |
+| Light blue    | Your transmissions (`EDDS_GND`)                                             |
+| White         | Pilot transmissions                                                         |
+| Grey italic   | System information (for example ATIS changes)                               |
+| Red bold      | Incidents: collisions, runway incursions, go-arounds                        |
+| Yellow        | Hints for you, not transmitted (for example "DLH5AB is not on your frequency") |
+
+Click a line to select the aircraft it belongs to.
+
+There is **one frequency**: only one station talks at a time. Pilots wait until the frequency is free, and read-backs come before new calls. Your own transmissions go out immediately, so avoid "stepping on" a pilot by answering too fast in a busy situation.
+
+### Command line
+
+Type an instruction and press **Enter** (or click **SEND**). The full grammar is in the [phraseology reference](phraseology.md). In short:
+
+```
+[callsign] instruction[, instruction ...]
+DLH5AB pushback approved facing east
+Lufthansa 5AB, taxi to holding point G1 via N, G, hold short of taxiway F
+taxi to stand 14 via N R          <- goes to the selected aircraft
+```
+
+- The **target** on the left (`[DLH5AB]`) is the selected aircraft. It receives instructions without a callsign.
+- The **preview** on the right shows how your text was understood:
+  - **green**: understood, and the route (if any) is valid. The route is drawn on the scope.
+  - **red**: understood, but it won't work, for example `unable to follow route via S`, or the aircraft is not on your frequency.
+  - **grey** `? ...`: words that were not understood.
+- When you transmit, the message window shows your instruction in clean phraseology. For example, `dlh5ab taxi g1 via n g` becomes `Lufthansa 5AB, taxi to holding point G1 via N, G`, unless parts of it were not understood; then your raw text is shown.
+- **Up / Down** browse the history of your last 50 transmissions. **Esc** clears the line, or deselects if the line is already empty.
+- Typing anywhere on the page focuses the command line.
+
+## 7. Aircraft menu
+
+Right-click an aircraft symbol, its tag, or its list row to open the menu. Items are disabled when they don't make sense in the current state.
+
+| Item                          | Sends                                              | Available when                                |
+| ----------------------------- | -------------------------------------------------- | --------------------------------------------- |
+| Pushback approved -> facing    | `pushback approved [facing east/west/...]`         | Departure parked on a pushback stand          |
+| Push and start approved -> ... | `push and start approved [facing ...]`            | same                                          |
+| Start-up approved             | `start-up approved`                                | Parked                                        |
+| Taxi to -> holding point       | `taxi to holding point G1 via ...` (shortest route) | Departure after pushback, or on a taxi-out stand |
+| Taxi to stand -> stand         | `taxi to stand 14 via ...` (assigned stand first, then free stands nearby) | Arrival on the ground |
+| Hold position                 | `hold position`                                    | Taxiing                                       |
+| Continue taxi                 | `continue taxi`                                    | Taxiing                                       |
+| Hold short of -> taxiway       | `hold short of taxiway D`                          | Taxiways the remaining route joins or crosses |
+| Cross runway 25               | `cross runway 25`                                  | A runway holding point is ahead on the route  |
+| Give way to -> traffic         | `give way to EWG7TK`                               | Other ground traffic (not parked) within 800 m |
+| Contact Tower 118.805         | `contact tower 118.805`                            | Departure taxiing or at the holding point     |
+| Standby                       | `standby`                                          | A request is pending                          |
+| Say again                     | `say again`                                        | always                                        |
+| Centre view                   | -                                                  | always                                        |
+| Reset tag position            | -                                                  | always                                        |
+
+**Hovering over a destination** in the *Taxi to* sub-menus draws the proposed route on the scope. The hint on the right shows the `via` list that will be transmitted. Menu actions are transmitted exactly like typed text, so they show up in the message window and get a read-back.
+
+## 8. Keyboard and mouse reference
+
+| Input                                   | Action                                                         |
+| --------------------------------------- | -------------------------------------------------------------- |
+| **Enter**                               | Transmit the command line                                      |
+| **Esc**                                 | Clear the command line / deselect / close menus                |
+| **Tab**                                 | Select the next aircraft with a pending request, longest-waiting first |
+| **Up / Down**                           | Command history                                                |
+| **Space** (command line empty)          | Pause / resume                                                 |
+| **Home**                                | Reset the scope view                                           |
+| **F1**                                  | Help                                                           |
+| **Hold the key left of `1`** (`^` / `` ` ``) | Push-to-talk (speech recognition)                         |
+| Mouse wheel / pinch                     | Zoom                                                           |
+| Drag (left or right button)             | Pan; drag a tag to move it                                     |
+| Left click                              | Select aircraft (or deselect when clicking empty space)        |
+| Right click                             | Aircraft menu                                                  |
+| Double click (list)                     | Centre on aircraft                                             |
+
+## 9. Voice
+
+### Pilots speaking (TTS)
+
+Press **TTS** in the toolbar. Every pilot transmission is read aloud with the browser's speech synthesis. Each callsign always gets the same voice, pitch and speaking rate, so you can tell pilots apart. Designators are spelled phonetically: "Lufthansa five Alpha Bravo, taxi to holding point Golf one".
+
+### You speaking (speech recognition)
+
+Hold the key left of `1` (or click **MIC** to start and stop) and speak your instruction. For example: *"Lufthansa five alpha bravo, taxi to holding point golf one via november golf"*. The recognised text appears in the command line while you speak and is transmitted automatically when you release the key.
+
+- Works in Chrome and Edge (Web Speech API). The MIC button is disabled in other browsers.
+- Spoken numbers and the ICAO alphabet are converted automatically: "two five" -> `25`, "golf one" -> `G1`, "one one eight decimal eight zero five" -> `118.805`.
+- If recognition gets a word wrong, edit the text in the command line before sending. Pressing Enter sends again.
+
+## 10. Your job as Ground
+
+Responsibilities in this simulator:
+
+- **Departures** start on your frequency with their IFR clearance already received from Delivery (simulated).
+  1. Approve **pushback** (and start-up), choosing a facing direction that fits the traffic.
+  2. When the pilot is **ready for taxi**, give a **taxi route to a runway holding point**. For runway 25 that is normally `G1` (full length). `F1` is an intersection departure.
+  3. **Hand the aircraft over to Tower** (`contact tower 118.805`) when it is at or close to the holding point. Tower then lines it up and clears it for take-off on its own.
+- **Arrivals** are landed by Tower. After vacating, they switch to you and call `vacated runway 25 via E`. **Taxi them to a stand.** The suggested stand is shown in brackets; you can give any free stand that is big enough.
+- **Runway crossings**: some routes cross the runway, for example from the south apron or for arrivals that vacated to the south. Aircraft stop at the runway holding point and request crossing. Clear them with `cross runway 25` **only when the runway is free**: no arrival on short final, nobody lining up or rolling. Otherwise you cause a runway incursion and possibly a go-around.
+- **Keep traffic flowing**: avoid head-on encounters on the same taxiway, give way instructions at intersections, and don't push an aircraft onto a taxilane where another one is taxiing.
+
+## 11. Score
+
+| Event                                                       | Points |
+| ----------------------------------------------------------- | -----: |
+| Departure handed over to Tower                              |    +10 |
+| Arrival parked on a stand                                   |    +10 |
+| "Say again" (pilot did not understand)                      |     -2 |
+| Slow answer: per 15 s of waiting beyond the first 30 s      |     -1 |
+| Go-around caused by an occupied runway                      |    -15 |
+| Runway incursion                                            |    -50 |
+| Collision                                                   |   -100 |
+
+## 12. Tips
+
+- Use **Tab** to work through requests in order. Then you only need to type the instruction, without the callsign.
+- Hover over destinations in the **Taxi to** menu to compare routes before you send one.
+- Plan **pushback direction** with the departure runway in mind. For runway 25 the holding point G1 is at the east end, so departures from the terminal usually push facing **east**. If you don't specify, the pilot picks the direction with the shortest taxi.
+- Use **`standby`** if you can't answer right away. The pilot then waits two minutes before calling again, instead of reminding you every minute.
+- If two aircraft meet **head-on** on a taxiway, neither can pass. Re-route one of them (it may make a tight U-turn) or prevent the situation by holding one at an intersection.
+- Run at **2x or 4x** during quiet phases and pause (**Space**) when it gets busy.

@@ -1,0 +1,565 @@
+import type { Compass, StationType } from '../airport/types';
+import { AIRLINES } from '../../data/airlines';
+import type { Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './commands';
+
+/**
+ * Parser for controller transmissions written (or dictated) in ICAO
+ * phraseology. See docs/phraseology.md for the supported grammar.
+ *
+ * The parser is deliberately forgiving: it scans for known keywords and
+ * ignores filler words ("please", "roger", "good day"), accepts both typed
+ * designators ("G1", "25") and spoken forms ("golf one", "two five"), and
+ * lets the callsign appear at the start or at the end.
+ */
+
+export interface ParserContext {
+  /** Callsigns of all aircraft currently in the simulation (upper case). */
+  callsigns: string[];
+  /** Taxiway designators known at the airport (upper case). */
+  taxiways: Set<string>;
+  /** Callsign of the currently selected aircraft, used when none is spoken. */
+  selected?: string;
+}
+
+const NUMBER_WORDS: Record<string, string> = {
+  zero: '0', one: '1', two: '2', three: '3', tree: '3', four: '4', five: '5', fife: '5',
+  six: '6', seven: '7', eight: '8', nine: '9', niner: '9',
+};
+
+const PHONETIC_WORDS: Record<string, string> = {
+  alpha: 'a', alfa: 'a', bravo: 'b', charlie: 'c', delta: 'd', echo: 'e', foxtrot: 'f', golf: 'g',
+  hotel: 'h', india: 'i', juliett: 'j', juliet: 'j', kilo: 'k', lima: 'l', mike: 'm', november: 'n',
+  oscar: 'o', papa: 'p', quebec: 'q', romeo: 'r', sierra: 's', tango: 't', uniform: 'u', victor: 'v',
+  whiskey: 'w', whisky: 'w', xray: 'x', 'x-ray': 'x', yankee: 'y', zulu: 'z',
+};
+
+const STATION_WORDS: Record<string, StationType> = {
+  tower: 'TWR', ground: 'GND', delivery: 'DEL', clearance: 'DEL', approach: 'APP', radar: 'APP',
+  departure: 'DEP', director: 'APP', center: 'CTR', centre: 'CTR', apron: 'GND',
+};
+
+const COMPASS: Record<string, Compass> = { north: 'north', east: 'east', south: 'south', west: 'west' };
+const OPPOSITE: Record<Compass, Compass> = { north: 'south', south: 'north', east: 'west', west: 'east' };
+
+/** Words that terminate a list of taxiways or begin a new instruction. */
+const KEYWORDS = new Set([
+  'to', 'via', 'hold', 'holding', 'short', 'cross', 'runway', 'stand', 'gate', 'parking', 'position',
+  'contact', 'monitor', 'give', 'continue', 'push', 'pushback', 'start', 'startup', 'expedite',
+  'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
+]);
+
+/** Multi-word and single-word telephony designators -> ICAO prefix. */
+const TELEPHONY_WORDS: { words: string[]; icao: string }[] = AIRLINES.filter((a) => a.telephony)
+  .map((a) => ({ words: a.telephony.toLowerCase().split(/\s+/), icao: a.icao }))
+  .sort((a, b) => b.words.length - a.words.length);
+
+/** Lower-cases, strips punctuation and converts spoken numbers/letters to characters. */
+export function tokenize(input: string): string[] {
+  const cleaned = input
+    .toLowerCase()
+    .replace(/(\d)\s*decimal\s*(\d)/g, '$1.$2')
+    .replace(/[,;:!?()]/g, ' ')
+    .replace(/\.(?!\d)/g, ' ')
+    .replace(/-/g, ' ')
+    .replace(/\bx ray\b/g, 'xray');
+  const raw = cleaned.split(/\s+/).filter(Boolean);
+  const out: string[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    let t = raw[i];
+    const nextRaw = raw[i + 1] ?? '';
+    if (t === 'decimal' && out.length && /^\d+$/.test(out[out.length - 1]) && (/^\d/.test(nextRaw) || NUMBER_WORDS[nextRaw])) {
+      out[out.length - 1] += '.';
+      continue;
+    }
+    if (NUMBER_WORDS[t]) t = NUMBER_WORDS[t];
+    else if (PHONETIC_WORDS[t]) t = PHONETIC_WORDS[t];
+    // join "118." + "805"
+    if (out.length && /^\d+\.\d{0,2}$/.test(out[out.length - 1]) && /^\d+$/.test(t)) {
+      out[out.length - 1] += t;
+      continue;
+    }
+    out.push(t);
+  }
+  // Merge spoken frequency digits: "1 1 8.805" -> "118.805"
+  for (let i = 0; i < out.length; i++) {
+    if (!/^\d+\.\d*$/.test(out[i])) continue;
+    while (i > 0 && /^\d$/.test(out[i - 1]) && out[i].indexOf('.') < 3) {
+      out[i] = out[i - 1] + out[i];
+      out.splice(i - 1, 1);
+      i--;
+    }
+  }
+  return out;
+}
+
+const isSingle = (t: string | undefined) => !!t && /^[a-z0-9]$/.test(t);
+const isDigit = (t: string | undefined) => !!t && /^\d$/.test(t);
+
+class Cursor {
+  i = 0;
+  constructor(readonly t: string[]) {}
+  peek(o = 0): string | undefined {
+    return this.t[this.i + o];
+  }
+  next(): string | undefined {
+    return this.t[this.i++];
+  }
+  done(): boolean {
+    return this.i >= this.t.length;
+  }
+  accept(...words: string[]): boolean {
+    if (this.peek() !== undefined && words.includes(this.peek()!)) {
+      this.i++;
+      return true;
+    }
+    return false;
+  }
+  /** Accepts a sequence of words exactly. */
+  acceptSeq(...words: string[]): boolean {
+    for (let k = 0; k < words.length; k++) if (this.peek(k) !== words[k]) return false;
+    this.i += words.length;
+    return true;
+  }
+}
+
+/** Reads a runway designator: "25", "2 5", "07l", "0 7 left". */
+function readRunway(c: Cursor): string | undefined {
+  let s = '';
+  const first = c.peek();
+  if (first && /^\d{1,2}[lrc]?$/.test(first)) {
+    s = c.next()!;
+    if (s.length === 1 && isDigit(c.peek())) s += c.next();
+  } else {
+    return undefined;
+  }
+  if (!/[lrc]$/.test(s)) {
+    const side = c.peek();
+    if (side === 'left' || side === 'l') { c.next(); s += 'l'; }
+    else if (side === 'right' || side === 'r') { c.next(); s += 'r'; }
+    else if (side === 'center' || side === 'centre' || side === 'c') {
+      // "c" right after a runway number is ambiguous with taxiway C; accept only the full words.
+      if (side !== 'c') { c.next(); s += 'c'; }
+    }
+  }
+  if (s.length === 1) s = '0' + s;
+  return s.toUpperCase();
+}
+
+/** Reads a stand number such as "12", "1 2", "50a". */
+function readStand(c: Cursor): string | undefined {
+  let s = '';
+  while (isDigit(c.peek()) || (s === '' && c.peek() && /^\d+[a-z]?$/.test(c.peek()!))) {
+    s += c.next();
+    if (/[a-z]$/.test(s)) break;
+  }
+  if (s && isSingle(c.peek()) && /[a-z]/.test(c.peek()!) && !KEYWORDS.has(c.peek()!)) {
+    // trailing stand suffix letter, e.g. "stand 1 2 alpha" -> 12A. Only if followed by nothing taxiway-like.
+    const nxt = c.peek(1);
+    if (nxt === undefined || KEYWORDS.has(nxt)) s += c.next();
+  }
+  return s ? s.toUpperCase() : undefined;
+}
+
+/** Reads a holding point / taxiway designator: "g1", "g 1", "n", "a12". */
+function readDesignator(c: Cursor): string | undefined {
+  const t = c.peek();
+  if (!t) return undefined;
+  if (/^[a-z]\d{0,2}$/.test(t)) {
+    c.next();
+    let s = t;
+    while (isDigit(c.peek()) && s.length < 4) s += c.next();
+    return s.toUpperCase();
+  }
+  return undefined;
+}
+
+function readFrequency(c: Cursor): string | undefined {
+  const t = c.peek();
+  if (t && /^1\d\d\.\d{1,3}$/.test(t)) {
+    c.next();
+    return t;
+  }
+  // spoken digits: 1 1 8 . 8 0 5 have already been joined if "decimal" was used; else collect 6 digits
+  if (isDigit(t)) {
+    let digits = '';
+    const save = c.i;
+    while (isDigit(c.peek()) && digits.length < 6) digits += c.next();
+    if (digits.length >= 5 && digits.startsWith('1')) return `${digits.slice(0, 3)}.${digits.slice(3)}`;
+    c.i = save;
+  }
+  return undefined;
+}
+
+interface CallsignMatch {
+  callsign: string;
+  consumed: number;
+}
+
+/** Tries to read a callsign at token position `i`. */
+function matchCallsign(tokens: string[], i: number, callsigns: string[]): CallsignMatch | undefined {
+  const t = tokens[i];
+  if (!t) return undefined;
+  const upper = callsigns.map((c) => c.toUpperCase());
+
+  // 1. Literal callsign "dlh5ab"
+  const direct = upper.find((c) => c === t.toUpperCase());
+  if (direct) return { callsign: direct, consumed: 1 };
+
+  // 2. Telephony + suffix ("lufthansa 5 a b", "wizz air 1 2 3")
+  for (const tel of TELEPHONY_WORDS) {
+    if (tel.words.every((w, k) => tokens[i + k] === w)) {
+      let j = i + tel.words.length;
+      let suffix = '';
+      while (j < tokens.length && /^[a-z0-9]+$/.test(tokens[j]) && !KEYWORDS.has(tokens[j]) && suffix.length < 7) {
+        const cand = (suffix + tokens[j]).toUpperCase();
+        // stop if adding the token no longer matches any callsign prefix
+        if (!upper.some((c) => c.startsWith(tel.icao + cand))) break;
+        suffix += tokens[j];
+        j++;
+      }
+      const cs = (tel.icao + suffix).toUpperCase();
+      if (upper.includes(cs)) return { callsign: cs, consumed: j - i };
+      return { callsign: cs, consumed: j - i }; // unknown aircraft, reported by the caller
+    }
+  }
+
+  // 3. Spelled registration or flight number suffix ("5 a b", "5ab", "d c m g b")
+  let j = i;
+  let acc = '';
+  let best: CallsignMatch | undefined;
+  while (j < tokens.length && /^[a-z0-9]+$/.test(tokens[j]) && acc.length < 7) {
+    if (KEYWORDS.has(tokens[j]) && acc.length > 0) break;
+    acc += tokens[j];
+    j++;
+    const A = acc.toUpperCase();
+    const exact = upper.filter((c) => c === A);
+    if (exact.length === 1) best = { callsign: exact[0], consumed: j - i };
+    const bySuffix = upper.filter((c) => c.length > A.length && c.endsWith(A) && /^[A-Z]{3}$/.test(c.slice(0, c.length - A.length)));
+    if (bySuffix.length === 1 && /\d/.test(A)) best = { callsign: bySuffix[0], consumed: j - i };
+  }
+  return best;
+}
+
+export function parseTransmission(input: string, ctx: ParserContext): ParsedTransmission {
+  const tokens = tokenize(input);
+  const result: ParsedTransmission = { explicitCallsign: false, commands: [], unparsed: [] };
+
+  // ---- callsign at the beginning or at the end
+  let start = 0;
+  let end = tokens.length;
+  const head = matchCallsign(tokens, 0, ctx.callsigns);
+  if (head) {
+    result.callsign = head.callsign;
+    result.explicitCallsign = true;
+    start = head.consumed;
+  } else {
+    for (let k = Math.max(0, tokens.length - 6); k < tokens.length; k++) {
+      const tail = matchCallsign(tokens, k, ctx.callsigns);
+      if (tail && k + tail.consumed === tokens.length && ctx.callsigns.includes(tail.callsign)) {
+        result.callsign = tail.callsign;
+        result.explicitCallsign = true;
+        end = k;
+        break;
+      }
+    }
+  }
+  if (!result.callsign && ctx.selected) result.callsign = ctx.selected;
+
+  const c = new Cursor(tokens.slice(start, end));
+  let taxi: Extract<Command, { type: 'taxi' }> | undefined;
+  const pendingHoldShort: HoldShortTarget[] = [];
+  const pendingCross: string[] = [];
+
+  const readFacing = (): Compass | undefined => {
+    // looks ahead a few tokens for "facing east" / "face west" / "tail north"
+    for (let k = 0; k < 5; k++) {
+      const w = c.peek(k);
+      if (w === 'facing' || w === 'face' || w === 'nose') {
+        const d = COMPASS[c.peek(k + 1) ?? ''];
+        if (d) {
+          c.t.splice(c.i + k, 2);
+          return d;
+        }
+      }
+      if (w === 'tail') {
+        const d = COMPASS[c.peek(k + 1) ?? ''];
+        if (d) {
+          c.t.splice(c.i + k, 2);
+          return OPPOSITE[d];
+        }
+      }
+    }
+    return undefined;
+  };
+
+  const readHoldShortTarget = (): HoldShortTarget | undefined => {
+    c.accept('of');
+    if (c.accept('runway')) {
+      const r = readRunway(c);
+      return r ? { kind: 'runway', runway: r } : undefined;
+    }
+    c.accept('taxiway');
+    const d = readDesignator(c);
+    return d ? { kind: 'taxiway', name: d } : undefined;
+  };
+
+  const readVia = (into: string[]) => {
+    while (!c.done()) {
+      if (c.accept('and') || c.accept('then')) {
+        // "via N and D" - allow, but "and" may also start a new clause; check what follows
+        const p = c.peek();
+        if (!p || !/^[a-z]\d{0,2}$/.test(p) || !ctx.taxiways.has(p.toUpperCase())) {
+          c.i--;
+          break;
+        }
+      }
+      c.accept('taxiway');
+      const p = c.peek();
+      if (!p || KEYWORDS.has(p)) break;
+      const save = c.i;
+      const d = readDesignator(c);
+      if (!d) break;
+      if (!ctx.taxiways.has(d) && /\d/.test(d) && ctx.taxiways.has(d[0])) {
+        // "n 2" misread as N2 at an airport without N2 - keep the letter only
+        c.i = save + 1;
+        into.push(d[0]);
+        continue;
+      }
+      into.push(d);
+    }
+  };
+
+  const readTaxiDestination = (): TaxiDestination | undefined => {
+    if (c.accept('holding') || c.acceptSeq('hold', 'point')) {
+      c.accept('point', 'position');
+      const name = readDesignator(c);
+      if (!name) return undefined;
+      let runway: string | undefined;
+      if (c.peek() === 'runway') {
+        c.next();
+        runway = readRunway(c);
+      }
+      return { kind: 'holdingPoint', name, runway };
+    }
+    if (c.accept('runway')) {
+      const r = readRunway(c);
+      if (!r) return undefined;
+      // "runway 25 at G1" / "runway 25 intersection F"
+      if (c.accept('at', 'intersection', 'via')) {
+        const save = c.i;
+        const hp = readDesignator(c);
+        if (hp && /\d/.test(hp)) return { kind: 'holdingPoint', name: hp, runway: r };
+        c.i = save;
+        if (c.t[c.i - 1] === 'via') c.i--;
+      }
+      return { kind: 'runway', runway: r };
+    }
+    if (c.accept('stand', 'gate', 'parking', 'position', 'apron')) {
+      c.accept('position');
+      const s = readStand(c);
+      return s ? { kind: 'stand', stand: s } : undefined;
+    }
+    return undefined;
+  };
+
+  while (!c.done()) {
+    const w = c.peek()!;
+
+    // ---------- pushback / startup
+    if (w === 'push' || w === 'pushback') {
+      c.next();
+      c.accept('back');
+      let startup = false;
+      const facing = readFacing();
+      if (c.accept('and')) {
+        if (c.accept('start', 'startup')) {
+          c.accept('up');
+          startup = true;
+        } else c.i--;
+      }
+      c.accept('is', 'approved');
+      c.accept('approved');
+      result.commands.push({ type: 'pushback', facing: facing ?? readFacing(), startup });
+      continue;
+    }
+    if (w === 'start' || w === 'startup') {
+      c.next();
+      c.accept('up');
+      c.accept('approved');
+      result.commands.push({ type: 'startup' });
+      continue;
+    }
+
+    // ---------- taxi
+    if (w === 'taxi' || (w === 'continue' && c.peek(1) === 'taxi' && ['to', 'via'].includes(c.peek(2) ?? ''))) {
+      if (w === 'continue') c.next();
+      c.next();
+      taxi = { type: 'taxi', via: [], holdShort: [], cross: [] };
+      while (!c.done()) {
+        if (c.accept('to')) {
+          const d = readTaxiDestination();
+          if (d) taxi.destination = d;
+          continue;
+        }
+        if (c.accept('via')) {
+          readVia(taxi.via);
+          continue;
+        }
+        if (['holding', 'runway', 'stand', 'gate', 'parking'].includes(c.peek()!) && !taxi.destination) {
+          const d = readTaxiDestination();
+          if (d) {
+            taxi.destination = d;
+            continue;
+          }
+        }
+        if (c.peek() === 'hold' && c.peek(1) === 'short') {
+          c.i += 2;
+          const t = readHoldShortTarget();
+          if (t) taxi.holdShort.push(t);
+          continue;
+        }
+        if (c.peek() === 'cross' && c.peek(1) === 'runway') {
+          c.i += 2;
+          const r = readRunway(c);
+          if (r) taxi.cross.push(r);
+          continue;
+        }
+        if (c.peek() === 'and' || c.peek() === 'then') {
+          c.next();
+          continue;
+        }
+        break;
+      }
+      result.commands.push(taxi);
+      continue;
+    }
+
+    // ---------- hold short / hold position
+    if (w === 'hold' || w === 'stop') {
+      c.next();
+      if (w === 'hold' && c.accept('short')) {
+        const t = readHoldShortTarget();
+        if (t) {
+          if (taxi) taxi.holdShort.push(t);
+          else pendingHoldShort.push(t);
+        } else result.unparsed.push('hold short');
+        continue;
+      }
+      c.accept('your');
+      c.accept('position');
+      result.commands.push({ type: 'holdPosition' });
+      continue;
+    }
+
+    if (w === 'continue') {
+      c.next();
+      c.accept('taxi', 'taxiing');
+      result.commands.push({ type: 'continue' });
+      continue;
+    }
+
+    // ---------- runway crossing
+    if (w === 'cross') {
+      c.next();
+      c.accept('runway');
+      const r = readRunway(c);
+      if (r) {
+        if (taxi) taxi.cross.push(r);
+        else pendingCross.push(r);
+      } else result.unparsed.push('cross');
+      continue;
+    }
+
+    // ---------- give way / follow
+    if ((w === 'give' && c.peek(1) === 'way') || w === 'follow' || (w === 'behind' && false)) {
+      const follow = w === 'follow';
+      c.next();
+      if (!follow) c.next();
+      c.accept('to');
+      c.accept('the');
+      // optional type word before the callsign ("give way to the Airbus ...")
+      let m: CallsignMatch | undefined;
+      for (let k = 0; k < 4 && !m; k++) {
+        m = matchCallsign(c.t, c.i + k, ctx.callsigns);
+        if (m) c.i += k;
+      }
+      if (m) {
+        c.i += m.consumed;
+        result.commands.push(follow ? { type: 'follow', callsign: m.callsign } : { type: 'giveWay', callsign: m.callsign });
+        // skip trailing description ("from the left", "passing left to right")
+        while (!c.done() && !KEYWORDS.has(c.peek()!)) c.next();
+      } else result.unparsed.push(follow ? 'follow' : 'give way');
+      continue;
+    }
+
+    // ---------- frequency change
+    if (w === 'contact' || w === 'monitor') {
+      c.next();
+      let station: StationType | undefined;
+      // skip airport name ("stuttgart tower")
+      for (let k = 0; k < 3; k++) {
+        const s = STATION_WORDS[c.peek(k) ?? ''];
+        if (s) {
+          station = s;
+          c.i += k + 1;
+          break;
+        }
+      }
+      c.accept('on');
+      const frequency = readFrequency(c);
+      result.commands.push({ type: 'handoff', station, frequency });
+      continue;
+    }
+    if (w === 'frequency' && c.peek(1) === 'change') {
+      c.i += 2;
+      c.accept('approved');
+      result.commands.push({ type: 'handoff' });
+      continue;
+    }
+
+    // ---------- misc
+    if (w === 'standby' || (w === 'stand' && c.peek(1) === 'by')) {
+      c.i += w === 'standby' ? 1 : 2;
+      result.commands.push({ type: 'standby' });
+      continue;
+    }
+    if (w === 'expedite') {
+      c.next();
+      c.accept('taxi');
+      result.commands.push({ type: 'expedite' });
+      continue;
+    }
+    if (w === 'say' && c.peek(1) === 'again') {
+      c.i += 2;
+      result.commands.push({ type: 'sayAgain' });
+      continue;
+    }
+    if (w === 'line' && c.peek(1) === 'up') {
+      c.i += 2;
+      result.commands.push({ type: 'lineUp' });
+      continue;
+    }
+    if (w === 'cleared' && (c.peek(1) === 'for' || c.peek(1) === 'takeoff')) {
+      c.next();
+      c.accept('for');
+      c.accept('takeoff', 'take');
+      c.accept('off');
+      result.commands.push({ type: 'takeoff' });
+      continue;
+    }
+
+    // filler words
+    c.next();
+    if (!FILLER.has(w)) result.unparsed.push(w);
+  }
+
+  for (const t of pendingHoldShort) result.commands.push({ type: 'holdShort', target: t });
+  for (const r of pendingCross) result.commands.push({ type: 'cross', runway: r });
+  return result;
+}
+
+const FILLER = new Set([
+  'roger', 'wilco', 'please', 'good', 'day', 'bye', 'goodbye', 'tschuess', 'servus', 'ciao', 'thanks',
+  'thank', 'you', 'is', 'approved', 'the', 'and', 'then', 'now', 'correction', 'affirm', 'affirmative',
+  'stuttgart', 'via', 'to', 'of', 'on', 'at', 'for', 'your', 'a', 'request', 'information', 'right', 'left',
+]);

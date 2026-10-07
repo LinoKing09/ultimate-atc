@@ -77,6 +77,10 @@ Press **F1** in the app for the in-game reference.
 
 Runway coordinates, elevation and frequencies for EDDS are real-world values from [OurAirports](https://ourairports.com/) (public domain). The **taxiway network, stand numbers and buildings are a simplified, hand-made approximation**. They follow the general layout of the real airport, but many details differ from the official aerodrome chart. The SIDs in the flight plans are placeholders. **Never use this simulator for real-world navigation or flight planning.** The [EDDS page](docs/airports/EDDS.md) describes exactly what is approximated.
 
+## License
+
+The source code is released under the [MIT License](LICENSE). Airport data derived from OurAirports is public domain.
+
 ## Disclaimer
 
 Ultimate ATC is an independent hobby project. It is not affiliated with EuroScope, VATSIM, DFS or any airport or airline. Airline names and callsigns are used only to create realistic radio traffic.

@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- MIT license (`LICENSE`).
+
 ## [0.1.0] - 2026-10-07
 
 First playable version: **Ground position at Stuttgart (EDDS)**.

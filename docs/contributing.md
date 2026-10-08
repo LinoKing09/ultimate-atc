@@ -27,6 +27,7 @@ The documentation is part of the product and must always describe the current st
 | the airport data format                              | `docs/airport-data.md`                                        |
 | an airport's layout                                  | `docs/airports/<ICAO>.md`                                     |
 | features, status                                     | `README.md`, `docs/roadmap.md`                                |
+| anything that changes simulation behaviour or speed  | run `npm run benchmark` before a release, add the results to `docs/benchmarks.md` |
 | anything                                             | `CHANGELOG.md`                                                |
 
 All code, comments, UI text and documentation are written in **English**.

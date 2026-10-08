@@ -34,6 +34,8 @@ export interface TaxiEdge {
   oneWay: boolean;
   length: number;
   widthM: number;
+  /** Largest wingspan allowed (Infinity = no restriction). */
+  maxWingspanM: number;
 }
 
 export interface RunwayEnd {
@@ -107,6 +109,7 @@ export class Airport {
         oneWay: e.oneWay ?? false,
         length: distance(from.pos, to.pos),
         widthM: e.widthM ?? DEFAULT_WIDTH[e.kind],
+        maxWingspanM: e.maxWingspanM ?? Infinity,
       };
       this.edges.push(edge);
       from.edges.push(edge);

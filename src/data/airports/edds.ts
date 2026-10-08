@@ -181,7 +181,7 @@ function throughStand(s: StandSpec, apron: string, standLat: number, inLane: 'M'
 
 // Terminal stands 9-19 (terminals 1-4), nose north
 const terminal: StandSpec[] = [
-  { id: '9', along: -481.3, span: 65 },
+  { id: '9', along: -481.3, span: 36 },
   { id: '10', along: -421.1, span: 36 },
   { id: '11', along: -367.2, span: 36 },
   { id: '12', along: -313.9, span: 36 },
@@ -191,18 +191,18 @@ const terminal: StandSpec[] = [
   { id: '16', along: -93.8, span: 36 },
   { id: '17', along: -45.8, span: 36 },
   { id: '18', along: 1.7, span: 36 },
-  { id: '19', along: 47.2, span: 65 },
+  { id: '19', along: 47.2, span: 36 },
 ];
 for (const s of terminal) pushStand(s, 'Apron North', 453.6, NORTH, 'M');
 
 // Stands 24-29 and 30-36, nose north
 const north2: StandSpec[] = [
-  { id: '24', along: 121.9, span: 65 },
+  { id: '24', along: 121.9, span: 36 },
   { id: '25', along: 176.6, span: 36 },
   { id: '26', along: 223.8, span: 36 },
   { id: '27', along: 270.7, span: 36 },
   { id: '28', along: 318.8, span: 36 },
-  { id: '29', along: 389.8, span: 65 },
+  { id: '29', along: 389.8, span: 36 },
 ];
 for (const s of north2) pushStand(s, 'Apron North', 517.2, NORTH, 'M');
 const north3: StandSpec[] = [
@@ -236,6 +236,10 @@ const north5: StandSpec[] = [
   { id: '75', along: 792.8, span: 36 },
 ];
 for (const s of north5) pushStand(s, 'Apron North', 364, NORTH, 'N');
+// Wide-body positions 71A / 74A overlap 71+72 / 74+75 (multi-aircraft ramp system). The wingtip clearance
+// check blocks the overlapped stands automatically while a wide-body is on an A position and vice versa.
+pushStand({ id: '71A', along: 619.8, span: 65 }, 'Apron North', 364, NORTH, 'N');
+pushStand({ id: '74A', along: 767.9, span: 65 }, 'Apron North', 364, NORTH, 'N');
 
 // Drive-through stands 40-48 (M -> O) and 50-56 (M -> N)
 const west: StandSpec[] = [
@@ -285,6 +289,11 @@ n('A_TOP', 3324, S_LAT);
 b.chain('N', 'taxiway', ['N_END', 'A_TOP']);
 chainSorted('S', 'taxiway', sNodes, () => S_LAT, [CIRCLE], ['A_TOP']);
 chainSorted('M', 'taxilane', mNodes, (a) => latOn(M_LINE, a));
+// Taxilane M east of the H junction (stands 30-36, 60-65) is limited to code C (chart: max. code letter C).
+{
+  const east = new Set(mNodes.filter(([, a]) => a >= 437).map(([id]) => id));
+  for (const e of b.edges) if (e.name === 'M' && east.has(e.from) && east.has(e.to)) e.maxWingspanM = 36;
+}
 chainSorted('O', 'taxiway', oNodes, () => 229, [], [CIRCLE]);
 
 // L3: west end of O up to M; L2: from M down into the circle
@@ -292,7 +301,7 @@ b.chain('L3', 'taxiway', ['O_L3', 'M_L3']);
 n('L2_B', -1, 300);
 b.chain('L2', 'taxiway', ['M_L2', 'L2_B', CIRCLE]);
 // M east end down to N (towards the GA area / exits)
-b.chain('M', 'taxilane', ['M_E', 'N_ME']);
+b.chain('M', 'taxilane', ['M_E', 'N_ME'], { maxWingspanM: 36 });
 
 // ======================================================================== connectors to the runway
 // K (north) / Y (south) at the 07 end
@@ -385,6 +394,7 @@ export const EDDS: AirportData = {
   elevationFt: 1276,
   magneticVariation: 3.5,
   transitionAltitudeFt: 5000,
+  // Stand sizes: code C on Apron North except the wide-body positions 71A / 74A; Apron South 105-107 wide-body.
   dataNotice:
     'Layout digitised by hand from the AIP Germany aerodrome charts (AD 2 EDDS 2-5 / 2-7, AMDT 10/26), accuracy about +-10 m; some areas simplified. Not for real-world navigation.',
   runways: [
@@ -612,11 +622,13 @@ export const EDDS: AirportData = {
       table: {
         head: ['Stands', 'Notes'],
         rows: [
-          ['9-19, 24-36', 'Terminal and handling stands on taxilane M, pushback. 9, 19, 24 and 29 take wide-bodies; a wide-body on 19 blocks 18, on 24 it blocks 25'],
+          ['9-19, 24-36', 'Terminal and handling stands on taxilane M, pushback, up to code C (wingspan below 36 m)'],
           ['40-48, 50-56', 'Drive-through: in from M, out forwards (to O / to N)'],
           ['60-65', 'Business jets, nose south, pushback onto M'],
           ['71-75', 'Pushback onto taxiway N'],
+          ['71A, 74A', 'Wide-body positions overlapping 71+72 and 74+75: a wide-body there blocks both, and either of them blocks the A position'],
           ['100-107', 'Apron South (cargo), lane V; 105-107 take wide-bodies, but only every other one at a time'],
+          ['Taxilane M east of H', 'Code C only (stands 30-36 and 60-65): wide-bodies use N to 71A / 74A'],
         ],
       },
     },

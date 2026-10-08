@@ -107,6 +107,8 @@ const STEP = 0.2;
  * that it can be unit tested and, later, run on a server for multiplayer.
  */
 export class Simulation {
+  /** Simulated seconds summed over all simulations in this process (test and benchmark statistics). */
+  static simulatedSeconds = 0;
   readonly airport: Airport;
   readonly rng: Rng;
   readonly frequency: Frequency;
@@ -241,6 +243,7 @@ export class Simulation {
 
   private step(dt: number): void {
     this.time += dt;
+    Simulation.simulatedSeconds += dt;
     this.updateScenario();
     if (this.config.generateTraffic !== false) this.traffic.update();
     this.tower.update(dt);

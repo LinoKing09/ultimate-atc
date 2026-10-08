@@ -520,9 +520,10 @@ const UTURN_MAX_WINGSPAN = 25;
  * small business jets can, and so can an aircraft waiting at a holding point
  * (it turns on the wide runway entry).
  */
-function routeOptions(sim: Simulation, ac: Aircraft): { flows: Map<string, Vec2>; allowUTurn: boolean } {
+function routeOptions(sim: Simulation, ac: Aircraft): { flows: Map<string, Vec2>; allowUTurn: boolean; wingspanM: number } {
   const atHoldingPoint = ac.phase === 'holding' || !!ac.stoppedAt?.holdingPoint;
   return {
+    wingspanM: ac.type.wingspanM,
     flows: sim.airport.flowVectors(sim.runway),
     allowUTurn: ac.type.wingspanM <= UTURN_MAX_WINGSPAN || atHoldingPoint || isStuck(sim, ac),
   };

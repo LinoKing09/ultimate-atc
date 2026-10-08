@@ -55,6 +55,8 @@ const MAX_TURN = 150;
 const FREE_EDGE_PENALTY = 1.15;
 
 export interface RouteOptions {
+  /** Wingspan of the aircraft: edges with a smaller wingspan limit are not used. */
+  wingspanM?: number;
   /** Preferred directions of travel (unit vectors) per taxiway name, used for automatic routes. */
   flows?: Map<string, Vec2>;
   /** Whether the aircraft may turn around on the spot (small aircraft only). Default: true. */
@@ -154,6 +156,7 @@ export function findRoute(
     for (const e of cur.node.edges) {
       if (e.kind === 'runway') continue;
       if (e.oneWay && e.from !== cur.node) continue;
+      if (options.wingspanM !== undefined && options.wingspanM > e.maxWingspanM) continue;
       const nxt = otherEnd(e, cur.node);
       // Stand lead-in lines may only be used to leave the start stand or to enter the destination stand.
       if (e.kind === 'stand' && nxt !== destination && cur.node !== start.node) continue;

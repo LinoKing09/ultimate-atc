@@ -1,5 +1,5 @@
 import { nextStop, noseHeading, type Aircraft } from './aircraft';
-import { KT_TO_MS, distance, dot, headingVector, sub } from './geo';
+import { KT_TO_MS, distance, dot, headingVector, sub, type Vec2 } from './geo';
 import { onStopReached } from './pilot';
 import type { Simulation } from './simulation';
 
@@ -93,7 +93,9 @@ export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void 
  */
 export function updateSeparation(sim: Simulation): void {
   const ground = sim.aircraft.filter((a) => a.onGround && a.phase !== 'gone');
-  const blocks = new Map<Aircraft, { by: Aircraft; dist: number }>();
+  /** `physical`: the other aircraft itself stands on our path (not just its predicted position or a crossing). */
+  const blocks = new Map<Aircraft, { by: Aircraft; dist: number; physical?: boolean }>();
+  const samples: SampleCache = new Map();
 
   for (const a of ground) {
     a.blockDistance = undefined;
@@ -101,7 +103,7 @@ export function updateSeparation(sim: Simulation): void {
     const remaining = a.path.length - a.s;
     if (remaining < 1) continue;
     const look = Math.min(remaining, (a.speed * a.speed) / (2 * 1.2) + 55 + a.type.lengthM);
-    let best: { by: Aircraft; dist: number } | undefined;
+    let best: { by: Aircraft; dist: number; physical?: boolean } | undefined;
 
     // Direction of travel (the path direction; for a pushback that is tail first).
     const moveDir = headingVector(a.path.headingAt(a.s));
@@ -112,7 +114,8 @@ export function updateSeparation(sim: Simulation): void {
         // Traffic behind or beside us doesn't block: moving on increases the distance.
         if (dot(sub(b.pos, a.pos), moveDir) < 0) continue;
         const r = (a.type.wingspanM + b.type.wingspanM) * 0.38 + 6;
-        let hit = distance(p, b.pos) < r;
+        const physical = distance(p, b.pos) < r;
+        let hit = physical;
         if (!hit && b.speed > 1 && b.phase !== 'pushback') {
           const v = headingVector(b.heading);
           const pred = { x: b.pos.x + v.x * b.speed * 4, y: b.pos.y + v.y * b.speed * 4 };
@@ -120,12 +123,12 @@ export function updateSeparation(sim: Simulation): void {
         }
         if (hit) {
           const margin = Math.max(5, (a.type.lengthM + b.type.lengthM) / 2 + 12 - r);
-          best = { by: b, dist: Math.max(0, d - margin) };
+          best = { by: b, dist: Math.max(0, d - margin), physical };
           break;
         }
       }
     }
-    const crossing = crossingConflict(sim, a, ground, look);
+    const crossing = crossingConflict(sim, a, ground, look, samples);
     if (crossing) yielding.set(a, crossing.by.callsign);
     else yielding.delete(a);
     if (crossing && (!best || crossing.dist < best.dist)) best = crossing;
@@ -138,9 +141,18 @@ export function updateSeparation(sim: Simulation): void {
     if (bb && bb.by === a) {
       const aMoving = a.speed > 0.3;
       const bMoving = ba.by.speed > 0.3;
-      if (!aMoving && !bMoving) continue; // real deadlock - both stay put
-      // the one further away from the conflict yields
-      if (ba.dist < bb.dist) blocks.delete(a);
+      // Nobody drives into an aircraft that stands on its path.
+      if (ba.physical && bb.physical) continue; // a real deadlock (e.g. nose to nose): the controller has to act
+      if (ba.physical) continue; // a must wait; b may go once its own block is resolved
+      if (bb.physical) {
+        blocks.delete(a);
+        continue;
+      }
+      // Nose to nose on the same taxiway, both stopped: deadlock.
+      const headOn = Math.abs(((a.heading - ba.by.heading + 540) % 360) - 180) > 120;
+      if (!aMoving && !bMoving && headOn) continue;
+      // Otherwise (converging or crossing) the one closer to the conflict goes first, the other yields.
+      if (ba.dist < bb.dist || (ba.dist === bb.dist && a.callsign < ba.by.callsign)) blocks.delete(a);
     }
   }
 
@@ -201,27 +213,61 @@ function intendsToMove(sim: Simulation, b: Aircraft): boolean {
 /** Crossing priority decisions: aircraft -> callsign of the traffic it currently yields to. */
 const yielding = new WeakMap<Aircraft, string>();
 
-function crossingConflict(sim: Simulation, a: Aircraft, ground: Aircraft[], look: number): { by: Aircraft; dist: number } | undefined {
+/** Points (and headings) sampled every 6 m along the next 400 m of an aircraft's path, computed once per step. */
+type SampleCache = Map<Aircraft, { p: Vec2[]; h: number[] }>;
+const SAMPLE_STEP = 6;
+const OTHER_LOOK = 400;
+
+function samplesOf(cache: SampleCache, b: Aircraft): { p: Vec2[]; h: number[] } {
+  let c = cache.get(b);
+  if (!c) {
+    const bp = b.path!;
+    const len = Math.min(bp.length - b.s, OTHER_LOOK);
+    c = { p: [], h: [] };
+    for (let d = 0; d <= len; d += SAMPLE_STEP) {
+      c.p.push(bp.pointAt(b.s + d));
+      c.h.push(bp.headingAt(b.s + d));
+    }
+    cache.set(b, c);
+  }
+  return c;
+}
+
+function crossingConflict(sim: Simulation, a: Aircraft, ground: Aircraft[], look: number, cache: SampleCache): { by: Aircraft; dist: number } | undefined {
   const path = a.path!;
   let best: { by: Aircraft; dist: number } | undefined;
+  // Our own path ahead, every 5 m from 4 m on.
+  const own: { p: Vec2[]; h: number[]; d: number[] } = { p: [], h: [], d: [] };
+  for (let dA = 4; dA <= look; dA += 5) {
+    own.p.push(path.pointAt(a.s + dA));
+    own.h.push(path.headingAt(a.s + dA));
+    own.d.push(dA);
+  }
   for (const b of ground) {
-    if (b === a || !intendsToMove(sim, b) || distance(a.pos, b.pos) > 600) continue;
+    if (b === a || distance(a.pos, b.pos) > look + OTHER_LOOK + 40 || !intendsToMove(sim, b)) continue;
     const bp = b.path!;
     const r = (a.type.wingspanM + b.type.wingspanM) * 0.38 + 6;
-    const bLook = Math.min(bp.length - b.s, 150);
+    const bs = samplesOf(cache, b);
     // Traffic whose path runs through our current position is behind us in the same lane: it follows us.
+    // (Only traffic going the same way and coming from behind; oncoming traffic is never a follower.)
+    const sameWay = Math.abs(((path.headingAt(a.s) - bp.headingAt(b.s) + 540) % 360) - 180) < 60;
+    const behind = dot(sub(b.pos, a.pos), headingVector(path.headingAt(a.s))) < 0;
     let follower = false;
-    for (let dB = 0; dB <= bLook && !follower; dB += 6) follower = distance(bp.pointAt(b.s + dB), a.pos) < r * 0.6;
+    if (sameWay && behind) for (let i = 0; i < bs.p.length && !follower; i++) follower = distance(bs.p[i], a.pos) < r * 0.6;
     if (follower) continue;
     let found: { dA: number; dB: number } | undefined;
-    for (let dA = 4; dA <= look && !found; dA += 5) {
-      const pa = path.pointAt(a.s + dA);
-      for (let dB = 0; dB <= bLook; dB += 6) {
-        if (distance(pa, bp.pointAt(b.s + dB)) >= r) continue;
+    const r2 = r * r;
+    for (let i = 0; i < own.p.length && !found; i++) {
+      const pa = own.p[i];
+      for (let j = 0; j < bs.p.length; j++) {
+        const q = bs.p[j];
+        const dx = pa.x - q.x;
+        const dy = pa.y - q.y;
+        if (dx * dx + dy * dy >= r2) continue;
         // In-trail traffic (same direction on the same line) is followed, not yielded to.
-        const angle = Math.abs(((path.headingAt(a.s + dA) - bp.headingAt(b.s + dB) + 540) % 360) - 180);
+        const angle = Math.abs(((own.h[i] - bs.h[j] + 540) % 360) - 180);
         if (angle < 20) break;
-        found = { dA, dB };
+        found = { dA: own.d[i], dB: j * SAMPLE_STEP };
         break;
       }
     }

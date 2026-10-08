@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "soak": "vitest run tests/soak.test.ts --silent=false",
+    "benchmark": "vitest run tests/benchmark.test.ts --silent=false"
   },
   "devDependencies": {
     "typescript": "~5.9",

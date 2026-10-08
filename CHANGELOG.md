@@ -4,31 +4,32 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
-### Fixed
-
-- **Wide-bodies no longer park wing-to-wing with their neighbours**: a stand is only used (automatically, in the stand menu or by your instruction) if there is enough wingtip clearance to the aircraft on the neighbouring stands (4.5 m code C, 7.5 m code D and larger). At EDDS a wide-body on 19 blocks 18, on 24 it blocks 25, and 105-107 take only every other wide-body. Pilots answer `stand 18 is blocked, not enough wingtip clearance to the A332 on stand 19`.
-- An aircraft taxiing to a stand now reserves it, so nobody else is sent there.
-
 ### Added
-
-- **Airport briefing**: a new tab in the help window (and `BRIEFING` in the toolbar) with the airport's local procedures for your position - your job, standard taxi flows, departures, arrivals, typical routes, stands, hot spots - plus live facts from the data: the runway in use with its holding points, exits and flows, and all frequencies. New optional `briefing` and `lengthM` fields in the airport data format; EDDS has a full briefing.
-- **Clear button** (×) in the command line.
 
 - **Scenario codes and scenario builder** ([docs/scenarios.md](docs/scenarios.md)): choose what to train - runway, density, traffic mix (balanced / departure push / arrival rush), more heavies, random events and scheduled events (medical emergency arrival/departure, rejected take-off, wind shift at a chosen minute) - from presets or by hand. The code (e.g. `EDDS-25-HD1-M10R20W30-K7Q2M`) goes into the Connect dialog's Scenario field, and a link with `?scenario=...` pre-fills it. The same code always gives the same session.
 - Observed surface wind: a scenario wind shift changes the toolbar wind (and the ATIS editor's pre-filled wind) until you broadcast a new ATIS.
+- **Airport briefing**: a new tab in the help window (and `BRIEFING` in the toolbar) with the airport's local procedures for your position - your job, standard taxi flows, departures, arrivals, typical routes, stands, hot spots - plus live facts from the data: the runway in use with its holding points, exits and flows, and all frequencies. New optional `briefing` and `lengthM` fields in the airport data format; EDDS has a full briefing.
+- **Clear button** (×) in the command line.
+- **Release benchmark and soak test** (`npm run benchmark`, `npm run soak`): 20 one-hour sessions on both runways with an automatic controller. [docs/benchmarks.md](docs/benchmarks.md) compares all versions since 0.1 (departures per hour x2.9, collisions 11 → 0, go-arounds 53 → 2) and tracks the simulated traffic hours; major releases get a statistics section there.
+- Test files report how many hours of traffic they simulated.
+- Roadmap: proposed criteria and path to version 1.0.
 
 ### Changed
-
-- The help window has tabs: *Airport briefing*, *Phraseology*, *Controls*. F1 opens the tab used last.
-- The Connect dialog's "Scenario seed" field is now "Scenario" and takes a seed or a scenario code.
 
 - Mobile mode is now **tablet mode**, optimised for the iPad.
 - Smoother touch navigation: two fingers pan and zoom at the same time, one finger also pans when the drag starts on an aircraft, no jump after a pinch, no hover hit-testing for touch.
 - The page itself can no longer scroll, bounce or zoom (only the scope zooms).
 - The command line is a plain-text editable field instead of a form `<input>`, so Safari on iPad no longer adds AutoFill buttons and form arrows to the keyboard bar.
+- The help window has tabs: *Airport briefing*, *Phraseology*, *Controls*. F1 opens the tab used last.
+- The Connect dialog's "Scenario seed" field is now "Scenario" and takes a seed or a scenario code.
+- **EDDS stand sizes corrected** from the current ground movement chart and the parking/docking chart: stands 9, 19, 24 and 29 are code C stands (no wide-bodies); new wide-body positions **71A and 74A** overlapping 71+72 and 74+75; taxilane M east of H is code C only (new optional `maxWingspanM` on taxi edges, respected by the routing).
+- Ground separation is about 4 times faster than in 0.4.0 (paths of other aircraft are sampled once per step).
 
 ### Fixed
 
+- **Wide-bodies no longer park wing-to-wing with their neighbours**: a stand is only used (automatically, in the stand menu or by your instruction) if there is enough wingtip clearance to the aircraft on the neighbouring stands (4.5 m code C, 7.5 m code D and larger). Pilots answer e.g. `stand 72 is blocked, not enough wingtip clearance to the A332 on stand 71A`.
+- An aircraft taxiing to a stand now reserves it, so nobody else is sent there.
+- Gridlock when an arrival from a shallow-angle exit (F) crossed a parallel taxiway in front of a departure: aircraft now look 400 m along the other's path, oncoming traffic is never treated as "following", and an aircraft that stands in another's way is never driven into.
 - iPad: tapping the command line pushed the whole page up; the layout now shrinks to the area above the keyboard bar.
 - With a hardware keyboard on iPad, the first typed letter was lost ("taxi" became "axi").
 

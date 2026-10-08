@@ -6,3 +6,5 @@
 - **Determinism**: use `sim.rng` (seeded) inside the simulation, never `Math.random()`.
 - **Checks before committing**: `npm run typecheck`, `npm test`, `npm run build`.
 - **Airport data**: only use data that may be redistributed (OurAirports public domain, OpenStreetMap with attribution). Official charts (AIP) may only be used as a reference to digitise facts by hand (designators, topology, approximate positions); never commit chart files or chart graphics. Mark sources and approximations in `dataNotice` and in `docs/airports/<ICAO>.md`.
+- **Publishing**: after the checks pass, commit, merge into `main` and push by default, unless the user says otherwise for that change.
+- **Releases**: never bump to a major version (1.0, 2.0, ...) on your own. Propose it when the criteria in `docs/roadmap.md` ("Road to 1.0") are met and decide together with the user. Every major release gets a statistics section in `docs/benchmarks.md` (run `npm run benchmark`, include the total simulated traffic hours).

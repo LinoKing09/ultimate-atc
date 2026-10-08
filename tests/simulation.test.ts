@@ -377,12 +377,23 @@ describe('tower flow', () => {
 });
 
 describe('stand allocation', () => {
+  it('keeps wide-bodies off code C taxilanes and stands', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 42, generateTraffic: false });
+    const wide = sim.freeStands(60.3).map((s) => s.id).sort();
+    expect(wide).toEqual(['105', '106', '107', '71A', '74A']);
+  });
+
   it('keeps the stand next to a wide-body free (wingtip clearance)', () => {
     const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 42, generateTraffic: false });
-    sim.traffic.spawnDeparture(600, { stand: '19', callsign: 'THY635', type: 'A332' });
-    expect(sim.freeStands(35.8).map((s) => s.id)).not.toContain('18');
-    expect(sim.freeStands(35.8).map((s) => s.id)).toContain('17');
-    expect(sim.standNeighbourConflict('18', 35.8)?.stand.id).toBe('19');
+    sim.traffic.spawnDeparture(600, { stand: '71A', callsign: 'THY635', type: 'A332' });
+    const free = sim.freeStands(35.8).map((s) => s.id);
+    expect(free).not.toContain('71');
+    expect(free).not.toContain('72');
+    expect(free).toContain('73');
+    expect(sim.standNeighbourConflict('72', 35.8)?.stand.id).toBe('71A');
+    // ... and a narrow-body on 74 blocks the wide-body position 74A
+    sim.traffic.spawnDeparture(600, { stand: '74', callsign: 'DLH5AB', type: 'A320' });
+    expect(sim.freeStands(60.3).map((s) => s.id)).not.toContain('74A');
   });
 
   it('never parks aircraft with overlapping wings', () => {

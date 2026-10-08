@@ -110,6 +110,8 @@ export interface TaxiEdgeData {
   oneWay?: boolean;
   /** Width in metres (drawing only). */
   widthM?: number;
+  /** Largest wingspan allowed on this edge (e.g. 36 for a code C taxilane). */
+  maxWingspanM?: number;
 }
 
 export interface StandData {

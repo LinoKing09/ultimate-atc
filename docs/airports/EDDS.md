@@ -19,6 +19,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 | -------------------------------------------- | ----------------------------------------------------------------------- |
 | Runway end coordinates                       | [OurAirports](https://ourairports.com/) (public domain)                 |
 | ARP, elevations, frequencies, taxiway designators, holding points, stand numbers, layout | AIP Germany, **AD 2 EDDS 2-5 Aerodrome Chart** and **AD 2 EDDS 2-7 Aerodrome Ground Movement Chart** (AMDT 10/26) |
+| Stand sizes, wide-body positions, pushback / taxi-out stands | AD 2 EDDS 2-7 (AMDT 10/26, code letter markings), the older **Aircraft Parking/Docking Chart** (AMDT 09/13), [VATSIM Germany knowledge base](https://knowledgebase.vatsim-germany.org/books/airports-langen-fir-edgg/page/general-4ph) (secondary) - see [Stands](#stands) |
 
 The geometry was **digitised by hand**. Positions were measured on the charts, using the 3345 m runway as scale and the 300 m displaced threshold as a check, and converted into the simulator's runway-aligned frame. The accuracy is roughly ±10 m. Only facts are used (topology, designators, approximate positions); no chart graphics are reproduced or distributed.
 
@@ -26,7 +27,7 @@ The geometry was **digitised by hand**. Positions were measured on the charts, u
 
 - de-icing pads DP1-DP4 on taxiway S, the run-up areas and the holding bays P1/P2 at the 25 end,
 - the general aviation apron (EXIT 1-3), the US Army airfield, helicopter routes,
-- the "A" stands that overlap others (9A, 24A, 26A, 28A, 71A, 74A) and stands 206, 207, 300-303,
+- the "A" stands that overlap others (9A, 24A, 26A, 28A; 71A and 74A are modelled) and stands 206, 207, 300-303,
 - the intersection geometry inside the "circle" (the hot spot west of N/S, chart note 1), reduced to one junction node,
 - building outlines, which are rough rectangles,
 - the SIDs used in flight plans, which are placeholders and not the published procedures.
@@ -116,17 +117,20 @@ About 85% of arrivals vacate to the north. On runway 25 the others vacate to the
 
 | Apron / area   | Stands        | Max. wingspan | Type                                  | Lane |
 | -------------- | ------------- | ------------- | ------------------------------------- | ---- |
-| Apron North    | 9-19          | 36 m (9, 19: 65 m) | nose-in, pushback                | M    |
-| Apron North    | 24-29         | 36 m (24, 29: 65 m) | nose-in, pushback               | M    |
-| Apron North    | 30-36         | 36 m          | nose-in, pushback                     | M    |
-| Apron North    | 60-65         | 36 m          | nose-in (nose south), pushback        | M    |
+| Apron North    | 9-19          | 36 m          | nose-in, pushback                     | M    |
+| Apron North    | 24-29         | 36 m          | nose-in, pushback                     | M    |
+| Apron North    | 30-36         | 36 m          | nose-in, pushback                     | M (code C section) |
+| Apron North    | 60-65         | 36 m          | nose-in (nose south), pushback        | M (code C section) |
 | Apron North    | 71-75         | 36 m          | nose-in, pushback onto N              | N    |
+| Apron North    | **71A, 74A**  | 65 m          | wide-body positions overlapping 71+72 / 74+75, pushback onto N | N |
 | Apron North    | 40-43, 45-48  | 36 m          | **drive-through**: in from M, out forwards to O | M -> O |
 | Apron North    | 50-56         | 36 m          | **drive-through**: in from M, out forwards to N | M -> N |
 | Apron South    | 100-104       | 36 m          | nose-in (nose south), pushback (cargo) | V   |
-| Apron South    | 105-107       | 65 m          | nose-in, pushback (cargo widebodies)  | V    |
+| Apron South    | 105-107       | 65 m          | nose-in, pushback (cargo wide-bodies)  | V    |
 
-**Wide-bodies block their neighbours** (wingtip clearance, see [simulation model](../simulation.md)): a wide-body on stand 19 blocks 18, on 24 it blocks 25, and on Apron South only every other one of 105-107 can take a wide-body at the same time. Stand 9 and 29 have enough room. This is derived from the stand positions in the simulator, not from a published stand restriction table.
+**Stand sizes - sources.** The current ground movement chart (AMDT 10/26) marks taxilane M east of the H junction as *max. code letter C* (wingspan below 36 m) and shows the alternative positions 9A, 24A, 26A, 28A, 71A and 206/207 (overlapping their neighbours). The VATSIM Germany knowledge base (a secondary source for simulator controllers) lists 71A, 74A, 105 and 106 as the stands for the largest aircraft. The older aircraft parking/docking chart (AMDT 09/13) confirms that nose-in positions 9-36 and 105-106 are left by pushback and 40-56 are taxi-out positions. From this the simulator uses: all terminal and apron north stands up to code C, wide-bodies on 71A/74A and 105-107. The exact per-stand type limits are not published in these charts, so this is an approximation.
+
+**Wide-bodies block their neighbours** (wingtip clearance, see [simulation model](../simulation.md)): a wide-body on 71A blocks 71 and 72 (and an aircraft on 71 or 72 blocks 71A), likewise 74A with 74/75; on Apron South only every other one of 105-107 can take a wide-body at the same time. The other "A" positions (9A, 24A, 26A, 28A) and 206/207 are not modelled.
 
 Departures on drive-through stands don't need a pushback: they call `request taxi` and leave forwards. The stand allocation prefers Apron North; business jets go to stands 60-65. Apron South is only used when Apron North is full, but you can taxi any aircraft there.
 

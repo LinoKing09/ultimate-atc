@@ -84,7 +84,8 @@ Press **F1** in the app for the in-game reference.
 | [Tower operations](docs/tower-operations.md) | Research: how tower controllers run a mixed-mode runway, separation minima, sources |
 | [Architecture](docs/architecture.md)         | Code structure, data flow, how to add positions and multiplayer             |
 | [Airport data format](docs/airport-data.md)  | How airports are described and how to add a new one                         |
-| [Roadmap](docs/roadmap.md)                   | What is planned next                                                        |
+| [Roadmap](docs/roadmap.md)                   | What is planned next, the proposed criteria for version 1.0                 |
+| [Benchmarks](docs/benchmarks.md)             | Release benchmark, results per version, simulated traffic, major release statistics |
 | [Contributing](docs/contributing.md)         | Development workflow, conventions, tests                                    |
 | [Changelog](CHANGELOG.md)                    | Release history                                                             |
 

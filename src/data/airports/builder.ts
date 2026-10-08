@@ -70,11 +70,12 @@ export class RunwayFrameBuilder {
   }
 
   /** Adds edges between consecutive nodes of `chain`. */
-  chain(name: string, kind: TaxiEdgeKind, ids: string[], opts: { oneWay?: boolean; widthM?: number } = {}): void {
+  chain(name: string, kind: TaxiEdgeKind, ids: string[], opts: { oneWay?: boolean; widthM?: number; maxWingspanM?: number } = {}): void {
     for (let i = 0; i < ids.length - 1; i++) {
       const e: TaxiEdgeData = { from: ids[i], to: ids[i + 1], name, kind };
       if (opts.oneWay) e.oneWay = true;
       if (opts.widthM) e.widthM = opts.widthM;
+      if (opts.maxWingspanM) e.maxWingspanM = opts.maxWingspanM;
       this.edges.push(e);
     }
   }

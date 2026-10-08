@@ -4,6 +4,31 @@ The long-term goal is a simulator that feels as close as possible to controlling
 
 Status legend: **done**, *in progress*, planned.
 
+## Road to 1.0
+
+Version 1.0 is the first full version. It is released only when we agree on it; the proposal below gives the criteria. When the criteria are met, Claude proposes the release - it is never done automatically.
+
+**Proposed criteria for 1.0**
+
+1. **Stuttgart complete**: Delivery, Ground and Tower playable at EDDS (single positions and combined), with realistic procedures, phraseology and AI for the positions you don't staff.
+2. **A second airport** with a different layout (proves the airport data format and the briefing).
+3. **No dead ends**: AI pilots solve simple conflicts themselves the way real pilots would (stop, give way, ask); remaining deadlocks always have a clear way out; no collisions caused by the AI in the soak test.
+4. **Training**: a tutorial for each position, scenario presets for typical training topics, a debriefing after a session (what went well, what cost points).
+5. **Quality**: soak test (20 h of traffic) clean, performance budget met on an iPad, documentation complete, benchmark statistics for the release in [benchmarks.md](benchmarks.md).
+
+**Proposed path**
+
+| Version | Focus |
+| ------- | ----- |
+| 0.5 | Foundations for more positions and airports: position-independent station model and hand-offs, per-airport traffic (airlines, destinations), airport data checks, soak test in CI |
+| 0.6 | **Delivery** at EDDS: IFR clearances, squawks, start-up, CTOT |
+| 0.7 | **Tower** at EDDS: line-up / take-off / landing clearances, runway crossings, arrival sequence |
+| 0.8 | Combined positions, AI pilots that resolve simple conflicts, debriefing |
+| 0.9 | Second airport, tutorials, polish, beta testing |
+| 1.0 | Release after the criteria above are met and agreed |
+
+Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md](benchmarks.md) that compares them with the previous major release.
+
 ## v0.4 - Settings and mobile (current)
 
 - **done** - In-game settings menu (layout, sizes, voices, traffic, events)

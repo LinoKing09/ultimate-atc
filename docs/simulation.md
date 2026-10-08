@@ -22,7 +22,7 @@ This page describes how the simulated world behaves: AI pilots, the AI Tower, tr
 - The simulation advances in fixed **0.2 s steps**. Rendering is independent of the simulation rate.
 - The **simulation rate** (1x / 2x / 4x / 8x) multiplies the real elapsed time. A frame delta is capped at 0.5 s (and a single `tick` at 5 s), so a backgrounded browser tab doesn't cause huge jumps.
 - Simulation time starts at the real current UTC time.
-- A seeded pseudo-random generator (mulberry32) drives every random decision. **The same seed and settings always give the same scenario**, as long as the controller's inputs are the same.
+- A seeded pseudo-random generator (mulberry32) drives every random decision. **The same seed and settings always give the same scenario**, as long as the controller's inputs are the same. A scenario code adds a fixed runway, traffic mix, more heavies and scheduled events, see [scenarios.md](scenarios.md).
 
 ## Aircraft life cycle
 
@@ -221,6 +221,7 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 - **Wind** is drawn at session start: 70% westerly (220-290°), 30% easterly (040-110°), 3-14 kt.
 - **Runway in use** at session start: the first runway of the airport (25 at EDDS), unless it has more than 3 kt tailwind; then the runway with the most headwind.
 - **QNH** 1003-1028 hPa.
+- **Observed wind** (the toolbar): the actual surface wind. It equals the ATIS wind until a scenario **wind shift** turns it to the opposite direction (9-15 kt); broadcasting an ATIS with a wind sets it as well. The ATIS editor is pre-filled with it.
 - **ATIS** starts at a random letter. It only changes when **you** broadcast a new ATIS in the ATIS editor. Pilots quote the current letter on first contact.
 - **Runway change** (via the ATIS):
   - Departures that are parked, pushing back or starting up and have no taxi instruction yet get the new runway, and a SID with the same first fix for the new runway.
@@ -237,5 +238,9 @@ Enabled with **Special events** in the Connect dialog or the in-game settings (d
 | Medical emergency, arrival     | 2% of arrivals                  | Declared on final (system message). Lands with priority: no line-ups while it is within 8 NM. After vacating, the pilot calls `PAN PAN, medical emergency ..., request expedited taxi to the stand`. |
 | Medical emergency, departure   | 1% of departures                | 40 s after starting to taxi, the pilot calls `PAN PAN ... request immediate return to the stand`. A stand is suggested; give it a route back (`taxi to stand ...`). |
 | Rejected take-off              | 1.5% of take-offs               | The take-off is aborted at 60-110 kt. The aircraft brakes at 3 m/s², vacates at the next usable exit and calls you. 60% want to return to a stand (technical problem), 40% request taxi for another departure. The runway is blocked meanwhile, so arrivals may have to go around. |
+
+**Scheduled events** from a scenario code happen at fixed minutes, whether random events are on or not: the next arrival declares a medical emergency, the earliest-ready departure on your frequency gets one 40 s after it starts taxiing (retry every 30 s if there is none), the next take-off is rejected, or the wind shifts. See [scenarios.md](scenarios.md#scheduled-events).
+
+**Traffic mix** of a scenario: a departure push multiplies the departure rate by 1.6 and the arrival rate by 0.5, an arrival rush the other way round. With **more heavies**, each new flight is a wide-body with a 35% chance.
 
 A medical emergency counts as handled when the aircraft reaches a stand. Within **6 minutes** of the emergency call, that earns a **+15 point bonus**. Emergency aircraft are shown with `PAN` and a flashing magenta symbol and tag.

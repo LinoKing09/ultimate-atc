@@ -7,6 +7,7 @@ import { parseTransmission } from './phraseology/parser';
 import { executeTransmission, updatePilot } from './pilot';
 import { Frequency, type MessageKind, type RadioMessage } from './radio';
 import { Rng } from './random';
+import { SCENARIO_EVENT_TEXT, type ScenarioEvent, type ScenarioSetup } from './scenario';
 import { TowerAI } from './tower';
 import { TrafficGenerator } from './traffic';
 
@@ -24,8 +25,10 @@ export interface SimConfig {
   startTime?: Date;
   /** Set to false to start with an empty airport (used by tests). */
   generateTraffic?: boolean;
-  /** Special events (medical emergencies, rejected take-offs). Default: true. */
+  /** Random special events (medical emergencies, rejected take-offs). Default: true. */
   events?: boolean;
+  /** Training scenario: traffic mix, more heavies, scheduled events (see scenario.ts). */
+  scenario?: ScenarioSetup;
 }
 
 export type IncidentType = 'collision' | 'incursion' | 'goAround';
@@ -129,6 +132,14 @@ export class Simulation {
   };
 
   readonly atis: AtisInfo;
+  /** Actual surface wind. Changes with a scenario wind shift; broadcasting an ATIS wind sets it too. */
+  observedWind: { direction: number; speedKt: number };
+  /** Scheduled scenario events not yet due, earliest first. */
+  private scenarioPending: ScenarioEvent[];
+  /** Set by a scenario event: the next arrival declares a medical emergency. */
+  forceMedicalArrival = false;
+  /** Set by a scenario event: the next take-off is rejected. */
+  forceRejectedTakeoff = false;
 
   private listeners: { [K in keyof Events]: Listener<Events[K]>[] } = {
     message: [],
@@ -165,6 +176,8 @@ export class Simulation {
       qnh: this.rng.int(1003, 1028),
       updatedAt: 0,
     };
+    this.observedWind = { ...wind };
+    this.scenarioPending = (config.scenario?.events ?? []).map((e) => ({ ...e })).sort((a, b) => a.atMin - b.atMin);
 
     if (config.generateTraffic !== false) this.traffic.populateInitial();
   }
@@ -222,6 +235,7 @@ export class Simulation {
 
   private step(dt: number): void {
     this.time += dt;
+    this.updateScenario();
     if (this.config.generateTraffic !== false) this.traffic.update();
     this.tower.update(dt);
     updateSeparation(this);
@@ -268,6 +282,49 @@ export class Simulation {
       .sort((a, b) => b.lastCallAt - a.lastCallAt)[0];
   }
 
+  // ------------------------------------------------------------------ scenario
+
+  /** Fires scheduled scenario events that are due. */
+  private updateScenario(): void {
+    const next = this.scenarioPending[0];
+    if (!next || this.time < next.atMin * 60) return;
+    if (this.fireScenarioEvent(next)) this.scenarioPending.shift();
+    else next.atMin += 0.5; // nobody suitable yet: try again in 30 s
+  }
+
+  private fireScenarioEvent(e: ScenarioEvent): boolean {
+    switch (e.kind) {
+      case 'medicalArrival':
+        this.forceMedicalArrival = true;
+        return true;
+      case 'rejectedTakeoff':
+        this.forceRejectedTakeoff = true;
+        return true;
+      case 'medicalDeparture': {
+        // A departure on your frequency that has not started to taxi yet; the emergency starts 40 s after it does.
+        const ac = this.aircraft
+          .filter((a) => a.category === 'departure' && this.isOnMyFrequency(a) && ['parked', 'pushback', 'startup'].includes(a.phase) && !a.emergency && !a.returnToStand)
+          .sort((a, b) => a.readyAt - b.readyAt)[0];
+        if (!ac) return false;
+        ac.plannedMedical = true;
+        return true;
+      }
+      case 'windShift': {
+        const old = this.observedWind;
+        const wind = { direction: (Math.round((old.direction + 180) / 10) * 10) % 360 || 360, speedKt: this.rng.int(9, 15) };
+        this.observedWind = wind;
+        const tail = -Math.round(this.windComponents(this.runway, wind).headwind);
+        const best = this.bestRunwayForWind(wind);
+        const w = `${String(wind.direction).padStart(3, '0')}/${String(wind.speedKt).padStart(2, '0')} KT`;
+        this.system(
+          `${SCENARIO_EVENT_TEXT.windShift}: the surface wind is now ${w}${tail > 0 ? `, ${tail} kt tailwind on runway ${this.runway}` : ''}. ${best !== this.runway ? `Broadcast a new ATIS with runway ${best} and re-route the traffic.` : 'Broadcast a new ATIS.'}`,
+          'warning',
+        );
+        return true;
+      }
+    }
+  }
+
   // ------------------------------------------------------------------ ATIS / runway
 
   /** Active runway end designator. */
@@ -303,7 +360,10 @@ export class Simulation {
   updateAtis(change: AtisChange): void {
     const a = this.atis;
     const runwayChanged = change.runway !== undefined && change.runway !== a.runway;
-    if (change.wind) a.wind = { ...change.wind };
+    if (change.wind) {
+      a.wind = { ...change.wind };
+      this.observedWind = { ...change.wind };
+    }
     if (change.qnh !== undefined) a.qnh = change.qnh;
     if (runwayChanged) {
       if (!this.airport.runwayEnd(change.runway!)) throw new Error(`Unknown runway ${change.runway}`);

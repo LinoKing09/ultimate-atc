@@ -16,6 +16,7 @@ ultimate-atc/
 │   │   ├── geo.ts             # vector maths, local projection, headings, units
 │   │   ├── path.ts            # smoothed polylines that aircraft move along
 │   │   ├── random.ts          # seeded PRNG
+│   │   ├── scenario.ts        # scenario codes (format/parse), presets
 │   │   ├── airport/
 │   │   │   ├── types.ts       # serialisable AirportData format
 │   │   │   ├── airport.ts     # runtime Airport: local coordinates, taxi graph, lookups
@@ -44,6 +45,7 @@ ultimate-atc/
 │       ├── lists.ts           # departure / arrival lists
 │       ├── menu.ts            # popup menus
 │       ├── dialogs.ts         # connect dialog, help
+│       ├── scenarioBuilder.ts # scenario builder dialog (presets, events, code and link)
 │       ├── labels.ts          # status codes for tags and lists
 │       ├── voice.ts           # text-to-speech and speech recognition
 │       ├── settings.ts        # localStorage-backed preferences

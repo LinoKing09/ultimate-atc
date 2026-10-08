@@ -4,7 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Scenario codes and scenario builder** ([docs/scenarios.md](docs/scenarios.md)): choose what to train - runway, density, traffic mix (balanced / departure push / arrival rush), more heavies, random events and scheduled events (medical emergency arrival/departure, rejected take-off, wind shift at a chosen minute) - from presets or by hand. The code (e.g. `EDDS-25-HD1-M10R20W30-K7Q2M`) goes into the Connect dialog's Scenario field, and a link with `?scenario=...` pre-fills it. The same code always gives the same session.
+- Observed surface wind: a scenario wind shift changes the toolbar wind (and the ATIS editor's pre-filled wind) until you broadcast a new ATIS.
+
 ### Changed
+
+- The Connect dialog's "Scenario seed" field is now "Scenario" and takes a seed or a scenario code.
 
 - Mobile mode is now **tablet mode**, optimised for the iPad.
 - Smoother touch navigation: two fingers pan and zoom at the same time, one finger also pans when the drag starts on an aircraft, no jump after a pinch, no hover hit-testing for touch.

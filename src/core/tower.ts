@@ -410,7 +410,9 @@ export class TowerAI {
     ac.phase = 'takeoff';
     this.lastTakeoffAt = sim.time;
     // Special event: rejected take-off.
-    if (sim.config.events !== false && !ac.rejectedTakeoff && sim.rng.chance(0.015)) {
+    const forced = sim.forceRejectedTakeoff && !ac.rejectedTakeoff;
+    if (forced) sim.forceRejectedTakeoff = false;
+    if (forced || (sim.config.events !== false && !ac.rejectedTakeoff && sim.rng.chance(0.015))) {
       ac.rejectAtSpeed = sim.rng.range(60, Math.min(110, ac.type.vrKt - 15)) * KT_TO_MS;
     }
   }

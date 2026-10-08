@@ -44,6 +44,9 @@ export class App {
   /** Mobile mode: actions for the selected aircraft. */
   private readonly quickbar: HTMLElement;
   private quickbarKey = '';
+  /** Density / events last chosen in the settings; the session keeps a scenario's values until they change. */
+  private densitySetting: Settings['density'];
+  private eventsSetting: boolean;
   private readonly voices = new PilotVoices();
   private readonly voiceIn: VoiceInput;
 
@@ -61,6 +64,9 @@ export class App {
     private readonly sim: Simulation,
     private readonly settings: Settings,
   ) {
+    this.densitySetting = settings.density;
+    this.eventsSetting = settings.events;
+
     // ---------------------------------------------------------------- toolbar
     const field = (key: string, title: string) => (this.fields[key] = h('span.field', { title }));
     this.pauseButton = h('button', { title: 'Pause / resume (Space)', text: 'II' });
@@ -272,8 +278,8 @@ export class App {
     this.fields.station.innerHTML = `<b>${st.callsign}</b> ${st.frequency}`;
     this.fields.rwy.innerHTML = `RWY <b>${sim.runway}</b>`;
     this.fields.atis.innerHTML = `ATIS <b>${sim.atisLetter}</b>`;
-    const wind = sim.atis.wind;
-    const tail = sim.windComponents(sim.runway).headwind < -5;
+    const wind = sim.observedWind;
+    const tail = sim.windComponents(sim.runway, wind).headwind < -5;
     this.fields.wind.innerHTML = `<b${tail ? ' class="bad"' : ''}>${String(wind.direction).padStart(3, '0')}/${String(wind.speedKt).padStart(2, '0')}</b>KT`;
     this.fields.wind.title = tail ? 'Tailwind above 5 kt on the runway in use - consider a runway change (click to edit the ATIS)' : 'Surface wind (click to edit the ATIS)';
     this.fields.qnh.innerHTML = `Q<b>${sim.atis.qnh}</b>`;
@@ -337,8 +343,8 @@ export class App {
     this.voices.volume = s.ttsVolume;
     this.voices.rate = s.ttsRate;
     this.voiceIn.lang = s.voiceLang;
-    this.sim.config.density = s.density;
-    this.sim.config.events = s.events;
+    if (s.density !== this.densitySetting) this.sim.config.density = this.densitySetting = s.density;
+    if (s.events !== this.eventsSetting) this.sim.config.events = this.eventsSetting = s.events;
     this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : 'Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help';
     this.quickbarKey = '';
     this.updateQuickbar();

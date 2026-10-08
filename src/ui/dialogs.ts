@@ -1,6 +1,8 @@
 import type { AirportData, StationType } from '../core/airport/types';
+import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
 import type { Density, Simulation } from '../core/simulation';
 import { h } from './dom';
+import { showScenarioBuilder } from './scenarioBuilder';
 import type { Settings } from './settings';
 
 export const REPO_URL = 'https://github.com/linoking09/ultimate-atc';
@@ -27,10 +29,12 @@ export interface LoginResult {
   density: Density;
   events: boolean;
   seed?: number;
+  /** Training scenario from a scenario code (overrides density and events). */
+  scenario?: Scenario;
 }
 
 /** EuroScope-like "connect" dialog: pick airport, position and traffic. The runway follows the wind (ATIS). */
-export function showLogin(airports: AirportData[], settings: Settings): Promise<LoginResult> {
+export function showLogin(airports: AirportData[], settings: Settings, initialScenario?: string): Promise<LoginResult> {
   return new Promise((resolve) => {
     const airportSel = h('select');
     for (const a of airports) airportSel.append(h('option', { value: a.icao, text: `${a.icao} - ${a.name}` }));
@@ -55,11 +59,38 @@ export function showLogin(airports: AirportData[], settings: Settings): Promise<
     const densitySel = h('select');
     for (const d of ['light', 'medium', 'heavy']) densitySel.append(h('option', { value: d, text: d }));
     densitySel.value = settings.density;
-    const seedInput = h('input', { type: 'number', placeholder: 'random', min: '0' });
+    const seedInput = h('input', { type: 'text', placeholder: 'random', spellcheck: 'false', autocomplete: 'off', value: initialScenario ?? '' });
+    const builderBtn = h('button', { type: 'button', text: 'Scenario builder...', title: 'Choose what to train and get a scenario code' });
+    const scenarioInfo = h('div.sub.scenario-info');
     const callsign = h('span');
     const notice = h('div.notice');
 
     const airport = () => airports.find((a) => a.icao === airportSel.value)!;
+    /** The seed field takes a plain number (seed) or a scenario code. */
+    const readSeedField = (): { seed?: number; scenario?: Scenario; error?: string } => {
+      const v = seedInput.value.trim();
+      if (!v) return {};
+      if (/^\d+$/.test(v)) return { seed: Number(v) };
+      const sc = parseScenarioCode(v);
+      if ('error' in sc) return { error: sc.error };
+      if (sc.airport !== airport().icao) return { error: `This scenario is for ${sc.airport}` };
+      return { seed: sc.seed, scenario: sc };
+    };
+    const updateScenario = () => {
+      const r = readSeedField();
+      densitySel.disabled = eventsBox.disabled = !!r.scenario;
+      scenarioInfo.textContent = r.error ? r.error : r.scenario ? `Scenario: ${describeScenario(r.scenario)}` : 'A number (seed) repeats the same traffic; a scenario code also sets runway, traffic and events.';
+      scenarioInfo.style.color = r.error ? 'var(--danger)' : '';
+      connect.disabled = !!r.error;
+    };
+    seedInput.addEventListener('input', updateScenario);
+    builderBtn.addEventListener('click', async () => {
+      const code = await showScenarioBuilder(airport(), seedInput.value.trim() || undefined);
+      if (code) {
+        seedInput.value = code;
+        updateScenario();
+      }
+    });
     const update = () => {
       const ap = airport();
       const st = ap.stations.find((s) => s.type === position);
@@ -92,9 +123,10 @@ export function showLogin(airports: AirportData[], settings: Settings): Promise<
           densitySel,
           h('label', { text: 'Special events' }),
           h('label', {}, eventsBox, ' emergencies, rejected take-offs (rare)'),
-          h('label', { text: 'Scenario seed' }),
-          seedInput,
+          h('label', { text: 'Scenario' }),
+          h('div.rangerow', {}, seedInput, builderBtn),
         ),
+        scenarioInfo,
         h('div.sub', { text: 'The runway in use is chosen from the wind. You can change it at any time in the ATIS (click ATIS in the toolbar).' }),
         notice,
         h('div.actions', {}, h('a', { href: `${REPO_URL}#readme`, target: '_blank', rel: 'noopener', text: 'Documentation' }), connect),
@@ -103,17 +135,20 @@ export function showLogin(airports: AirportData[], settings: Settings): Promise<
     const overlay = h('div.overlay', {}, form);
     form.addEventListener('submit', (e) => {
       e.preventDefault();
+      const r = readSeedField();
+      if (r.error) return;
       overlay.remove();
-      const seed = seedInput.value ? Number(seedInput.value) : undefined;
       resolve({
         airport: airport(),
         position,
-        density: densitySel.value as Density,
-        events: eventsBox.checked,
-        seed,
+        density: r.scenario?.density ?? (densitySel.value as Density),
+        events: r.scenario?.randomEvents ?? eventsBox.checked,
+        seed: r.seed,
+        scenario: r.scenario,
       });
     });
     document.body.append(overlay);
+    updateScenario();
     connect.focus();
   });
 }
@@ -216,8 +251,9 @@ export function showAtisEditor(sim: Simulation): void {
   const rwySel = h('select');
   for (const o of sim.config.airport.runwayOps) rwySel.append(h('option', { value: o.runway, text: `Runway ${o.runway}` }));
   rwySel.value = a.runway;
-  const dir = h('input', { type: 'number', min: '0', max: '360', step: '10', value: String(a.wind.direction) });
-  const spd = h('input', { type: 'number', min: '0', max: '60', value: String(a.wind.speedKt) });
+  // Pre-filled with the actual surface wind (it may have changed since the last broadcast).
+  const dir = h('input', { type: 'number', min: '0', max: '360', step: '10', value: String(sim.observedWind.direction) });
+  const spd = h('input', { type: 'number', min: '0', max: '60', value: String(sim.observedWind.speedKt) });
   const qnh = h('input', { type: 'number', min: '950', max: '1060', value: String(a.qnh) });
   const comps = h('div.sub');
   const update = () => {

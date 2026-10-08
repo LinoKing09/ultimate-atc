@@ -28,7 +28,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | **Callsign**      | Shows the resulting station callsign, frequency and radio name, for example `EDDS_GND 118.605 "Stuttgart Ground"`. |
 | **Traffic**       | `light`, `medium` or `heavy` (see [simulation model](simulation.md#traffic-generation)).          |
 | **Special events** | Rare special situations: medical emergencies (arrivals and departures) and rejected take-offs. On by default. See [simulation model](simulation.md#special-events). |
-| **Scenario seed** | Optional number. The same seed with the same settings always gives the same traffic. Leave it empty for a random session. |
+| **Scenario**      | Optional. A **number** is a seed: the same seed with the same settings gives the same traffic. A **scenario code** (for example `EDDS-25-MB0-M10-K7Q2M`) also fixes the runway, traffic mix and scheduled events. **Scenario builder...** creates one from presets or your own choices. Leave it empty for a random session. See [Scenarios and seeds](scenarios.md). |
 
 There is no runway selection: the session starts with a random wind, and the **runway in use is the one with the most headwind** (runway 25 at EDDS unless the tailwind on it is above 3 kt). You change the runway, wind, QNH and ATIS letter during the session in the [ATIS editor](#atis-editor).
 

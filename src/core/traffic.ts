@@ -39,8 +39,28 @@ export class TrafficGenerator {
 
   constructor(private readonly sim: Simulation) {}
 
-  get rates() {
-    return RATES[this.sim.config.density];
+  /** Movements per hour, adjusted by the scenario's traffic mix. */
+  get rates(): { departures: number; arrivals: number } {
+    const r = RATES[this.sim.config.density];
+    const mix = this.sim.config.scenario?.mix;
+    if (mix === 'departures') return { departures: r.departures * 1.6, arrivals: r.arrivals * 0.5 };
+    if (mix === 'arrivals') return { departures: r.departures * 0.5, arrivals: r.arrivals * 1.6 };
+    return r;
+  }
+
+  /**
+   * Picks operator and type. With the scenario option "more heavies", about
+   * one in three flights is a wide-body. (The extra random draw only happens
+   * with that option, so plain seeds keep giving the same traffic.)
+   */
+  private pickSpec(): { airline: Airline; type: AircraftType } {
+    const rng = this.sim.rng;
+    if (this.sim.config.scenario?.heavies && rng.chance(0.35)) {
+      const airline = this.pickAirline((a) => a.types.some((t) => aircraftType(t).wake === 'H'));
+      return { airline, type: aircraftType(rng.pick(airline.types.filter((t) => aircraftType(t).wake === 'H'))) };
+    }
+    const airline = this.pickAirline();
+    return { airline, type: aircraftType(rng.pick(airline.types)) };
   }
 
   /** Creates the initial traffic situation. */
@@ -112,8 +132,7 @@ export class TrafficGenerator {
   private pendingArrival?: { airline: Airline; type: AircraftType };
 
   private pickArrivalSpec(): { airline: Airline; type: AircraftType } {
-    const airline = this.pickAirline();
-    return { airline, type: aircraftType(this.sim.rng.pick(airline.types)) };
+    return this.pickSpec();
   }
 
   /** Allocates a free stand for an aircraft that needs one (arrival, returning departure). */
@@ -177,8 +196,14 @@ export class TrafficGenerator {
 
   spawnDeparture(readyIn: number, opts: { stand?: string; callsign?: string; type?: string } = {}): Aircraft | undefined {
     const sim = this.sim;
-    const airline = this.pickAirline();
-    const type = aircraftType(opts.type ?? sim.rng.pick(airline.types));
+    let airline: Airline;
+    let type: AircraftType;
+    if (opts.type) {
+      airline = this.pickAirline();
+      type = aircraftType(opts.type);
+    } else {
+      ({ airline, type } = this.pickSpec());
+    }
     const stand = opts.stand ? sim.airport.stand(opts.stand) : this.pickStand(type, airline);
     if (!stand) return undefined;
     const callsign = opts.callsign ?? this.makeCallsign(airline);
@@ -243,7 +268,9 @@ export class TrafficGenerator {
       now: sim.time,
     });
     ac.assignedStand = stand?.id;
-    if (opts.medical ?? (sim.config.events !== false && sim.rng.chance(ARRIVAL_MEDICAL_CHANCE))) {
+    const forced = sim.forceMedicalArrival && opts.medical === undefined;
+    if (forced) sim.forceMedicalArrival = false;
+    if (forced || (opts.medical ?? (sim.config.events !== false && sim.rng.chance(ARRIVAL_MEDICAL_CHANCE)))) {
       ac.emergency = 'medical';
       ac.emergencySince = sim.time;
       sim.system(`Approach: ${callsign} has declared PAN PAN (medical emergency) and will land with priority.`, 'warning', callsign);

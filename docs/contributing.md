@@ -22,6 +22,7 @@ The documentation is part of the product and must always describe the current st
 | the parser, commands, read-backs or pilot calls      | `docs/phraseology.md`, the help dialog in `src/ui/dialogs.ts` |
 | UI elements, keyboard shortcuts, colours, lists, tags | `docs/user-guide.md`, the help dialog                        |
 | AI behaviour, timings, traffic, score                | `docs/simulation.md` (numbers must match the code)            |
+| scenario codes, presets, scheduled events            | `docs/scenarios.md`                                           |
 | module structure, data flow                          | `docs/architecture.md`                                        |
 | the airport data format                              | `docs/airport-data.md`                                        |
 | an airport's layout                                  | `docs/airports/<ICAO>.md`                                     |

@@ -630,3 +630,26 @@ body.mobile .cmdline button.mic {
     display: none;
   }
 }
+
+/* ------------------------------------------------------------------ scenario builder */
+.dialog .eventrow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+.dialog .eventrow select {
+  flex: 1;
+}
+.dialog .eventrow input.min {
+  width: 70px;
+}
+.dialog input.code {
+  flex: 1;
+  font-size: 15px;
+  letter-spacing: 1px;
+  color: var(--accent);
+}
+.dialog .scenario-info {
+  margin-top: 6px;
+}

@@ -34,7 +34,7 @@
 - **Voice (optional):**
   - Pilots can speak their transmissions (text-to-speech, each pilot with their own voice).
   - You can talk to them with push-to-talk speech recognition (Chrome/Edge). It is built for **voice-only operation**: the best of several recognition alternatives is used, callsigns are matched even when slightly misrecognised, typical recognition errors are corrected, and pilots stay quiet while you transmit.
-- **Deterministic scenarios:** the same seed always gives the same traffic.
+- **Training scenarios:** a [scenario builder](docs/scenarios.md) creates shareable scenario codes (and links) for what you want to train: departure push, arrival rush, more heavies, a fixed runway, and emergencies, rejected take-offs or a wind shift at chosen minutes. The same code always gives the same session.
 
 ## Quick start
 
@@ -78,6 +78,7 @@ Press **F1** in the app for the in-game reference.
 | [User guide](docs/user-guide.md)             | Screen layout, scope, lists, tags, menus, keyboard, voice, scoring          |
 | [Phraseology reference](docs/phraseology.md) | Every instruction the parser understands, pilot read-backs and calls        |
 | [Airport: EDDS Stuttgart](docs/airports/EDDS.md) | Layout, taxiways, holding points, stands, typical routes, frequencies    |
+| [Scenarios and seeds](docs/scenarios.md)     | What the seed does, scenario codes, the scenario builder, presets            |
 | [Simulation model](docs/simulation.md)       | How AI pilots, AI Tower, traffic generation, separation, special events and incidents work |
 | [Tower operations](docs/tower-operations.md) | Research: how tower controllers run a mixed-mode runway, separation minima, sources |
 | [Architecture](docs/architecture.md)         | Code structure, data flow, how to add positions and multiplayer             |

@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- Mobile mode is now **tablet mode**, optimised for the iPad.
+- Smoother touch navigation: two fingers pan and zoom at the same time, one finger also pans when the drag starts on an aircraft, no jump after a pinch, no hover hit-testing for touch.
+- The page itself can no longer scroll, bounce or zoom (only the scope zooms).
+- The command line is a plain-text editable field instead of a form `<input>`, so Safari on iPad no longer adds AutoFill buttons and form arrows to the keyboard bar.
+
+### Fixed
+
+- iPad: tapping the command line pushed the whole page up; the layout now shrinks to the area above the keyboard bar.
+- With a hardware keyboard on iPad, the first typed letter was lost ("taxi" became "axi").
+
 ## [0.4.0] - 2026-10-08
 
 Settings, mobile mode and better ground handling.

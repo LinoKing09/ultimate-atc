@@ -97,6 +97,7 @@ export class Scope {
   };
   private pointers = new Map<number, { x: number; y: number }>();
   private pinchDist?: number;
+  private pinchMid?: { x: number; y: number };
   private longPress?: ReturnType<typeof setTimeout>;
 
   private readonly taxiwayLabels: { name: string; pos: Vec2 }[] = [];
@@ -169,6 +170,12 @@ export class Scope {
     this.zoom = Math.max(this.zoom, 0.9);
   }
 
+  /** Moves the view by a screen distance in pixels. */
+  panBy(dx: number, dy: number): void {
+    this.cx -= (dx * this.right.x - dy * this.up.x) / this.zoom;
+    this.cy -= (dx * this.right.y - dy * this.up.y) / this.zoom;
+  }
+
   zoomBy(factor: number, sx = this.width / 2, sy = this.height / 2): void {
     const before = this.toWorld(sx, sy);
     this.zoom = Math.min(12, Math.max(0.04, this.zoom * factor));
@@ -220,6 +227,9 @@ export class Scope {
   private bindEvents(): void {
     const c = this.canvas;
     c.addEventListener('contextmenu', (e) => e.preventDefault());
+    // Safari: pinching the scope must not zoom the page.
+    for (const ev of ['gesturestart', 'gesturechange', 'gestureend']) c.addEventListener(ev, (e) => e.preventDefault(), { passive: false });
+    c.addEventListener('touchmove', (e) => e.preventDefault(), { passive: false });
     c.addEventListener(
       'wheel',
       (e) => {
@@ -238,6 +248,8 @@ export class Scope {
       if (this.pointers.size === 2) {
         const [a, b] = [...this.pointers.values()];
         this.pinchDist = Math.hypot(a.x - b.x, a.y - b.y);
+        this.pinchMid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        clearTimeout(this.longPress);
         this.drag = undefined;
         return;
       }
@@ -280,13 +292,20 @@ export class Scope {
       if (this.pointers.size === 2 && this.pinchDist) {
         const [a, b] = [...this.pointers.values()];
         const d = Math.hypot(a.x - b.x, a.y - b.y);
-        this.zoomBy(d / this.pinchDist, (a.x + b.x) / 2, (a.y + b.y) / 2);
+        const mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+        // Two fingers pan and zoom at the same time.
+        if (this.pinchMid) this.panBy(mid.x - this.pinchMid.x, mid.y - this.pinchMid.y);
+        this.zoomBy(d / this.pinchDist, mid.x, mid.y);
         this.pinchDist = d;
+        this.pinchMid = mid;
         return;
       }
-      const hover = this.hitTest(sx, sy);
-      this.hover = hover ? { callsign: hover.callsign, item: hover.item } : undefined;
-      c.style.cursor = hover ? 'pointer' : this.drag?.mode === 'pan' ? 'grabbing' : 'crosshair';
+      if (e.pointerType !== 'touch') {
+        // Hover feedback only for mouse and pen (a finger has no hover).
+        const hover = this.hitTest(sx, sy);
+        this.hover = hover ? { callsign: hover.callsign, item: hover.item } : undefined;
+        c.style.cursor = hover ? 'pointer' : this.drag?.mode === 'pan' ? 'grabbing' : 'crosshair';
+      }
       if (!this.drag) return;
       const dx = sx - this.drag.lastX;
       const dy = sy - this.drag.lastY;
@@ -297,9 +316,11 @@ export class Scope {
       this.drag.lastX = sx;
       this.drag.lastY = sy;
       if (this.drag.mode === 'pan') {
-        this.cx -= (dx * this.right.x - dy * this.up.x) / this.zoom;
-        this.cy -= (dx * this.right.y - dy * this.up.y) / this.zoom;
-      } else if (this.drag.callsign && this.drag.item) {
+        this.panBy(dx, dy);
+      } else if (!this.drag.item) {
+        // Touch mode: dragging that starts on an aircraft symbol pans the scope.
+        this.panBy(dx, dy);
+      } else if (this.drag.callsign) {
         const ac = this.sim.find(this.drag.callsign);
         if (ac) {
           const off = ac.tagOffset ?? defaultTagOffset();
@@ -309,7 +330,16 @@ export class Scope {
     });
     const end = (e: PointerEvent) => {
       this.pointers.delete(e.pointerId);
-      if (this.pointers.size < 2) this.pinchDist = undefined;
+      if (this.pointers.size < 2) {
+        // After a pinch, no tap/click and no jump when the remaining finger moves on.
+        if (this.pinchDist !== undefined) {
+          this.pinchDist = undefined;
+          this.pinchMid = undefined;
+          const rest = [...this.pointers.values()][0];
+          this.drag = rest ? { mode: 'pan', lastX: rest.x, lastY: rest.y, moved: true } : undefined;
+          return;
+        }
+      }
       if (this.drag && this.drag.mode === 'pan' && !this.drag.moved && e.button === 0) this.cb.onSelect(undefined);
       clearTimeout(this.longPress);
       // A click (no drag) on a tag item opens that item's function, like in EuroScope.

@@ -48,6 +48,7 @@ ultimate-atc/
 │       ├── voice.ts           # text-to-speech and speech recognition
 │       ├── settings.ts        # localStorage-backed preferences
 │       ├── settingsDialog.ts  # in-game settings menu (device mode, sizes, voice, traffic)
+│       ├── commandInput.ts    # single-line plain-text command field (no form input, iPad-friendly)
 │       └── dom.ts             # tiny DOM helper
 ├── tests/                     # Vitest unit and scenario tests
 ├── docs/                      # documentation (this folder)

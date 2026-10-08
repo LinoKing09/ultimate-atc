@@ -158,8 +158,8 @@ const KEYS: [string, string][] = [
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
   ['ROT (toolbar)', 'Rotate the scope: runway horizontal like the aerodrome chart / north-up'],
-  ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, voices, traffic density, special events'],
-  ['Mobile mode: tap / tap again / long press', 'Select the aircraft / open its menu (or the tag item) / open its menu; + and - buttons zoom'],
+  ['F2 / SETTINGS (toolbar)', 'Settings: tablet or PC layout, interface and tag size, voices, traffic density, special events'],
+  ['Tablet mode: tap / tap again / long press', 'Select the aircraft / open its menu (or the tag item) / open its menu; + and - buttons zoom'],
 ];
 
 export function showHelp(): void {

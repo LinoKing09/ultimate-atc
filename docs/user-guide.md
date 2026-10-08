@@ -95,7 +95,7 @@ Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS:
 
 | Setting                  | Effect                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------ |
-| Device (phone - laptop slider) | **Mobile** or **PC** layout, see [Mobile mode](#mobile-mode). Touch-only devices start in mobile mode. |
+| Device (tablet - laptop slider) | **Tablet** or **PC** layout, see [Tablet mode](#tablet-mode). Touch-only devices start in tablet mode. |
 | Interface size           | Size of the text and buttons (80-160 %)                                                    |
 | Tag size                 | Size of the aircraft data tags on the scope (80-200 %)                                     |
 | Scope orientation        | Runway horizontal (like the chart) or north-up - the same as `ROT`                         |
@@ -109,16 +109,19 @@ Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS:
 
 **Reset to defaults** restores everything except the airport and position.
 
-### Mobile mode
+### Tablet mode
 
-Mobile mode is made for phones and tablets:
+Tablet mode is made for touch screens, above all the **iPad** (a phone screen is too small to control comfortably):
 
-- **+ / - / home buttons** on the right of the scope zoom in, out and reset the view (pinching works too).
+- **+ / - / home buttons** on the right of the scope zoom in, out and reset the view.
+- **One finger** pans the scope (also when the drag starts on an aircraft), **two fingers** pan and zoom at the same time. The page itself never scrolls, bounces or zooms.
 - **Tap once** on an aircraft to select it. **Tap it again** to open its menu; a second tap on a tag item opens that item's function (flight plan, taxi destinations, aircraft menu). A **long press** opens the menu directly. A single tap therefore never sends anything by accident.
 - A **quick-action bar** for the selected aircraft: `PUSH` (push and start approved), `TAXI` (taxi destinations), `HOLD`, `CONT` (continue taxi), `TWR` (contact Tower) and `MENU`, depending on what the aircraft is doing.
 - Larger buttons, menu entries, list rows, symbol hit areas and tags; sub-menus open with a tap.
-- On narrow screens the departure and arrival lists start collapsed so the scope has room.
-- The command-line preview is hidden; use voice (`MIC`) or the menus.
+- On narrow screens (portrait) the departure and arrival lists start collapsed so the scope has room.
+- The command-line preview is hidden; use voice (`MIC`), the menus or a keyboard.
+
+**iPad with a hardware (Bluetooth) keyboard**: just start typing, the first letter already goes into the command line. Tapping the command line does not push the page up any more: the layout shrinks to the area above the keyboard bar. The command line is not a form field, so Safari shows no AutoFill buttons (passwords, cards, contacts) and no form arrows for it. The small bar iPadOS shows at the bottom while a hardware keyboard is connected (language switch, shortcuts) belongs to the system and cannot be removed by a web page; iPadOS can hide the shortcut part under *Settings > General > Keyboard > Shortcuts*.
 
 ## 3. The scope
 
@@ -335,7 +338,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Left click                              | Select aircraft (or deselect when clicking empty space); on a tag item: that item's function |
 | Right click                             | Aircraft menu                                                  |
 | Double click (list)                     | Centre on aircraft                                             |
-| Mobile mode: tap / tap again / long press | Select / menu (or tag item) / menu                           |
+| Tablet mode: tap / tap again / long press | Select / menu (or tag item) / menu                           |
 
 ## 9. Voice
 

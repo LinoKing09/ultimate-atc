@@ -33,6 +33,12 @@ body {
   font-family: var(--font);
   font-size: calc(12px * var(--ui-scale, 1));
   overflow: hidden;
+  /* The page itself never scrolls, bounces or zooms - only the scope does. */
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
 }
 
 button,
@@ -65,7 +71,11 @@ button:disabled {
 
 #app {
   position: fixed;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
+  /* Set from the visual viewport, so the layout ends above an on-screen keyboard bar. */
+  height: var(--app-height, 100%);
   display: flex;
   flex-direction: column;
 }
@@ -136,6 +146,9 @@ button:disabled {
   height: 100%;
   display: block;
   cursor: crosshair;
+  touch-action: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 /* ------------------------------------------------------------------ floating panels */
@@ -288,13 +301,25 @@ button:disabled {
   color: var(--accent);
   min-width: 80px;
 }
-.cmdline input {
+.cmdline .cmd {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   outline: none;
   color: #fff;
-  font-size: 13px;
+  font-size: calc(13px * var(--ui-scale, 1));
+  white-space: pre;
+  overflow: hidden;
+  cursor: text;
+  padding: 2px 0;
+  -webkit-user-select: text;
+  user-select: text;
+}
+.cmdline .cmd:empty::before {
+  content: attr(data-placeholder);
+  color: var(--text-dim);
+  pointer-events: none;
 }
 .cmdline .preview {
   color: var(--text-dim);

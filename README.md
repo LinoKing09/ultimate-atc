@@ -19,8 +19,8 @@
   - `cancel pushback` (a moving aircraft is towed back to the stand) and more.
 
   The callsign can be an ICAO code, a radiotelephony callsign, or left out (the selected aircraft is used). Several instructions can be combined in one transmission.
-- **Settings menu** (`SETTINGS` / F2) with live changes: **mobile or PC layout** (phone-laptop slider), interface and tag size, scope orientation, voices, recognition accent, traffic density and special events.
-- **Mobile mode:** + / - zoom buttons, tap once to select and again for the menu (or long-press), a quick-action bar (push, taxi, hold, continue, contact Tower), larger touch targets.
+- **Settings menu** (`SETTINGS` / F2) with live changes: **tablet or PC layout** (tablet-laptop slider), interface and tag size, scope orientation, voices, recognition accent, traffic density and special events.
+- **Tablet mode (optimised for iPad):** + / - zoom buttons, smooth one- and two-finger pan/zoom without page scrolling, tap once to select and again for the menu (or long-press), a quick-action bar (push, taxi, hold, continue, contact Tower), larger touch targets.
 - **Live preview:** while you type, the command line shows how the instruction was understood. The taxi route is drawn on the scope before you transmit.
 - **Right-click menus:** pushback (with facing), taxi to a holding point or stand (with an automatic route), hold position, continue, hold short, cross runway, give way, and contact Tower.
 - **AI pilots:**

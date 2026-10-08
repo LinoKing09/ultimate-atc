@@ -12,6 +12,7 @@ import { formatTime, h } from './dom';
 import { arrivalList, departureList, type TrafficList } from './lists';
 import { PopupMenu, type MenuItem } from './menu';
 import { Scope, type TagItem } from './scope';
+import { CommandInput } from './commandInput';
 import { saveSettings, type Settings } from './settings';
 import { showSettings } from './settingsDialog';
 import { PilotVoices, VoiceInput } from './voice';
@@ -29,7 +30,7 @@ export class App {
   private readonly menu = new PopupMenu();
   private readonly lists: TrafficList[];
   private readonly messagesEl: HTMLElement;
-  private readonly input: HTMLInputElement;
+  private readonly input: CommandInput;
   private readonly targetEl: HTMLElement;
   private readonly previewEl: HTMLElement;
   private readonly fields: Record<string, HTMLElement> = {};
@@ -158,17 +159,12 @@ export class App {
     // ---------------------------------------------------------------- comms
     this.messagesEl = h('div.messages');
     this.targetEl = h('span.target');
-    this.input = h('input', {
-      type: 'text',
-      placeholder: 'Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help',
-      autocomplete: 'off',
-      spellcheck: 'false',
-    });
+    this.input = new CommandInput('Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help');
     this.previewEl = h('span.preview');
     this.micButton = h('button.mic', { text: 'MIC', title: 'Push-to-talk: hold the ^ / ` key, Right Ctrl or Insert (or click to start/stop)' });
     const sendBtn = h('button', { text: 'SEND', title: 'Transmit (Enter)' });
     sendBtn.addEventListener('click', () => this.submit());
-    const comms = h('div.comms', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input, this.previewEl, this.micButton, sendBtn));
+    const comms = h('div.comms', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input.el, this.previewEl, this.micButton, sendBtn));
 
     root.replaceChildren(toolbar, this.main, comms);
 
@@ -217,8 +213,8 @@ export class App {
       if (a.callsign === this.selected) this.select(undefined);
     });
     for (const m of sim.messages) this.addMessage(m);
-    this.input.addEventListener('input', () => this.updatePreview());
-    this.input.addEventListener('keydown', (e) => this.onInputKey(e));
+    this.input.el.addEventListener('input', () => this.updatePreview());
+    this.input.el.addEventListener('keydown', (e) => this.onInputKey(e));
     window.addEventListener('keydown', (e) => this.onGlobalKey(e));
     window.addEventListener('keyup', (e) => {
       if (PTT_KEYS.has(e.code)) {
@@ -227,11 +223,31 @@ export class App {
       }
     });
     window.addEventListener('resize', () => this.scope.resize());
+    this.fitToViewport();
     new ResizeObserver(() => this.scope.resize()).observe(this.main);
 
     this.setSpeed(1);
     this.hint(`Connected as ${sim.station.callsign} (${sim.station.name}, ${sim.station.frequency}). Runway ${sim.runway} in use. Press F1 for help.`);
     requestAnimationFrame((t) => this.frame(t));
+  }
+
+  /**
+   * Keeps the layout inside the visible area. When the command line gets the
+   * focus on an iPad, Safari would otherwise push the whole page up to make
+   * room for the keyboard bar; instead the app shrinks to the visible height.
+   */
+  private fitToViewport(): void {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const root = document.documentElement;
+    const update = () => {
+      root.style.setProperty('--app-height', `${Math.round(vv.height)}px`);
+      if (window.scrollY || window.scrollX) window.scrollTo(0, 0);
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    window.addEventListener('scroll', () => window.scrollTo(0, 0));
+    update();
   }
 
   // ------------------------------------------------------------------ main loop
@@ -473,17 +489,21 @@ export class App {
       this.togglePause();
       return;
     }
-    if (e.key === 'Home' && document.activeElement !== this.input) {
+    if (e.key === 'Home' && !this.input.focused) {
       this.scope.resetView();
       return;
     }
-    if (e.key === 'Escape' && document.activeElement !== this.input) {
+    if (e.key === 'Escape' && !this.input.focused) {
       this.menu.close();
       this.select(undefined);
       return;
     }
-    if (document.activeElement !== this.input && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    if (!this.input.focused && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      // Typing anywhere goes to the command line. The key is inserted here: focusing during the
+      // key event is too late for this key on iPad (with a hardware keyboard), so "taxi" became "axi".
+      e.preventDefault();
       this.input.focus();
+      this.input.append(e.key);
     }
   }
 

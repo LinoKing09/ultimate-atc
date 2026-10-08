@@ -7,11 +7,11 @@ Status legend: **done**, *in progress*, planned.
 ## v0.4 - Settings and mobile (current)
 
 - **done** - In-game settings menu (layout, sizes, voices, traffic, events)
-- **done** - Mobile mode: zoom buttons, tap-twice / long-press menus, quick-action bar, larger touch targets
+- **done** - Tablet mode (iPad): zoom buttons, tap-twice / long-press menus, quick-action bar, larger touch targets
 - **done** - Intersection departures with "advise able" and per-type runway requirements
 - **done** - No 180 degree turns for airliners, tug turnaround when stuck, tow-back after a cancelled pushback
 - **done** - Crossing priority on the ground, AI Tower handling of stranded departures, vacate points clear of taxiway S
-- planned - More mobile improvements: landscape layout, swipe-up command sheet, haptic feedback on requests
+- planned - More tablet improvements: landscape layout, swipe-up command sheet, haptic feedback on requests
 
 ## v0.2 / v0.3 - Feedback rounds 1 and 2
 

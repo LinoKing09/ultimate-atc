@@ -91,12 +91,12 @@ Holding points carry the name of their taxiway (`holding point A`, `holding poin
 
 ### Standard taxi flows
 
-To keep traffic on the two parallel taxiways from meeting head-on, automatic routes follow these directions. Automatic routes are the ones pilots take without a `via` list, and the suggestions in the *Taxi to* menu:
+To keep traffic on the two parallel taxiways from meeting head-on, they are used one-way: **N eastbound, S westbound** for both runway directions. Departures from the aprons reach N first and never cross S; arrivals vacating the runway reach S first and never cross N. Automatic routes (pilots without a `via` list, the *Taxi to* menu and the quick-action bar) follow these directions strictly; only if that is impossible without a 180 degree turn they use a taxiway against the flow:
 
 | Runway in use | N         | S         | Idea                                                        |
 | ------------- | --------- | --------- | ----------------------------------------------------------- |
-| 25            | westbound | eastbound | departures on S to A, arrivals from F/H/I/E/G on N to the aprons |
-| 07            | westbound | westbound | departures on S/N to K, arrivals from D/B/C/A west to the aprons |
+| 25            | eastbound | westbound | departures on N to A, arrivals from F/G/E/H on S to the aprons |
+| 07            | eastbound | westbound | departures to K via the circle (or west on S), arrivals from D/B/C/A west on S to the aprons |
 
 These are a simulator convention for the dual parallel layout, not a published procedure. Your own `via` instructions are always followed as given.
 
@@ -161,14 +161,14 @@ The busiest destinations in 2025 were Palma (639,000 passengers), Antalya (571,0
 
 | From                                  | Instruction                                                    |
 | ------------------------------------- | -------------------------------------------------------------- |
-| Stands 9-19, pushed facing east       | `taxi to holding point A via M, L2, S`                         |
-| Stands 24-29, pushed facing east      | `taxi to holding point A via M, H, S`                          |
-| Stands 30-36, 60-65, pushed facing west | `taxi to holding point A via M, H, S`                        |
-| Stands 71-75 (pushed onto N)          | `taxi to holding point A via N, G, S`                          |
-| Stands 40-48 (drive-through)          | `taxi to holding point A via O, S`                             |
-| Stands 50-56 (drive-through)          | `taxi to holding point A via N, H, S`                          |
-| Apron South, pushed facing east       | `taxi to holding point A via V, W, H, S, cross runway 25`      |
-| Arrival vacated via F, G or H         | `taxi to stand 14 via N, L2` / `taxi to stand 33 via N, H, M`  |
+| Stands 9-29, pushed facing east       | `taxi to holding point A via M, H, N`                          |
+| Stands 30-36, 60-65, pushed facing west | `taxi to holding point A via M, H, N`                        |
+| Stands 71-75 (pushed onto N facing east) | `taxi to holding point A via N`                             |
+| Stands 40-48 (drive-through)          | `taxi to holding point A via O, N`                             |
+| Stands 50-56 (drive-through)          | `taxi to holding point A via N`                                |
+| Apron South, pushed facing east       | `taxi to holding point A via V, W, H, N, cross runway 25`      |
+| Arrival vacated via F, G or E         | `taxi to stand 14 via S, H, M` / `taxi to stand 72 via S, H, N` |
+| Arrival vacated via H                 | `taxi to stand 33 via H, M`                                    |
 | Arrival vacated via W (south)         | `taxi to stand 105 via V`                                      |
 
 **Runway 07**
@@ -177,9 +177,10 @@ The busiest destinations in 2025 were Palma (639,000 passengers), Antalya (571,0
 | ------------------------------------- | -------------------------------------------------------------- |
 | Stands 9-19, pushed facing east       | `taxi to holding point K via M, L2`                            |
 | Stands 9-19, pushed facing west       | `taxi to holding point K via M, L3, O`                         |
-| Stands 30-36, pushed facing west      | `taxi to holding point K via M, H, S` (westbound on S)         |
+| Stands 30-36, pushed facing west      | `taxi to holding point K via M, L2`                            |
+| Stands 24-29, pushed facing east      | `taxi to holding point K via M, H, S` (westbound on S)         |
 | Apron South, pushed facing west       | `taxi to holding point Y via V`                                |
-| Arrival vacated via D, B or C         | `taxi to stand 30 via S, H, M` / `taxi to stand 14 via N, L2`  |
+| Arrival vacated via D, B or C         | `taxi to stand 30 via S, H, M` / `taxi to stand 14 via S, H, M` |
 
 ### Ground planning tips
 

@@ -509,10 +509,11 @@ export const EDDS: AirportData = {
         exit('K', ['RWY_K', 'K', 'K_CLR']),
         exit('Y', ['RWY_K', 'Y', 'Y_CLR']),
       ],
-      // Departures eastbound on S to A, arrivals westbound on N to the aprons.
+      // N eastbound (departures from the aprons to A), S westbound (arrivals from the exits to the aprons):
+      // departures never cross S and arrivals never cross N.
       flows: [
-        { taxiway: 'S', direction: 'east' },
-        { taxiway: 'N', direction: 'west' },
+        { taxiway: 'N', direction: 'east' },
+        { taxiway: 'S', direction: 'west' },
       ],
     },
     {
@@ -532,10 +533,11 @@ export const EDDS: AirportData = {
         exit('B', ['RWY_B', 'B', 'B_CLR'], true),
         exit('A', ['RWY_A', 'A', 'A_CLR']),
       ],
-      // Everything flows west: departures to K, arrivals from the eastern exits to the aprons.
+      // Same rule as for 25: N eastbound, S westbound. Departures to K use S (or M / L2 / the circle),
+      // arrivals from the eastern exits taxi west on S.
       flows: [
+        { taxiway: 'N', direction: 'east' },
         { taxiway: 'S', direction: 'west' },
-        { taxiway: 'N', direction: 'west' },
       ],
     },
   ],
@@ -594,13 +596,14 @@ export const EDDS: AirportData = {
     {
       title: 'Standard taxi flows',
       items: [
-        'The two parallel taxiways N (outer) and S (inner) are used one-way, so traffic does not meet head-on. Automatic routes and the menu suggestions follow these flows; your own `via` lists are always followed as given.',
+        'The two parallel taxiways are used one-way, so traffic does not meet head-on: **N (outer) eastbound, S (inner) westbound**, whichever runway is in use. Departures from the aprons reach N first and never cross S; arrivals vacating the runway reach S first and never cross N.',
+        'Automatic routes (the pilot\'s choice and the suggestions in the Taxi to menu and the quick-action bar) follow the flows; they only go against a flow when there is no other way without turning around. Your own `via` lists are always followed as given.',
       ],
       table: {
         head: ['Runway in use', 'Flows'],
         rows: [
-          ['25', 'S eastbound (departures to A), N westbound (arrivals from F, G, H, I to the aprons)'],
-          ['07', 'N and S westbound (departures to K / I, arrivals from D, B, C, A to the aprons)'],
+          ['25', 'N eastbound (departures to A), S westbound (arrivals from F, G, E, H to the aprons)'],
+          ['07', 'N eastbound, S westbound (departures to K via the circle or S, arrivals from D, B, C, A west on S)'],
         ],
       },
     },
@@ -617,12 +620,12 @@ export const EDDS: AirportData = {
       table: {
         head: ['From (runway 25)', 'Typical instruction'],
         rows: [
-          ['Stands 9-19, pushed facing east', '`taxi to holding point A via M, L2, S`'],
-          ['Stands 24-36, 60-65', '`taxi to holding point A via M, H, S`'],
-          ['Stands 71-75 (pushed onto N)', '`taxi to holding point A via N, G, S`'],
-          ['Stands 40-48 / 50-56', '`taxi to holding point A via O, S` / `via N, H, S`'],
-          ['Apron South, pushed facing east', '`taxi to holding point A via V, W, H, S, cross runway 25`'],
+          ['Stands 9-36, 60-65, pushed facing east', '`taxi to holding point A via M, H, N`'],
+          ['Stands 71-75 (pushed onto N facing east)', '`taxi to holding point A via N`'],
+          ['Stands 40-48 / 50-56', '`taxi to holding point A via O, N` / `via N`'],
+          ['Apron South, pushed facing east', '`taxi to holding point A via V, W, H, N, cross runway 25`'],
           ['Stands 9-19 (runway 07)', '`taxi to holding point K via M, L2` (facing east) / `via M, L3, O` (facing west)'],
+          ['Stands 24-29 (runway 07), pushed facing east', '`taxi to holding point K via M, H, S`'],
         ],
       },
     },
@@ -638,8 +641,9 @@ export const EDDS: AirportData = {
       table: {
         head: ['From', 'Typical instruction'],
         rows: [
-          ['Vacated via F, G or H (25)', '`taxi to stand 14 via N, L2` / `taxi to stand 33 via N, H, M`'],
-          ['Vacated via D, B or C (07)', '`taxi to stand 30 via S, H, M` / `taxi to stand 14 via N, L2`'],
+          ['Vacated via F, G or E (25)', '`taxi to stand 14 via S, H, M` / `taxi to stand 72 via S, H, N`'],
+          ['Vacated via H (25)', '`taxi to stand 33 via H, M`'],
+          ['Vacated via D, B or C (07)', '`taxi to stand 30 via S, H, M`'],
           ['Vacated via W (south)', '`taxi to stand 105 via V`'],
         ],
       },

@@ -196,8 +196,8 @@ const KEYS: [string, string][] = [
   ['ROT (toolbar)', 'Rotate the scope: runway horizontal like the aerodrome chart / north-up'],
   ['BRIEFING (toolbar)', 'Airport briefing: your position, runway in use, flows, entries and exits, typical routes, stands, hot spots'],
   ['x (command line)', 'Clear the command line'],
-  ['F2 / SETTINGS (toolbar)', 'Settings: tablet or PC layout, interface and tag size, voices, traffic density, special events'],
-  ['Tablet mode: tap / tap again / long press', 'Select the aircraft / open its menu (or the tag item) / open its menu; + and - buttons zoom'],
+  ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, voices, traffic density, special events'],
+  ['Mobile mode: tap / tap again / long press', 'Select the aircraft / open its menu (or the tag item) / open its menu; + and - buttons zoom'],
 ];
 
 export type HelpTab = 'briefing' | 'phraseology' | 'controls';

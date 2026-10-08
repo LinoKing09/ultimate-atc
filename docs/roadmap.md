@@ -40,18 +40,18 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 - **done** - Airport data checks for every airport (`validateAirport`, run by the tests)
 - **done** - Soak test (20 h of traffic) in CI; release benchmark
 - **done** - Stand suitability (wingtip clearance, real EDDS stand sizes, wide-body positions), taxiway wingspan limits
-- **done** - Tablet mode for the iPad, scenario builder, airport briefing (released with 0.5)
+- **done** - Mobile mode optimised for the iPad, scenario builder, airport briefing (released with 0.5)
 
 ## v0.4 - Settings and mobile
 
 - **done** - In-game settings menu (layout, sizes, voices, traffic, events)
-- **done** - Tablet mode (iPad): zoom buttons, tap-twice / long-press menus, quick-action bar, larger touch targets
+- **done** - Mobile mode (optimised for the iPad): zoom buttons, tap-twice / long-press menus, quick-action bar, larger touch targets
 - **done** - Intersection departures with "advise able" and per-type runway requirements
 - **done** - No 180 degree turns for airliners, tug turnaround when stuck, tow-back after a cancelled pushback
 - **done** - Crossing priority on the ground, AI Tower handling of stranded departures, vacate points clear of taxiway S
 - **done** - Airport briefing (help window) and a clear button for the command line
 - **done** - Scenario builder and shareable scenario codes (runway, traffic mix, heavies, scheduled events)
-- planned - More tablet improvements: landscape layout, swipe-up command sheet, haptic feedback on requests
+- planned - More mobile mode improvements: landscape layout, swipe-up command sheet, haptic feedback on requests
 
 ## v0.2 / v0.3 - Feedback rounds 1 and 2
 

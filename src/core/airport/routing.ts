@@ -55,6 +55,8 @@ const MAX_TURN = 150;
 const FREE_EDGE_PENALTY = 1.15;
 
 export interface RouteOptions {
+  /** Automatic routes: never taxi against a standard flow (instead of only avoiding it). */
+  strictFlows?: boolean;
   /** Wingspan of the aircraft: edges with a smaller wingspan limit are not used. */
   wingspanM?: number;
   /** Preferred directions of travel (unit vectors) per taxiway name, used for automatic routes. */
@@ -169,7 +171,10 @@ export function findRoute(
       if (auto) {
         if (e.kind === 'runwayStrip') cost += RUNWAY_CROSSING_PENALTY / 2;
         const flow = options.flows?.get(name);
-        if (flow && dot(flow, out) < -0.5) cost *= AGAINST_FLOW_FACTOR;
+        if (flow && dot(flow, out) < -0.5) {
+          if (options.strictFlows) continue;
+          cost *= AGAINST_FLOW_FACTOR;
+        }
       } else if (k < m && name === viaU[k] && !(k > 0 && name === viaU[k - 1])) {
         k += 1;
       } else if (k > 0 && name === viaU[k - 1]) {

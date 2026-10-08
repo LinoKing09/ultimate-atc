@@ -107,7 +107,7 @@ Every airport added in the future comes with its own briefing.
 
 | Setting                  | Effect                                                                                     |
 | ------------------------ | ------------------------------------------------------------------------------------------ |
-| Device (tablet - laptop slider) | **Tablet** or **PC** layout, see [Tablet mode](#tablet-mode). Touch-only devices start in tablet mode. |
+| Device (phone - laptop slider) | **Mobile** or **PC** layout, see [Mobile mode](#mobile-mode). Touch-only devices start in mobile mode. |
 | Interface size           | Size of the text and buttons (80-160 %)                                                    |
 | Tag size                 | Size of the aircraft data tags on the scope (80-200 %)                                     |
 | Scope orientation        | Runway horizontal (like the chart) or north-up - the same as `ROT`                         |
@@ -121,9 +121,9 @@ Every airport added in the future comes with its own briefing.
 
 **Reset to defaults** restores everything except the airport and position.
 
-### Tablet mode
+### Mobile mode
 
-Tablet mode is made for touch screens, above all the **iPad** (a phone screen is too small to control comfortably):
+Mobile mode is made for touch screens, above all the **iPad** (a phone screen is too small to control comfortably):
 
 - **+ / - / home buttons** on the right of the scope zoom in, out and reset the view.
 - **One finger** pans the scope (also when the drag starts on an aircraft), **two fingers** pan and zoom at the same time. The page itself never scrolls, bounces or zooms.
@@ -303,7 +303,7 @@ taxi to stand 14 via N R          <- goes to the selected aircraft
   - **grey** `? ...`: words that were not understood.
 - When you transmit, the message window shows your instruction in clean phraseology. For example, `dlh5ab taxi a via l2 s` becomes `Lufthansa 5AB, taxi to holding point A via L2, S`, unless parts of it were not understood; then your raw text is shown.
 - **Up / Down** browse the history of your last 50 transmissions. **Esc** clears the line, or deselects if the line is already empty.
-- The **×** button right of the text clears the line (it appears as soon as there is text; on a tablet the keyboard stays open).
+- The **×** button right of the text clears the line (it appears as soon as there is text; in mobile mode the keyboard stays open).
 - Typing anywhere on the page focuses the command line.
 
 ## 7. Aircraft menu
@@ -351,7 +351,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Left click                              | Select aircraft (or deselect when clicking empty space); on a tag item: that item's function |
 | Right click                             | Aircraft menu                                                  |
 | Double click (list)                     | Centre on aircraft                                             |
-| Tablet mode: tap / tap again / long press | Select / menu (or tag item) / menu                           |
+| Mobile mode: tap / tap again / long press | Select / menu (or tag item) / menu                           |
 
 ## 9. Voice
 
@@ -403,7 +403,7 @@ Responsibilities in this simulator:
 ## 12. Tips
 
 - Use **Tab** to work through requests in order. Then you only need to type the instruction, without the callsign.
-- Hover over destinations in the **Taxi to** menu to compare routes before you send one. The suggestions follow the airport's **standard taxi flows** (at EDDS with runway 25: S eastbound for departures, N westbound for arrivals), see the [airport page](airports/EDDS.md#standard-taxi-flows).
+- Hover over destinations in the **Taxi to** menu to compare routes before you send one. The suggestions (also those of the quick-action bar in mobile mode) follow the airport's **standard taxi flows** (at EDDS: N eastbound, S westbound), see the [airport page](airports/EDDS.md#standard-taxi-flows) and the airport briefing.
 - Plan **pushback direction** with the departure runway in mind. For runway 25 the holding point A is at the east end, so departures from the terminal usually push facing **east** and taxi via L2 or H onto S (the standard flow for 25). If you don't specify, the pilot picks the direction with the shortest taxi.
 - Use **`standby`** if you can't answer right away. The pilot then waits two minutes before calling again, instead of reminding you every minute.
 - If two aircraft meet **head-on** on a taxiway, neither can pass. Prevent it by holding one at an intersection. Aircraft can't make U-turns on taxiways; if a pilot has no other way, they accept a route that requires turning around, but the router avoids it whenever possible.

@@ -61,15 +61,15 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
   const pct = (v: number) => `${Math.round(v * 100)} %`;
 
   // Device switch: phone on the left, laptop on the right.
-  const device = h('input', { type: 'range', min: '0', max: '1', step: '1', class: 'device-slider', 'aria-label': 'Device layout: tablet or PC' });
+  const device = h('input', { type: 'range', min: '0', max: '1', step: '1', class: 'device-slider', 'aria-label': 'Device layout: mobile or PC' });
   device.value = settings.device === 'mobile' ? '0' : '1';
-  const phone = h('span.devicon', { html: PHONE_ICON, title: 'Tablet (touch, e.g. iPad)' });
+  const phone = h('span.devicon', { html: PHONE_ICON, title: 'Mobile (touch: iPad, tablet, phone)' });
   const laptop = h('span.devicon', { html: LAPTOP_ICON, title: 'PC (mouse and keyboard)' });
   const deviceLabel = h('span.val');
   const syncDevice = () => {
     phone.classList.toggle('on', settings.device === 'mobile');
     laptop.classList.toggle('on', settings.device === 'pc');
-    deviceLabel.textContent = settings.device === 'mobile' ? 'Tablet' : 'PC';
+    deviceLabel.textContent = settings.device === 'mobile' ? 'Mobile' : 'PC';
   };
   const setDevice = (d: Settings['device']) => {
     settings.device = d;
@@ -103,7 +103,7 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
       h('div.sub', { text: 'Changes apply immediately and are stored in this browser.' }),
       section(
         'Display',
-        ['Device', h('div.device', {}, phone, device, laptop, deviceLabel), 'Tablet: +/- zoom buttons, larger touch targets, tap twice (or long-press) for the aircraft menu, quick-action bar'],
+        ['Device', h('div.device', {}, phone, device, laptop, deviceLabel), 'Mobile: +/- zoom buttons, larger touch targets, tap twice (or long-press) for the aircraft menu, quick-action bar'],
         ['Interface size', range('uiScale', 0.8, 1.6, 0.05, pct)],
         ['Tag size', range('tagScale', 0.8, 2, 0.05, pct)],
         [

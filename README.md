@@ -20,8 +20,8 @@
 
   The callsign can be an ICAO code, a radiotelephony callsign, or left out (the selected aircraft is used). Several instructions can be combined in one transmission.
 - **Airport briefing** (`BRIEFING` / help window): your job at the position, the runway in use with its entries, exits and taxi flows, typical routes, stands, hot spots and frequencies - for every airport.
-- **Settings menu** (`SETTINGS` / F2) with live changes: **tablet or PC layout** (tablet-laptop slider), interface and tag size, scope orientation, voices, recognition accent, traffic density and special events.
-- **Tablet mode (optimised for iPad):** + / - zoom buttons, smooth one- and two-finger pan/zoom without page scrolling, tap once to select and again for the menu (or long-press), a quick-action bar (push, taxi, hold, continue, contact Tower), larger touch targets.
+- **Settings menu** (`SETTINGS` / F2) with live changes: **mobile or PC layout** (phone-laptop slider), interface and tag size, scope orientation, voices, recognition accent, traffic density and special events.
+- **Mobile mode (optimised for the iPad):** + / - zoom buttons, smooth one- and two-finger pan/zoom without page scrolling, tap once to select and again for the menu (or long-press), a quick-action bar (push, taxi, hold, continue, contact Tower), larger touch targets.
 - **Live preview:** while you type, the command line shows how the instruction was understood. The taxi route is drawn on the scope before you transmit.
 - **Right-click menus:** pushback (with facing), taxi to a holding point or stand (with an automatic route), hold position, continue, hold short, cross runway, give way, and contact Tower.
 - **AI pilots:**
@@ -65,9 +65,9 @@ The build is a fully static site. It is deployed to GitHub Pages automatically; 
 1. Press **Connect** with the default settings: EDDS, Ground, medium traffic. The runway in use follows the wind (usually 25); click `ATIS` in the toolbar to change it.
 2. A departure calls: `Stuttgart Ground, Lufthansa 5AB, stand 14, information E, request pushback`. The row flashes in the departure list and on the scope.
 3. Answer with `DLH5AB pushback approved facing east`. You can also press **Tab** to select the caller and type only `push and start approved`, or right-click the aircraft.
-4. When it reports `ready for taxi`, send it to the runway: `taxi to holding point A via M, L2, S` (runway 25; after a pushback facing east).
+4. When it reports `ready for taxi`, send it to the runway: `taxi to holding point A via M, H, N` (runway 25; after a pushback facing east).
 5. When it reaches A, hand it to Tower: `contact tower 118.805`. Tower lines it up and it takes off.
-6. Arrivals call after vacating the runway, for example `vacated runway 25 via E`. Taxi them to a stand: `taxi to stand 14 via N, L2`. The suggested stand is shown in brackets in the arrival list.
+6. Arrivals call after vacating the runway, for example `vacated runway 25 via E`. Taxi them to a stand: `taxi to stand 14 via S, H, M`. The suggested stand is shown in brackets in the arrival list.
 
 Press **F1** in the app for the in-game reference.
 

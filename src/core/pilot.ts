@@ -415,7 +415,19 @@ function resolveDestination(
     else return { error: 'say again clearance limit' };
   }
   const opts = { ...routeOptions(sim, ac), allowUTurn: forceUTurn || routeOptions(sim, ac).allowUTurn };
-  const tryRoute = (node: Parameters<typeof findRoute>[2]) => findRoute(sim.airport, start, node, via, opts);
+  const tryRoute = (node: Parameters<typeof findRoute>[2]) => {
+    // Automatic routes (no via list) follow the standard taxi flows strictly; only if that is impossible
+    // (e.g. the aircraft already stands on a taxiway against the flow) they may use it against the flow.
+    // Not turning around matters more than the flow.
+    if (!via.length) {
+      const strict = findRoute(sim.airport, start, node, via, { ...opts, strictFlows: true });
+      if (!isRouteError(strict) && !strict.requiresUTurn) return strict;
+      const soft = findRoute(sim.airport, start, node, via, opts);
+      if (!isRouteError(soft) && !soft.requiresUTurn) return soft;
+      return isRouteError(strict) ? soft : strict;
+    }
+    return findRoute(sim.airport, start, node, via, opts);
+  };
 
   switch (dest.kind) {
     case 'holdingPoint': {

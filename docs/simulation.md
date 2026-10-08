@@ -97,7 +97,7 @@ Acceleration is 0.6 m/s². Braking is up to 2.5 m/s².
 
 **Cancelled pushback**: if the aircraft has already moved, the tug tows it back along the same line onto the stand. It is then parked again and calls 60-150 s later.
 
-**Automatic routes** (no `via` list: pilots' own choice, menu suggestions, pushback direction) also follow the airport's **standard taxi flows** for the runway in use: taxiing against a flow costs 4 times the distance. They avoid runway crossings (3000 m extra cost per crossing).
+**Automatic routes** (no `via` list: pilots' own choice, menu suggestions, pushback direction) also follow the airport's **standard taxi flows** for the runway in use: they never taxi against a flow if there is any other route that doesn't need a 180 degree turn; only then a route against the flow is allowed (at 4 times the distance cost). They avoid runway crossings (3000 m extra cost per crossing).
 
 ## Pilot see-and-avoid
 

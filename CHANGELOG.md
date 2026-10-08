@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- **EDDS standard taxi flows: N eastbound, S westbound** for both runway directions (departures from the aprons use N and never cross S, arrivals from the exits use S and never cross N). Briefing, typical routes and documentation updated.
+- **Automatic routes follow the taxi flows strictly** (pilots' own routes, the Taxi to menu, the quick-action bar): they only use a taxiway against the flow when there is no other way without turning around. Before, going against the flow was only made more expensive.
+- "Tablet mode" is called **mobile mode** again (still optimised for the iPad).
+
+### Fixed
+
+- An automatic route could prefer a 180 degree turn (impossible for airliners) over a short stretch against a flow.
+
 ## [0.5.0] - 2026-10-08
 
 Foundations for more positions and airports, real Stuttgart traffic, tablet mode, scenarios and the airport briefing.

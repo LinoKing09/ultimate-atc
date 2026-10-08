@@ -2,7 +2,7 @@
 
 **Ultimate ATC** is an air traffic control simulator that runs in your browser. It aims to come as close as possible to [EuroScope](https://www.euroscope.hu/), the radar client used on the [VATSIM](https://vatsim.net/) network. You log in to a controller position at a real airport, and AI pilots respond to your instructions in ICAO phraseology, whether you type them or speak them.
 
-> **Status: early development (v0.3).** One position is playable: **Ground at Stuttgart (EDDS)**. The code is built so that more positions (Delivery, Tower, Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
+> **Status: early development (v0.4).** One position is playable: **Ground at Stuttgart (EDDS)**. The code is built so that more positions (Delivery, Tower, Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
 
 ![Ultimate ATC - EDDS Ground overview](docs/images/screenshot-overview.png)
 
@@ -15,16 +15,20 @@
   - conditional clearances: `behind the A320 passing from left to right, ...`,
   - queue positions: `CFG11, number 2 for pushback`,
   - incomplete taxi instructions: `taxi via N, hold short of F`,
-  - `cancel pushback` and more.
+  - intersection departures, asked like in real operations: `advise able for departure from intersection D`,
+  - `cancel pushback` (a moving aircraft is towed back to the stand) and more.
 
   The callsign can be an ICAO code, a radiotelephony callsign, or left out (the selected aircraft is used). Several instructions can be combined in one transmission.
+- **Settings menu** (`SETTINGS` / F2) with live changes: **mobile or PC layout** (phone-laptop slider), interface and tag size, scope orientation, voices, recognition accent, traffic density and special events.
+- **Mobile mode:** + / - zoom buttons, tap once to select and again for the menu (or long-press), a quick-action bar (push, taxi, hold, continue, contact Tower), larger touch targets.
 - **Live preview:** while you type, the command line shows how the instruction was understood. The taxi route is drawn on the scope before you transmit.
 - **Right-click menus:** pushback (with facing), taxi to a holding point or stand (with an automatic route), hold position, continue, hold short, cross runway, give way, and contact Tower.
 - **AI pilots:**
   - They call for pushback and taxi, report vacating, and read every instruction back.
   - They reply "unable" or "say again" when an instruction is wrong, and call again if you don't answer.
-  - They keep visual separation on the ground (they stop behind other traffic) and report when they are stuck.
-- **AI Tower** with a [researched separation model](docs/tower-operations.md): departure, wake turbulence and runway separation, line-up behind landing or departing traffic, and departure gaps between arrivals. It lines up and launches the departures you hand over, lands arrivals and picks an exit, and sends arrivals around if the runway is blocked.
+  - They keep visual separation on the ground (they stop behind other traffic, give way at crossings) and report when they are stuck.
+  - Airliners can't turn around on a taxiway: routes that need a 180 degree turn are refused, unless the aircraft is stuck and calls a tug.
+- **AI Tower** with a [researched separation model](docs/tower-operations.md): departure, wake turbulence and runway separation, line-up behind landing or departing traffic, and departure gaps between arrivals. It lines up and launches the departures you hand over (and moves on or sends back departures you handed over short of the holding point), lands arrivals and picks an exit, and sends arrivals around if the runway is blocked.
 - **Special events** (rare, can be switched off): medical emergencies (PAN PAN) and rejected take-offs.
 - **Safety nets:** collisions, runway incursions and go-arounds are detected and counted against your score.
 - **Voice (optional):**

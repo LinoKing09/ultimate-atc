@@ -202,10 +202,49 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
     case 'sayAgain':
       if (ac.lastTransmission) readback(sim, ac, ac.lastTransmission);
       return {};
+    case 'askIntersection':
+      return execAskIntersection(sim, ac, c.name);
     case 'lineUp':
     case 'takeoff':
       return { unable: 'confirm, we are on Ground frequency, contact Tower?' };
   }
+}
+
+// ====================================================================== intersection departures
+
+/** Take-off run available from a holding point on the active runway, or undefined if it is not an entry. */
+export function takeoffRunAvailable(sim: Simulation, holdingPoint: string): number | undefined {
+  const end = sim.airport.runwayEnd(sim.runway);
+  const hp = sim.airport.holdingPoint(holdingPoint);
+  const strip = hp?.edges.find((e) => e.kind === 'runwayStrip');
+  if (!end || !hp || !strip || hp.holdingPoint?.runway !== end.runway) return undefined;
+  const rwyNode = strip.from === hp ? strip.to : strip.from;
+  return end.length - sim.airport.runwayCoordinates(end, rwyNode.pos).along;
+}
+
+/** Take-off run this crew needs today (type figure varied per flight, -10 % / +15 %). */
+function requiredRunway(sim: Simulation, ac: Aircraft): number {
+  ac.requiredRunwayM ??= Math.round(ac.type.minRunwayM * sim.rng.range(0.9, 1.15));
+  return ac.requiredRunwayM;
+}
+
+/** True if the full-length entry is the only one this aircraft accepts at this holding point. */
+function isIntersection(sim: Simulation, holdingPoint: string): boolean {
+  const entry = sim.airport.runwayOps(sim.runway)?.departureEntries.find((e) => e.holdingPoint.toUpperCase() === holdingPoint.toUpperCase());
+  return !!entry && !entry.fullLength;
+}
+
+/**
+ * "Advise able for departure from intersection D": the crew checks the
+ * take-off run available from that intersection against what they need.
+ */
+function execAskIntersection(sim: Simulation, ac: Aircraft, name: string): ExecResult {
+  if (ac.category !== 'departure' || !ac.onGround || ['lineup', 'takeoff', 'climb'].includes(ac.phase)) return { unable: 'say again' };
+  const available = takeoffRunAvailable(sim, name);
+  if (available === undefined) return { unable: `confirm intersection ${name}, it is not an entry to runway ${sim.runway}` };
+  const able = available >= requiredRunway(sim, ac);
+  ac.ableIntersection = { ...ac.ableIntersection, [name.toUpperCase()]: able };
+  return { readback: able ? `affirm, able intersection ${name}` : 'negative, we require full length' };
 }
 
 // ====================================================================== conditional clearances
@@ -253,9 +292,21 @@ function execCancelPushback(sim: Simulation, ac: Aircraft): ExecResult {
     ac.readyAt = sim.time + sim.rng.range(60, 150);
     return { readback: 'pushback cancelled' };
   }
-  if (ac.phase === 'pushback') {
-    ac.holdPosition = true;
-    return { readback: 'stopping pushback' };
+  if (ac.phase === 'pushback' && ac.path && !ac.towingIn) {
+    // Already moving: the tug pulls the aircraft back onto the stand.
+    const pts: Vec2[] = [ac.pos];
+    for (let i = ac.path.points.length - 1; i >= 0; i--) if (ac.path.cum[i] < ac.s - 0.5) pts.push(ac.path.points[i]);
+    const back = new Path(pts, [], 18);
+    ac.path = back;
+    ac.s = 0;
+    ac.reverse = false;
+    ac.towingIn = true;
+    ac.holdPosition = false;
+    ac.stoppedAt = undefined;
+    ac.stops = [{ s: back.length, kind: 'destination', target: 'stand' }];
+    ac.pendingTaxi = undefined;
+    ac.timerUntil = sim.time + 4;
+    return { readback: 'pushback cancelled, we are towed back onto the stand' };
   }
   if (ac.phase === 'parked') return { readback: 'roger, pushback cancelled', answers: ac.request === 'pushback' };
   return { unable: 'we are not pushing back' };
@@ -347,16 +398,24 @@ function resolveDestination(
   start: RouteStart,
   via: string[],
   holdShort: HoldShortTarget[] = [],
+  forceUTurn = false,
 ): { route: TaxiRoute; dest: TaxiDestination } | { error: string } {
+  if (!forceUTurn && !routeOptions(sim, ac).allowUTurn) {
+    const res = resolveDestination(sim, ac, dest, start, via, holdShort, true);
+    if ('error' in res || !res.route.requiresUTurn) return res;
+    // The only way would be a 180° turn on the taxiway, which an airliner can't do.
+    const heading = start.heading ?? ac.heading;
+    return { error: `unable, we are facing ${compassOf(heading)} and cannot turn around here, say again route` };
+  }
   if (!dest && holdShort.length && via.length) {
-    return resolveClearanceLimit(sim, start, via, holdShort[holdShort.length - 1]);
+    return resolveClearanceLimit(sim, ac, start, via, holdShort[holdShort.length - 1], forceUTurn);
   }
   if (!dest) {
     if (ac.routeDestination && via.length) dest = ac.routeDestination;
     else return { error: 'say again clearance limit' };
   }
-  const flows = sim.airport.flowVectors(sim.runway);
-  const tryRoute = (node: Parameters<typeof findRoute>[2]) => findRoute(sim.airport, start, node, via, { flows });
+  const opts = { ...routeOptions(sim, ac), allowUTurn: forceUTurn || routeOptions(sim, ac).allowUTurn };
+  const tryRoute = (node: Parameters<typeof findRoute>[2]) => findRoute(sim.airport, start, node, via, opts);
 
   switch (dest.kind) {
     case 'holdingPoint': {
@@ -397,7 +456,7 @@ function resolveDestination(
       };
     }
     case 'holdShort':
-      return resolveClearanceLimit(sim, start, via, { kind: 'taxiway', name: dest.name });
+      return resolveClearanceLimit(sim, ac, start, via, { kind: 'taxiway', name: dest.name }, forceUTurn);
     case 'stand': {
       const stand = sim.airport.stand(dest.stand);
       if (!stand) return { error: `confirm stand ${dest.stand}, we can't find it` };
@@ -418,10 +477,13 @@ function resolveDestination(
  */
 function resolveClearanceLimit(
   sim: Simulation,
+  ac: Aircraft,
   start: RouteStart,
   via: string[],
   target: HoldShortTarget,
+  forceUTurn = false,
 ): { route: TaxiRoute; dest: TaxiDestination } | { error: string } {
+  const opts = { ...routeOptions(sim, ac), allowUTurn: forceUTurn || routeOptions(sim, ac).allowUTurn };
   const last = via[via.length - 1].toUpperCase();
   let best: { route: TaxiRoute; dest: TaxiDestination } | undefined;
   if (target.kind === 'runway') {
@@ -429,7 +491,7 @@ function resolveClearanceLimit(
     for (const hp of sim.airport.holdingPoints.values()) {
       if (hp.holdingPoint?.runway !== rwy) continue;
       if (!hp.edges.some((e) => e.name.toUpperCase() === last)) continue;
-      const r = findRoute(sim.airport, start, hp, via);
+      const r = findRoute(sim.airport, start, hp, via, opts);
       if (isRouteError(r) || r.edges.some((e) => e.kind === 'runwayStrip')) continue;
       if (!best || r.length < best.route.length) best = { route: r, dest: { kind: 'holdingPoint', name: hp.holdingPoint!.name, runway: target.runway } };
     }
@@ -437,7 +499,7 @@ function resolveClearanceLimit(
     const X = target.name.toUpperCase();
     for (const n of sim.airport.nodes.values()) {
       if (!n.edges.some((e) => e.name.toUpperCase() === X) || !n.edges.some((e) => e.name.toUpperCase() === last)) continue;
-      const r = findRoute(sim.airport, start, n, via);
+      const r = findRoute(sim.airport, start, n, via, opts);
       if (isRouteError(r) || r.edges.length === 0) continue;
       if (r.edges[r.edges.length - 1].name.toUpperCase() === X) continue;
       if (!best || r.length < best.route.length) best = { route: r, dest: { kind: 'holdShort', name: X } };
@@ -445,6 +507,29 @@ function resolveClearanceLimit(
   }
   if (!best) return { error: `unable to reach ${target.kind === 'runway' ? `runway ${target.runway}` : `taxiway ${target.name}`} via ${via.join(', ')}, say again route` };
   return best;
+}
+
+/** Largest wingspan (m) that can turn around on the spot on a taxiway. */
+const UTURN_MAX_WINGSPAN = 25;
+
+/**
+ * Routing options for an aircraft: standard flows for the runway in use, and
+ * whether it may turn around. Airliners can't make a 180° turn on a taxiway;
+ * small business jets can, and so can an aircraft waiting at a holding point
+ * (it turns on the wide runway entry).
+ */
+function routeOptions(sim: Simulation, ac: Aircraft): { flows: Map<string, Vec2>; allowUTurn: boolean } {
+  const atHoldingPoint = ac.phase === 'holding' || !!ac.stoppedAt?.holdingPoint;
+  return {
+    flows: sim.airport.flowVectors(sim.runway),
+    allowUTurn: ac.type.wingspanM <= UTURN_MAX_WINGSPAN || atHoldingPoint || isStuck(sim, ac),
+  };
+}
+
+/** Stuck nose-to-nose (or reported blocked): the pilot accepts a turn-around with a tug. */
+function isStuck(sim: Simulation, ac: Aircraft): boolean {
+  if (ac.request === 'blocked') return true;
+  return !!ac.blockedBy && ac.blockedSince !== undefined && sim.time - ac.blockedSince > 30 && ac.speed < 0.2;
 }
 
 function routeErrorText(err: string, via: string[]): string {
@@ -480,9 +565,16 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
   }
   if (ac.phase === 'arrived') return { unable: 'we are already parked' };
 
+  if (c.destination?.kind === 'holdingPoint' && ac.category === 'departure' && isIntersection(sim, c.destination.name)) {
+    const available = takeoffRunAvailable(sim, c.destination.name);
+    if (available !== undefined && available < requiredRunway(sim, ac)) {
+      return { unable: `unable intersection ${c.destination.name.toUpperCase()}, we require full length` };
+    }
+  }
   const start = routeStart(sim, ac);
   const res = resolveDestination(sim, ac, c.destination, toRouteStart(sim, start), c.via, c.holdShort);
   if ('error' in res) return { unable: res.error };
+  const atHoldingPoint = ac.phase === 'holding' || !!ac.stoppedAt?.holdingPoint;
 
   const resolved: TaxiCommand = { ...c, destination: res.dest };
   if (ac.phase === 'pushback' || ac.phase === 'startup') {
@@ -499,6 +591,11 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
   if (via.length) rb += ` via ${via.join(', ')}`;
   for (const h of c.holdShort) rb += `, ${formatHoldShort(h)}`;
   for (const r of c.cross) rb += `, cross runway ${r}`;
+  if (res.route.requiresUTurn && ac.type.wingspanM > UTURN_MAX_WINGSPAN && !atHoldingPoint) {
+    // An airliner can only turn around with a tug.
+    ac.tugUntil = sim.time + sim.rng.range(100, 160);
+    rb += ', we need a tug to turn around, ready in about two minutes';
+  }
   return { readback: rb, answers: true };
 }
 
@@ -686,6 +783,21 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
 // ====================================================================== events from movement
 
 export function onStopReached(sim: Simulation, ac: Aircraft, stop: PathStop): void {
+  if (ac.phase === 'pushback' && ac.towingIn) {
+    const stand = sim.airport.stand(ac.stand ?? '');
+    ac.phase = 'parked';
+    ac.towingIn = false;
+    ac.path = null;
+    ac.stops = [];
+    ac.stoppedAt = undefined;
+    if (stand) {
+      ac.pos = stand.pos;
+      ac.heading = stand.heading;
+    }
+    ac.request = null;
+    ac.readyAt = sim.time + sim.rng.range(60, 150);
+    return;
+  }
   if (ac.phase === 'pushback') {
     ac.phase = 'startup';
     ac.reverse = false;
@@ -793,6 +905,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     }
   }
 
+  towerResolveStuck(sim, ac);
   if (!sim.isOnMyFrequency(ac)) return;
 
   // Special event: medical emergency while taxiing out.
@@ -835,11 +948,21 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
         call(sim, ac, 'blocked', `${tel}, we have opposite traffic ahead, ${o!.callsign}, request instructions`);
         return;
       }
+      if (o && isWaitingBlocker(o)) {
+        call(sim, ac, 'blocked', `${tel}, we are blocked by ${sim.tel(o)}, waiting on the taxiway ahead, request instructions`);
+        return;
+      }
     }
     if (ac.stoppedAt?.kind === 'holdShort' && ac.phase === 'taxi' && now - ac.lastCallAt > 120 && ac.speed === 0) {
       call(sim, ac, 'route', `${tel}, holding short of ${ac.stoppedAt.target}, request to continue`);
       return;
     }
+    return;
+  }
+
+  // The traffic that blocked us has moved on: nothing to ask any more.
+  if (ac.request === 'blocked' && !ac.blockedBy && ac.speed > 0.5) {
+    ac.request = null;
     return;
   }
 
@@ -858,6 +981,69 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     const text = reminder[ac.request];
     if (text) call(sim, ac, ac.request, text);
   }
+}
+
+/**
+ * True if the aircraft stands still waiting for an instruction (stopped at a
+ * clearance limit, a vacate point or a hold-short) rather than queuing behind
+ * other traffic or holding at a runway holding point.
+ */
+function isWaitingBlocker(o: Aircraft): boolean {
+  if (o.speed > 0.1 || o.blockedBy || o.phase === 'holding') return false;
+  if (o.stoppedAt?.kind === 'runway' || o.stoppedAt?.holdingPoint) return false;
+  return !!o.stoppedAt || o.holdPosition || o.request !== null;
+}
+
+/** Seconds a departure may wait on Tower frequency short of the holding point before the AI Tower acts. */
+const TOWER_STUCK_TIME = 15;
+/** Up to this distance the AI Tower taxis a stranded departure on to the holding point itself. */
+const TOWER_TAXI_ON_MAX = 600;
+
+/**
+ * The AI Tower does not leave a departure stranded on its frequency short of
+ * the holding point (for example after "hold short of taxiway A" instead of
+ * "taxi to holding point A", followed by a hand-off): it lets the aircraft
+ * continue when the holding point is close, or sends it back to Ground.
+ */
+function towerResolveStuck(sim: Simulation, ac: Aircraft): void {
+  const st = ac.stoppedAt;
+  const stuck =
+    ac.frequency === 'TWR' &&
+    sim.config.position !== 'TWR' &&
+    ac.category === 'departure' &&
+    ac.phase === 'taxi' &&
+    !!st &&
+    st.kind !== 'runway' &&
+    ac.speed < 0.1 &&
+    !ac.holdPosition &&
+    !ac.giveWayTo &&
+    !ac.incident;
+  if (!stuck || !st) {
+    ac.towerStuckSince = undefined;
+    return;
+  }
+  ac.towerStuckSince ??= sim.time;
+  if (sim.time - ac.towerStuckSince < TOWER_STUCK_TIME) return;
+  ac.towerStuckSince = undefined;
+
+  if (st.kind === 'holdShort') {
+    // An intermediate hold-short on a route that already ends at the holding point.
+    ac.stoppedAt = undefined;
+    sim.system(`Tower: ${ac.callsign} was holding short of ${st.target}, Tower told it to continue to the holding point.`, 'warning', ac.callsign);
+    return;
+  }
+  const dest: TaxiDestination = { kind: 'runway', runway: sim.runway };
+  const route = autoRoute(sim, ac, dest);
+  if (route && !route.requiresUTurn && route.length <= TOWER_TAXI_ON_MAX) {
+    applyRoute(sim, ac, route, dest);
+    sim.system(`Tower: ${ac.callsign} stopped at ${st.target} short of the holding point, Tower taxied it on to runway ${sim.runway}.`, 'warning', ac.callsign);
+    return;
+  }
+  // Too far from the runway: back to Ground.
+  ac.frequency = sim.config.position;
+  ac.request = null;
+  sim.stats.departuresHandedOff = Math.max(0, sim.stats.departuresHandedOff - 1);
+  call(sim, ac, 'route', `${sim.station.name}, ${sim.tel(ac)}, Tower sent us back to you, we are short of the holding point, request taxi`);
 }
 
 /**

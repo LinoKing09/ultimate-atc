@@ -323,14 +323,15 @@ b.chain('W', 'runwayStrip', ['RWY_HW', 'W']);
 b.chain('W', 'taxiway', ['W', 'W_CLR', 'V_W']);
 
 // G (perpendicular) and F (angled exit for 25) cross between S and the runway
+// Vacate points sit between the holding point and the F/G crossing, clear of taxiway S.
 n('FG_X', 1142, 141);
 n('G', 1142, 93, 'G');
-n('G_CLR', 1142, 165);
+n('G_CLR', 1142, 118);
 n('F', 1240, 100, 'F');
-n('F_CLR', 1083, 165);
-b.chain('G', 'taxiway', ['N_G', 'S_G', 'G_CLR', 'FG_X', 'G']);
+n('F_CLR', 1187.4, 122);
+b.chain('G', 'taxiway', ['N_G', 'S_G', 'FG_X', 'G_CLR', 'G']);
 b.chain('G', 'runwayStrip', ['G', 'RWY_G']);
-b.chain('F', 'taxiway', ['N_F', 'S_F', 'F_CLR', 'FG_X', 'F']);
+b.chain('F', 'taxiway', ['N_F', 'S_F', 'FG_X', 'F_CLR', 'F']);
 b.chain('F', 'runwayStrip', ['F', 'RWY_F']);
 
 // E (perpendicular)
@@ -488,9 +489,9 @@ export const EDDS: AirportData = {
         { holdingPoint: 'D', intersection: 'D', fullLength: false },
       ],
       exits: [
-        exit('F', ['RWY_F', 'F', 'FG_X', 'F_CLR'], true),
+        exit('F', ['RWY_F', 'F', 'F_CLR'], true),
         exit('E', ['RWY_E', 'E', 'E_CLR']),
-        exit('G', ['RWY_G', 'G', 'FG_X', 'G_CLR']),
+        exit('G', ['RWY_G', 'G', 'G_CLR']),
         exit('H', ['RWY_HW', 'H', 'H_CLR'], true),
         exit('W', ['RWY_HW', 'W', 'W_CLR']),
         exit('I', ['RWY_I', 'I', 'I_CLR'], true),
@@ -513,7 +514,7 @@ export const EDDS: AirportData = {
         { holdingPoint: 'W', intersection: 'W', fullLength: false },
       ],
       exits: [
-        exit('G', ['RWY_G', 'G', 'FG_X', 'G_CLR']),
+        exit('G', ['RWY_G', 'G', 'G_CLR']),
         exit('E', ['RWY_E', 'E', 'E_CLR']),
         exit('D', ['RWY_D', 'D', 'D_CLR'], true),
         exit('C', ['RWY_C', 'C', 'C_CLR']),

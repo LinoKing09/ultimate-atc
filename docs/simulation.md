@@ -93,6 +93,10 @@ Acceleration is 0.6 m/s². Braking is up to 2.5 m/s².
 
 **Route finding** is described in [architecture.md](architecture.md#taxi-routing). Routes never contain turns sharper than **150°** at a junction (a hairpin from a rapid exit back onto the parallel taxiway, at about 143°, is still possible). A route that needs the aircraft to turn around where it stands is only used if nothing else works: the router adds 5000 m of cost for it. A node behind the aircraft counts as "turning around" even if it is only a few metres away.
 
+**No 180 degree turns for airliners**: for aircraft with a wingspan above **25 m**, routes that need a turn-around where the aircraft stands are refused (`unable, we are facing west and cannot turn around here`). Exceptions: at a runway holding point, and when the aircraft has been stuck (blocked by traffic or with a `blocked` request) for more than **30 s** at a speed below 0.2 m/s. In that case it waits **100-160 s for a tug** before it starts moving. Aircraft up to 25 m wingspan can always turn around.
+
+**Cancelled pushback**: if the aircraft has already moved, the tug tows it back along the same line onto the stand. It is then parked again and calls 60-150 s later.
+
 **Automatic routes** (no `via` list: pilots' own choice, menu suggestions, pushback direction) also follow the airport's **standard taxi flows** for the runway in use: taxiing against a flow costs 4 times the distance. They avoid runway crossings (3000 m extra cost per crossing).
 
 ## Pilot see-and-avoid
@@ -103,7 +107,7 @@ Pilots don't collide on purpose. Every step, each aircraft that is moving along 
 look-ahead = v² / (2 · 1.2 m/s²) + 55 m + own length
 ```
 
-and checks whether another ground aircraft is (or, if it is moving, will be within 4 s) closer to the path than
+and checks whether another ground aircraft **ahead of it** (traffic behind or exactly beside it is ignored, because moving on only increases the distance) is (or, if it is moving, will be within 4 s) closer to the path than
 
 ```
 r = 0.38 · (wingspan A + wingspan B) + 6 m        (two A320s: ~33 m)
@@ -111,7 +115,11 @@ r = 0.38 · (wingspan A + wingspan B) + 6 m        (two A320s: ~33 m)
 
 If so, it plans to stop `max(5 m, (length A + length B)/2 + 12 m - r)` before that point. This keeps in-trail traffic about 15 m nose-to-tail.
 
-**Mutual conflicts**: if two aircraft each see the other on their path (for example converging at an intersection), the one **closer** to the conflict point continues and the other waits. If both are already stopped, for example nose-to-nose on the same taxiway, nothing moves. This is a **deadlock**: after 60 s the pilots report `we have opposite traffic ahead, request instructions`, and you have to re-route one of them.
+**Crossing and merging traffic**: in addition, each aircraft compares its path with the next 150 m of the path of every other aircraft that intends to move (within 600 m). Where the two paths come closer than `r` at an angle of at least 20 degrees, the aircraft that would reach that point **later** (distance / speed, with a minimum speed of 2 m/s) stops `own length / 2 + 10 m` before it, outside the other one's lane. The decision is kept until the conflict is over, so the two don't take turns braking. Traffic whose path runs through the aircraft's current position is behind it in the same lane; it follows and is never given priority.
+
+**Mutual conflicts**: if two aircraft each see the other on their path (for example converging at an intersection), the one **closer** to the conflict point continues and the other waits. If both are already stopped, for example nose-to-nose on the same taxiway, nothing moves. This is a **deadlock**: after 60 s the pilots report `we have opposite traffic ahead, request instructions`, and you have to re-route one of them (after 30 s stuck, airliners accept a route that needs a tug to turn around, see above).
+
+**Waiting aircraft blocking others**: an aircraft that stands still waiting for an instruction (at a clearance limit, a hold-short, a vacate point, or with an open request) and blocks another aircraft for more than 60 s makes the blocked pilot call: `we are blocked by X, waiting on the taxiway ahead, request instructions`. The EDDS vacate points are placed so that an aircraft waiting there does not block the parallel taxiway S.
 
 **Give way and conditional clearances**: an aircraft told to `give way to X`, or given a conditional clearance (`behind X, ...`), waits until X **has passed**. That means X is airborne or gone, or its distance has grown at least 40 m beyond the closest distance so far and is larger than half the combined wingspans plus 40 m. It also continues if X stopped more than 300 m away (after 20 s), or after 4 minutes at the latest.
 
@@ -128,7 +136,7 @@ Pilots only talk on the frequency they are tuned to. Aircraft with Tower are sil
 | `taxiIn`   | Arrival has vacated                                                           | Taxi instruction to a stand              |
 | `handoff`  | Departure at the holding point for 8 s and still on Ground                    | `contact tower`                          |
 | `crossing` | Stopped at a runway holding point on the route                                | `cross runway ..`                        |
-| `blocked`  | Head-on / mutual deadlock for 60 s                                            | `hold position`, `give way`, a new route |
+| `blocked`  | Head-on / mutual deadlock, or behind an aircraft waiting for instructions, for 60 s (cleared automatically once the aircraft moves again) | `hold position`, `give way`, a new route |
 | `route`    | Held short of a taxiway for 2 min, a taxi instruction became invalid, or Tower sent the aircraft back | `continue taxi`, a new route |
 
 **Reminders**: if a request isn't answered, the pilot calls again every 60-89 s (a fixed interval per callsign), up to 5 times. These count as an answer for the waiting-time statistics and suppress reminders:
@@ -160,7 +168,8 @@ Tower owns the runway. Its rules are a simplified model of ICAO PANS-ATM practic
    - the next arrival is more than `roll time + 8 s` from the threshold (about 2 NM).
 
    The aircraft then accelerates at 2.0 m/s². At its rotation speed it becomes airborne, climbs at its climb rate, and accelerates to 200 kt.
-5. **Crossings for its own traffic**: aircraft already handed to Tower that stop at a runway holding point on their route get a crossing as soon as the runway is free and the next arrival is more than 90 s away.
+5. **Stranded departures**: a departure on Tower frequency that has stopped short of the holding point (a hold-short or a clearance limit, for example after `hold short of taxiway A` instead of `taxi to holding point A`) for **15 s** is handled by Tower: at a hold-short on a route that continues, Tower lets it continue; at a clearance limit, Tower taxis it to the runway in use itself if the holding point is at most **600 m** away without turning around, otherwise it sends the aircraft back to you (`Tower sent us back to you, ... request taxi`). A message in the message window tells you what Tower did. (Only while you are not Tower yourself.)
+6. **Crossings for its own traffic**: aircraft already handed to Tower that stop at a runway holding point on their route get a crossing as soon as the runway is free and the next arrival is more than 90 s away.
 
 The **runway area** used for occupancy checks extends 70 m either side of the centre line (the holding positions are at 95 m) and 60 m beyond each runway end.
 
@@ -221,7 +230,7 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 
 ## Special events
 
-Enabled with **Special events** in the Connect dialog (default on). All of them are rare:
+Enabled with **Special events** in the Connect dialog or the in-game settings (default on). All of them are rare:
 
 | Event                          | Chance                          | What happens                                                                 |
 | ------------------------------ | ------------------------------- | ---------------------------------------------------------------------------- |

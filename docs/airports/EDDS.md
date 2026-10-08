@@ -104,6 +104,10 @@ These are a simulator convention for the dual parallel layout, not a published p
 | **25** | **A** (full length); B, C, D (intersections)              | F (rapid), E, G, H (rapid), W (south), I (rapid), K, Y (south)            |
 | **07** | **K** / **Y** (full length, north / south); I, H, W (intersections) | G, E, D (rapid), C, B (rapid), A                                |
 
+**Vacate points** (where an arrival stops after leaving the runway and waits for your taxi instruction) lie between the runway holding position and the next taxiway. Behind F and G they are on the short connector before the F/G junction, clear of taxiway S, so a waiting arrival does not block traffic on S (approximation of the real geometry).
+
+**Take-off run available** from the 25 intersections (simulator values, measured from the point where the aircraft enters the runway): B about 2700 m, C about 2450 m, D about 2200 m; full length from A about 3300 m. This decides the pilots' answer to `advise able for departure from intersection ...`.
+
 About 85% of arrivals vacate to the north. On runway 25 the others vacate to the south via W or Y. They then need a **runway crossing** (at W/H or Y/K) to reach Apron North, unless they park on Apron South.
 
 ### Stands

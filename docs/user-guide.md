@@ -68,6 +68,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `TTS`                 | Pilots read their transmissions aloud (text-to-speech).                                         |
 | `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
 | `ROT`                 | Rotates the scope: **runway horizontal** like the aerodrome chart (default, runway 07 on the left) or north-up. |
+| `SETTINGS`            | Opens the [settings menu](#settings) (also **F2**).                                             |
 | `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#11-score). |
 | `HELP`                | In-game reference (also **F1**).                                                                |
 | `DOCS`                | Opens this documentation on GitHub.                                                             |
@@ -87,6 +88,37 @@ Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS:
 **Broadcast ATIS** publishes the new information. It appears in the message window, and pilots quote the new letter on first contact. The ATIS does not change on its own.
 
 **Runway change**: departures that are not yet taxiing get the new runway and a matching SID. Arrivals further out than 3.5 NM are re-sequenced onto the new final by Approach; arrivals closer in still land on the old runway. Aircraft that are already taxiing keep their clearance, so re-route them to a holding point of the new runway. If an aircraft ends up at the wrong end, Tower sends it back to you.
+
+### Settings
+
+`SETTINGS` in the toolbar (or **F2**) opens the settings menu. Changes apply immediately, also in the middle of a session, and are stored in the browser.
+
+| Setting                  | Effect                                                                                     |
+| ------------------------ | ------------------------------------------------------------------------------------------ |
+| Device (phone - laptop slider) | **Mobile** or **PC** layout, see [Mobile mode](#mobile-mode). Touch-only devices start in mobile mode. |
+| Interface size           | Size of the text and buttons (80-160 %)                                                    |
+| Tag size                 | Size of the aircraft data tags on the scope (80-200 %)                                     |
+| Scope orientation        | Runway horizontal (like the chart) or north-up - the same as `ROT`                         |
+| Show cleared routes      | The same as `ROUTES`                                                                       |
+| Pilot voices (TTS)       | The same as `TTS`                                                                          |
+| Voice volume / speed     | Volume and speaking rate of the pilot voices                                               |
+| Send voice automatically | Transmit the recognised instruction when you release push-to-talk; off = check and press Enter |
+| Recognition accent       | English accent the speech recogniser expects (US, UK, Australia, India, Ireland)           |
+| Traffic density          | Light / medium / heavy; applies to traffic generated from now on                           |
+| Special events           | Medical emergencies and rejected take-offs                                                 |
+
+**Reset to defaults** restores everything except the airport and position.
+
+### Mobile mode
+
+Mobile mode is made for phones and tablets:
+
+- **+ / - / home buttons** on the right of the scope zoom in, out and reset the view (pinching works too).
+- **Tap once** on an aircraft to select it. **Tap it again** to open its menu; a second tap on a tag item opens that item's function (flight plan, taxi destinations, aircraft menu). A **long press** opens the menu directly. A single tap therefore never sends anything by accident.
+- A **quick-action bar** for the selected aircraft: `PUSH` (push and start approved), `TAXI` (taxi destinations), `HOLD`, `CONT` (continue taxi), `TWR` (contact Tower) and `MENU`, depending on what the aircraft is doing.
+- Larger buttons, menu entries, list rows, symbol hit areas and tags; sub-menus open with a tap.
+- On narrow screens the departure and arrival lists start collapsed so the scope has room.
+- The command-line preview is hidden; use voice (`MIC`) or the menus.
 
 ## 3. The scope
 
@@ -270,6 +302,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Taxi to -> holding point       | `taxi to holding point A via ...` (shortest route, following the standard flows) | Departure after pushback, or on a taxi-out stand |
 | Taxi to stand -> stand         | `taxi to stand 14 via ...` (assigned stand first, then free stands nearby) | Arrival on the ground, or a departure returning to a stand |
 | Stop pushback / Cancel pushback | `stop pushback` / `cancel pushback`              | During pushback                               |
+| Able intersection? -> intersection | `advise able for departure from intersection D` | Departure on the ground; the hint shows the answer once given |
 | Hold position                 | `hold position`                                    | Taxiing                                       |
 | Continue taxi                 | `continue taxi`                                    | Taxiing                                       |
 | Hold short of -> taxiway       | `hold short of taxiway D`                          | Taxiways the remaining route joins or crosses |
@@ -295,12 +328,14 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | **Space** (command line empty)          | Pause / resume                                                 |
 | **Home**                                | Reset the scope view                                           |
 | **F1**                                  | Help                                                           |
+| **F2**                                  | Settings                                                       |
 | **Hold the key left of `1`** (`^` / `` ` ``), **Right Ctrl** or **Insert** | Push-to-talk (speech recognition)          |
 | Mouse wheel / pinch                     | Zoom                                                           |
 | Drag (left or right button)             | Pan; drag a tag to move it                                     |
 | Left click                              | Select aircraft (or deselect when clicking empty space); on a tag item: that item's function |
 | Right click                             | Aircraft menu                                                  |
 | Double click (list)                     | Centre on aircraft                                             |
+| Mobile mode: tap / tap again / long press | Select / menu (or tag item) / menu                           |
 
 ## 9. Voice
 

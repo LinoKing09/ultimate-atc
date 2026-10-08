@@ -57,6 +57,8 @@ const FREE_EDGE_PENALTY = 1.15;
 export interface RouteOptions {
   /** Preferred directions of travel (unit vectors) per taxiway name, used for automatic routes. */
   flows?: Map<string, Vec2>;
+  /** Whether the aircraft may turn around on the spot (small aircraft only). Default: true. */
+  allowUTurn?: boolean;
 }
 
 /** Cost factor for automatic routes taxiing against a standard flow. */
@@ -106,6 +108,7 @@ export function findRoute(
       if (near.edge.oneWay && n === near.edge.from && d > 1) continue;
       // Arriving at the node: we travel along toNode, or (if we are standing on it) along our heading.
       const dir = d > 1 ? unit(toNode) : fwd;
+      if (uTurn && options.allowUTurn === false) continue;
       seeds.push({ node: n, cost: d + (uTurn ? UTURN_PENALTY : 0), uTurn, dir });
     }
   } else {

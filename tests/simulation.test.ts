@@ -213,7 +213,7 @@ describe('extended phraseology', () => {
     const sim = makeSim();
     const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     runUntil(sim, () => ac.request === 'pushback');
-    sim.transmit('DLH5AB push and start approved facing west');
+    sim.transmit('DLH5AB push and start approved facing east');
     runUntil(sim, () => ac.request === 'taxi', 400);
     sim.transmit('DLH5AB taxi via M, L2, N, hold short of H');
     runUntil(sim, () => /Taxi via M, L2, N, hold short of taxiway H/.test(lastPilotMessage(sim, 'DLH5AB')), 10);
@@ -225,6 +225,64 @@ describe('extended phraseology', () => {
     sim.transmit('DLH5AB taxi to holding point A via N');
     runUntil(sim, () => ac.phase === 'holding', 600);
     expect(ac.stoppedAt?.holdingPoint).toBe('A');
+  });
+
+  it('refuses a route that needs an airliner to turn around', () => {
+    const sim = makeSim();
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    runUntil(sim, () => ac.request === 'pushback');
+    sim.transmit('DLH5AB push and start approved facing west');
+    runUntil(sim, () => ac.request === 'taxi', 400);
+    sim.transmit('DLH5AB taxi via M, L2, N, hold short of H');
+    expect(runUntil(sim, () => /cannot turn around/.test(lastPilotMessage(sim, 'DLH5AB')), 30)).toBe(true);
+    expect(ac.phase).not.toBe('taxi');
+  });
+
+  it('answers whether it is able for an intersection departure', () => {
+    const sim = makeSim();
+    const jet = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DCMGB', type: 'C56X' }) as Aircraft;
+    const heavy = sim.traffic.spawnDeparture(2, { stand: '12', callsign: 'THY1734', type: 'A332' }) as Aircraft;
+    void jet;
+    void heavy;
+    sim.transmit('DCMGB advise able for departure from intersection D');
+    expect(runUntil(sim, () => /^Affirm, able intersection D/.test(lastPilotMessage(sim, 'DCMGB')), 20)).toBe(true);
+    sim.transmit('THY1734 are you able intersection D');
+    expect(runUntil(sim, () => /^Negative, we require full length/.test(lastPilotMessage(sim, 'THY1734')), 20)).toBe(true);
+  });
+
+  it('refuses taxi to an intersection that is too short', () => {
+    const sim = makeSim();
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'THY1734', type: 'A332' }) as Aircraft;
+    runUntil(sim, () => ac.request === 'pushback');
+    sim.transmit('THY1734 push and start approved facing east');
+    runUntil(sim, () => ac.request === 'taxi', 400);
+    sim.transmit('THY1734 taxi to holding point D via M, H, N');
+    expect(runUntil(sim, () => /Unable intersection D, we require full length/.test(lastPilotMessage(sim, 'THY1734')), 20)).toBe(true);
+  });
+
+  it('lets the AI Tower move on a departure stranded short of the holding point', () => {
+    const sim = makeSim();
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    runUntil(sim, () => ac.request === 'pushback');
+    sim.transmit('DLH5AB push and start approved facing east');
+    runUntil(sim, () => ac.request === 'taxi', 400);
+    sim.transmit('DLH5AB taxi via M, H, N, hold short of A');
+    runUntil(sim, () => ac.stoppedAt?.kind === 'destination', 900);
+    sim.transmit('DLH5AB contact tower');
+    runUntil(sim, () => ac.frequency === 'TWR', 20);
+    // Tower either taxis it on to the holding point or sends it back to Ground - it never stays stuck.
+    expect(runUntil(sim, () => ac.phase === 'holding' || ac.frequency === 'GND' || !sim.aircraft.includes(ac), 400)).toBe(true);
+  });
+
+  it('tows the aircraft back onto the stand when a moving pushback is cancelled', () => {
+    const sim = makeSim();
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    runUntil(sim, () => ac.request === 'pushback');
+    sim.transmit('DLH5AB pushback approved facing east');
+    runUntil(sim, () => ac.phase === 'pushback' && ac.speed > 0.5, 200);
+    sim.transmit('DLH5AB cancel pushback');
+    expect(runUntil(sim, () => ac.phase === 'parked', 300)).toBe(true);
+    expect(ac.stand).toBe('14');
   });
 
   it('executes conditional clearances behind traffic described by type', () => {

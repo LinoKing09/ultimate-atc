@@ -30,6 +30,8 @@ export type Command =
   | { type: 'expect'; what: string; minutes: number }
   | { type: 'expedite' }
   | { type: 'sayAgain' }
+  /** "Are you able intersection D?" - ask whether the aircraft can depart from an intersection. */
+  | { type: 'askIntersection'; name: string }
   | { type: 'lineUp' }
   | { type: 'takeoff' };
 

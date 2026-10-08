@@ -31,7 +31,7 @@ body {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font);
-  font-size: 12px;
+  font-size: calc(12px * var(--ui-scale, 1));
   overflow: hidden;
 }
 
@@ -491,6 +491,106 @@ button:disabled {
   padding: 6px 14px;
   z-index: 40;
   pointer-events: none;
+}
+
+/* ------------------------------------------------------------------ settings */
+.dialog.settings .grid {
+  grid-template-columns: 170px 1fr;
+}
+.dialog .rangerow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dialog .rangerow input {
+  flex: 1;
+}
+.dialog .val {
+  min-width: 52px;
+  color: var(--text-dim);
+}
+.dialog .device {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.dialog .device .device-slider {
+  width: 64px;
+}
+.dialog .devicon {
+  color: var(--text-dim);
+  cursor: pointer;
+  display: inline-flex;
+}
+.dialog .devicon.on {
+  color: var(--accent);
+}
+
+/* ------------------------------------------------------------------ mobile mode */
+.zoombar,
+.quickbar {
+  display: none;
+}
+body.mobile .zoombar {
+  position: absolute;
+  right: 10px;
+  bottom: 70px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  z-index: 20;
+}
+body.mobile .zoombar button {
+  width: 46px;
+  height: 46px;
+  font-size: 22px;
+  border-radius: 23px;
+  background: rgba(45, 54, 59, 0.92);
+}
+body.mobile .quickbar.show {
+  position: absolute;
+  left: 8px;
+  right: 66px;
+  bottom: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+  z-index: 20;
+  background: rgba(38, 46, 50, 0.92);
+  border: 1px solid var(--panel-border);
+  padding: 6px;
+}
+body.mobile .quickbar .qcs {
+  color: var(--accent);
+  font-weight: bold;
+  margin-right: 4px;
+}
+body.mobile .quickbar button {
+  min-height: 40px;
+  min-width: 56px;
+}
+body.mobile button {
+  min-height: 34px;
+  padding: 4px 10px;
+}
+body.mobile .toolbar {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+body.mobile .popup .item {
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+body.mobile .panel tr td {
+  padding-top: 6px;
+  padding-bottom: 6px;
+}
+body.mobile .cmdline .preview {
+  display: none;
+}
+body.mobile .cmdline button.mic {
+  min-width: 70px;
 }
 
 @media (max-width: 700px) {

@@ -82,6 +82,9 @@ const PHONETIC_WORDS: Record<string, string> = {
   whiskey: 'w', whisky: 'w', xray: 'x', 'x-ray': 'x', yankee: 'y', zulu: 'z',
 };
 
+/** Words between "able" and the intersection name ("able for an intersection departure from D"). */
+const ABLE_FILLER = new Set(['for', 'to', 'an', 'a', 'the', 'depart', 'departure', 'from', 'intersection', 'holding', 'point', 'take', 'off', 'takeoff', 'at', 'taxiway']);
+
 const STATION_WORDS: Record<string, StationType> = {
   tower: 'TWR', ground: 'GND', delivery: 'DEL', clearance: 'DEL', approach: 'APP', radar: 'APP',
   departure: 'DEP', director: 'APP', center: 'CTR', centre: 'CTR', apron: 'GND',
@@ -95,7 +98,7 @@ const KEYWORDS = new Set([
   'to', 'via', 'hold', 'holding', 'short', 'cross', 'runway', 'stand', 'gate', 'parking', 'position',
   'contact', 'monitor', 'give', 'continue', 'push', 'pushback', 'start', 'startup', 'expedite',
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
-  'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop',
+  'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -717,6 +720,23 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       c.accept('approved');
       result.commands.push({ type: 'handoff' });
       continue;
+    }
+
+    // ---------- "are you able intersection D?" / "advise able for departure from D"
+    if (w === 'able' || (['are', 'advise', 'confirm', 'can', 'report'].includes(w) && [1, 2, 3].some((k) => ['able', 'accept'].includes(c.peek(k) ?? '')))) {
+      const save = c.i;
+      while (!c.done() && !['able', 'accept'].includes(c.peek()!)) c.next();
+      c.next();
+      while (!c.done() && ABLE_FILLER.has(c.peek()!)) c.next();
+      const name = readDesignator(c);
+      if (name) {
+        c.accept('runway');
+        if (/^\d{2}[lrc]?$/.test(c.peek() ?? '')) readRunway(c);
+        c.accept('departure');
+        result.commands.push({ type: 'askIntersection', name });
+        continue;
+      }
+      c.i = save;
     }
 
     // ---------- misc

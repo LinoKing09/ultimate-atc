@@ -75,11 +75,20 @@ export class Scope {
   /** Route preview while the controller is typing a taxi instruction. */
   preview?: { points: Vec2[]; ok: boolean };
   showAllRoutes = true;
+  /**
+   * Touch-friendly behaviour (mobile mode): the first tap on an aircraft only
+   * selects it, a second tap (or a long press) opens its menu; hit areas are larger.
+   */
+  touchMode = false;
+  /** Size factor of the data tags. */
+  tagScale = 1;
 
   private drag?: {
     mode: 'pan' | 'tag';
     callsign?: string;
     item?: TagItem;
+    /** The aircraft was already selected when the pointer went down (touch mode: second tap). */
+    wasSelected?: boolean;
     clientX?: number;
     clientY?: number;
     lastX: number;
@@ -88,6 +97,7 @@ export class Scope {
   };
   private pointers = new Map<number, { x: number; y: number }>();
   private pinchDist?: number;
+  private longPress?: ReturnType<typeof setTimeout>;
 
   private readonly taxiwayLabels: { name: string; pos: Vec2 }[] = [];
 
@@ -202,7 +212,7 @@ export class Scope {
     let best: { callsign: string; d: number } | undefined;
     for (const s of this.symbolHits) {
       const d = Math.hypot(sx - s.x, sy - s.y);
-      if (d <= s.r && (!best || d < best.d)) best = { callsign: s.callsign, d };
+      if (d <= s.r + (this.touchMode ? 14 : 0) && (!best || d < best.d)) best = { callsign: s.callsign, d };
     }
     return best ? { callsign: best.callsign, kind: 'symbol' } : undefined;
   }
@@ -232,6 +242,17 @@ export class Scope {
         return;
       }
       const hit = this.hitTest(sx, sy);
+      clearTimeout(this.longPress);
+      if (this.touchMode && hit && e.button === 0) {
+        // Long press opens the aircraft menu.
+        this.longPress = setTimeout(() => {
+          if (this.drag?.moved) return;
+          this.drag = undefined;
+          this.cb.onSelect(hit.callsign);
+          this.cb.onContextMenu(hit.callsign, e.clientX, e.clientY);
+        }, 550);
+      }
+      const wasSelected = !!hit && this.selected === hit.callsign;
       if (e.button === 2) {
         if (hit) {
           this.cb.onSelect(hit.callsign);
@@ -243,9 +264,10 @@ export class Scope {
       }
       if (hit?.kind === 'tag') {
         this.cb.onSelect(hit.callsign);
-        this.drag = { mode: 'tag', callsign: hit.callsign, item: hit.item, clientX: e.clientX, clientY: e.clientY, lastX: sx, lastY: sy, moved: false };
+        this.drag = { mode: 'tag', callsign: hit.callsign, item: hit.item, wasSelected, clientX: e.clientX, clientY: e.clientY, lastX: sx, lastY: sy, moved: false };
       } else if (hit) {
         this.cb.onSelect(hit.callsign);
+        if (this.touchMode) this.drag = { mode: 'tag', callsign: hit.callsign, wasSelected, clientX: e.clientX, clientY: e.clientY, lastX: sx, lastY: sy, moved: false };
       } else {
         this.drag = { mode: 'pan', lastX: sx, lastY: sy, moved: false };
       }
@@ -268,13 +290,16 @@ export class Scope {
       if (!this.drag) return;
       const dx = sx - this.drag.lastX;
       const dy = sy - this.drag.lastY;
-      if (Math.abs(dx) + Math.abs(dy) > 2) this.drag.moved = true;
+      if (Math.abs(dx) + Math.abs(dy) > (this.touchMode ? 6 : 2)) {
+        this.drag.moved = true;
+        clearTimeout(this.longPress);
+      }
       this.drag.lastX = sx;
       this.drag.lastY = sy;
       if (this.drag.mode === 'pan') {
         this.cx -= (dx * this.right.x - dy * this.up.x) / this.zoom;
         this.cy -= (dx * this.right.y - dy * this.up.y) / this.zoom;
-      } else if (this.drag.callsign) {
+      } else if (this.drag.callsign && this.drag.item) {
         const ac = this.sim.find(this.drag.callsign);
         if (ac) {
           const off = ac.tagOffset ?? defaultTagOffset();
@@ -286,9 +311,13 @@ export class Scope {
       this.pointers.delete(e.pointerId);
       if (this.pointers.size < 2) this.pinchDist = undefined;
       if (this.drag && this.drag.mode === 'pan' && !this.drag.moved && e.button === 0) this.cb.onSelect(undefined);
+      clearTimeout(this.longPress);
       // A click (no drag) on a tag item opens that item's function, like in EuroScope.
-      if (this.drag && this.drag.mode === 'tag' && !this.drag.moved && this.drag.item && this.drag.callsign) {
-        this.cb.onTagItem(this.drag.callsign, this.drag.item, this.drag.clientX ?? e.clientX, this.drag.clientY ?? e.clientY);
+      // In touch mode only the second tap does: the first one just selects the aircraft.
+      const d = this.drag;
+      if (d && d.mode === 'tag' && !d.moved && d.callsign && (!this.touchMode || d.wasSelected)) {
+        if (d.item) this.cb.onTagItem(d.callsign, d.item, d.clientX ?? e.clientX, d.clientY ?? e.clientY);
+        else if (this.touchMode) this.cb.onContextMenu(d.callsign, d.clientX ?? e.clientX, d.clientY ?? e.clientY);
       }
       this.drag = undefined;
     };
@@ -650,8 +679,9 @@ export class Scope {
         lines.push([{ text: `A${String(Math.round(ac.altitudeFt / 100)).padStart(3, '0')} ${Math.round(ac.speed / KT_TO_MS)}` }]);
       }
     }
-    ctx.font = '11px Consolas, Menlo, monospace';
-    const lh = 12;
+    const k = this.tagScale;
+    ctx.font = `${Math.round(11 * k)}px Consolas, Menlo, monospace`;
+    const lh = Math.round(12 * k);
     const widths = lines.map((l) => ctx.measureText(l.map((x) => x.text).join('')).width);
     const w = Math.max(...widths) + 4;
     const hgt = lines.length * lh + 2;

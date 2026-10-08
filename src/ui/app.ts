@@ -13,6 +13,7 @@ import { arrivalList, departureList, type TrafficList } from './lists';
 import { PopupMenu, type MenuItem } from './menu';
 import { Scope, type TagItem } from './scope';
 import { saveSettings, type Settings } from './settings';
+import { showSettings } from './settingsDialog';
 import { PilotVoices, VoiceInput } from './voice';
 
 const SPEEDS = [1, 2, 4, 8];
@@ -37,6 +38,11 @@ export class App {
   private readonly micButton: HTMLButtonElement;
   private readonly ttsButton: HTMLButtonElement;
   private readonly main: HTMLElement;
+  private readonly routesBtn: HTMLButtonElement;
+  private readonly rotBtn: HTMLButtonElement;
+  /** Mobile mode: actions for the selected aircraft. */
+  private readonly quickbar: HTMLElement;
+  private quickbarKey = '';
   private readonly voices = new PilotVoices();
   private readonly voiceIn: VoiceInput;
 
@@ -65,20 +71,20 @@ export class App {
     }
     this.ttsButton = h('button', { text: 'TTS', title: 'Read pilot transmissions aloud (text-to-speech)' });
     this.ttsButton.addEventListener('click', () => this.setTts(!this.voices.enabled));
-    const routesBtn = h('button', { text: 'ROUTES', title: 'Show the cleared routes of all aircraft on your frequency' });
+    const routesBtn = (this.routesBtn = h('button', { text: 'ROUTES', title: 'Show the cleared routes of all aircraft on your frequency' }));
     routesBtn.addEventListener('click', () => {
-      this.scope.showAllRoutes = !this.scope.showAllRoutes;
-      routesBtn.classList.toggle('active', this.scope.showAllRoutes);
-      this.settings.showRoutes = this.scope.showAllRoutes;
+      this.settings.showRoutes = !this.settings.showRoutes;
       saveSettings(this.settings);
+      this.applySettings();
     });
-    const rotBtn = h('button', { text: 'ROT', title: 'Rotate the scope: runway horizontal (like the aerodrome chart) / north up' });
+    const rotBtn = (this.rotBtn = h('button', { text: 'ROT', title: 'Rotate the scope: runway horizontal (like the aerodrome chart) / north up' }));
     rotBtn.addEventListener('click', () => {
-      this.scope.setRotation(!this.scope.runwayAligned);
-      rotBtn.classList.toggle('active', this.scope.runwayAligned);
-      this.settings.runwayAligned = this.scope.runwayAligned;
+      this.settings.runwayAligned = !this.settings.runwayAligned;
       saveSettings(this.settings);
+      this.applySettings();
     });
+    const settingsBtn = h('button.settings-btn', { html: '&#9881; SETTINGS', title: 'Settings: device layout, sizes, voice, traffic' });
+    settingsBtn.addEventListener('click', () => this.openSettings());
     const helpBtn = h('button', { text: 'HELP', title: 'Phraseology and controls (F1)' });
     helpBtn.addEventListener('click', () => showHelp());
     const docsBtn = h('a', { href: REPO_URL, target: '_blank', rel: 'noopener' }, h('button', { text: 'DOCS', type: 'button' }));
@@ -105,6 +111,7 @@ export class App {
       routesBtn,
       rotBtn,
       h('span.spacer'),
+      settingsBtn,
       field('score', 'Score: +10 per departure handed off / arrival parked, penalties for incidents, delays and "say again"'),
       helpBtn,
       docsBtn,
@@ -130,6 +137,24 @@ export class App {
     this.lists = [departureList(listCb), arrivalList(listCb)];
     for (const l of this.lists) this.main.append(l.el);
 
+    // Mobile mode: zoom buttons and a quick-action bar for the selected aircraft.
+    const zoomBtn = (text: string, title: string, fn: () => void) => {
+      const b = h('button', { text, title, type: 'button' });
+      b.addEventListener('click', fn);
+      return b;
+    };
+    this.main.append(
+      h(
+        'div.zoombar',
+        {},
+        zoomBtn('+', 'Zoom in', () => this.scope.zoomBy(1.4)),
+        zoomBtn('\u2212', 'Zoom out', () => this.scope.zoomBy(1 / 1.4)),
+        zoomBtn('\u2302', 'Reset view', () => this.scope.resetView()),
+      ),
+    );
+    this.quickbar = h('div.quickbar');
+    this.main.append(this.quickbar);
+
     // ---------------------------------------------------------------- comms
     this.messagesEl = h('div.messages');
     this.targetEl = h('span.target');
@@ -152,10 +177,7 @@ export class App {
       onContextMenu: (cs, x, y) => this.openMenu(cs, x, y),
       onTagItem: (cs, item, x, y) => this.onTagItem(cs, item, x, y),
     });
-    this.scope.showAllRoutes = settings.showRoutes;
-    routesBtn.classList.toggle('active', settings.showRoutes);
     this.scope.setRotation(settings.runwayAligned);
-    rotBtn.classList.toggle('active', settings.runwayAligned);
 
     // ---------------------------------------------------------------- voice
     this.voices.volume = settings.ttsVolume;
@@ -186,6 +208,7 @@ export class App {
       this.micButton.title = 'Speech recognition is not supported by this browser (try Chrome or Edge)';
     }
     this.micButton.addEventListener('click', () => (this.voiceIn.listening ? this.voiceIn.stop() : this.voiceIn.start()));
+    this.applySettings();
 
     // ---------------------------------------------------------------- events
     sim.on('message', (m) => this.addMessage(m));
@@ -244,6 +267,7 @@ export class App {
     this.fields.score.className = 'field score';
     this.fields.score.innerHTML = `SCORE <b>${s.score}</b> | DEP ${s.departuresHandedOff} | ARR ${s.arrivalsParked} | <span class="${bad ? 'bad' : ''}">INC ${bad}</span>`;
     this.targetEl.textContent = this.targetText();
+    this.updateQuickbar();
   }
 
   private targetText(): string {
@@ -270,6 +294,80 @@ export class App {
     this.ttsButton.classList.toggle('active', on);
     this.settings.tts = on;
     saveSettings(this.settings);
+  }
+
+  private openSettings(): void {
+    this.menu.close();
+    showSettings(this.sim, this.settings, () => this.applySettings(), { tts: this.voices.supported, mic: this.voiceIn.supported });
+  }
+
+  /** Applies the (possibly changed) settings to the running session. */
+  private applySettings(): void {
+    const s = this.settings;
+    const mobile = s.device === 'mobile';
+    if (mobile !== document.body.classList.contains('mobile')) {
+      document.body.classList.toggle('mobile', mobile);
+      // Small screens: start with the lists collapsed so the scope is usable.
+      for (const l of this.lists) l.el.classList.toggle('collapsed', mobile && window.innerWidth < 900);
+    }
+    document.documentElement.style.setProperty('--ui-scale', String(s.uiScale));
+    this.scope.touchMode = mobile;
+    this.scope.tagScale = s.tagScale * (mobile ? 1.25 : 1);
+    this.scope.showAllRoutes = s.showRoutes;
+    this.routesBtn.classList.toggle('active', s.showRoutes);
+    if (s.runwayAligned !== this.scope.runwayAligned) this.scope.setRotation(s.runwayAligned);
+    this.rotBtn.classList.toggle('active', s.runwayAligned);
+    if (this.voices.enabled !== (s.tts && this.voices.supported)) this.setTts(s.tts && this.voices.supported);
+    this.voices.volume = s.ttsVolume;
+    this.voices.rate = s.ttsRate;
+    this.voiceIn.lang = s.voiceLang;
+    this.sim.config.density = s.density;
+    this.sim.config.events = s.events;
+    this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : 'Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help';
+    this.quickbarKey = '';
+    this.updateQuickbar();
+    requestAnimationFrame(() => this.scope.resize());
+  }
+
+  /** Mobile mode: one-tap buttons for the most common instructions to the selected aircraft. */
+  private updateQuickbar(): void {
+    const ac = this.sim.find(this.selected);
+    const show = this.settings.device === 'mobile' && !!ac;
+    this.quickbar.classList.toggle('show', show);
+    if (!show || !ac) {
+      this.quickbarKey = '';
+      return;
+    }
+    const mine = this.sim.isOnMyFrequency(ac);
+    const key = `${ac.callsign}|${ac.phase}|${ac.request}|${mine}|${ac.frequency}`;
+    if (key === this.quickbarKey) return;
+    this.quickbarKey = key;
+    const btn = (text: string, fn: (b: HTMLButtonElement) => void) => {
+      const b = h('button', { text, type: 'button' });
+      b.addEventListener('click', () => fn(b));
+      return b;
+    };
+    const at = (b: HTMLButtonElement): [number, number] => {
+      const r = b.getBoundingClientRect();
+      return [r.left, r.top];
+    };
+    const items: HTMLElement[] = [h('span.qcs', { text: ac.callsign })];
+    if (mine) {
+      if (ac.phase === 'parked' && ac.category === 'departure') {
+        const stand = this.sim.airport.stand(ac.stand ?? '');
+        if (stand?.pushback === false) items.push(btn('TAXI', (b) => this.menu.open(`${ac.callsign} - taxi to`, this.taxiDestinations(ac), ...at(b))));
+        else items.push(btn('PUSH', () => this.say(ac, 'push and start approved')));
+      } else if (ac.onGround && ['pushback', 'startup', 'taxi', 'holding'].includes(ac.phase)) {
+        const arr = ac.category === 'arrival' || ac.returnToStand;
+        items.push(btn('TAXI', (b) => this.menu.open(arr ? `${ac.callsign} - taxi to stand` : `${ac.callsign} - taxi to`, arr ? this.standDestinations(ac) : this.taxiDestinations(ac), ...at(b))));
+        items.push(btn('HOLD', () => this.say(ac, 'hold position')));
+        items.push(btn('CONT', () => this.say(ac, 'continue taxi')));
+        const tower = this.sim.airport.station('TWR');
+        if (ac.category === 'departure' && tower && ['taxi', 'holding'].includes(ac.phase)) items.push(btn('TWR', () => this.say(ac, `contact tower ${tower.frequency}`)));
+      }
+    }
+    items.push(btn('MENU', (b) => this.openMenu(ac.callsign, ...at(b))));
+    this.quickbar.replaceChildren(...items);
   }
 
   private select(cs: string | undefined): void {
@@ -357,6 +455,11 @@ export class App {
     if (e.key === 'F1') {
       e.preventDefault();
       showHelp();
+      return;
+    }
+    if (e.key === 'F2') {
+      e.preventDefault();
+      this.openSettings();
       return;
     }
     if (e.key === 'Tab') {
@@ -551,6 +654,7 @@ export class App {
         items.push({ label: 'Push and start approved', submenu: pushSub(true) });
       }
       items.push({ label: 'Start-up approved', action: () => this.say(ac, 'start-up approved') });
+      items.push(this.ableItem(ac));
     } else if (ac.onGround && ['pushback', 'startup', 'taxi', 'holding'].includes(ac.phase)) {
       if (ac.category === 'arrival' || ac.returnToStand) {
         items.push({ label: 'Taxi to stand', submenu: () => this.standDestinations(ac) });
@@ -576,6 +680,7 @@ export class App {
         disabled: !near.length,
         submenu: () => near.map((o) => ({ label: o.callsign, hint: `${Math.round(distance(o.pos, ac.pos))} m`, action: () => this.say(ac, `give way to ${o.callsign}`) })),
       });
+      if (ac.category === 'departure' && !ac.returnToStand) items.push(this.ableItem(ac));
       if (ac.category === 'departure' && tower) {
         items.push({ divider: true, label: '' });
         items.push({
@@ -615,6 +720,25 @@ export class App {
       }
     }
     return items;
+  }
+
+  /** "Advise able for departure from intersection X" for the intersections of the runway in use. */
+  private ableItem(ac: Aircraft): MenuItem {
+    const ops = this.sim.airport.runwayOps(this.sim.runway);
+    const entries = ops?.departureEntries.filter((e) => !e.fullLength) ?? [];
+    return {
+      label: 'Able intersection?',
+      disabled: !entries.length,
+      submenu: () =>
+        entries.map((e) => {
+          const answer = ac.ableIntersection?.[e.holdingPoint.toUpperCase()];
+          return {
+            label: `Intersection ${e.holdingPoint}`,
+            hint: answer === undefined ? '' : answer ? 'able' : 'full length',
+            action: () => this.say(ac, `advise able for departure from intersection ${e.holdingPoint}`),
+          };
+        }),
+    };
   }
 
   private standDestinations(ac: Aircraft): MenuItem[] {

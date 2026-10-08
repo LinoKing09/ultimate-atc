@@ -4,6 +4,32 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-10-08
+
+Settings, mobile mode and better ground handling.
+
+### Added
+
+- **Settings menu** (`SETTINGS` in the toolbar or F2), applied live and stored in the browser: device layout, interface size, tag size, scope orientation, routes, pilot voices (on/off, volume, speed), automatic voice transmission, recognition accent, traffic density and special events.
+- **Mobile mode** (phone-laptop slider in the settings; touch-only devices start in it): + / - / home zoom buttons, first tap selects an aircraft and the second tap (or a long press) opens its menu, quick-action bar for the selected aircraft (PUSH, TAXI, HOLD, CONT, TWR, MENU), larger touch targets and tags, sub-menus open with a tap, lists start collapsed on narrow screens.
+- **Intersection departures like in real operations**: `advise able for departure from intersection D` / `are you able intersection D`. The crew compares the take-off run available with what its aircraft type needs (new per-type figure, varied per flight) and answers `affirm, able intersection D` or `negative, we require full length`; a taxi instruction to an intersection that is too short gets `unable intersection D, we require full length`. Aircraft menu: *Able intersection?*.
+- **AI Tower handles stranded departures**: a departure handed to Tower that stopped short of the holding point (for example after `hold short of taxiway A` instead of `taxi to holding point A`) is taxied on to the holding point if it is close, or sent back to Ground.
+- Pilots blocked for over a minute by an aircraft that waits for instructions call `we are blocked by X, waiting on the taxiway ahead, request instructions`.
+- Cancelling a pushback that is already moving tows the aircraft back onto the stand.
+- Tug turnaround: an airliner that has been stuck for 30 s accepts a route that needs a 180 degree turn and waits 100-160 s for a tug.
+
+### Changed
+
+- **Airliners (wingspan above 25 m) no longer turn around on the spot**: a route that needs a 180 degree turn (for example `taxi to holding point A via N` while facing west) is answered with `unable, we are facing west and cannot turn around here, say again route`.
+- Ground separation: traffic behind an aircraft no longer blocks it, and crossing or merging paths are resolved by a priority rule (the aircraft that would arrive later waits outside the other one's lane; the decision is kept until the conflict is over).
+- EDDS: the vacate points behind exits F and G were moved off taxiway S, so an arrival waiting there no longer blocks traffic on S.
+
+### Fixed
+
+- A whole area could lock up when a landed aircraft waited at its vacate point on taxiway S.
+- An aircraft pulling out in front of approaching traffic could give way to the traffic behind it, which then ran into it (collision).
+- `blocked` requests stayed open (with reminders) after the traffic had moved on.
+
 ## [0.3.0] - 2026-10-07
 
 Real EDDS layout.

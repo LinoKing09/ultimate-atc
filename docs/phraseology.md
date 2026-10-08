@@ -61,7 +61,7 @@ Notation: `[optional]`, `a | b` = alternatives, `X` = taxiway, `HP` = holding po
 | `pushback approved tail east`                                | Same with the tail direction (tail east = facing west)                                       |
 | `push and start approved [facing ...]`                       | Pushback with engine start during the push. The aircraft is ready for taxi sooner.           |
 | `start-up approved` / `startup approved`                     | Engine start on the stand. Combine with a later pushback; it shortens the start-up after the push. |
-| `cancel pushback` / `pushback cancelled`                     | Before the tug moves: the pushback is cancelled, the aircraft stays on the stand and calls again in 1-2.5 minutes. While pushing: like *stop pushback*. |
+| `cancel pushback` / `pushback cancelled`                     | Before the tug moves: the pushback is cancelled, the aircraft stays on the stand. Already moving: the tug **tows the aircraft back onto the stand**. Either way it calls again in 1-2.5 minutes. |
 | `stop pushback` / `stop the push`                            | The push stops immediately (read-back `stopping pushback`)                                   |
 | `continue pushback` / `continue push`                        | Resumes a stopped pushback                                                                   |
 
@@ -98,6 +98,19 @@ So after a pushback from stand 14 facing east, `taxi to holding point A via L2, 
 If the route is impossible, the pilot replies `unable to follow route via S, say again route`. An unknown taxiway gives `confirm taxiway Q, we can't find it`. The live preview in the command line shows these problems **before** you transmit.
 
 **Incomplete taxi instructions** (clearance limit): `taxi via S, hold short of E` or `taxi along R, D, N, hold short of runway 25`. There is no destination; the aircraft taxis along the via taxiways and stops at the hold-short point, which is the clearance limit: about 40 m before the junction with E, or at the runway holding point. The read-back is `Taxi via S, hold short of taxiway E, ...`. Then give the rest of the route with a normal taxi instruction. `continue taxi` at a clearance limit gets `confirm where to taxi`.
+
+**No turning around on the spot**: an airliner (wingspan above 25 m) cannot make a 180 degree turn on a taxiway. If the route you give would need one, for example `taxi to holding point A via N` for an aircraft facing west on N when A is to the east, the pilot replies `unable, we are facing west and cannot turn around here, say again route`. Give a route that continues in the direction the aircraft is facing, or loops around. Smaller aircraft (business jets, CRJ900) can turn around. Exceptions:
+
+- at a runway holding point (there is room to turn), and
+- when the aircraft has been **stuck** for over 30 seconds (blocked by other traffic): a route that needs a turn is accepted, the pilot reads it back with `we need a tug to turn around, ready in about two minutes`, and starts taxiing 100-160 seconds later. Use this to solve a deadlock.
+
+**Intersection departures**: ask first, as in real operations:
+
+| You say                                                         | Pilot replies                                              |
+| --------------------------------------------------------------- | ---------------------------------------------------------- |
+| `advise able for departure from intersection D` / `are you able intersection D` / `confirm able to depart from D` | `Affirm, able intersection D, ...` or `Negative, we require full length, ...` |
+
+The crew compares the take-off run available from that intersection with what their aircraft needs today (a figure per type, e.g. A320 about 2100 m, A330 about 2800 m, Citation about 1200 m, varied per flight by -10 % / +15 %). An aircraft that is not able replies `unable intersection D, we require full length` when you send it to that holding point anyway. Asking for a holding point that is not an entry to the runway in use gets `confirm intersection X, it is not an entry to runway 25`. The aircraft menu has *Able intersection?* for the intersections of the runway in use.
 
 **Stand assignments** are checked: `stand 14 is occupied` or `stand 22 is too small for us`.
 
@@ -206,6 +219,7 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | `number 2 for pushback`                             | `Number 2 for pushback, Condor 11`                                  |
 | `cancel pushback`                                   | `Pushback cancelled, Lufthansa 5AB`                                 |
 | `taxi via S, hold short of E`                       | `Taxi via S, hold short of taxiway E, Lufthansa 5AB`                |
+| `advise able for departure from intersection D`     | `Affirm, able intersection D, Lufthansa 5AB` / `Negative, we require full length, ...` |
 | `behind DLH5AB, taxi to ...`                        | `Behind Lufthansa 5AB, taxi to ..., Eurowings 7TK`                  |
 
 ## Pilot calls
@@ -220,6 +234,8 @@ Pilots on your frequency call on their own:
 | Departure at the holding point and still with you       | `Lufthansa 5AB, holding point A, ready for departure`                                 |
 | Runway holding point on the route, no crossing clearance | `Turkish 1734, holding short runway 25 at W`                                        |
 | Head-on with other traffic for over a minute            | `Lufthansa 5AB, we have opposite traffic ahead, EWG7TK, request instructions`          |
+| Stopped for over a minute behind an aircraft that waits for instructions (for example at a vacate point) | `Lufthansa 5AB, we are blocked by Eurowings 7TK, waiting on the taxiway ahead, request instructions` |
+| Departure on Tower frequency stuck short of the holding point and far from it | `Stuttgart Ground, Lufthansa 5AB, Tower sent us back to you, we are short of the holding point, request taxi` |
 | Held short of a taxiway for over two minutes            | `Lufthansa 5AB, holding short of D, request to continue`                               |
 | Tower refused the departure (too little runway left)    | `Stuttgart Ground, Lufthansa 5AB, tower sent us back, not enough runway at K for departure 25, request taxi` |
 | Medical emergency, arrival (after vacating)             | `Stuttgart Ground, Eurowings 7TK, PAN PAN, medical emergency on board, vacated runway 25 via E, request expedited taxi to the stand, ambulance requested` |

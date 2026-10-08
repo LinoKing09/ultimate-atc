@@ -146,6 +146,12 @@ export interface Aircraft {
   rejectAtSpeed?: number;
   /** Departure that wants to return to a stand (technical problem or medical emergency). */
   returnToStand?: boolean;
+  /** Being towed back onto the stand after "cancel pushback" during the push. */
+  towingIn?: boolean;
+  /** Waiting for a tug to turn the aircraft around (until this simulation time). */
+  tugUntil?: number;
+  /** Time since when the AI Tower sees this departure stranded short of the holding point. */
+  towerStuckSince?: number;
   /** Pre-rolled special event: medical emergency while taxiing out. */
   plannedMedical?: boolean;
   /** Simulation time the current taxi route was started. */
@@ -156,6 +162,10 @@ export interface Aircraft {
   airborneAt?: number;
   /** True if the take-off started from an intersection (not full length). */
   intersectionDeparture?: boolean;
+  /** Take-off run the crew needs today (metres), decided on first use. */
+  requiredRunwayM?: number;
+  /** Answers given to "are you able intersection X?" (intersection name -> able). */
+  ableIntersection?: Record<string, boolean>;
   /** Tag offset on screen in pixels (UI state kept with the aircraft for convenience). */
   tagOffset?: { x: number; y: number };
 }

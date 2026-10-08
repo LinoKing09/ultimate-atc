@@ -73,6 +73,8 @@ export function formatCommand(c: Command): string {
       return 'expedite taxi';
     case 'sayAgain':
       return 'say again';
+    case 'askIntersection':
+      return `advise able for departure from intersection ${c.name}`;
     case 'lineUp':
       return 'line up';
     case 'takeoff':

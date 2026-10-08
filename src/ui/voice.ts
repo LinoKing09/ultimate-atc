@@ -18,6 +18,8 @@ function hash(s: string): number {
 export class PilotVoices {
   enabled = false;
   volume = 1;
+  /** Global speaking-rate factor (settings). */
+  rate = 1;
   private voices: SpeechSynthesisVoice[] = [];
 
   constructor() {
@@ -41,7 +43,7 @@ export class PilotVoices {
     const hv = hash(callsign);
     if (this.voices.length) u.voice = this.voices[hv % this.voices.length];
     u.pitch = 0.8 + ((hv >> 8) % 40) / 100;
-    u.rate = Math.min(2, (1.05 + ((hv >> 16) % 25) / 100) * rate);
+    u.rate = Math.min(2, (1.05 + ((hv >> 16) % 25) / 100) * rate * this.rate);
     u.volume = this.volume;
     window.speechSynthesis.speak(u);
   }
@@ -129,6 +131,11 @@ export class VoiceInput {
 
   get supported(): boolean {
     return !!this.rec;
+  }
+
+  /** Language/accent of the recogniser, e.g. "en-US" or "en-GB". */
+  set lang(lang: string) {
+    if (this.rec) this.rec.lang = lang;
   }
 
   start(): void {

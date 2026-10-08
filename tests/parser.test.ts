@@ -107,4 +107,11 @@ describe('speech', () => {
     );
     expect(toSpoken('Tower 118.805, goodbye')).toBe('Tower one one eight decimal eight zero five, goodbye');
   });
+
+  it('parses questions about intersection departures', () => {
+    for (const text of ['DLH5AB are you able intersection D', 'DLH5AB advise able for departure from intersection D', 'DLH5AB confirm able to depart from D runway 25', 'Lufthansa 5AB able for an intersection departure from delta']) {
+      const p = parseTransmission(text, ctx);
+      expect(p.commands).toEqual([{ type: 'askIntersection', name: 'D' }]);
+    }
+  });
 });

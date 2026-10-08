@@ -57,7 +57,7 @@ export class PopupMenu {
         continue;
       }
       const row = h(`div.item${it.submenu ? '.sub' : ''}${it.disabled ? '.disabled' : ''}`, {}, it.label, it.hint ? h('span.hint', { text: it.hint }) : null);
-      row.addEventListener('pointerenter', () => {
+      const enter = () => {
         el.querySelectorAll('.item.open').forEach((n) => n.classList.remove('open'));
         it.onHover?.(true);
         if (it.submenu && !it.disabled) {
@@ -67,10 +67,13 @@ export class PopupMenu {
         } else {
           this.closeFrom(level + 1);
         }
-      });
+      };
+      row.addEventListener('pointerenter', enter);
       row.addEventListener('pointerleave', () => it.onHover?.(false));
       row.addEventListener('click', (e) => {
         e.stopPropagation();
+        // Touch screens have no hover: a tap on a sub-menu entry opens it.
+        if (it.submenu && !it.disabled && !row.classList.contains('open')) enter();
         if (it.disabled || it.submenu) return;
         this.close();
         it.action?.();

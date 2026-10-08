@@ -1,4 +1,4 @@
-import { dot, headingVector, normalize, sub, type Vec2 } from '../geo';
+import { dot, headingVector, normalize, projectOnSegment, sub, type Vec2 } from '../geo';
 import { otherEnd, type Airport, type TaxiEdge, type TaxiNode } from './airport';
 
 /**
@@ -55,6 +55,8 @@ const MAX_TURN = 150;
 const FREE_EDGE_PENALTY = 1.15;
 
 export interface RouteOptions {
+  /** Points the route must keep away from (e.g. another aircraft standing on a taxiway), with a radius in metres. */
+  avoid?: { points: Vec2[]; radius: number };
   /** Automatic routes: never taxi against a standard flow (instead of only avoiding it). */
   strictFlows?: boolean;
   /** Wingspan of the aircraft: edges with a smaller wingspan limit are not used. */
@@ -67,6 +69,11 @@ export interface RouteOptions {
 
 /** Cost factor for automatic routes taxiing against a standard flow. */
 const AGAINST_FLOW_FACTOR = 4;
+
+/** True if the segment a-b passes within `radius` of one of the points. */
+function segmentNear(a: Vec2, b: Vec2, avoid: { points: Vec2[]; radius: number }): boolean {
+  return avoid.points.some((p) => projectOnSegment(p, a, b).dist < avoid.radius);
+}
 
 export function findRoute(
   airport: Airport,
@@ -113,6 +120,7 @@ export function findRoute(
       // Arriving at the node: we travel along toNode, or (if we are standing on it) along our heading.
       const dir = d > 1 ? unit(toNode) : fwd;
       if (uTurn && options.allowUTurn === false) continue;
+      if (options.avoid && segmentNear(start.position, n.pos, options.avoid)) continue;
       seeds.push({ node: n, cost: d + (uTurn ? UTURN_PENALTY : 0), uTurn, dir });
     }
   } else {
@@ -159,6 +167,7 @@ export function findRoute(
       if (e.kind === 'runway') continue;
       if (e.oneWay && e.from !== cur.node) continue;
       if (options.wingspanM !== undefined && options.wingspanM > e.maxWingspanM) continue;
+      if (options.avoid && segmentNear(e.from.pos, e.to.pos, options.avoid)) continue;
       const nxt = otherEnd(e, cur.node);
       // Stand lead-in lines may only be used to leave the start stand or to enter the destination stand.
       if (e.kind === 'stand' && nxt !== destination && cur.node !== start.node) continue;

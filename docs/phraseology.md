@@ -165,6 +165,19 @@ EWG7TK, when clear of the Boeing, taxi to holding point A via L2, S
 
 Words after the callsign ("from the left", "passing left to right") are ignored. The callsign of the traffic can be in any form listed under [Callsigns](#callsigns).
 
+### Clearance delivery
+
+| You say | Effect |
+| ------- | ------ |
+| `cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312` | IFR clearance. Clearance limit: destination name (`Frankfurt`, `Paris Charles de Gaulle`) or ICAO code (`EDDF`). SID: designator, also spelled (`kilo romeo hotel two whiskey`). Optional: `runway 25`, `CTOT 1435`. Altitude: `5000 feet`, `five thousand feet`, `flight level 70`, also after `maintain`. Also `..., KRH2W departure, ...` without `via`. |
+| `readback correct` / `read back correct` | Confirms a readback |
+| `squawk 2312` / `negative, squawk 2312` | Assigns (or corrects) a squawk code (octal digits 0-7) |
+| `CTOT 1435` / `slot 1435` | Tells the crew its calculated take-off time |
+| `start-up approved` | Start-up (needs the clearance) |
+| `contact ground 118.605` | Hand-off to Ground (needs the clearance) |
+
+`cleared to cross runway 25` is a crossing clearance, not an IFR clearance. A datalink clearance (DCL) is sent from the aircraft menu, not by voice.
+
 ### Frequency change
 
 | You say                                                  | Effect                                                         |
@@ -214,6 +227,12 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | `continue taxi`                                     | `Continue taxi, Lufthansa 5AB`                                      |
 | `give way to EWG7TK`                                | `Give way to Eurowings 7TK, Lufthansa 5AB`                          |
 | `contact tower`                                     | `Tower 118.805, goodbye, Lufthansa 5AB`                             |
+| `cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312` | `Cleared to Frankfurt, KRH2W departure, climb 5000 feet, squawk 2312[, CTOT 1435], Lufthansa 5AB` - now and then with a **wrong squawk**: correct it |
+| IFR clearance with a missing or wrong part          | `Confirm KRH2E departure, information R says runway 25 in use, ...` / `Confirm clearance limit, our destination is Frankfurt` / `Request squawk` / `Confirm initial climb` |
+| `squawk 2312`                                       | `Squawk 2312, Lufthansa 5AB`                                        |
+| `readback correct`                                  | *(no read-back)*                                                    |
+| `start-up approved` without a clearance             | `Negative, we have no clearance yet, Lufthansa 5AB`                 |
+| a route that needs a tug                            | `Taxi to ..., we need a tug to turn around, expect about 7 minutes, Lufthansa 5AB` |
 | `expedite taxi`                                     | `Expediting, Lufthansa 5AB`                                         |
 | `standby`                                           | *(no read-back)*                                                    |
 | `number 2 for pushback`                             | `Number 2 for pushback, Condor 11`                                  |
@@ -228,6 +247,9 @@ Pilots on your frequency call on their own:
 
 | Situation                                               | Example                                                                                |
 | ------------------------------------------------------- | -------------------------------------------------------------------------------------- |
+| Clearance request (Delivery, first contact, 10 min before off-block) | `Stuttgart Delivery, Lufthansa 5AB, A320, stand 14, information E, request clearance to Frankfurt` (DCL crews: no call, `DCL` in the list) |
+| Start-up request (Delivery; with A-CDM at the TSAT)     | `Stuttgart Delivery, Lufthansa 5AB, stand 14, ready for start-up, TSAT 1452`            |
+| After start-up approval (Delivery)                      | `Stuttgart Delivery, Lufthansa 5AB, start-up approved, request frequency for pushback`  |
 | Departure ready (first contact)                         | `Stuttgart Ground, Lufthansa 5AB, stand 14, information E, request pushback` (sometimes `request push and start`) |
 | Pushback and start-up complete                          | `Lufthansa 5AB, ready for taxi`                                                        |
 | Arrival has vacated the runway (first contact)          | `Stuttgart Ground, Eurowings 7TK, vacated runway 25 via E`                             |
@@ -278,5 +300,6 @@ Frequent misrecognitions are corrected before parsing:
 
 - Taxi via a runway (backtrack) and line-up instructions; these are Tower's job and come with the Tower position.
 - `follow` with real follow-the-leader behaviour.
-- Clearance delivery phraseology (IFR clearances, squawks) - planned for the Delivery position.
+- Expected-start-up phrases with a time (`expect start-up at 1452`); use `expect start-up in 5 minutes`.
+- Clearance amendments in parts (`climb amended ...`) - give the full clearance again.
 - Non-English phraseology (German "Rollkontrolle" phrases).

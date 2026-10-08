@@ -1,6 +1,7 @@
 import type { Aircraft } from '../core/aircraft';
 import type { Simulation } from '../core/simulation';
 import { formatDuration, h } from './dom';
+import { hhmm } from '../core/delivery';
 import { clearedTo, requestLabel, statusCode } from './labels';
 
 /**
@@ -99,7 +100,11 @@ export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]):
       { key: 'ades', label: 'ADES', get: (a) => a.flightPlan.destination },
       { key: 'sid', label: 'SID', get: (a) => a.flightPlan.sid ?? '' },
       { key: 'rwy', label: 'RWY', get: (a) => a.flightPlan.runway ?? '' },
-      { key: 'clr', label: 'CLR', get: (a) => clearedTo(a) },
+      { key: 'ifr', label: 'IFR', get: (a) => (a.cleared ? 'CLR' : '') },
+      { key: 'sq', label: 'SQ', get: (a) => a.flightPlan.squawk },
+      { key: 'tsat', label: 'TSAT', get: (a, sim) => (a.tsat !== undefined && sim.systemOn('acdm') ? hhmm(sim, a.tsat) : '') },
+      { key: 'ctot', label: 'CTOT', cls: 'ctot', get: (a, sim) => (a.ctot !== undefined ? hhmm(sim, a.ctot) : '') },
+      { key: 'clr', label: 'TAXI', get: (a) => clearedTo(a) },
       { key: 'sts', label: 'STS', get: (a) => statusCode(a) },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
       { key: 'req', label: 'REQ', cls: 'req', get: reqCell },

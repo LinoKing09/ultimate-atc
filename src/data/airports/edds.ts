@@ -394,6 +394,8 @@ export const EDDS: AirportData = {
   elevationFt: 1276,
   magneticVariation: 3.5,
   transitionAltitudeFt: 5000,
+  // Initial climb used in clearances (simulator value, equal to the transition altitude).
+  initialClimbFt: 5000,
   // Stand sizes: code C on Apron North except the wide-body positions 71A / 74A; Apron South 105-107 wide-body.
   dataNotice:
     'Layout digitised by hand from the AIP Germany aerodrome charts (AD 2 EDDS 2-5 / 2-7, AMDT 10/26), accuracy about +-10 m; some areas simplified. Not for real-world navigation.',
@@ -587,11 +589,29 @@ export const EDDS: AirportData = {
       positions: ['GND'],
       items: [
         'You own the aprons and taxiways: pushback and start-up, taxi out to the runway holding points, taxi in to the stands.',
-        'Departures already have their IFR clearance (Delivery is simulated). They call you for pushback (or taxi from a drive-through stand).',
+        'Departures get their IFR clearance and start-up from Delivery 121.915 (run by the simulator unless you staff it too). They call you for pushback (or taxi from a drive-through stand); with A-CDM on, at their TSAT.',
         'Hand departures over to Tower 118.805 at or shortly before the holding point: `contact tower 118.805`. Tower lines them up and clears them for take-off.',
         'Arrivals are with Tower until they have vacated the runway. They call you from the vacate point: give them a stand and a route.',
         'The runway belongs to Tower. Nobody enters it without a clearance; aircraft that must cross (south side) stop at the runway holding point and ask you: `cross runway 25`.',
       ],
+    },
+    {
+      title: 'Your job as Stuttgart Delivery',
+      positions: ['DEL'],
+      items: [
+        'Every departure calls you about 10 minutes before off-block for its IFR clearance (about 4 in 10 crews request it by datalink instead - DCL in the request column). Phraseology: `cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312`.',
+        'Clearance limit is the destination; the SID is the one of the runway in use that leads to the first fix of the flight plan (the aircraft menu lists it first). Initial climb 5000 ft (simulator value). Squawk: the next free code (the menu picks one).',
+        'Listen to the readback: now and then a crew reads back a wrong squawk. Correct it (`negative, squawk 2312`) - a missed error costs points; otherwise `readback correct`.',
+        'Start-up: with A-CDM (Stuttgart has been a full A-CDM airport since 2014) the crew calls at its TSAT. `start-up approved`, then `contact ground 118.605` when it asks for the pushback frequency.',
+        'CTOT: flights with an ATFM slot show it in the CTOT column; include it in the clearance (`..., CTOT 1435`). Take-off must be between CTOT -5 and +10 minutes; the TSAT already accounts for the taxi time.',
+      ],
+      table: {
+        head: ['Runway / first fix', 'SID (simulator placeholders, not the published procedures)'],
+        rows: [
+          ['25: LBU / SUL / RIXED / KRH', 'LBU2W / SUL2W / RIXED2W / KRH2W'],
+          ['07: LBU / SUL / RIXED / KRH', 'LBU2E / SUL2E / RIXED2E / KRH2E'],
+        ],
+      },
     },
     {
       title: 'Standard taxi flows',

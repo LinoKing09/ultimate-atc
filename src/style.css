@@ -706,3 +706,42 @@ body.mobile .cmdline button.mic {
 .cmdline .cmd:empty + button.clear {
   visibility: hidden;
 }
+
+/* ------------------------------------------------------------------ systems window */
+.dialog .sysrow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid #323c41;
+}
+.dialog .sysinfo {
+  flex: 1;
+}
+.dialog .sysname {
+  color: #fff;
+}
+.dialog .sysrow .sub {
+  margin: 2px 0 0;
+}
+.dialog .lamp {
+  width: 12px;
+  height: 12px;
+  border-radius: 6px;
+  flex: 0 0 auto;
+  background: #55606a;
+}
+.dialog .lamp.on {
+  background: var(--ok);
+  box-shadow: 0 0 6px var(--ok);
+}
+.dialog .lamp.off {
+  background: var(--danger);
+}
+.toolbar button.sys-warn {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+.cmdline .preview.warn {
+  color: var(--warn);
+}

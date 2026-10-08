@@ -1,5 +1,6 @@
 import type { StationType } from '../airport/types';
-import type { Command, HoldShortTarget, TaxiDestination } from './commands';
+import { destinationName, resolveDestination } from '../../data/destinations';
+import type { Altitude, Command, HoldShortTarget, TaxiDestination } from './commands';
 import { telephonyCallsign } from './speech';
 
 /** Word used for a station type in phraseology ("contact Tower"). */
@@ -75,6 +76,14 @@ export function formatCommand(c: Command): string {
       return 'say again';
     case 'askIntersection':
       return `advise able for departure from intersection ${c.name}`;
+    case 'clearance':
+      return formatClearance(c);
+    case 'squawk':
+      return `squawk ${c.code}`;
+    case 'readbackCorrect':
+      return 'readback correct';
+    case 'ctot':
+      return `CTOT ${c.time}`;
     case 'lineUp':
       return 'line up';
     case 'takeoff':
@@ -84,4 +93,20 @@ export function formatCommand(c: Command): string {
 
 export function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** "5000 feet" / "flight level 70". */
+export function formatAltitude(a: Altitude): string {
+  return 'fl' in a ? `flight level ${a.fl}` : `${a.feet} feet`;
+}
+
+/** An IFR clearance in standard order: limit, route (SID), runway, climb, squawk, slot. */
+export function formatClearance(c: Extract<Command, { type: 'clearance' }>): string {
+  const dest = c.destination ? (resolveDestination(c.destination) ? destinationName(resolveDestination(c.destination)!) : c.destination) : '';
+  const parts = [`cleared to ${dest || '...'}${c.sid ? ` via ${c.sid} departure` : ''}`];
+  if (c.runway) parts.push(`runway ${c.runway}`);
+  if (c.climb) parts.push(`climb ${formatAltitude(c.climb)}`);
+  if (c.squawk) parts.push(`squawk ${c.squawk}`);
+  if (c.ctot) parts.push(`CTOT ${c.ctot}`);
+  return parts.join(', ');
 }

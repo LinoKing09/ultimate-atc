@@ -4,7 +4,9 @@ import type { Aircraft } from '../core/aircraft';
 export function statusCode(ac: Aircraft): string {
   switch (ac.phase) {
     case 'parked':
-      return ac.request ? 'RQST' : '----';
+      if (ac.startupApproved) return 'ST-UP';
+      if (ac.request) return 'RQST';
+      return ac.cleared ? 'CLRD' : '----';
     case 'pushback':
       return 'PUSH';
     case 'startup':
@@ -64,6 +66,12 @@ export function requestLabel(ac: Aircraft): string {
       return 'BLKD';
     case 'route':
       return 'RTE?';
+    case 'clearance':
+      return ac.dcl ? 'DCL' : 'CLR';
+    case 'startup':
+      return 'STUP';
+    case 'frequency':
+      return 'FREQ';
     default:
       return '';
   }

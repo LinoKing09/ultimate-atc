@@ -33,8 +33,7 @@ function section(s: BriefingSection): HTMLElement {
  */
 export function renderBriefing(sim: Simulation): HTMLElement {
   const ap = sim.config.airport;
-  const pos = sim.config.position;
-  const st = sim.station;
+  const mine = ap.stations.filter((s) => sim.userControls(s.type));
 
   const runways = ap.runways.map((r) => {
     const len = r.lengthM ?? Math.round(Math.max(...r.ends.map((e) => sim.airport.runwayEnd(e.name)?.length ?? 0)));
@@ -42,12 +41,12 @@ export function renderBriefing(sim: Simulation): HTMLElement {
   });
   const glance: [string, string][] = [
     ['Airport', `${ap.icao} - ${ap.name}${ap.city !== ap.name ? `, ${ap.city}` : ''}, ${ap.country}`],
-    ['Your position', `${st.callsign}, "${st.name}", ${st.frequency}`],
+    ['Your position', mine.map((s) => `${s.callsign}, "${s.name}", ${s.frequency}`).join(' + ')],
     ['Elevation', `${ap.elevationFt} ft`],
     ['Runways', runways.join(', ')],
     ['Transition altitude', `${ap.transitionAltitudeFt} ft`],
   ];
-  const freqs: [string, string][] = ap.stations.map((s) => [s.callsign, `${s.name} ${s.frequency}${s.type === pos ? '  (you)' : ''}`]);
+  const freqs: [string, string][] = ap.stations.map((s) => [s.callsign, `${s.name} ${s.frequency}${sim.userControls(s.type) ? '  (you)' : ''}`]);
 
   // The runway in use right now.
   const ops = sim.airport.runwayOps(sim.runway);
@@ -63,11 +62,11 @@ export function renderBriefing(sim: Simulation): HTMLElement {
     if (ops.flows?.length) now.push(['Taxi flows', ops.flows.map((f) => `${f.taxiway} ${f.direction}bound`).join(', ')]);
   }
 
-  const sections = (ap.briefing ?? []).filter((s) => !s.positions || s.positions.includes(pos));
+  const sections = (ap.briefing ?? []).filter((s) => !s.positions || s.positions.some((p) => sim.userControls(p)));
   return h(
     'div.briefing',
     {},
-    h('div.sub', { text: `Briefing for ${st.callsign}. Everything here is also in the documentation; open it again at any time with BRIEFING in the toolbar.` }),
+    h('div.sub', { text: `Briefing for ${mine.map((s) => s.callsign).join(' + ')}. Everything here is also in the documentation; open it again at any time with BRIEFING in the toolbar.` }),
     h('h2', { text: 'At a glance' }),
     table(undefined, glance),
     h('h2', { text: `Now: runway ${sim.runway} in use` }),

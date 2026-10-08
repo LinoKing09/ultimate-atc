@@ -7,6 +7,9 @@ export type TaxiDestination =
   /** Clearance limit "hold short of taxiway X" without another destination. */
   | { kind: 'holdShort'; name: string };
 
+/** An altitude in feet or a flight level. */
+export type Altitude = { feet: number } | { fl: number };
+
 export type HoldShortTarget = { kind: 'taxiway'; name: string } | { kind: 'runway'; runway: string };
 
 /** A single controller instruction extracted from a transmission. */
@@ -32,6 +35,14 @@ export type Command =
   | { type: 'sayAgain' }
   /** "Are you able intersection D?" - ask whether the aircraft can depart from an intersection. */
   | { type: 'askIntersection'; name: string }
+  /** IFR (en-route) clearance: "cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312". */
+  | { type: 'clearance'; destination?: string; sid?: string; runway?: string; climb?: Altitude; squawk?: string; ctot?: string }
+  /** Transponder code: "squawk 2312". */
+  | { type: 'squawk'; code: string }
+  /** "Readback correct" after an IFR clearance. */
+  | { type: 'readbackCorrect' }
+  /** Calculated take-off time (ATFM slot): "CTOT 1435" / "slot time 1435". */
+  | { type: 'ctot'; time: string }
   | { type: 'lineUp' }
   | { type: 'takeoff' };
 

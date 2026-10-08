@@ -4,7 +4,10 @@ import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { parseTransmission } from '../core/phraseology/parser';
+import { headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
+import { allocateSquawk, hhmm, initialClimbFt, sendDcl, suggestedSid } from '../core/delivery';
 import { previewTaxi } from '../core/pilot';
+import { destinationName } from '../data/destinations';
 import type { RadioMessage } from '../core/radio';
 import type { Simulation } from '../core/simulation';
 import { REPO_URL, showAtisEditor, showHelp } from './dialogs';
@@ -15,6 +18,7 @@ import { Scope, type TagItem } from './scope';
 import { CommandInput } from './commandInput';
 import { saveSettings, type Settings } from './settings';
 import { showSettings } from './settingsDialog';
+import { showSystems } from './systemsDialog';
 import { PilotVoices, VoiceInput } from './voice';
 
 const SPEEDS = [1, 2, 4, 8];
@@ -41,6 +45,7 @@ export class App {
   private readonly main: HTMLElement;
   private readonly routesBtn: HTMLButtonElement;
   private readonly rotBtn: HTMLButtonElement;
+  private readonly sysBtn: HTMLButtonElement;
   /** Mobile mode: actions for the selected aircraft. */
   private readonly quickbar: HTMLElement;
   private quickbarKey = '';
@@ -90,6 +95,8 @@ export class App {
       saveSettings(this.settings);
       this.applySettings();
     });
+    const sysBtn = (this.sysBtn = h('button', { text: 'SYSTEMS', title: 'ATC and airport systems: A-SMGCS, A-CDM, datalink (F3)' }));
+    sysBtn.addEventListener('click', () => this.openSystems());
     const settingsBtn = h('button.settings-btn', { html: '&#9881; SETTINGS', title: 'Settings: device layout, sizes, voice, traffic' });
     settingsBtn.addEventListener('click', () => this.openSettings());
     const helpBtn = h('button', { text: 'HELP', title: 'Phraseology and controls (F1)' });
@@ -121,6 +128,7 @@ export class App {
       rotBtn,
       h('span.spacer'),
       briefBtn,
+      sysBtn,
       settingsBtn,
       field('score', 'Score: +10 per departure handed off / arrival parked, penalties for incidents, delays and "say again"'),
       helpBtn,
@@ -240,7 +248,8 @@ export class App {
     new ResizeObserver(() => this.scope.resize()).observe(this.main);
 
     this.setSpeed(1);
-    this.hint(`Connected as ${sim.station.callsign} (${sim.station.name}, ${sim.station.frequency}). Runway ${sim.runway} in use. BRIEFING shows the airport briefing, F1 the help.`);
+    const staffed = sim.config.airport.stations.filter((st) => sim.userControls(st.type)).map((st) => `${st.callsign} (${st.name}, ${st.frequency})`);
+    this.hint(`Connected as ${staffed.join(' + ')}. Runway ${sim.runway} in use. BRIEFING shows the airport briefing, F1 the help.`);
     requestAnimationFrame((t) => this.frame(t));
   }
 
@@ -281,8 +290,11 @@ export class App {
   private slowUpdate(): void {
     const sim = this.sim;
     for (const l of this.lists) l.update(sim, this.selected);
-    const st = sim.station;
-    this.fields.station.innerHTML = `<b>${st.callsign}</b> ${st.frequency}`;
+    // Combined positions: every staffed station with its frequency.
+    this.fields.station.innerHTML = sim.config.airport.stations
+      .filter((st) => sim.userControls(st.type))
+      .map((st) => `<b>${st.callsign}</b> ${st.frequency}`)
+      .join(' + ');
     this.fields.rwy.innerHTML = `RWY <b>${sim.runway}</b>`;
     this.fields.atis.innerHTML = `ATIS <b>${sim.atisLetter}</b>`;
     const wind = sim.observedWind;
@@ -297,6 +309,9 @@ export class App {
     this.fields.score.innerHTML = `SCORE <b>${s.score}</b> | DEP ${s.departuresHandedOff} | ARR ${s.arrivalsParked} | <span class="${bad ? 'bad' : ''}">INC ${bad}</span>`;
     this.targetEl.textContent = this.targetText();
     this.updateQuickbar();
+    const off = Object.values(this.sim.systems).filter((v) => !v).length;
+    this.sysBtn.classList.toggle('sys-warn', off > 0);
+    this.sysBtn.textContent = off ? `SYSTEMS (${off} OFF)` : 'SYSTEMS';
   }
 
   private targetText(): string {
@@ -323,6 +338,11 @@ export class App {
     this.ttsButton.classList.toggle('active', on);
     this.settings.tts = on;
     saveSettings(this.settings);
+  }
+
+  private openSystems(): void {
+    this.menu.close();
+    showSystems(this.sim, () => this.slowUpdate());
   }
 
   private openSettings(): void {
@@ -352,7 +372,9 @@ export class App {
     this.voiceIn.lang = s.voiceLang;
     if (s.density !== this.densitySetting) this.sim.config.density = this.densitySetting = s.density;
     if (s.events !== this.eventsSetting) this.sim.config.events = this.eventsSetting = s.events;
-    this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : 'Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help';
+    this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : this.sim.userControls('GND')
+        ? 'Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help'
+        : 'Type an instruction, e.g. "DLH5AB cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312" - F1 for help';
     this.quickbarKey = '';
     this.updateQuickbar();
     requestAnimationFrame(() => this.scope.resize());
@@ -368,7 +390,7 @@ export class App {
       return;
     }
     const mine = this.sim.isOnMyFrequency(ac);
-    const key = `${ac.callsign}|${ac.phase}|${ac.request}|${mine}|${ac.frequency}`;
+    const key = `${ac.callsign}|${ac.phase}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${headOnPartner(this.sim, ac)?.callsign ?? ''}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
     const btn = (text: string, fn: (b: HTMLButtonElement) => void) => {
@@ -381,7 +403,16 @@ export class App {
       return [r.left, r.top];
     };
     const items: HTMLElement[] = [h('span.qcs', { text: ac.callsign })];
-    if (mine) {
+    if (mine && ac.frequency === this.sim.stationFor('delivery') && this.sim.stationFor('delivery') !== this.sim.stationFor('ground')) {
+      const del = this.deliveryItems(ac);
+      const sub = (label: string) => del.find((i) => i.label === label);
+      const clr = sub('Send DCL (datalink)') ?? sub('IFR clearance') ?? sub('IFR clearance by voice') ?? sub('Amend IFR clearance');
+      if (clr && !ac.cleared) items.push(btn(clr.label.startsWith('Send') ? 'DCL' : 'CLR', (b) => this.menu.open(`${ac.callsign} - ${clr.label}`, clr.submenu!(), ...at(b))));
+      if (ac.cleared) items.push(btn('RB OK', () => this.say(ac, 'readback correct')));
+      if (ac.cleared && !ac.startupApproved) items.push(btn('START', () => this.say(ac, 'start-up approved')));
+      const ground = this.sim.airport.station(this.sim.stationFor('ground'));
+      if (ac.cleared && ground) items.push(btn('GND', () => this.say(ac, `contact ground ${ground.frequency}`)));
+    } else if (mine) {
       if (ac.phase === 'parked' && ac.category === 'departure') {
         const stand = this.sim.airport.stand(ac.stand ?? '');
         if (stand?.pushback === false) items.push(btn('TAXI', (b) => this.menu.open(`${ac.callsign} - taxi to`, this.taxiDestinations(ac), ...at(b))));
@@ -390,6 +421,8 @@ export class App {
         const arr = ac.category === 'arrival' || ac.returnToStand;
         items.push(btn('TAXI', (b) => this.menu.open(arr ? `${ac.callsign} - taxi to stand` : `${ac.callsign} - taxi to`, arr ? this.standDestinations(ac) : this.taxiDestinations(ac), ...at(b))));
         items.push(btn('HOLD', () => this.say(ac, 'hold position')));
+        const partner = headOnPartner(this.sim, ac);
+        if (partner) items.push(btn('RESOLVE', (b) => this.menu.open(`${ac.callsign} - resolve conflict`, this.resolveItem(ac, partner).submenu!(), ...at(b))));
         items.push(btn('CONT', () => this.say(ac, 'continue taxi')));
         const tower = this.sim.airport.station(this.sim.stationFor('tower'));
         if (ac.category === 'departure' && tower && ['taxi', 'holding'].includes(ac.phase)) items.push(btn('TWR', () => this.say(ac, `contact tower ${tower.frequency}`)));
@@ -497,6 +530,11 @@ export class App {
       this.openSettings();
       return;
     }
+    if (e.key === 'F3') {
+      e.preventDefault();
+      this.openSystems();
+      return;
+    }
     if (e.key === 'Tab') {
       e.preventDefault();
       this.selectNextRequest();
@@ -549,6 +587,7 @@ export class App {
     const parsed = parseTransmission(text, {
       callsigns: this.sim.aircraft.map((a) => a.callsign),
       taxiways: this.sim.airport.taxiwayNames,
+      sids: this.sim.sidNames,
       selected: this.selected,
     });
     const ac = this.sim.find(parsed.callsign);
@@ -557,6 +596,7 @@ export class App {
       return;
     }
     let ok = !!ac;
+    let warn = false;
     let msg = `${ac ? ac.callsign : parsed.callsign ?? '(no callsign)'}: ${parsed.commands.map(formatCommand).join(', ')}`;
     const taxi = parsed.commands.find((c) => c.type === 'taxi');
     if (ac && taxi && taxi.type === 'taxi' && (taxi.destination || taxi.via.length)) {
@@ -565,7 +605,14 @@ export class App {
         ok = false;
         msg += `  -- ${r.error}`;
       } else {
-        this.scope.preview = { points: routePoints(ac, r.route.nodes.map((n) => n.pos), r.route.startPosition), ok: true };
+        const pts = routePoints(ac, r.route.nodes.map((n) => n.pos), r.route.startPosition);
+        this.scope.preview = { points: pts, ok: true };
+        // A-SMGCS CATC: warn before transmitting a route that meets other traffic head-on.
+        const c = this.sim.systemOn('catc') ? routeHeadOn(this.sim, ac, pts) : undefined;
+        if (c) {
+          warn = true;
+          msg += `  -- CATC: head-on with ${c.other.callsign}${c.taxiway ? ` on ${c.taxiway}` : ''}`;
+        }
       }
     }
     if (ac && !this.sim.isOnMyFrequency(ac)) {
@@ -574,7 +621,7 @@ export class App {
     }
     if (parsed.unparsed.length) msg += `  (ignored: ${parsed.unparsed.join(' ')})`;
     this.previewEl.textContent = msg;
-    this.previewEl.classList.add(ok ? 'ok' : 'err');
+    this.previewEl.classList.add(ok ? (warn ? 'warn' : 'ok') : 'err');
   }
 
   /** Picks the speech recognition alternative that makes the most sense as an instruction. */
@@ -583,7 +630,7 @@ export class App {
     let best = candidates[0];
     let bestScore = -Infinity;
     candidates.forEach((text, i) => {
-      const p = parseTransmission(text, { callsigns, taxiways: this.sim.airport.taxiwayNames, selected: this.selected });
+      const p = parseTransmission(text, { callsigns, taxiways: this.sim.airport.taxiwayNames, selected: this.selected, sids: this.sim.sidNames });
       const ac = this.sim.find(p.callsign);
       let score = p.commands.length * 3 - p.unparsed.length - i * 0.3;
       if (p.explicitCallsign && ac) score += 4;
@@ -648,11 +695,17 @@ export class App {
     const cmd = parseTransmission(`taxi to ${phraseDest}`, { callsigns: [], taxiways: this.sim.airport.taxiwayNames }).commands[0];
     const r = cmd && cmd.type === 'taxi' ? previewTaxi(this.sim, ac, cmd) : { error: 'invalid' };
     if ('error' in r) return { label, hint: r.error, disabled: true };
-    const via = r.route.taxiways.filter((t) => this.sim.airport.taxiwayNames.has(t.toUpperCase()));
     const destText = r.dest.kind === 'holdingPoint' ? `holding point ${r.dest.name}` : phraseDest;
+    if (!this.sim.systemOn('routing')) {
+      // No A-SMGCS routing service: no proposed route - plan it yourself (or let the pilot take the standard route).
+      return { label, hint: hint ?? 'no route proposal', action: () => this.say(ac, `taxi to ${destText}`) };
+    }
+    const via = r.route.taxiways.filter((t) => this.sim.airport.taxiwayNames.has(t.toUpperCase()));
+    const pts = routePoints(ac, r.route.nodes.map((n) => n.pos), r.route.startPosition);
+    const conflict = this.sim.systemOn('catc') ? routeHeadOn(this.sim, ac, pts) : undefined;
     return {
       label,
-      hint: hint ?? `via ${via.join(' ')}`,
+      hint: `${hint ?? `via ${via.join(' ')}`}${conflict ? `  ! head-on ${conflict.other.callsign}` : ''}`,
       action: () => this.say(ac, `taxi to ${destText} via ${via.join(', ')}`),
       onHover: (on) => {
         this.menuPreview = on;
@@ -675,6 +728,12 @@ export class App {
 
     const rwy = sim.runway;
     const tower = sim.airport.station(sim.stationFor('tower'));
+
+    if (ac.frequency === sim.stationFor('delivery') && sim.stationFor('delivery') !== sim.stationFor('ground')) {
+      items.push(...this.deliveryItems(ac));
+      items.push({ divider: true, label: '' }, center, resetTag);
+      return items;
+    }
 
     if (ac.phase === 'parked' && ac.category === 'departure') {
       const facings = this.pushFacings(ac);
@@ -710,6 +769,8 @@ export class App {
       });
       const rwyStop = ac.stoppedAt?.kind === 'runway' || ac.stops.some((s) => s.kind === 'runway');
       items.push({ label: `Cross runway ${rwy}`, disabled: !rwyStop, action: () => this.say(ac, `cross runway ${rwy}`) });
+      const partner = headOnPartner(sim, ac);
+      if (partner) items.push(this.resolveItem(ac, partner));
       const near = sim.aircraft
         .filter((o) => o !== ac && o.onGround && o.phase !== 'parked' && o.phase !== 'arrived' && distance(o.pos, ac.pos) < 800)
         .sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos))
@@ -746,6 +807,75 @@ export class App {
     return items;
   }
 
+  /** Clearance Delivery: IFR clearance (voice or DCL), squawk, readback, start-up, hand-off to Ground. */
+  private deliveryItems(ac: Aircraft): MenuItem[] {
+    const sim = this.sim;
+    const items: MenuItem[] = [];
+    const climb = `${initialClimbFt(sim)} feet`;
+    // Keep the code of an earlier clearance; otherwise the next free code.
+    const squawk = ac.clearance?.squawk || allocateSquawk(sim);
+    const suggested = suggestedSid(sim, ac);
+    const sids = sim.config.airport.sids
+      .filter((sd) => sd.runway === sim.runway)
+      .sort((a, b) => (a.name === suggested ? -1 : b.name === suggested ? 1 : a.name.localeCompare(b.name)));
+    const sidHint = (name: string, fix: string) => (name === suggested ? `${fix} - flight plan` : fix);
+    const dest = destinationName(ac.flightPlan.destination);
+    const ctot = ac.ctot !== undefined ? `, CTOT ${hhmm(sim, ac.ctot)}` : '';
+    const dclRequest = ac.dcl && sim.systemOn('dcl') && !ac.cleared;
+    if (dclRequest) {
+      items.push({
+        label: 'Send DCL (datalink)',
+        hint: `squawk ${squawk}`,
+        submenu: () =>
+          sids.map((sd) => ({
+            label: sd.name,
+            hint: sidHint(sd.name, sd.fix),
+            action: () => {
+              const err = sendDcl(sim, ac, sd.name, squawk);
+              if (err) this.toast(err);
+              this.slowUpdate();
+            },
+          })),
+      });
+    }
+    items.push({
+      label: ac.cleared ? 'Amend IFR clearance' : dclRequest ? 'IFR clearance by voice' : 'IFR clearance',
+      hint: `squawk ${squawk}`,
+      submenu: () =>
+        sids.map((sd) => ({
+          label: sd.name,
+          hint: sidHint(sd.name, sd.fix),
+          action: () => this.say(ac, `cleared to ${dest} via ${sd.name} departure, climb ${climb}, squawk ${squawk}${ctot}`),
+        })),
+    });
+    items.push({ label: 'Readback correct', disabled: !ac.cleared, action: () => this.say(ac, 'readback correct') });
+    const assigned = ac.clearance?.squawk;
+    items.push({
+      label: 'Squawk',
+      disabled: !assigned,
+      submenu: () => [
+        { label: `Negative, squawk ${assigned}`, hint: 'correct a wrong readback', action: () => this.say(ac, `negative, squawk ${assigned}`) },
+        { label: 'New code', hint: allocateSquawk(sim), action: () => this.say(ac, `squawk ${allocateSquawk(sim)}`) },
+      ],
+    });
+    const tsat = sim.systemOn('acdm') && ac.tsat !== undefined ? ac.tsat : undefined;
+    items.push({
+      label: 'Start-up approved',
+      hint: !ac.cleared ? 'no clearance yet' : tsat !== undefined ? `TSAT ${hhmm(sim, tsat)}` : undefined,
+      disabled: !ac.cleared || ac.startupApproved || ac.phase !== 'parked',
+      action: () => this.say(ac, 'start-up approved'),
+    });
+    if (ac.ctot !== undefined) items.push({ label: `CTOT ${hhmm(sim, ac.ctot)}`, hint: 'slot (-5/+10 min)', action: () => this.say(ac, `CTOT ${hhmm(sim, ac.ctot!)}`) });
+    const ground = sim.airport.station(sim.stationFor('ground'));
+    if (ground) {
+      items.push({ divider: true, label: '' });
+      items.push({ label: `Contact Ground ${ground.frequency}`, disabled: !ac.cleared, action: () => this.say(ac, `contact ground ${ground.frequency}`) });
+    }
+    if (ac.request) items.push({ label: 'Standby', action: () => this.say(ac, 'standby') });
+    items.push({ label: 'Say again', action: () => this.say(ac, 'say again') });
+    return items;
+  }
+
   private taxiDestinations(ac: Aircraft): MenuItem[] {
     const sim = this.sim;
     const items: MenuItem[] = [];
@@ -759,6 +889,32 @@ export class App {
       }
     }
     return items;
+  }
+
+  /**
+   * Resolve a head-on conflict the way it is done in real operations: one
+   * aircraft turns off via another taxiway (the other one waits), or - if
+   * there is no junction left between them - a tug turns one around.
+   */
+  private resolveItem(ac: Aircraft, other: Aircraft): MenuItem {
+    return {
+      label: `Resolve conflict with ${other.callsign}`,
+      submenu: () => {
+        if (!this.sim.systemOn('routing')) return [{ label: 'No route proposals (routing service off)', disabled: true }];
+        const options = resolveOptions(this.sim, ac, other).filter((o) => this.sim.isOnMyFrequency(o.aircraft));
+        if (!options.length) return [{ label: 'No way out found - hold both and re-route by hand', disabled: true }];
+        return options.map((o) => ({
+          label: `${o.aircraft.callsign}: ${o.tug ? 'tug turnaround, then ' : ''}${o.instruction.replace(/^taxi to /, 'to ')}`,
+          hint: o.tug ? 'tug: 5-10 min' : `${o.other.callsign} waits`,
+          action: () => this.say(o.aircraft, o.instruction),
+          onHover: (on: boolean) => {
+            this.menuPreview = on;
+            this.scope.preview = on ? { points: routePoints(o.aircraft, o.route.nodes.map((n) => n.pos), o.route.startPosition), ok: true } : undefined;
+            if (!on) this.updatePreview();
+          },
+        }));
+      },
+    };
   }
 
   /** "Advise able for departure from intersection X" for the intersections of the runway in use. */

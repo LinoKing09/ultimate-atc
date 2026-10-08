@@ -1,3 +1,4 @@
+import { CTOT_EARLY_S, CTOT_LATE_S, hhmm } from './delivery';
 import type { RunwayEnd, TaxiNode } from './airport/airport';
 import { moveFree, type Aircraft } from './aircraft';
 import { KT_TO_MS, M_PER_FT, M_PER_NM, add, distance, headingVector, length, scale } from './geo';
@@ -315,11 +316,31 @@ export class TowerAI {
     return (ac.type.vrKt * KT_TO_MS) / TAKEOFF_ACCEL + 12;
   }
 
+  /**
+   * CTOT (ATFM slot): take-off is only allowed from CTOT -5 to CTOT +10
+   * minutes. A flight that misses its window needs a new slot.
+   */
+  private checkSlots(): void {
+    const sim = this.sim;
+    for (const a of sim.aircraft) {
+      if (a.category !== 'departure' || a.ctot === undefined || !a.onGround || ['takeoff', 'climb', 'gone'].includes(a.phase)) continue;
+      if (sim.time <= a.ctot + CTOT_LATE_S) continue;
+      const old = hhmm(sim, a.ctot);
+      a.ctot = Math.round((sim.time + sim.rng.range(20 * 60, 40 * 60)) / 60) * 60;
+      sim.stats.slotsMissed++;
+      sim.updateScore();
+      sim.system(`${a.callsign} missed its CTOT ${old} (window -5/+10 min). New CTOT ${hhmm(sim, a.ctot)} from the Network Manager.`, 'warning', a.callsign);
+    }
+  }
+
   private sequenceDepartures(): void {
     const sim = this.sim;
+    this.checkSlots();
     if (sim.aircraft.some((a) => a.phase === 'lineup')) return;
+    // A departure with a CTOT is only lined up when it can be airborne inside its window; others go first.
     const queue = sim.aircraft
       .filter((a) => a.frequency === sim.stationFor('tower') && a.phase === 'holding')
+      .filter((a) => a.ctot === undefined || sim.time + 35 + this.rollTime(a) >= a.ctot - CTOT_EARLY_S)
       .sort((a, b) => (a.holdingSince ?? 0) - (b.holdingSince ?? 0));
     const next = queue[0];
     if (!next || !this.canLineUp(next)) return;

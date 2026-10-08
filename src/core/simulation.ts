@@ -6,7 +6,11 @@ import { detectCollisions, updateMovement, updateSeparation } from './movement';
 import { parseTransmission } from './phraseology/parser';
 import { executeTransmission, updatePilot } from './pilot';
 import { Frequency, type MessageKind, type RadioMessage } from './radio';
+import { updateConflictAlerts, updateRunwayAlerts } from './conflicts';
+import { updateSequencer } from './delivery';
+import { updateGroundAI } from './groundAI';
 import { Rng } from './random';
+import { SYSTEMS, defaultSystemStates, type SystemId, type SystemStates } from './systems';
 import { SCENARIO_EVENT_TEXT, type ScenarioEvent, type ScenarioSetup } from './scenario';
 import { TowerAI } from './tower';
 import { TrafficGenerator } from './traffic';
@@ -71,6 +75,14 @@ export interface Stats {
   emergenciesHandled: number;
   /** Bonus points (e.g. medical emergencies handled quickly). */
   bonus: number;
+  /** Delivery: departures cleared and handed to Ground. */
+  clearancesDelivered: number;
+  /** Delivery: wrong squawk readbacks that were not corrected. */
+  readbackErrorsMissed: number;
+  /** Delivery: wrong readbacks the controller corrected. */
+  readbackErrorsCaught: number;
+  /** Departures that missed their CTOT window (-5/+10 min). */
+  slotsMissed: number;
   score: number;
 }
 
@@ -125,6 +137,11 @@ export class Simulation {
   readonly station: StationData;
   /** Stations staffed by the user. */
   readonly userStations: Set<StationType>;
+  /** On/off state of the ATC and airport systems (systems window). */
+  readonly systems: SystemStates;
+  /** Current head-on conflicts between cleared routes (CATC), by pair key. */
+  readonly routeConflicts = new Map<string, { a: Aircraft; b: Aircraft; taxiway: string }>();
+  private nextConflictCheck = 0;
   readonly startEpochMs: number;
 
   /** Simulation time in seconds since session start. */
@@ -146,6 +163,10 @@ export class Simulation {
     rejectedTakeoffs: 0,
     emergenciesHandled: 0,
     bonus: 0,
+    clearancesDelivered: 0,
+    readbackErrorsMissed: 0,
+    readbackErrorsCaught: 0,
+    slotsMissed: 0,
     score: 0,
   };
 
@@ -174,6 +195,7 @@ export class Simulation {
     if (!station) throw new Error(`${config.airport.icao} has no ${config.position} station`);
     this.station = station;
     this.userStations = new Set([config.position, ...(config.positions ?? [])]);
+    this.systems = defaultSystemStates(config.airport.systems);
     this.startEpochMs = (config.startTime ?? new Date()).getTime();
     this.frequency = new Frequency(station.frequency, (m) => this.pushMessage(m));
     this.tower = new TowerAI(this);
@@ -264,6 +286,13 @@ export class Simulation {
       updateMovement(this, ac, dt);
     }
     detectCollisions(this);
+    updateRunwayAlerts(this);
+    if (this.time >= this.nextConflictCheck) {
+      this.nextConflictCheck = this.time + 5;
+      updateConflictAlerts(this);
+      updateSequencer(this);
+      updateGroundAI(this);
+    }
     this.frequency.update(this.time);
 
     const gone = this.aircraft.filter((a) => a.phase === 'gone');
@@ -286,11 +315,11 @@ export class Simulation {
     const trimmed = text.trim();
     if (!trimmed) return { ok: false };
     const callsigns = this.aircraft.map((a) => a.callsign);
-    let parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected });
+    let parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected, sids: this.sidNames });
     // Voice-only operation: without callsign and selection, address the pilot who called last.
     if (!parsed.callsign && opts.fallbackToLastCaller) {
       const last = this.lastCaller();
-      if (last) parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected: last.callsign });
+      if (last) parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected: last.callsign, sids: this.sidNames });
     }
     return executeTransmission(this, parsed, trimmed);
   }
@@ -435,6 +464,25 @@ export class Simulation {
     return this.userStations.has(ac.frequency);
   }
 
+  /** SID designators of the airport (for the parser). */
+  get sidNames(): string[] {
+    return this.config.airport.sids.map((s) => s.name.toUpperCase());
+  }
+
+  /** True if a system is available at this airport and switched on. */
+  systemOn(id: SystemId): boolean {
+    return this.systems[id];
+  }
+
+  /** Switches a system on or off (systems window). Systems the airport does not have stay off. */
+  setSystem(id: SystemId, on: boolean): void {
+    const available = !this.config.airport.systems || this.config.airport.systems.includes(id);
+    if (!available || this.systems[id] === on) return;
+    this.systems[id] = on;
+    const info = SYSTEMS.find((s) => s.id === id)!;
+    this.system(`${info.group}: ${info.name} switched ${on ? 'on' : 'off'}.${on ? '' : ` ${info.whenOff}`}`, on ? 'system' : 'warning');
+  }
+
   /** True if the user staffs this station (otherwise the AI runs it). */
   userControls(type: StationType): boolean {
     return this.userStations.has(type);
@@ -522,7 +570,11 @@ export class Simulation {
     s.score =
       s.departuresHandedOff * 10 +
       s.arrivalsParked * 10 +
+      s.clearancesDelivered * 10 +
+      s.readbackErrorsCaught * 5 +
       s.bonus -
+      s.readbackErrorsMissed * 10 -
+      s.slotsMissed * 10 -
       s.sayAgains * 2 -
       s.delayPenalty -
       s.incursions * 50 -

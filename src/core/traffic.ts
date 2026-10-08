@@ -2,6 +2,7 @@ import { aircraftType, type AircraftType } from '../data/aircraftTypes';
 import { AIRLINES, type Airline } from '../data/airlines';
 import type { Stand } from './airport/airport';
 import { createAircraft, type Aircraft, type FlightPlan } from './aircraft';
+import { prepareDeparture } from './delivery';
 import type { Density, Simulation } from './simulation';
 
 /** Movements per hour for each traffic density. */
@@ -252,6 +253,7 @@ export class TrafficGenerator {
     ac.runway = rwy;
     ac.readyAt = sim.time + readyIn;
     ac.plannedMedical = sim.config.events !== false && sim.rng.chance(DEPARTURE_MEDICAL_CHANCE);
+    prepareDeparture(sim, ac);
     sim.aircraft.push(ac);
     return ac;
   }

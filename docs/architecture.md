@@ -25,7 +25,11 @@ ultimate-atc/
 │   │   ├── aircraft.ts        # Aircraft state, flight plan, phases
 │   │   ├── movement.ts        # path following, speed control, see-and-avoid, collisions
 │   │   ├── pilot.ts           # AI pilots: executing instructions, read-backs, own calls
-│   │   ├── tower.ts           # AI Tower: approach, landing, line-up, take-off, incursions
+│   │   ├── tower.ts           # AI Tower: approach, landing, line-up, take-off, incursions, CTOT windows
+│   │   ├── delivery.ts        # Clearance Delivery: IFR clearances, squawks, readback errors, CTOTs, DCL, A-CDM sequencer
+│   │   ├── groundAI.ts        # AI Ground (when the user doesn't staff Ground)
+│   │   ├── conflicts.ts       # A-SMGCS: CATC head-on checks, Resolve conflict options, RMCA runway alerts
+│   │   ├── systems.ts         # airport/ATC systems (A-SMGCS services, A-CDM, DCL) and their states
 │   │   ├── traffic.ts         # traffic generator: departures, arrivals, callsigns, stands
 │   │   ├── radio.ts           # single-frequency radio with queued pilot transmissions
 │   │   ├── simulation.ts      # the world: owns everything above, fixed-step loop, stats
@@ -37,6 +41,7 @@ ultimate-atc/
 │   ├── data/
 │   │   ├── aircraftTypes.ts   # dimensions and performance per ICAO type
 │   │   ├── airlines.ts        # operators, telephony, fleets, destinations
+│   │   ├── destinations.ts    # spoken names of destination airports (clearance limits)
 │   │   └── airports/
 │   │       ├── index.ts       # AIRPORTS: the airports offered in the Connect dialog
 │   │       ├── builder.ts     # helper to author layouts in a runway-aligned frame
@@ -53,6 +58,7 @@ ultimate-atc/
 │       ├── voice.ts           # text-to-speech and speech recognition
 │       ├── settings.ts        # localStorage-backed preferences
 │       ├── settingsDialog.ts  # in-game settings menu (device mode, sizes, voice, traffic)
+│       ├── systemsDialog.ts   # systems window (status and on/off switches)
 │       ├── commandInput.ts    # single-line plain-text command field (no form input, iPad-friendly)
 │       └── dom.ts             # tiny DOM helper
 ├── tests/                     # Vitest unit and scenario tests
@@ -93,7 +99,8 @@ ultimate-atc/
    - `updateSeparation` computes how far each aircraft may move before reaching traffic,
    - `updatePilot` handles timers (tug, engine start), give-way, spontaneous calls and reminders,
    - `updateMovement` moves aircraft along their paths and fires `onStopReached`,
-   - `detectCollisions`,
+   - `detectCollisions`, `updateRunwayAlerts` (A-SMGCS RMCA),
+   - every 5 s: `updateConflictAlerts` (A-SMGCS CATC), `updateSequencer` (A-CDM TSATs), `updateGroundAI`,
    - `Frequency.update` starts the next queued pilot transmission when the frequency is free.
 5. **Output**: the UI reads `sim.aircraft` every frame for drawing and listens to the `message`, `incident` and `aircraftRemoved` events.
 
@@ -148,20 +155,19 @@ A `Path` (`core/path.ts`) is the route's polyline with corners replaced by curve
 
 See [airport-data.md](airport-data.md). In short: create `src/data/airports/<icao>.ts` exporting an `AirportData`, add it to `AIRPORTS` in `src/data/airports/index.ts` (the data checks in `tests/airports.test.ts` then run for it), describe its traffic and briefing, and document it in `docs/airports/<ICAO>.md`.
 
-### Adding a position (Delivery, Tower, Approach, Center)
+### Adding a position (Tower, Approach, Center)
 
 The groundwork is in place:
 
 - `SimConfig.position` (the primary position) and `SimConfig.positions` (all positions the user staffs at once, for **combined positions**) are `StationType`s, as is `Aircraft.frequency`. `Simulation.userStations` holds the staffed stations; "is this pilot talking to me?" is `Simulation.isOnMyFrequency(ac)`, "do I run this station?" is `Simulation.userControls(type)`.
-- The core never names a station type directly. It asks for the station of a **role**: `Simulation.stationFor('delivery' | 'ground' | 'tower')`. If an airport has no station for a role, the next higher one covers it (delivery -> ground -> tower), like an unstaffed position covered from above. New departures start on `stationFor('ground')`, arrivals on `stationFor('tower')`, hand-offs go to those stations.
-- Everything the user doesn't control is AI. Today that is Delivery (implicit), Tower (`TowerAI`, it only handles a stranded departure when the user doesn't staff Tower) and Approach (arrivals appear on final).
+- The core never names a station type directly. It asks for the station of a **role**: `Simulation.stationFor('delivery' | 'ground' | 'tower')`. If an airport has no station for a role, the next higher one covers it (delivery -> ground -> tower), like an unstaffed position covered from above. New departures start on `stationFor('delivery')` when the user staffs Delivery (`prepareDeparture` in `delivery.ts`), otherwise on `stationFor('ground')` with their clearance; arrivals start on `stationFor('tower')`, hand-offs go to those stations.
+- Everything the user doesn't control is AI: Delivery (clearance given at spawn), Ground (`groundAI.ts`, when the user only staffs Delivery), Tower (`TowerAI`) and Approach (arrivals appear on final). Delivery (v0.6) is the worked example of a position: commands in `phraseology/commands.ts`, parser and formatter; execution in `delivery.ts`; pilot calls in `pilot.ts` (`deliveryCall`); the AI for the next position (`groundAI.ts`); UI in `ui/app.ts` (`deliveryItems`).
 
 To add the **Tower** position, for example:
 
 1. Add commands (`lineUp`, `takeoff`, `landing clearance`, `cross`, `vacate`) to `phraseology/commands.ts`, the parser and the formatter.
 2. Split `TowerAI` into an AI that runs when Tower is not the user's position, and pilot behaviour that waits for explicit clearances when it is.
-3. Add a Ground AI that taxis aircraft automatically (using `findRoute` with an empty `via`) when the user is not Ground.
-4. Add Tower-specific UI (arrival sequence, runway status), and enable the position in `ui/dialogs.ts`.
+3. Add Tower-specific UI (arrival sequence, runway status), and enable the position in `ui/dialogs.ts`.
 
 Approach and Center positions need a radar scope with airspace data (sectors, fixes, procedures) and vectoring commands. The `Scope` class would get a second render mode, and `AirportData` would get procedure and airspace data, or a separate sector data format, comparable to EuroScope's `.sct` / `.ese` files.
 

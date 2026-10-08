@@ -57,7 +57,10 @@ export type PilotRequest =
   | 'handoff' // at the holding point, expects to be handed to tower
   | 'crossing' // holding short of a runway on the route
   | 'blocked' // stuck behind traffic for a long time
-  | 'route'; // route was unclear / taxi ended without destination
+  | 'route' // route was unclear / taxi ended without destination
+  | 'clearance' // departure on Delivery asks for its IFR clearance (voice or DCL)
+  | 'startup' // cleared departure ready, asks for start-up (A-CDM: at its TSAT)
+  | 'frequency'; // start-up approved, waits for "contact Ground"
 
 export interface Aircraft {
   callsign: string;
@@ -123,6 +126,17 @@ export interface Aircraft {
   /** Time the pilot will make the next spontaneous call (e.g. departure ready to push). */
   readyAt: number;
   startupApproved: boolean;
+  /** IFR clearance (Delivery). `cleared` = the crew has it and read it back. */
+  cleared: boolean;
+  clearance?: { sid?: string; climb?: string; squawk?: string };
+  /** A wrong readback the controller still has to catch (squawk digits swapped). */
+  readbackError?: { squawk: string; said: string };
+  /** The crew requests the clearance by datalink (DCL) instead of voice. */
+  dcl?: boolean;
+  /** A-CDM: target start-up approval time (sim seconds). */
+  tsat?: number;
+  /** Calculated take-off time from the Network Manager (ATFM slot), sim seconds. */
+  ctot?: number;
   pushFacing?: Compass;
   /** Time at which a timed activity (engine start, shutdown, pushback tug) finishes. */
   timerUntil: number;
@@ -202,6 +216,7 @@ export function createAircraft(init: {
     standbyUntil: 0,
     readyAt: Infinity,
     startupApproved: false,
+    cleared: false,
     timerUntil: 0,
     spawnedAt: init.now,
   };

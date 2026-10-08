@@ -2,14 +2,17 @@
 
 **Ultimate ATC** is an air traffic control simulator that runs in your browser. It aims to come as close as possible to [EuroScope](https://www.euroscope.hu/), the radar client used on the [VATSIM](https://vatsim.net/) network. You log in to a controller position at a real airport, and AI pilots respond to your instructions in ICAO phraseology, whether you type them or speak them.
 
-> **Status: early development (v0.5).** One position is playable: **Ground at Stuttgart (EDDS)**. The code is built so that more positions (Delivery, Tower, Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
+> **Status: early development (v0.6).** Two positions are playable at **Stuttgart (EDDS)**: **Delivery** and **Ground**, alone or combined. The code is built so that more positions (Tower, Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
 
 ![Ultimate ATC - EDDS Ground overview](docs/images/screenshot-overview.png)
 
 ## Features
 
 - **EuroScope-style ground radar:** a dark scope with runways, taxiways, holding points, stands and buildings. Each aircraft has a symbol at real size and a data tag you can drag. **Tag items are clickable**, and the scope can be shown **runway-aligned like the aerodrome chart** (default) or north-up: callsign (flight plan and radiotelephony callsign such as `SPEEDBIRD 947`), cleared-to (taxi menu) and status (aircraft menu). Zoom, pan, and the **departure and arrival lists** work as in EuroScope.
-- **Logging in like on VATSIM:** choose the airport, position and traffic density. You then work as `EDDS_GND` on 118.605 "Stuttgart Ground".
+- **Logging in like on VATSIM:** choose the airport, position(s) and traffic density. You then work as `EDDS_GND` on 118.605 "Stuttgart Ground", `EDDS_DEL` on 121.915 "Stuttgart Delivery", or both (**combined positions**). Positions you don't staff are run by the simulator.
+- **Clearance Delivery:** IFR clearances (`cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312`) with readbacks to check (crews sometimes read back a wrong squawk), start-up at the **A-CDM TSAT**, **CTOT** slots, and **datalink clearances (DCL)** sent from the list.
+- **Systems window** (`SYSTEMS` / F3): status of the airport's systems with on/off switches - **A-SMGCS** (surveillance, runway monitoring RMCA, conflicting-clearance alerts CATC, routing service), **A-CDM** and **DCL**. Switch one off to train working without it. See [docs/systems.md](docs/systems.md).
+- **Head-on conflicts handled like in reality:** the A-SMGCS warns before you transmit a route that meets other traffic head-on, and *Resolve conflict* offers the way out: turn one aircraft off via a junction, or call a tug (5-10 minutes).
 - **ATIS editor:** set the runway in use, wind, QNH and information letter during the session. A runway change re-plans departures and arrivals.
 - **ICAO phraseology parser:** type `DLH5AB taxi to holding point A via L2, S` or `Lufthansa five alpha bravo, push and start approved, facing east`. It also understands:
   - conditional clearances: `behind the A320 passing from left to right, ...`,
@@ -21,7 +24,7 @@
   The callsign can be an ICAO code, a radiotelephony callsign, or left out (the selected aircraft is used). Several instructions can be combined in one transmission.
 - **Airport briefing** (`BRIEFING` / help window): your job at the position, the runway in use with its entries, exits and taxi flows, typical routes, stands, hot spots and frequencies - for every airport.
 - **Settings menu** (`SETTINGS` / F2) with live changes: **mobile or PC layout** (phone-laptop slider), interface and tag size, scope orientation, voices, recognition accent, traffic density and special events.
-- **Mobile mode (optimised for the iPad):** + / - zoom buttons, smooth one- and two-finger pan/zoom without page scrolling, tap once to select and again for the menu (or long-press), a quick-action bar (push, taxi, hold, continue, contact Tower), larger touch targets.
+- **Mobile mode (optimised for the iPad):** + / - zoom buttons, smooth one- and two-finger pan/zoom without page scrolling, tap once to select and again for the menu (or long-press), a quick-action bar (push, taxi, hold, resolve, continue, contact Tower; clearance, start-up and contact Ground on Delivery), larger touch targets.
 - **Live preview:** while you type, the command line shows how the instruction was understood. The taxi route is drawn on the scope before you transmit.
 - **Right-click menus:** pushback (with facing), taxi to a holding point or stand (with an automatic route), hold position, continue, hold short, cross runway, give way, and contact Tower.
 - **AI pilots:**
@@ -80,7 +83,8 @@ Press **F1** in the app for the in-game reference.
 | [Phraseology reference](docs/phraseology.md) | Every instruction the parser understands, pilot read-backs and calls        |
 | [Airport: EDDS Stuttgart](docs/airports/EDDS.md) | Layout, taxiways, holding points, stands, typical routes, frequencies    |
 | [Scenarios and seeds](docs/scenarios.md)     | What the seed does, scenario codes, the scenario builder, presets            |
-| [Simulation model](docs/simulation.md)       | How AI pilots, AI Tower, traffic generation, separation, special events and incidents work |
+| [Simulation model](docs/simulation.md)       | How AI pilots, AI Ground and Tower, Delivery and A-CDM, traffic generation, separation, special events and incidents work |
+| [Airport and ATC systems](docs/systems.md)   | The systems window: A-SMGCS, A-CDM, DCL - what they do in reality and in the simulator |
 | [Tower operations](docs/tower-operations.md) | Research: how tower controllers run a mixed-mode runway, separation minima, sources |
 | [Architecture](docs/architecture.md)         | Code structure, data flow, how to add positions and multiplayer             |
 | [Airport data format](docs/airport-data.md)  | How airports are described and how to add a new one                         |

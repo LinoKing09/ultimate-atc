@@ -5,7 +5,6 @@ import { App } from './ui/app';
 import { showLogin } from './ui/dialogs';
 import { loadSettings, saveSettings } from './ui/settings';
 
-
 async function start(): Promise<void> {
   const settings = loadSettings();
   // A shared link can carry a scenario code: ?scenario=EDDS-25-MB2-M10-K7Q2M
@@ -13,6 +12,7 @@ async function start(): Promise<void> {
   const login = await showLogin(AIRPORTS, settings, shared);
   settings.airport = login.airport.icao;
   settings.position = login.position;
+  settings.positions = login.positions;
   if (!login.scenario) {
     settings.density = login.density;
     settings.events = login.events;
@@ -22,6 +22,7 @@ async function start(): Promise<void> {
   const sim = new Simulation({
     airport: login.airport,
     position: login.position,
+    positions: login.positions,
     density: login.density,
     events: login.events,
     seed: login.seed,

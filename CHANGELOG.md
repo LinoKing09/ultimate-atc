@@ -4,8 +4,28 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-10-08
+
+Clearance Delivery at Stuttgart, the systems window and realistic handling of head-on conflicts.
+
+### Added
+
+- **Delivery position at EDDS** (`EDDS_DEL` 121.915): departures call about 10 minutes before off-block for their **IFR clearance** (`cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312`), read it back - now and then with a **wrong squawk** you have to catch (`negative, squawk 2312`, otherwise `readback correct`) - ask for **start-up** and then for the frequency for pushback (`contact ground 118.605`). Crews query missing or wrong parts (wrong runway's SID, SID not matching the flight plan, wrong clearance limit, missing squawk or climb).
+- **CTOT slots**: 12 % of the departures have a calculated take-off time (column CTOT, `CTOT 1435` or in the clearance). Take-off must be within -5 / +10 minutes; Tower holds early flights at the holding point; a missed slot gives a new CTOT (-10 points).
+- **A-CDM**: a pre-departure sequencer gives every departure a TSAT (from its TOBT, its CTOT and 90 s spacing); crews call for start-up (Delivery) or pushback (Ground) at their TSAT. New list columns IFR, SQ, TSAT, CTOT.
+- **Datalink clearances (DCL)**: about 4 in 10 airline crews request their clearance by datalink (`DCL` in the list); send it from the aircraft menu, no voice and no readback.
+- **Combined positions** in the Connect dialog: click several positions (Delivery + Ground). Positions you don't staff are run by the simulator; a new **AI Ground** works when you only staff Delivery.
+- **Systems window** (`SYSTEMS` / F3, [docs/systems.md](docs/systems.md)): status and on/off switches for **A-SMGCS** (surveillance, runway monitoring and conflict alerting RMCA, conflicting ATC clearances CATC, routing service), **A-CDM** and **DCL**. Switching off simulates maintenance or a failure (no data tags, no alerts, no route proposals, no TSAT, voice-only clearances). New optional `systems` and `initialClimbFt` fields in the airport data format.
+- **A-SMGCS alerts**: CATC warns in the preview (orange) and in the *Taxi to* menu before you transmit a route that meets other traffic head-on, and flashes aircraft whose cleared routes meet head-on; RMCA alerts when an aircraft cleared to cross approaches an occupied runway or one with an arrival less than 60 s out.
+- **Resolve conflict** (aircraft menu, `RESOLVE` in the mobile quick-action bar): when two aircraft face each other, turn one off via a junction (checked against the other's route) or - if there is no junction left - order a **tug** that takes 5-10 minutes, as in real operations.
+- Delivery phraseology in the help window, a Delivery section in the EDDS briefing, the Delivery menu and quick-action bar (`CLR`/`DCL`, `RB OK`, `START`, `GND`).
+- Score: +10 per clearance delivered, +5 per wrong readback caught, -10 per wrong readback missed, -10 per missed CTOT.
+
 ### Changed
 
+- The tug for a stuck airliner takes **5-10 minutes** (was 100-160 s); the pilot says how long.
+- Ground: with A-CDM, departures call for pushback at their TSAT (2 minutes before), not at their ready time.
+- Parked departures show `CLRD` (cleared) or `----` (no clearance yet) as ground status.
 - **EDDS standard taxi flows: N eastbound, S westbound** for both runway directions (departures from the aprons use N and never cross S, arrivals from the exits use S and never cross N). Briefing, typical routes and documentation updated.
 - **Automatic routes follow the taxi flows strictly** (pilots' own routes, the Taxi to menu, the quick-action bar): they only use a taxiway against the flow when there is no other way without turning around. Before, going against the flow was only made more expensive.
 - "Tablet mode" is called **mobile mode** again (still optimised for the iPad).

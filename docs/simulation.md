@@ -7,6 +7,9 @@ This page describes how the simulated world behaves: AI pilots, the AI Tower, tr
 - [Ground movement](#ground-movement)
 - [Pilot see-and-avoid](#pilot-see-and-avoid)
 - [AI pilots: communication](#ai-pilots-communication)
+- [Delivery, A-CDM and slots](#delivery-a-cdm-and-slots)
+- [A-SMGCS](#a-smgcs)
+- [AI Ground](#ai-ground)
 - [AI Tower](#ai-tower)
 - [Runway incursions and go-arounds](#runway-incursions-and-go-arounds)
 - [Collisions](#collisions)
@@ -29,6 +32,7 @@ This page describes how the simulated world behaves: AI pilots, the AI Tower, tr
 ### Departures
 
 ```
+parked: clearance request --(IFR clearance)--> start-up request --(start-up approved)--> frequency request --(contact ground)--> [Ground]
 parked --(pushback approved)--> pushback --(push complete)--> startup --(engines running)--> taxi
    |                                                                                         |
    +--(taxi, on a taxi-out stand)----------------------------------------------------------->+
@@ -38,7 +42,9 @@ taxi --(reaches destination holding point)--> holding --(contact Tower)--> [Towe
 
 | Step                | Timing / behaviour                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------------- |
-| Boarding            | A departure appears on a free stand. It calls for pushback when its **ready time** is reached (4-15 min after it appears; initial traffic 0.5-25 min). |
+| Boarding            | A departure appears on a free stand. Its **ready time** (TOBT) is 4-15 min after it appears (initial traffic 0.5-25 min). |
+| Delivery            | With Delivery staffed by you, it starts on Delivery frequency without a clearance: see [Delivery, A-CDM and slots](#delivery-a-cdm-and-slots). Otherwise it already has its clearance and starts on Ground. |
+| Pushback call       | On Ground: at the ready time, or with A-CDM at **TSAT - 2 min** unless start-up was already approved by Delivery (then at the ready time, at the earliest 20 s after the hand-off). |
 | Tug connection      | 6-15 s after the pushback approval, the push starts.                                       |
 | Pushback            | 1.3 m/s (~2.5 kt) backwards along the stand lead-in line, then 45 m (at most 90% of the taxilane segment) along the taxilane. Drive-through stands have no pushback: the aircraft calls `request taxi` and leaves forwards. |
 | Engine start        | After the push: 15-35 s with *push and start* or *start-up approved*, otherwise 40-80 s.    |
@@ -93,7 +99,7 @@ Acceleration is 0.6 m/s². Braking is up to 2.5 m/s².
 
 **Route finding** is described in [architecture.md](architecture.md#taxi-routing). Routes never contain turns sharper than **150°** at a junction (a hairpin from a rapid exit back onto the parallel taxiway, at about 143°, is still possible). A route that needs the aircraft to turn around where it stands is only used if nothing else works: the router adds 5000 m of cost for it. A node behind the aircraft counts as "turning around" even if it is only a few metres away.
 
-**No 180 degree turns for airliners**: for aircraft with a wingspan above **25 m**, routes that need a turn-around where the aircraft stands are refused (`unable, we are facing west and cannot turn around here`). Exceptions: at a runway holding point, and when the aircraft has been stuck (blocked by traffic or with a `blocked` request) for more than **30 s** at a speed below 0.2 m/s. In that case it waits **100-160 s for a tug** before it starts moving. Aircraft up to 25 m wingspan can always turn around.
+**No 180 degree turns for airliners**: for aircraft with a wingspan above **25 m**, routes that need a turn-around where the aircraft stands are refused (`unable, we are facing west and cannot turn around here`). Exceptions: at a runway holding point, and when the aircraft has been stuck (blocked by traffic or with a `blocked` request) for more than **30 s** at a speed below 0.2 m/s. In that case it waits **300-600 s for a tug** (ordering it, connecting, turning the aircraft) before it starts moving; the read-back says how long (`we need a tug to turn around, expect about 7 minutes`). Aircraft up to 25 m wingspan can always turn around.
 
 **Cancelled pushback**: if the aircraft has already moved, the tug tows it back along the same line onto the stand. It is then parked again and calls 60-150 s later.
 
@@ -138,8 +144,11 @@ Pilots only talk on the frequency they are tuned to. Aircraft with Tower are sil
 | `crossing` | Stopped at a runway holding point on the route                                | `cross runway ..`                        |
 | `blocked`  | Head-on / mutual deadlock, or behind an aircraft waiting for instructions, for 60 s (cleared automatically once the aircraft moves again) | `hold position`, `give way`, a new route |
 | `route`    | Held short of a taxiway for 2 min, a taxi instruction became invalid, or Tower sent the aircraft back | `continue taxi`, a new route |
+| `clearance` | On Delivery, 10 min before the ready time (by voice, or silently by DCL)     | IFR clearance (or *Send DCL*)            |
+| `startup`  | On Delivery, cleared: at TSAT - 2 min with A-CDM, otherwise at the ready time | `start-up approved`                      |
+| `frequency` | On Delivery, start-up approved, 20 s after the last call                     | `contact ground`                         |
 
-**Reminders**: if a request isn't answered, the pilot calls again every 60-89 s (a fixed interval per callsign), up to 5 times. These count as an answer for the waiting-time statistics and suppress reminders:
+**Reminders**: DCL requests are not repeated by voice. If a request isn't answered, the pilot calls again every 60-89 s (a fixed interval per callsign), up to 5 times. These count as an answer for the waiting-time statistics and suppress reminders:
 
 - `standby`: for 120 s,
 - `number N for ...`: for 60 s + 45 s per queue position,
@@ -152,6 +161,42 @@ Pilots only talk on the frequency they are tuned to. Aircraft with Tower are sil
 **Stand suitability**: a stand can take an aircraft only if its wingspan is within the stand's maximum **and** there is enough wingtip clearance to the aircraft on (or taxiing to, or reserved for) the neighbouring stands: the stand centres must be at least `(span A + span B) / 2 + clearance` apart, with a clearance of **4.5 m** between code C aircraft (wingspan below 36 m) and **7.5 m** when one of them is code D or larger (ICAO Annex 14). So a wide-body on a large stand can block the smaller stand next to it. This applies to the automatic stand allocation, the stand menu and your own instructions (`stand 72 is blocked, not enough wingtip clearance to the A332 on stand 71A`).
 
 **Validation**: pilots check instructions against their state and the airport data. They reply `unable ...` or `confirm ...` instead of doing something impossible: an unknown taxiway or holding point, an impossible route, an occupied or too small stand, a crossing that isn't on the route, a wrong frequency, a hand-off before taxiing. See [phraseology.md](phraseology.md#pilot-read-backs-and-replies).
+
+## Delivery, A-CDM and slots
+
+Source: `src/core/delivery.ts`.
+
+| Item | Value |
+| ---- | ----- |
+| Clearance request | 10 min before the ready time (TOBT); immediately if the aircraft appears later than that |
+| DCL equipped | 40 % of the departures with an airline callsign (not German-registered `D-xxxx` aircraft), when DCL is on |
+| Initial climb | from the airport data (`initialClimbFt`, EDDS 5000 ft - a simulator value); 5000 ft if not set |
+| Squawk codes | next free code from the octal blocks 2101-2177, 2201-2277, 2301-2377, 2401-2477 (codes ending in 0 skipped; a simulator range, not the real ORCAM allocation). Special codes 7500, 7600, 7700, 7000, 2000, 1000, 0000 are refused |
+| Readback error | 4 % of voice clearances: two digits of the squawk read back swapped. Caught with `squawk <correct code>` (+5); passed with `readback correct` or a hand-off it stays: the crew sets the wrong code (-10) |
+| Crew queries | missing or unknown clearance limit, wrong destination, missing or unknown SID, SID of the wrong runway (`information R says runway 25 in use`) or not leading to the first fix of the flight plan, wrong runway, missing initial climb, missing or invalid squawk |
+| Start-up | needs the IFR clearance (`negative, we have no clearance yet`) |
+| Hand-off to Ground | needs the IFR clearance; counts as *clearance delivered* (+10) |
+| CTOT | 12 % of the departures; CTOT = ready time + 10 min taxi time + 5-25 min, rounded to the minute |
+| CTOT window | take-off from CTOT - 5 min to CTOT + 10 min. Tower lines a CTOT flight up only when it can be airborne inside the window (others go first). After CTOT + 10 min the flight gets a new CTOT 20-40 min later (-10) |
+
+**A-CDM pre-departure sequencer** (every 5 s, when A-CDM is on): every parked departure without start-up approval gets a **TSAT** - not before its ready time, not before CTOT - 10 min (taxi time), rounded up to the minute and at least **90 s** from every other TSAT. A TSAT once issued is kept while it is still valid. Start-ups already approved (and aircraft off-block) keep their slot. Crews call for start-up (on Delivery) or pushback (on Ground) 2 minutes before their TSAT. Without A-CDM there is no TSAT: crews call when ready.
+
+## A-SMGCS
+
+Source: `src/core/conflicts.ts`. Each service can be switched off in the [systems window](systems.md).
+
+| Service | Behaviour |
+| ------- | --------- |
+| Surveillance | Data tags on the scope (off: no tags) |
+| RMCA | Checked every step. Alert when a taxiing aircraft (above 0.5 m/s) with a clearance to cross comes within **120 m** of the runway holding position while the runway is occupied or an arrival is less than **60 s** from the threshold. One alert per aircraft and holding point |
+| CATC | Every 5 s, the cleared routes (next **900 m**, sampled every 15 m) of all taxiing aircraft are compared; two routes that meet at more than **135 degrees** are a head-on conflict (only reported if one of the aircraft is on your frequency). The same check runs on the route in the command-line preview and in the *Taxi to* menu |
+| Routing | Route proposals in the menus; *Resolve conflict* options |
+
+**Resolve conflict options**: for each of the two aircraft (on your frequency), a route to its destination that avoids the other aircraft's next 150 m of route; it is checked to keep clear of the other aircraft's future route (from the second segment on). If there is no such route, a route with a turn-around (tug, 300-600 s) that stays clear of the other aircraft.
+
+## AI Ground
+
+When you don't staff Ground (for example when you work Delivery alone), the AI Ground acts every 5 s, silently on its own frequency: it approves push and start for cleared departures at their ready time when no other aircraft taxis or pushes within 250 m (taxi-out stands: taxi), taxis them to the runway in use after start-up, hands them to Tower at the holding point, taxis arrivals to their allocated (or the first suitable free) stand, and resolves head-on conflicts after 40 s with the first *Resolve conflict* option.
 
 ## AI Tower
 

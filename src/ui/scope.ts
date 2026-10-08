@@ -590,6 +590,10 @@ export class Scope {
   private colorFor(ac: Aircraft, now: number): string {
     if (ac.incident) return C.danger;
     if (ac.emergency) return Math.floor(now / 400) % 2 === 0 ? C.emergency : C.mine;
+    // A-SMGCS CATC: aircraft routed head-on flash red.
+    for (const c of this.sim.routeConflicts.values()) {
+      if (c.a === ac || c.b === ac) return Math.floor(now / 350) % 2 === 0 ? C.danger : C.mine;
+    }
     const mine = this.sim.isOnMyFrequency(ac);
     if (mine && ac.request) {
       const late = this.sim.time - ac.requestSince > 60;
@@ -799,6 +803,8 @@ export class Scope {
       // Declutter: quiet parked aircraft only get a tag when zoomed in or selected.
       const quiet = (ac.phase === 'parked' && !ac.request) || ac.phase === 'arrived';
       if (quiet && this.zoom < 0.6 && ac.callsign !== this.selected) continue;
+      // Without A-SMGCS surveillance the targets have no identity: no data tags.
+      if (!this.sim.systemOn('surveillance')) continue;
       this.drawTag(ac, this.colorFor(ac, now));
     }
 

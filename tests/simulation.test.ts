@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Aircraft } from '../src/core/aircraft';
+import { headOnPartner, resolveOptions } from '../src/core/conflicts';
 import { Simulation } from '../src/core/simulation';
 import { EDDS } from '../src/data/airports/edds';
 
@@ -367,6 +368,12 @@ describe('tower flow', () => {
         if (ac.request === 'taxi') sim.transmit(`${ac.callsign} taxi to runway 25`);
         if (ac.request === 'taxiIn') sim.transmit(`${ac.callsign} taxi to stand ${ac.assignedStand ?? sim.freeStands(ac.type.wingspanM)[0]?.id}`);
         if (ac.request === 'handoff') sim.transmit(`${ac.callsign} contact tower`);
+        // Head-on: resolve it like a Ground controller (one aircraft turns off via another taxiway).
+        if (ac.request === 'blocked') {
+          const other = headOnPartner(sim, ac);
+          const opt = other && resolveOptions(sim, ac, other)[0];
+          if (opt) sim.transmit(`${opt.aircraft.callsign} ${opt.instruction}`);
+        }
       }
     }
     const avg = waits.reduce((a, b) => a + b, 0) / Math.max(1, waits.length);

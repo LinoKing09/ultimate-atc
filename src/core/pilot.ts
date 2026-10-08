@@ -6,6 +6,8 @@ import { distance, headingDiff, headingOf, normalize, scale, add, sub, type Vec2
 import { Path } from './path';
 import type { Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './phraseology/commands';
 import { STATION_WORD, capitalize, formatCommand, formatDestination, formatHoldShort } from './phraseology/format';
+import { execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
+import { destinationName } from '../data/destinations';
 import type { Simulation, TransmitResult } from './simulation';
 
 /**
@@ -146,8 +148,9 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return execPushback(sim, ac, c.facing, c.startup);
     case 'startup':
       if (ac.phase !== 'parked' && ac.phase !== 'pushback') return { unable: 'we are already running' };
+      if (!ac.cleared) return { unable: 'negative, we have no clearance yet' };
       ac.startupApproved = true;
-      return { readback: 'start-up approved' };
+      return { readback: 'start-up approved', answers: ac.request === 'startup' };
     case 'taxi':
       return execTaxi(sim, ac, c);
     case 'holdShort':
@@ -204,6 +207,21 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return {};
     case 'askIntersection':
       return execAskIntersection(sim, ac, c.name);
+    case 'clearance':
+      return execClearance(sim, ac, c);
+    case 'squawk': {
+      const caught = !!ac.readbackError && ac.readbackError.squawk === c.code;
+      const r = execSquawk(sim, ac, c.code);
+      if (caught) {
+        sim.stats.readbackErrorsCaught++;
+        sim.updateScore();
+      }
+      return r;
+    }
+    case 'readbackCorrect':
+      return execReadbackCorrect(sim, ac);
+    case 'ctot':
+      return execCtot(sim, ac, c.time);
     case 'lineUp':
     case 'takeoff':
       return { unable: 'confirm, we are on Ground frequency, contact Tower?' };
@@ -245,6 +263,21 @@ function execAskIntersection(sim: Simulation, ac: Aircraft, name: string): ExecR
   const able = available >= requiredRunway(sim, ac);
   ac.ableIntersection = { ...ac.ableIntersection, [name.toUpperCase()]: able };
   return { readback: able ? `affirm, able intersection ${name}` : 'negative, we require full length' };
+}
+
+// ====================================================================== AI controllers
+
+/**
+ * An instruction from an AI controller (a position the user doesn't staff).
+ * It is executed like a radio instruction, but nothing is transmitted on
+ * the user's frequency. Returns false if the pilot can't comply.
+ */
+export function aiInstruct(sim: Simulation, ac: Aircraft, c: Command): boolean {
+  const r = execute(sim, ac, c);
+  if (r.unable) return false;
+  r.after?.();
+  if (r.answers) ac.request = null;
+  return true;
 }
 
 // ====================================================================== conditional clearances
@@ -541,6 +574,10 @@ function routeOptions(sim: Simulation, ac: Aircraft): { flows: Map<string, Vec2>
   };
 }
 
+/** Time a tug needs to arrive, connect and turn an airliner around (seconds). */
+export const TUG_MIN_S = 300;
+export const TUG_MAX_S = 600;
+
 /** Stuck nose-to-nose (or reported blocked): the pilot accepts a turn-around with a tug. */
 function isStuck(sim: Simulation, ac: Aircraft): boolean {
   if (ac.request === 'blocked') return true;
@@ -608,8 +645,10 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
   for (const r of c.cross) rb += `, cross runway ${r}`;
   if (res.route.requiresUTurn && ac.type.wingspanM > UTURN_MAX_WINGSPAN && !atHoldingPoint) {
     // An airliner can only turn around with a tug.
-    ac.tugUntil = sim.time + sim.rng.range(100, 160);
-    rb += ', we need a tug to turn around, ready in about two minutes';
+    // Ordering a tug, connecting it and turning the aircraft takes several minutes.
+    const wait = sim.rng.range(TUG_MIN_S, TUG_MAX_S);
+    ac.tugUntil = sim.time + wait;
+    rb += `, we need a tug to turn around, expect about ${Math.round(wait / 60)} minutes`;
   }
   return { readback: rb, answers: true };
 }
@@ -767,7 +806,8 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   let type = stationType;
   if (!type) {
     if (frequency) type = sim.config.airport.stations.find((s) => s.frequency === frequency)?.type;
-    if (!type) type = ac.category === 'departure' ? sim.stationFor('tower') : undefined;
+    // From Delivery the next station is Ground, from Ground it is Tower.
+    if (!type && ac.category === 'departure') type = ac.frequency === sim.stationFor('delivery') && ac.frequency !== sim.stationFor('ground') ? sim.stationFor('ground') : sim.stationFor('tower');
   }
   if (!type) return { unable: 'say again frequency' };
   if (sim.userControls(type) && ac.frequency === type) return { unable: 'we are already on your frequency' };
@@ -775,7 +815,9 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   if (!station) return { unable: 'say again station' };
   if (frequency && frequency !== station.frequency) return { unable: `confirm frequency ${frequency} for ${STATION_WORD[type]}` };
 
-  if (ac.category === 'departure' && !['taxi', 'holding'].includes(ac.phase)) {
+  const fromDelivery = ac.frequency === sim.stationFor('delivery') && type === sim.stationFor('ground') && type !== ac.frequency;
+  if (fromDelivery && !ac.cleared) return { unable: 'negative, we have no clearance yet' };
+  if (ac.category === 'departure' && !fromDelivery && type === sim.stationFor('tower') && !['taxi', 'holding'].includes(ac.phase)) {
     return { unable: `confirm contact ${STATION_WORD[type]}, we are not yet taxiing` };
   }
   if (ac.category === 'arrival' && type === sim.stationFor('tower')) return { unable: 'confirm contact Tower, we have already landed' };
@@ -790,6 +832,14 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
       if (ac.category === 'departure' && type === sim.stationFor('tower')) {
         sim.stats.departuresHandedOff++;
         sim.updateScore();
+      }
+      if (fromDelivery) {
+        // Leaving Delivery with a wrong readback still uncorrected: it stays wrong.
+        missReadbackError(sim, ac);
+        sim.stats.clearancesDelivered++;
+        sim.updateScore();
+        // Ground expects the call for pushback (or taxi) now.
+        ac.readyAt = Math.min(ac.readyAt, sim.time + 20);
       }
     },
   };
@@ -937,12 +987,20 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
   }
 
   const tel = sim.tel(ac);
-  const stationName = sim.station.name;
+  // The station the pilot is calling (with combined positions it may not be the primary one).
+  const stationName = sim.airport.station(ac.frequency)?.name ?? sim.station.name;
+  const onDelivery = ac.frequency === sim.stationFor('delivery') && ac.frequency !== sim.stationFor('ground');
 
   // Spontaneous first calls (not while told to wait: standby / number / expect)
   if (ac.request === null) {
     if (now <= ac.standbyUntil) return;
-    if (ac.phase === 'parked' && ac.category === 'departure' && now >= ac.readyAt) {
+    if (onDelivery && ac.category === 'departure' && ac.phase === 'parked') {
+      deliveryCall(sim, ac, stationName, tel);
+      return;
+    }
+    // Ground: the crew calls for pushback when start-up is approved (TSAT with A-CDM) or it is ready.
+    const pushDue = ac.startupApproved ? ac.readyAt : startupDue(sim, ac);
+    if (ac.phase === 'parked' && ac.category === 'departure' && now >= pushDue) {
       const stand = sim.airport.stand(ac.stand ?? '');
       if (stand && !stand.pushback) {
         call(sim, ac, 'taxi', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetter}, request taxi`);
@@ -992,10 +1050,46 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       crossing: `${stationName}, ${tel}, holding short runway, request crossing`,
       blocked: `${stationName}, ${tel}, still blocked by traffic, request instructions`,
       route: `${stationName}, ${tel}, request further taxi instructions`,
+      clearance: `${stationName}, ${tel}, request clearance to ${destinationName(ac.flightPlan.destination)}`,
+      startup: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, ready for start-up`,
+      frequency: `${stationName}, ${tel}, request frequency for pushback`,
     };
+    // Datalink requests (DCL) are not repeated by voice.
+    if (ac.request === 'clearance' && ac.dcl && sim.systemOn('dcl')) return;
     const text = reminder[ac.request];
     if (text) call(sim, ac, ac.request, text);
   }
+}
+
+/**
+ * Calls of a departure on Delivery frequency: clearance request (about 10
+ * minutes before off-block, by voice or datalink), start-up request (at the
+ * TSAT with A-CDM, otherwise when ready), then the request for the Ground
+ * frequency.
+ */
+function deliveryCall(sim: Simulation, ac: Aircraft, stationName: string, tel: string): void {
+  const now = sim.time;
+  if (!ac.cleared) {
+    if (now < ac.readyAt - 10 * 60) return;
+    if (ac.dcl && sim.systemOn('dcl')) {
+      // Datalink request: shows up in the list, no voice transmission.
+      ac.request = 'clearance';
+      ac.requestSince = now;
+      ac.lastCallAt = now;
+      ac.callCount = 1;
+      return;
+    }
+    const st = sim.airport.stand(ac.stand ?? '');
+    call(sim, ac, 'clearance', `${stationName}, ${tel}, ${ac.type.icao}, stand ${st?.id ?? ''}, information ${sim.atisLetter}, request clearance to ${destinationName(ac.flightPlan.destination)}`);
+    return;
+  }
+  if (!ac.startupApproved) {
+    if (now < startupDue(sim, ac)) return;
+    const tsat = sim.systemOn('acdm') && ac.tsat !== undefined ? `, TSAT ${hhmm(sim, ac.tsat)}` : '';
+    call(sim, ac, 'startup', `${stationName}, ${tel}, stand ${ac.stand ?? ''}, ready for start-up${tsat}`);
+    return;
+  }
+  if (now - ac.lastCallAt > 20) call(sim, ac, 'frequency', `${stationName}, ${tel}, start-up approved, request frequency for pushback`);
 }
 
 /**
@@ -1068,6 +1162,16 @@ function towerResolveStuck(sim: Simulation, ac: Aircraft): void {
 export function previewTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): { route: TaxiRoute; dest: TaxiDestination } | { error: string } {
   const start = routeStart(sim, ac);
   return resolveDestination(sim, ac, c.destination, toRouteStart(sim, start), c.via, c.holdShort);
+}
+
+/** Where a new route for this aircraft starts (its position and heading, or its stand). */
+export function routeStartOf(sim: Simulation, ac: Aircraft): RouteStart {
+  return toRouteStart(sim, routeStart(sim, ac));
+}
+
+/** Route options for this aircraft (taxi flows, wingspan, whether it may turn around). */
+export function routeOptionsOf(sim: Simulation, ac: Aircraft): ReturnType<typeof routeOptions> {
+  return routeOptions(sim, ac);
 }
 
 /** Builds a taxi route automatically (shortest path) - used by AI traffic and UI suggestions. */

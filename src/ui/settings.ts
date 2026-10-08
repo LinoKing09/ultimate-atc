@@ -6,6 +6,8 @@
 export interface Settings {
   airport: string;
   position: string;
+  /** Positions staffed together (combined positions). */
+  positions?: string[];
   density: 'light' | 'medium' | 'heavy';
   events: boolean;
   tts: boolean;

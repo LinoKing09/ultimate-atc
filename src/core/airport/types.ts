@@ -1,4 +1,5 @@
 import type { LatLon } from '../geo';
+import type { SystemId } from '../systems';
 
 /**
  * Serializable airport description. Everything a position (Delivery, Ground,
@@ -16,6 +17,8 @@ export interface AirportData {
   /** Magnetic variation in degrees, east positive. */
   magneticVariation: number;
   transitionAltitudeFt: number;
+  /** Initial climb of the SIDs (feet), used in IFR clearances. */
+  initialClimbFt?: number;
   /** Short note shown in the UI about where the data comes from and how accurate it is. */
   dataNotice: string;
 
@@ -42,6 +45,8 @@ export interface AirportData {
   briefing?: BriefingSection[];
   /** Traffic mix of this airport. Without it, the global operator list in `data/airlines.ts` is used. */
   traffic?: AirportTraffic;
+  /** ATC and airport systems available at this airport (see core/systems.ts). Omitted = all. */
+  systems?: SystemId[];
 }
 
 /** Who flies to and from an airport, and how often. */

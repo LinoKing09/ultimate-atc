@@ -30,7 +30,10 @@ The geometry was **digitised by hand**. Positions were measured on the charts, u
 - the "A" stands that overlap others (9A, 24A, 26A, 28A; 71A and 74A are modelled) and stands 206, 207, 300-303,
 - the intersection geometry inside the "circle" (the hot spot west of N/S, chart note 1), reduced to one junction node,
 - building outlines, which are rough rectangles,
-- the SIDs used in flight plans, which are placeholders and not the published procedures.
+- the SIDs used in flight plans and clearances, which are placeholders and not the published procedures,
+- the initial climb in IFR clearances (5000 ft, `initialClimbFt`), a simulator value - check the published SIDs for the real one,
+- the squawk codes (a simulator range, not the real code allocation).
+
 
 **Never use this simulator for real-world navigation.**
 
@@ -38,11 +41,17 @@ The geometry was **digitised by hand**. Positions were measured on the charts, u
 
 | Callsign    | Radio name            | Frequency | Simulated by     |
 | ----------- | --------------------- | --------- | ---------------- |
-| EDDS_DEL    | Stuttgart Delivery    | 121.915   | AI (clearances are assumed to be issued before pushback) |
-| **EDDS_GND** | **Stuttgart Ground** | **118.605** | **You**        |
+| **EDDS_DEL** | **Stuttgart Delivery** | **121.915** | **You** (since v0.6), or AI: clearances are then issued before the aircraft calls Ground |
+| **EDDS_GND** | **Stuttgart Ground** | **118.605** | **You**, or AI Ground when you only staff Delivery |
 | EDDS_TWR    | Stuttgart Tower       | 118.805 (also 119.055) | AI Tower |
 | EDDS_APP    | Langen Radar          | 119.200   | (not simulated)  |
 | EDDS_ATIS   | Stuttgart Information | 126.130   | You (ATIS editor) |
+
+## Systems and procedures
+
+Stuttgart has been a **full A-CDM airport** since November 2014 (TOBT from the airlines, TSAT from the pre-departure sequencer, start-up at the TSAT) and offers **departure clearance by datalink (DCL)**; start-up is requested by voice. The simulator gives EDDS all [systems](../systems.md): A-SMGCS surveillance, RMCA, CATC and routing (the services offered for training; which A-SMGCS levels are installed at Stuttgart is not modelled from a published source), A-CDM and DCL.
+
+Delivery procedure in the simulator: clearance request about 10 minutes before off-block, IFR clearance `cleared to <destination> via <SID> departure, climb 5000 feet, squawk <code>`, start-up at the TSAT, then `contact ground 118.605` for pushback.
 
 ## Layout
 

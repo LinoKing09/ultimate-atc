@@ -1,6 +1,6 @@
 import type { Compass, StationType } from '../airport/types';
 import { AIRLINES } from '../../data/airlines';
-import type { Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './commands';
+import type { Altitude, Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './commands';
 
 /**
  * Parser for controller transmissions written (or dictated) in ICAO
@@ -19,6 +19,8 @@ export interface ParserContext {
   taxiways: Set<string>;
   /** Callsign of the currently selected aircraft, used when none is spoken. */
   selected?: string;
+  /** SID designators of the airport (upper case), for IFR clearances. */
+  sids?: string[];
 }
 
 const NUMBER_WORDS: Record<string, string> = {
@@ -41,6 +43,11 @@ const VOICE_FIXES: [string, string][] = [
   ['pushed back', 'pushback'],
   ['push bag', 'pushback'],
   ['start up', 'startup'],
+  ['read back', 'readback'],
+  ['red back', 'readback'],
+  ['sea tot', 'ctot'],
+  ['c tot', 'ctot'],
+  ['see tot', 'ctot'],
   ['stand by', 'standby'],
   ['fox trot', 'foxtrot'],
   ['x ray', 'xray'],
@@ -98,7 +105,8 @@ const KEYWORDS = new Set([
   'to', 'via', 'hold', 'holding', 'short', 'cross', 'runway', 'stand', 'gate', 'parking', 'position',
   'contact', 'monitor', 'give', 'continue', 'push', 'pushback', 'start', 'startup', 'expedite',
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
-  'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise',
+  'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise', 'climb', 'squawk',
+  'readback', 'ctot', 'slot',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -223,6 +231,65 @@ function readRunway(c: Cursor): string | undefined {
   }
   if (s.length === 1) s = '0' + s;
   return s.toUpperCase();
+}
+
+/** Words that end the destination of an IFR clearance ("cleared to Frankfurt via ..."). */
+const CLEARANCE_STOP = new Set(['via', 'climb', 'maintain', 'squawk', 'runway', 'departure', 'then', 'and', 'ctot', 'slot', 'initially', 'initial', 'flight', 'expect', 'contact', 'sid']);
+
+/**
+ * Matches a SID designator at the cursor: typed ("krh2w") or spelled
+ * ("k r h 2 w", from "kilo romeo hotel two whiskey"). Consumes it if `consume`.
+ */
+function matchSid(c: Cursor, sids: string[] | undefined, consume: boolean): string | undefined {
+  if (!sids?.length) return undefined;
+  for (let n = Math.min(7, c.t.length - c.i); n >= 1; n--) {
+    const cand = c.t.slice(c.i, c.i + n).join('').toUpperCase();
+    const sid = sids.find((s) => s === cand);
+    if (sid) {
+      if (consume) c.i += n;
+      return sid;
+    }
+  }
+  return undefined;
+}
+
+/** Reads an altitude: "5000 feet", "five thousand feet", "flight level 70", "altitude 5000". */
+function readAltitude(c: Cursor): Altitude | undefined {
+  c.accept('initially', 'to', 'altitude', 'via');
+  c.accept('to', 'altitude');
+  if (c.accept('flight', 'fl')) {
+    c.accept('level');
+    const fl = readNumber(c);
+    return fl !== undefined ? { fl } : undefined;
+  }
+  const n = readNumber(c);
+  if (n === undefined) return undefined;
+  let feet = n;
+  if (c.accept('thousand')) {
+    feet = n * 1000;
+    const rest = readNumber(c);
+    if (rest !== undefined && c.accept('hundred')) feet += rest * 100;
+  } else if (c.accept('hundred')) feet = n * 100;
+  c.accept('feet', 'ft', 'foot');
+  return { feet };
+}
+
+/** Reads a number written as one token ("5000") or as single digits ("5 0 0 0"). */
+function readNumber(c: Cursor): number | undefined {
+  const t = c.peek();
+  if (!t || !/^\d+$/.test(t)) return undefined;
+  let s = c.next()!;
+  while (s.length < 5 && isDigit(c.peek()) && c.peek(1) !== 'thousand' && c.peek(1) !== 'hundred') s += c.next();
+  return Number(s);
+}
+
+/** Reads a four-digit code (squawk, time): "2312" or "2 3 1 2". */
+function readCode(c: Cursor): string | undefined {
+  const t = c.peek();
+  if (!t || !/^\d+$/.test(t)) return undefined;
+  let s = c.next()!;
+  while (s.length < 4 && isDigit(c.peek())) s += c.next();
+  return /^\d{4}$/.test(s) ? s : undefined;
 }
 
 /** Reads a stand number such as "12", "1 2", "50a". */
@@ -761,6 +828,75 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       result.commands.push({ type: 'lineUp' });
       continue;
     }
+    // ---------- IFR clearance (Delivery)
+    if (w === 'cleared' && c.peek(1) === 'to' && c.peek(2) === 'cross') {
+      c.i += 2; // "cleared to cross runway 25" = "cross runway 25"
+      continue;
+    }
+    if (w === 'cleared' && c.peek(1) === 'to') {
+      c.i += 2;
+      const clr: Extract<Command, { type: 'clearance' }> = { type: 'clearance' };
+      const dest: string[] = [];
+      while (!c.done() && !CLEARANCE_STOP.has(c.peek()!) && !matchSid(c, ctx.sids, false)) dest.push(c.next()!);
+      if (dest.length) clr.destination = dest.join(' ');
+      while (!c.done()) {
+        if (c.accept('via', 'and', 'then', 'departure', 'sid', 'initially', 'initial')) continue;
+        const sid = matchSid(c, ctx.sids, true);
+        if (sid) {
+          clr.sid = sid;
+          continue;
+        }
+        // An unknown SID-like designator ("abc1x"): keep it, the pilot will query it.
+        if (!clr.sid && /^[a-z]{2,5}\d[a-z]$/.test(c.peek() ?? '')) {
+          clr.sid = c.next()!.toUpperCase();
+          continue;
+        }
+        if (c.peek() === 'runway') {
+          c.next();
+          clr.runway = readRunway(c);
+          continue;
+        }
+        if (c.accept('climb', 'maintain')) {
+          clr.climb = readAltitude(c);
+          continue;
+        }
+        if (c.accept('squawk')) {
+          clr.squawk = readCode(c);
+          continue;
+        }
+        if (c.accept('ctot', 'slot')) {
+          c.accept('time');
+          clr.ctot = readCode(c);
+          continue;
+        }
+        break;
+      }
+      result.commands.push(clr);
+      continue;
+    }
+    if (w === 'squawk') {
+      c.next();
+      const code = readCode(c);
+      if (code) result.commands.push({ type: 'squawk', code });
+      else result.unparsed.push('squawk');
+      continue;
+    }
+    if (w === 'readback' || (w === 'read' && c.peek(1) === 'back')) {
+      c.i += w === 'readback' ? 1 : 2;
+      c.accept('correct', 'is');
+      c.accept('correct');
+      result.commands.push({ type: 'readbackCorrect' });
+      continue;
+    }
+    if ((w === 'ctot' || w === 'slot') && c.peek(1) !== undefined) {
+      c.next();
+      c.accept('time', 'is');
+      const time = readCode(c);
+      if (time) result.commands.push({ type: 'ctot', time });
+      else result.unparsed.push(w);
+      continue;
+    }
+
     if (w === 'cleared' && (c.peek(1) === 'for' || c.peek(1) === 'takeoff')) {
       c.next();
       c.accept('for');
@@ -784,4 +920,5 @@ const FILLER = new Set([
   'roger', 'wilco', 'please', 'good', 'day', 'bye', 'goodbye', 'tschuess', 'servus', 'ciao', 'thanks',
   'thank', 'you', 'is', 'approved', 'the', 'and', 'then', 'now', 'correction', 'affirm', 'affirmative',
   'stuttgart', 'via', 'to', 'of', 'on', 'at', 'for', 'your', 'a', 'request', 'information', 'right', 'left',
+  'negative', 'correction', 'say', 'feet',
 ]);

@@ -1,0 +1,28 @@
+# Airport and ATC systems
+
+Real tower controllers work with a set of technical systems. Ultimate ATC models the ones a European airport of Stuttgart's size uses, and lets you check and switch them in the **systems window** (`SYSTEMS` in the toolbar, or **F3**). Switching a system off simulates maintenance or a failure, so you can train working without it.
+
+The toolbar button reads `SYSTEMS (n OFF)` in orange while any system is off. Every switch is announced in the message window, together with what changes.
+
+| Group    | System                                            | What it does in the simulator                                                                 | When it is off                                               |
+| -------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| A-SMGCS  | **Surveillance** (surface movement radar + multilateration) | Every aircraft on the scope with its identity (data tag)                                   | Targets lose their identity: no data tags on the scope. Work with the lists and the message window. |
+| A-SMGCS  | **RMCA** (runway monitoring and conflict alerting) | Alert when an aircraft with a crossing clearance approaches the runway while it is occupied or an arrival is less than 60 s out | No runway alerts - only the incursion itself is detected |
+| A-SMGCS  | **CATC** (conflicting ATC clearances)             | Warns in the command-line preview and the *Taxi to* menu before you transmit a route that meets other traffic head-on; aircraft whose cleared routes meet head-on flash red, with a system message | No route conflict warnings                                   |
+| A-SMGCS  | **Routing service**                               | Proposes taxi routes (following the standard taxi flows) in the *Taxi to* menu, the quick-action bar and the *Resolve conflict* menu | Menus offer destinations without a proposed route; you plan the route yourself |
+| A-CDM    | **A-CDM / pre-departure sequencer**               | TOBT from the airline, TSAT from the sequencer, CTOTs from the Network Manager; crews ask for start-up at their TSAT | No TSAT: crews ask for start-up when they are ready (first come, first served). CTOTs still apply. |
+| Datalink | **DCL** (departure clearance by datalink)         | About 4 in 10 crews request their IFR clearance by datalink; you send it from the aircraft menu, no voice and no readback | All clearances by voice                                      |
+
+## Background: what real airports use
+
+- **A-SMGCS** (Advanced Surface Movement Guidance and Control System) is defined by EUROCONTROL (and ICAO Doc 9830) as a set of services: *surveillance* (surface movement radar and multilateration, which identifies aircraft by their transponder), *airport safety support* (RMCA for the runway, CATC for conflicting clearances, and alerts for restricted areas), *routing* (route proposals) and *guidance* (follow-the-greens lighting). Most larger European airports have surveillance and RMCA; CATC, routing and guidance are found at the larger hubs. The simulator offers all four services for training; guidance by airfield lighting is not modelled.
+- **A-CDM** (Airport Collaborative Decision Making): airlines, ground handlers, the airport and ATC share their times. The airline gives a **TOBT** (target off-block time), the pre-departure sequencer computes a **TSAT** (target start-up approval time) that respects the runway capacity and any **CTOT**. Start-up is approved at the TSAT (EUROCONTROL tolerance -5 / +5 minutes). Stuttgart has been a full A-CDM airport since November 2014.
+- **CTOT** (calculated take-off time): an ATFM slot from the EUROCONTROL Network Manager when a sector or the destination is regulated. The aircraft must take off between CTOT -5 and CTOT +10 minutes; otherwise it needs a new slot.
+- **DCL** (departure clearance by datalink, ED-85A / ARINC 623): the crew requests and receives the IFR clearance as a text message and confirms it with WILCO. Stuttgart offers DCL; start-up is still requested by voice.
+
+## Simplifications
+
+- Surveillance off removes all data tags at once. In reality a single radar sensor may fail while multilateration still works.
+- RMCA only watches aircraft with a clearance to cross; incursions without a clearance are detected as incursions.
+- CATC only looks for head-on encounters on taxiways (two aircraft meeting at more than 135 degrees, within 900 m of route ahead). Real CATC also checks, for example, a line-up clearance against a landing clearance.
+- The pre-departure sequencer uses a fixed taxi time of 10 minutes and a TSAT spacing of 90 s. See [simulation model](simulation.md#delivery-a-cdm-and-slots) for all numbers.

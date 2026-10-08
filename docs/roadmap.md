@@ -24,14 +24,22 @@ Further airports follow in the 1.x releases (the airport data format, the data c
 | Version | Focus |
 | ------- | ----- |
 | **0.5** | **done** - Foundations: role-based station model (combined positions possible), per-airport traffic with the real Stuttgart operator mix, airport data checks, soak test in CI |
-| 0.6 | **Delivery** at EDDS: IFR clearances, squawks, start-up, CTOT |
+| **0.6** | **done** - **Delivery** at EDDS: IFR clearances, squawks, start-up, CTOT, A-CDM, DCL; combined positions in the login; systems window (A-SMGCS, A-CDM, DCL); head-on conflict resolution; AI Ground |
 | 0.7 | **Tower** at EDDS: line-up / take-off / landing clearances, runway crossings, arrival sequence |
-| 0.8 | Combined positions in the UI, AI pilots that resolve simple conflicts, debriefing |
+| 0.8 | Combined positions with Tower, AI pilots that resolve simple conflicts, debriefing |
 | 0.9 | Tutorials, polish, beta testing |
 | 1.0 | Release after the criteria above are met and agreed |
 | 1.x | Further airports |
 
 Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md](benchmarks.md) that compares them with the previous major release.
+
+## v0.6 - Delivery and systems
+
+- **done** - Delivery position at EDDS: IFR clearances with readback checks (wrong squawks to catch), squawk allocation, start-up, CTOTs with their -5/+10 minute window, datalink clearances (DCL)
+- **done** - A-CDM pre-departure sequencer: TOBT, TSAT, start-up and pushback calls at the TSAT
+- **done** - Combined positions in the Connect dialog (Delivery + Ground); AI Ground when only Delivery is staffed
+- **done** - Systems window: A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL - status and on/off
+- **done** - Head-on conflicts: CATC warning before transmitting, *Resolve conflict* menu (turn off via a junction, or a tug taking 5-10 minutes)
 
 ## v0.5 - Foundations
 
@@ -82,14 +90,13 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 - planned - EDDS details: de-icing pads DP1-DP4, holding bays P1/P2, GA apron, A-stands (9A, 24A ...)
 - planned - Real `follow` behaviour (follow-the-leader)
 - planned - Stand allocation per airline and terminal (Schengen / non-Schengen), contact/remote stands
-- planned - More special events (bird strike, blocked taxiway, follow-me, towing), de-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short, read-back errors you must catch)
+- planned - More special events (bird strike, blocked taxiway, follow-me, towing), de-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short; squawk read-back errors are done since 0.6)
 - planned - Low visibility procedures (CAT II/III holding points, larger spacing)
 - planned - Wind that changes during the session (METAR updates)
 - planned - Scenario files (fixed traffic for training) and a tutorial mode
 
 ### Positions
 
-- planned - **Delivery**: IFR clearances (SID, initial climb, squawk, CTOT), start-up approvals, datalink (DCL) style list
 - planned - **Tower**: line-up, take-off and landing clearances, runway crossings, departure spacing, arrival sequence display
 - planned - **Approach / Departure**: radar scope, vectoring, altitude and speed instructions, ILS clearances, handoffs
 - planned - **Radar / Center**: en-route sector, coordination, handoffs between sectors

@@ -17,7 +17,7 @@ const PLANNED_AIRPORTS = [
 ];
 
 const POSITIONS: { type: StationType; label: string; available: boolean }[] = [
-  { type: 'DEL', label: 'Delivery', available: false },
+  { type: 'DEL', label: 'Delivery', available: true },
   { type: 'GND', label: 'Ground', available: true },
   { type: 'TWR', label: 'Tower', available: false },
   { type: 'APP', label: 'Approach / Departure', available: false },
@@ -27,6 +27,8 @@ const POSITIONS: { type: StationType; label: string; available: boolean }[] = [
 export interface LoginResult {
   airport: AirportData;
   position: StationType;
+  /** All staffed positions (combined positions). */
+  positions: StationType[];
   density: Density;
   events: boolean;
   seed?: number;
@@ -42,18 +44,27 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     for (const a of PLANNED_AIRPORTS) airportSel.append(h('option', { value: a.icao, disabled: true, text: `${a.icao} - ${a.name} (planned)` }));
     airportSel.value = airports.some((a) => a.icao === settings.airport) ? settings.airport : airports[0].icao;
 
-    let position: StationType = 'GND';
+    // Several positions can be staffed together (combined positions, e.g. Delivery + Ground).
+    const positions = new Set<StationType>((settings.positions?.length ? (settings.positions as StationType[]) : [settings.position as StationType]).filter((t) => POSITIONS.some((p) => p.type === t && p.available)));
+    if (!positions.size) positions.add('GND');
     const posButtons = POSITIONS.map((p) => {
-      const b = h('button', { type: 'button', text: p.label, disabled: !p.available, title: p.available ? '' : 'Planned for a later version' });
+      const b = h('button', {
+        type: 'button',
+        text: p.label,
+        disabled: !p.available,
+        title: p.available ? 'Click to staff this position; select several for combined positions' : 'Planned for a later version',
+      });
       b.addEventListener('click', () => {
-        position = p.type;
-        posButtons.forEach((x) => x.classList.remove('active'));
-        b.classList.add('active');
+        if (positions.has(p.type) && positions.size > 1) positions.delete(p.type);
+        else positions.add(p.type);
+        posButtons.forEach((x, i) => x.classList.toggle('active', positions.has(POSITIONS[i].type)));
         update();
       });
-      if (p.type === position) b.classList.add('active');
+      if (positions.has(p.type)) b.classList.add('active');
       return b;
     });
+    /** Staffed positions in their natural order; the primary one is the highest (Ground before Delivery). */
+    const selectedPositions = (): StationType[] => POSITIONS.filter((p) => positions.has(p.type)).map((p) => p.type);
 
     const eventsBox = h('input', { type: 'checkbox' });
     eventsBox.checked = settings.events;
@@ -94,8 +105,10 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     });
     const update = () => {
       const ap = airport();
-      const st = ap.stations.find((s) => s.type === position);
-      callsign.textContent = st ? `${st.callsign}  ${st.frequency}  "${st.name}"` : '-';
+      const sts = selectedPositions()
+        .map((t) => ap.stations.find((s) => s.type === t))
+        .filter((s) => !!s);
+      callsign.textContent = sts.length ? sts.map((st) => `${st!.callsign} ${st!.frequency} "${st!.name}"`).join(' + ') : '-';
       notice.textContent = ap.dataNotice;
     };
     airportSel.addEventListener('change', update);
@@ -141,7 +154,9 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       overlay.remove();
       resolve({
         airport: airport(),
-        position,
+        // The primary position is the highest one staffed (Ground before Delivery).
+        position: selectedPositions().at(-1)!,
+        positions: selectedPositions(),
         density: r.scenario?.density ?? (densitySel.value as Density),
         events: r.scenario?.randomEvents ?? eventsBox.checked,
         seed: r.seed,
@@ -153,6 +168,16 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     connect.focus();
   });
 }
+
+const DELIVERY_REFERENCE: [string, string][] = [
+  ['cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312', 'IFR clearance: clearance limit (destination), SID of the runway in use, initial climb, squawk. Add "CTOT 1435" if the flight has a slot. The crew reads it back - check the squawk.'],
+  ['readback correct', 'Confirm a correct readback.'],
+  ['negative, squawk 2312', 'Correct a wrong readback (or assign a new code).'],
+  ['start-up approved', 'Approve engine start; with A-CDM at the TSAT (-5/+5 min), the crew calls when it is due.'],
+  ['CTOT 1435', 'Tell the crew its calculated take-off time (ATFM slot: take-off from -5 to +10 minutes).'],
+  ['contact ground 118.605', 'Hand a cleared departure to Ground for pushback.'],
+  ['Aircraft menu: Send DCL', 'Datalink clearance (DCL) for crews that requested it by datalink: no voice transmission and no readback.'],
+];
 
 const REFERENCE: [string, string][] = [
   ['pushback approved [facing east|west]', 'Approve pushback. Without "facing" the pilot picks the direction towards the runway.'],
@@ -176,6 +201,7 @@ const REFERENCE: [string, string][] = [
   ['standby', 'Acknowledge a request; the pilot waits two minutes before calling again.'],
   ['expedite taxi', 'Taxi a bit faster.'],
   ['say again', 'The pilot repeats the last transmission.'],
+  ['Aircraft menu: Resolve conflict with ...', 'Two aircraft face each other on a taxiway (A-SMGCS CATC alert): turn one off via a junction, or order a tug (several minutes).'],
 ];
 
 const KEYS: [string, string][] = [
@@ -196,6 +222,7 @@ const KEYS: [string, string][] = [
   ['ROT (toolbar)', 'Rotate the scope: runway horizontal like the aerodrome chart / north-up'],
   ['BRIEFING (toolbar)', 'Airport briefing: your position, runway in use, flows, entries and exits, typical routes, stands, hot spots'],
   ['x (command line)', 'Clear the command line'],
+  ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM and DCL; switch them on or off'],
   ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, voices, traffic density, special events'],
   ['Mobile mode: tap / tap again / long press', 'Select the aircraft / open its menu (or the tag item) / open its menu; + and - buttons zoom'],
 ];
@@ -218,14 +245,18 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
           {},
           h('p', {
             text:
-              'You are Ground. Departures call for pushback and taxi; you hand them to Tower at the runway holding point. ' +
-              'Arrivals call you after vacating the runway; taxi them to a stand. Keep traffic moving, avoid conflicts and never let anyone onto the runway without a clearance.',
+              'Delivery: departures call for their IFR clearance about 10 minutes before off-block (or request it by datalink), then for start-up; clear them, check the readback, approve start-up and hand them to Ground. ' +
+              'Ground: departures call for pushback and taxi; you hand them to Tower at the runway holding point. ' +
+              'Arrivals call Ground after vacating the runway; taxi them to a stand. Keep traffic moving, avoid conflicts and never let anyone onto the runway without a clearance.',
           }),
           h('p', {
             text:
               'Type instructions in ICAO phraseology. The callsign can be the ICAO code (DLH5AB), the radiotelephony callsign (Lufthansa 5AB), or omitted if an aircraft is selected. Several instructions can be combined in one transmission.',
           }),
+          h('h2', { text: 'Ground' }),
           h('table.ref', {}, ...REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
+          h('h2', { text: 'Delivery' }),
+          h('table.ref', {}, ...DELIVERY_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
         ),
     },
     controls: {
@@ -237,7 +268,7 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
           h('table.ref', {}, ...KEYS.map(([a, b]) => h('tr', {}, h('td', {}, h('kbd', { text: a })), h('td', { text: b })))),
           h('h2', { text: 'Colours' }),
           h('p', {
-            text: 'White: on your frequency. Grey: other controller (Tower). Flashing yellow: waiting for your answer (orange after one minute). Magenta "PAN": emergency. Red: incident.',
+            text: 'White: on your frequency. Grey: other controller (Tower, or an AI Delivery / Ground). Flashing yellow: waiting for your answer (orange after one minute). Magenta "PAN": emergency. Red: incident.',
           }),
           h('p', {}, 'Full documentation: ', h('a', { href: REPO_URL, target: '_blank', rel: 'noopener', text: REPO_URL })),
         ),
@@ -260,7 +291,7 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
     h(
       'div.dialog.wide',
       {},
-      h('div.dtitle', {}, h('span', { text: `Help - ${sim.station.name}` }), close),
+      h('div.dtitle', {}, h('span', { text: `Help - ${sim.config.airport.stations.filter((st) => sim.userControls(st.type)).map((st) => st.name).join(' + ')}` }), close),
       h('div.tabs', { role: 'tablist' }, ...tabButtons.map((t) => t.b)),
       body,
     ),

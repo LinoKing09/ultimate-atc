@@ -1,6 +1,6 @@
 # User guide
 
-This guide explains the controller client screen by screen. It assumes the **Ground** position at **EDDS**, which is the only position available in v0.1.
+This guide explains the controller client screen by screen. It covers the **Delivery** and **Ground** positions at **EDDS** (since v0.6), alone or combined.
 
 - [1. Connecting](#1-connecting)
 - [2. Screen layout](#2-screen-layout)
@@ -12,8 +12,9 @@ This guide explains the controller client screen by screen. It assumes the **Gro
 - [8. Keyboard and mouse reference](#8-keyboard-and-mouse-reference)
 - [9. Voice](#9-voice)
 - [10. Your job as Ground](#10-your-job-as-ground)
-- [11. Score](#11-score)
-- [12. Tips](#12-tips)
+- [11. Your job as Delivery](#11-your-job-as-delivery)
+- [12. Score](#12-score)
+- [13. Tips](#13-tips)
 
 ---
 
@@ -24,8 +25,8 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | Field             | Meaning                                                                                              |
 | ----------------- | ---------------------------------------------------------------------------------------------------- |
 | **Airport**       | Airport to control. Only EDDS has data so far; planned airports are listed but disabled.             |
-| **Position**      | Controller position. Only **Ground** is available so far; Delivery, Tower, Approach/Departure and Center are planned. |
-| **Callsign**      | Shows the resulting station callsign, frequency and radio name, for example `EDDS_GND 118.605 "Stuttgart Ground"`. |
+| **Position**      | Controller position: **Delivery** and **Ground** are available; Tower, Approach/Departure and Center are planned. Click several to staff them together (**combined positions**, for example Delivery + Ground, as one controller does at night). Positions you don't staff are run by the simulator. |
+| **Callsign**      | Shows the resulting station callsigns, frequencies and radio names, for example `EDDS_DEL 121.915 "Stuttgart Delivery" + EDDS_GND 118.605 "Stuttgart Ground"`. |
 | **Traffic**       | `light`, `medium` or `heavy` (see [simulation model](simulation.md#traffic-generation)).          |
 | **Special events** | Rare special situations: medical emergencies (arrivals and departures) and rejected take-offs. On by default. See [simulation model](simulation.md#special-events). |
 | **Scenario**      | Optional. A **number** is a seed: the same seed with the same settings gives the same traffic. A **scenario code** (for example `EDDS-25-MB0-M10-K7Q2M`) also fixes the runway, traffic mix and scheduled events. **Scenario builder...** creates one from presets or your own choices. Leave it empty for a random session. See [Scenarios and seeds](scenarios.md). |
@@ -57,7 +58,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 
 | Element               | Description                                                                                     |
 | --------------------- | ----------------------------------------------------------------------------------------------- |
-| `EDDS_GND 118.605`    | Your station and frequency.                                                                     |
+| `EDDS_GND 118.605`    | Your station(s) and frequency (several with combined positions).                                |
 | `RWY 25`              | Runway in use. Click to open the [ATIS editor](#atis-editor).                                   |
 | `ATIS E`              | Current ATIS letter. Pilots report it on first contact. Click to open the ATIS editor.          |
 | `250/08KT`            | Surface wind (magnetic). Shown in red if the tailwind on the runway in use is above 5 kt. Click to edit. |
@@ -69,8 +70,9 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
 | `ROT`                 | Rotates the scope: **runway horizontal** like the aerodrome chart (default, runway 07 on the left) or north-up. |
 | `BRIEFING`            | Opens the [airport briefing](#airport-briefing).                                               |
+| `SYSTEMS`             | Opens the [systems window](#systems-window) (also **F3**). Reads `SYSTEMS (n OFF)` in orange while systems are off. |
 | `SETTINGS`            | Opens the [settings menu](#settings) (also **F2**).                                             |
-| `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#11-score). |
+| `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#12-score). |
 | `HELP`                | Help window with the tabs *Airport briefing*, *Phraseology* and *Controls* (also **F1**; it opens on the tab you used last). |
 | `DOCS`                | Opens this documentation on GitHub.                                                             |
 | `DISCONNECT`          | Ends the session and returns to the Connect dialog.                                             |
@@ -121,6 +123,10 @@ Every airport added in the future comes with its own briefing.
 
 **Reset to defaults** restores everything except the airport and position.
 
+### Systems window
+
+`SYSTEMS` (or **F3**) shows the status of the airport's systems - A-SMGCS (surveillance, runway monitoring RMCA, conflicting clearances CATC, routing service), A-CDM and datalink clearances (DCL) - with a lamp and an ON/OFF switch each. Switch a system off to train working without it (maintenance, failure). What each system does and what changes when it is off: [Airport and ATC systems](systems.md).
+
 ### Mobile mode
 
 Mobile mode is made for touch screens, above all the **iPad** (a phone screen is too small to control comfortably):
@@ -128,7 +134,7 @@ Mobile mode is made for touch screens, above all the **iPad** (a phone screen is
 - **+ / - / home buttons** on the right of the scope zoom in, out and reset the view.
 - **One finger** pans the scope (also when the drag starts on an aircraft), **two fingers** pan and zoom at the same time. The page itself never scrolls, bounces or zooms.
 - **Tap once** on an aircraft to select it. **Tap it again** to open its menu; a second tap on a tag item opens that item's function (flight plan, taxi destinations, aircraft menu). A **long press** opens the menu directly. A single tap therefore never sends anything by accident.
-- A **quick-action bar** for the selected aircraft: `PUSH` (push and start approved), `TAXI` (taxi destinations), `HOLD`, `CONT` (continue taxi), `TWR` (contact Tower) and `MENU`, depending on what the aircraft is doing.
+- A **quick-action bar** for the selected aircraft: `PUSH` (push and start approved), `TAXI` (taxi destinations), `HOLD`, `RESOLVE` (head-on conflict), `CONT` (continue taxi), `TWR` (contact Tower) and `MENU`, depending on what the aircraft is doing. On Delivery frequency: `CLR` or `DCL` (IFR clearance), `RB OK` (readback correct), `START` (start-up approved), `GND` (contact Ground).
 - Larger buttons, menu entries, list rows, symbol hit areas and tags; sub-menus open with a tap.
 - On narrow screens (portrait) the departure and arrival lists start collapsed so the scope has room.
 - The command-line preview is hidden; use voice (`MIC`), the menus or a keyboard.
@@ -194,10 +200,11 @@ To keep the apron readable, parked aircraft with no pending request only get a t
 
 | Code    | Meaning                                                     |
 | ------- | ----------------------------------------------------------- |
-| `----`  | Parked on the stand, not ready yet                          |
-| `RQST`  | Parked, requesting pushback (or taxi)                       |
+| `----`  | Parked on the stand, no IFR clearance yet                   |
+| `CLRD`  | Parked, IFR clearance received                              |
+| `RQST`  | Parked, with a request (clearance, start-up, pushback, taxi) |
 | `PUSH`  | Pushback in progress                                        |
-| `ST-UP` | Pushback complete, starting engines                         |
+| `ST-UP` | Start-up approved, or pushback complete and starting engines |
 | `TAXI`  | Taxiing                                                     |
 | `HOLD`  | Holding position on your instruction                        |
 | `HS-R`  | Holding short of a runway, waiting for a crossing clearance |
@@ -216,7 +223,8 @@ To keep the apron readable, parked aircraft with no pending request only get a t
 | Colour                       | Meaning                                                         |
 | ---------------------------- | --------------------------------------------------------------- |
 | White                        | On your frequency                                               |
-| Grey                         | On another frequency (Tower)                                    |
+| Grey                         | On another frequency (Tower, or a position run by the simulator) |
+| Flashing red                 | A-SMGCS CATC: cleared routes meet head-on (see [Resolve conflict](#7-aircraft-menu)) |
 | Flashing yellow              | Waiting for your answer (a request is pending)                  |
 | Flashing orange              | Waiting for more than a minute                                  |
 | Flashing magenta, `PAN`      | Emergency (medical) - give priority                             |
@@ -235,11 +243,15 @@ The lists work like EuroScope's departure and arrival lists. Aircraft waiting fo
 | TYPE   | ICAO aircraft type / wake category (L, M, H)                                       |
 | STD    | Stand (empty once pushed back)                                                     |
 | ADES   | Destination                                                                        |
-| SID    | Standard instrument departure from the flight plan (placeholder names)             |
+| SID    | Standard instrument departure from the flight plan, or the one you cleared (placeholder names) |
 | RWY    | Departure runway                                                                   |
-| CLR    | Where the aircraft is cleared to taxi (holding point)                              |
+| IFR    | `CLR` once the crew has its IFR clearance                                          |
+| SQ     | Assigned squawk                                                                    |
+| TSAT   | Target start-up approval time from the A-CDM sequencer (empty with A-CDM off)      |
+| CTOT   | Calculated take-off time (ATFM slot) if the flight has one                         |
+| TAXI   | Where the aircraft is cleared to taxi (holding point)                              |
 | STS    | Ground status (see above)                                                          |
-| FRQ    | Frequency the pilot is on: `GND` (you) or `TWR`                                    |
+| FRQ    | Frequency the pilot is on: `DEL`, `GND` or `TWR`                                   |
 | REQ    | Pending request and how long the pilot has been waiting                            |
 
 **ARRIVALS**
@@ -264,6 +276,10 @@ Request codes in the `REQ` column:
 | `XRWY` | is holding short of a runway on the route, requesting to cross |
 | `BLKD` | is stuck in front of opposing traffic and needs instructions |
 | `RTE?` | needs further instructions (route problem, long hold short) |
+| `CLR`  | requests its IFR clearance by voice (Delivery)              |
+| `DCL`  | requests its IFR clearance by datalink - send it from the aircraft menu |
+| `STUP` | is ready for start-up (with A-CDM: at its TSAT)             |
+| `FREQ` | has start-up and asks for the frequency for pushback (`contact ground`) |
 
 Click a row to select the aircraft, double-click to centre the scope on it, right-click for the [aircraft menu](#7-aircraft-menu).
 
@@ -278,7 +294,7 @@ Shows all radio traffic on your frequency plus system messages:
 | Light blue    | Your transmissions (`EDDS_GND`)                                             |
 | White         | Pilot transmissions                                                         |
 | Grey italic   | System information (for example ATIS changes)                               |
-| Red bold      | Incidents: collisions, runway incursions, go-arounds                        |
+| Red bold      | Incidents (collisions, runway incursions, go-arounds) and warnings (A-SMGCS alerts RMCA and CATC, readback errors not caught, missed CTOTs) |
 | Yellow        | Hints for you, not transmitted (for example "DLH5AB is not on your frequency") |
 
 Click a line to select the aircraft it belongs to.
@@ -299,6 +315,7 @@ taxi to stand 14 via N R          <- goes to the selected aircraft
 - The **target** on the left (`[DLH5AB]`) is the selected aircraft. It receives instructions without a callsign.
 - The **preview** on the right shows how your text was understood:
   - **green**: understood, and the route (if any) is valid. The route is drawn on the scope.
+  - **orange**: understood and valid, but the A-SMGCS (CATC) warns that the route meets other traffic head-on (`-- CATC: head-on with EWG7TK on N`). You can still transmit it.
   - **red**: understood, but it won't work, for example `unable to follow route via S`, or the aircraft is not on your frequency.
   - **grey** `? ...`: words that were not understood.
 - When you transmit, the message window shows your instruction in clean phraseology. For example, `dlh5ab taxi a via l2 s` becomes `Lufthansa 5AB, taxi to holding point A via L2, S`, unless parts of it were not understood; then your raw text is shown.
@@ -324,6 +341,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Hold short of -> taxiway       | `hold short of taxiway D`                          | Taxiways the remaining route joins or crosses |
 | Cross runway 25               | `cross runway 25`                                  | A runway holding point is ahead on the route  |
 | Give way to -> traffic         | `give way to EWG7TK`                               | Other ground traffic (not parked) within 800 m |
+| Resolve conflict with ... -> option | a re-route (`taxi to holding point A via ...`) for one of the two | Two aircraft face each other on a taxiway (see below) |
 | Contact Tower 118.805         | `contact tower 118.805`                            | Departure taxiing or at the holding point     |
 | Number ... for pushback/taxi/departure | `number 2 for pushback`                   | A request is pending                          |
 | Standby                       | `standby`                                          | A request is pending                          |
@@ -331,7 +349,21 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Centre view                   | -                                                  | always                                        |
 | Reset tag position            | -                                                  | always                                        |
 
-**Hovering over a destination** in the *Taxi to* sub-menus draws the proposed route on the scope. The hint on the right shows the `via` list that will be transmitted. Menu actions are transmitted exactly like typed text, so they show up in the message window and get a read-back.
+**Hovering over a destination** in the *Taxi to* sub-menus draws the proposed route on the scope. The hint on the right shows the `via` list that will be transmitted, and `! head-on EWG7TK` when the A-SMGCS (CATC) sees a conflict. With the routing service off, the menu offers the destinations without a route. Menu actions are transmitted exactly like typed text, so they show up in the message window and get a read-back.
+
+**Resolve conflict**: when two aircraft face each other on a taxiway, the menu (and `RESOLVE` in the mobile quick-action bar) offers the ways out a real Ground controller has: one aircraft turns off via another taxiway while the other waits (each option is checked to keep clear of the other aircraft's route), or - if there is no junction left between them - a **tug** turns one aircraft around. Airliners cannot make a U-turn on a taxiway, so the tug takes 5 to 10 minutes (the pilot tells you the expected time). Hover an option to see its route.
+
+**On Delivery frequency** the menu offers instead:
+
+| Item                            | Sends                                                                                  | Available when                         |
+| ------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------- |
+| Send DCL (datalink) -> SID       | Datalink clearance (no voice), squawk shown in the hint                                | The crew requested its clearance by DCL |
+| IFR clearance -> SID             | `cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2101[, CTOT 1435]`. The SID of the flight plan's first fix is listed first; the squawk is the next free code | Departure on Delivery frequency (*Amend IFR clearance* once cleared) |
+| Readback correct                | `readback correct`                                                                     | Cleared                                |
+| Squawk -> ...                    | `negative, squawk 2101` (correct a wrong readback) or a new code                       | Cleared                                |
+| Start-up approved               | `start-up approved` (the hint shows the TSAT)                                          | Cleared, still on the stand            |
+| CTOT 1435                       | `CTOT 1435`                                                                            | The flight has a CTOT                  |
+| Contact Ground 118.605          | `contact ground 118.605`                                                               | Cleared                                |
 
 ## 8. Keyboard and mouse reference
 
@@ -345,6 +377,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | **Home**                                | Reset the scope view                                           |
 | **F1**                                  | Help                                                           |
 | **F2**                                  | Settings                                                       |
+| **F3**                                  | Systems window                                                 |
 | **Hold the key left of `1`** (`^` / `` ` ``), **Right Ctrl** or **Insert** | Push-to-talk (speech recognition)          |
 | Mouse wheel / pinch                     | Zoom                                                           |
 | Drag (left or right button)             | Pan; drag a tag to move it                                     |
@@ -377,22 +410,39 @@ The goal is to work **by voice only**. Several things help with recognition erro
 
 Responsibilities in this simulator:
 
-- **Departures** start on your frequency with their IFR clearance already received from Delivery (simulated). Departures on drive-through stands (EDDS 40-48, 50-56) don't need a pushback; they call `request taxi` and leave forwards.
+- **Departures** come to you with their IFR clearance and, with A-CDM, at their TSAT. If you don't staff Delivery, the simulator runs it: the crews already have their clearance and ask you for start-up with the pushback. Departures on drive-through stands (EDDS 40-48, 50-56) don't need a pushback; they call `request taxi` and leave forwards.
   1. Approve **pushback** (and start-up), choosing a facing direction that fits the traffic.
   2. When the pilot is **ready for taxi**, give a **taxi route to a runway holding point**. For runway 25 that is normally `A` (full length); `B`, `C` and `D` are intersection departures. For runway 07 it is `K` (or `Y` from the south), `I`, `H` and `W` are intersections.
   3. **Hand the aircraft over to Tower** (`contact tower 118.805`) when it is at or close to the holding point. Tower then lines it up and clears it for take-off on its own.
 - **Arrivals** are landed by Tower. After vacating, they switch to you and call `vacated runway 25 via E`. **Taxi them to a stand.** The suggested stand is shown in brackets; you can give any free stand that is big enough.
 - **Runway crossings**: some routes cross the runway, for example from the south apron or for arrivals that vacated to the south. Aircraft stop at the runway holding point and request crossing. Clear them with `cross runway 25` **only when the runway is free**: no arrival on short final, nobody lining up or rolling. Otherwise you cause a runway incursion and possibly a go-around.
-- **Keep traffic flowing**: avoid head-on encounters on the same taxiway, give way instructions at intersections, and don't push an aircraft onto a taxilane where another one is taxiing. Conditional clearances help here: `behind the A320 passing from left to right, push and start approved facing east`.
+- **Keep traffic flowing**: avoid head-on encounters on the same taxiway (the A-SMGCS warns you; see *Resolve conflict* in the [aircraft menu](#7-aircraft-menu)), give way instructions at intersections, and don't push an aircraft onto a taxilane where another one is taxiing. Conditional clearances help here: `behind the A320 passing from left to right, push and start approved facing east`.
 - **Busy hours**: give queue positions (`number 2 for pushback`) or expected delays (`expect pushback in 5 minutes`). The pilots then wait without reminding you.
 - **Special events**: a crew may declare **PAN PAN (medical emergency)**. Arrivals call after vacating; departures call while taxiing and want to return to a stand. Give them a direct route to a free stand. If they are on the stand within 6 minutes of the call, you get +15 points. After a **rejected take-off**, the aircraft vacates the runway and calls you. It wants to go back to a stand or to taxi for another departure.
 
-## 11. Score
+## 11. Your job as Delivery
+
+Clearance Delivery (EDDS: `Stuttgart Delivery` 121.915) gives departures their IFR clearance, a squawk and the start-up, then hands them to Ground. If you don't staff Ground, the simulator runs it (pushback, taxi, hand-off to Tower).
+
+1. **Clearance request**: about 10 minutes before off-block (TOBT) the crew calls: `Stuttgart Delivery, Eurowings 51WM, A319, stand 45, information R, request clearance to Berlin`. Crews of datalink-equipped aircraft (about 4 in 10, airline flights only) request it silently: the list shows `DCL` in the REQ column.
+2. **IFR clearance**: clearance limit (the destination), SID, initial climb, squawk: `cleared to Berlin via KRH2W departure, climb 5000 feet, squawk 2101`. Pick the SID of the **runway in use** that leads to the **first fix of the flight plan** (the aircraft menu lists it first). If something is missing or wrong, the crew queries it (`confirm KRH2E departure, information R says runway 25 in use`). For a DCL request use *Send DCL* in the aircraft menu: no voice, no readback, the crew answers WILCO.
+3. **Readback**: listen to it. About 4 % of crews read back a wrong squawk (two digits swapped). Correct it with `negative, squawk 2101`; otherwise say `readback correct`. A wrong readback that you let pass costs 10 points, a caught one gives 5.
+4. **CTOT**: flights with an ATFM slot show it in the CTOT column. Include it in the clearance (`..., CTOT 1435`) or tell the crew separately (`CTOT 1435`). The aircraft must take off between CTOT -5 and +10 minutes; Tower holds it at the holding point until it fits. A missed slot gives a new CTOT 20 to 40 minutes later and -10 points.
+5. **Start-up**: with A-CDM the crew calls at its TSAT (`ready for start-up, TSAT 1452`): `start-up approved`. Without A-CDM it calls when ready. Start-up needs the clearance first.
+6. **Hand-off**: the crew asks for the frequency for pushback: `contact ground 118.605`.
+
+With **combined positions** (Delivery + Ground) you do both jobs; the aircraft still changes frequency from Delivery to Ground as on a split position.
+
+## 12. Score
 
 | Event                                                       | Points |
 | ----------------------------------------------------------- | -----: |
 | Departure handed over to Tower                              |    +10 |
 | Arrival parked on a stand                                   |    +10 |
+| IFR clearance delivered (departure handed from Delivery to Ground) |    +10 |
+| Wrong readback caught and corrected                         |     +5 |
+| Wrong readback not caught                                   |    -10 |
+| CTOT missed (no take-off inside -5 / +10 minutes)           |    -10 |
 | Medical emergency on a stand within 6 minutes of the call   |    +15 |
 | "Say again" (pilot did not understand)                      |     -2 |
 | Slow answer: per 15 s of waiting beyond the first 30 s      |     -1 |
@@ -400,11 +450,11 @@ Responsibilities in this simulator:
 | Runway incursion                                            |    -50 |
 | Collision                                                   |   -100 |
 
-## 12. Tips
+## 13. Tips
 
 - Use **Tab** to work through requests in order. Then you only need to type the instruction, without the callsign.
 - Hover over destinations in the **Taxi to** menu to compare routes before you send one. The suggestions (also those of the quick-action bar in mobile mode) follow the airport's **standard taxi flows** (at EDDS: N eastbound, S westbound), see the [airport page](airports/EDDS.md#standard-taxi-flows) and the airport briefing.
 - Plan **pushback direction** with the departure runway in mind. For runway 25 the holding point A is at the east end, so departures from the terminal usually push facing **east** and taxi via L2 or H onto S (the standard flow for 25). If you don't specify, the pilot picks the direction with the shortest taxi.
 - Use **`standby`** if you can't answer right away. The pilot then waits two minutes before calling again, instead of reminding you every minute.
-- If two aircraft meet **head-on** on a taxiway, neither can pass. Prevent it by holding one at an intersection. Aircraft can't make U-turns on taxiways; if a pilot has no other way, they accept a route that requires turning around, but the router avoids it whenever possible.
+- If two aircraft meet **head-on** on a taxiway, neither can pass. Prevent it by holding one at an intersection; the orange CATC warning in the preview tells you before you transmit. If it happens anyway, use *Resolve conflict*: turn one off via a junction, or - last resort - a tug (5 to 10 minutes).
 - Run at **2x or 4x** during quiet phases and pause (**Space**) when it gets busy.

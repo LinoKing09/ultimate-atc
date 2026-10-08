@@ -11,6 +11,7 @@ Status legend: **done**, *in progress*, planned.
 - **done** - Intersection departures with "advise able" and per-type runway requirements
 - **done** - No 180 degree turns for airliners, tug turnaround when stuck, tow-back after a cancelled pushback
 - **done** - Crossing priority on the ground, AI Tower handling of stranded departures, vacate points clear of taxiway S
+- **done** - Airport briefing (help window) and a clear button for the command line
 - **done** - Scenario builder and shareable scenario codes (runway, traffic mix, heavies, scheduled events)
 - planned - More tablet improvements: landscape layout, swipe-up command sheet, haptic feedback on requests
 

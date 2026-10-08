@@ -34,6 +34,23 @@ export interface AirportData {
   runwayOps: RunwayOpsData[];
   /** Sample standard instrument departures by runway end, used for flight plans. */
   sids: SidData[];
+  /**
+   * Airport briefing shown in the help window: local procedures and what the
+   * controller should know. Facts that are already in the data (frequencies,
+   * runways, entries, exits) are added automatically and need not be repeated.
+   */
+  briefing?: BriefingSection[];
+}
+
+/** One section of an airport briefing. Text may mark instructions with `backticks`. */
+export interface BriefingSection {
+  title: string;
+  /** Positions this section is relevant for; omitted = all positions. */
+  positions?: StationType[];
+  /** Paragraphs or bullet points. */
+  items?: string[];
+  /** Optional two-column table, e.g. [from, instruction]. */
+  table?: { head?: [string, string]; rows: [string, string][] };
 }
 
 export interface RunwayEndData {
@@ -50,6 +67,8 @@ export interface RunwayData {
   /** e.g. "07/25" */
   name: string;
   widthM: number;
+  /** Published runway length (metres), for display. The geometry may differ slightly. */
+  lengthM?: number;
   ends: [RunwayEndData, RunwayEndData];
 }
 

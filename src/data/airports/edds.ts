@@ -391,6 +391,7 @@ export const EDDS: AirportData = {
     {
       name: RWY,
       widthM: 45,
+      lengthM: 3345,
       ends: [
         { name: '07', threshold: b.ll(THR_07_DISPLACEMENT * K, 0), end: b.ll(0, 0), elevationFt: 1267 },
         { name: '25', threshold: b.ll(L, 0), end: b.ll(L, 0), elevationFt: 1181 },
@@ -538,5 +539,96 @@ export const EDDS: AirportData = {
     { name: 'SUL2E', runway: '07', fix: 'SUL' },
     { name: 'RIXED2E', runway: '07', fix: 'RIXED' },
     { name: 'KRH2E', runway: '07', fix: 'KRH' },
+  ],
+  // Local procedures as modelled in the simulator (see docs/airports/EDDS.md).
+  // Flows and planning tips are simulator conventions, not published procedures.
+  briefing: [
+    {
+      title: 'Your job as Stuttgart Ground',
+      positions: ['GND'],
+      items: [
+        'You own the aprons and taxiways: pushback and start-up, taxi out to the runway holding points, taxi in to the stands.',
+        'Departures already have their IFR clearance (Delivery is simulated). They call you for pushback (or taxi from a drive-through stand).',
+        'Hand departures over to Tower 118.805 at or shortly before the holding point: `contact tower 118.805`. Tower lines them up and clears them for take-off.',
+        'Arrivals are with Tower until they have vacated the runway. They call you from the vacate point: give them a stand and a route.',
+        'The runway belongs to Tower. Nobody enters it without a clearance; aircraft that must cross (south side) stop at the runway holding point and ask you: `cross runway 25`.',
+      ],
+    },
+    {
+      title: 'Standard taxi flows',
+      items: [
+        'The two parallel taxiways N (outer) and S (inner) are used one-way, so traffic does not meet head-on. Automatic routes and the menu suggestions follow these flows; your own `via` lists are always followed as given.',
+      ],
+      table: {
+        head: ['Runway in use', 'Flows'],
+        rows: [
+          ['25', 'S eastbound (departures to A), N westbound (arrivals from F, G, H, I to the aprons)'],
+          ['07', 'N and S westbound (departures to K / I, arrivals from D, B, C, A to the aprons)'],
+        ],
+      },
+    },
+    {
+      title: 'Departures',
+      positions: ['GND', 'TWR'],
+      items: [
+        'Full length: holding point A (runway 25), K north or Y south (runway 07).',
+        'Intersections: B, C, D (25) and I, H, W (07). Ask first: `advise able for departure from intersection D`. Wide-bodies normally need full length.',
+        'Push so the aircraft ends up facing the way it will taxi: airliners cannot turn around on a taxiway (only with a tug when stuck). For runway 25 most departures from stands 9-19 push facing east.',
+        'Drive-through stands 40-48 and 50-56 need no pushback: the aircraft calls `request taxi` and leaves forwards (40-48 to O, 50-56 to N).',
+        'Mix the SIDs in the queue: two departures on the same first fix need 2 minutes, diverging ones 1 minute. Keep heavies apart (2 minutes behind a heavy).',
+      ],
+      table: {
+        head: ['From (runway 25)', 'Typical instruction'],
+        rows: [
+          ['Stands 9-19, pushed facing east', '`taxi to holding point A via M, L2, S`'],
+          ['Stands 24-36, 60-65', '`taxi to holding point A via M, H, S`'],
+          ['Stands 71-75 (pushed onto N)', '`taxi to holding point A via N, G, S`'],
+          ['Stands 40-48 / 50-56', '`taxi to holding point A via O, S` / `via N, H, S`'],
+          ['Apron South, pushed facing east', '`taxi to holding point A via V, W, H, S, cross runway 25`'],
+          ['Stands 9-19 (runway 07)', '`taxi to holding point K via M, L2` (facing east) / `via M, L3, O` (facing west)'],
+        ],
+      },
+    },
+    {
+      title: 'Arrivals',
+      positions: ['GND', 'TWR'],
+      items: [
+        'Runway 25 exits: F and H (rapid), E, G, I (rapid), K; to the south W and Y. Runway 07 exits: D and B (rapid), G, E, C, A.',
+        'Arrivals stop at the vacate point behind the exit and call you. Answer quickly: Tower will not use an exit whose vacate point is still occupied.',
+        'About 85 % vacate to the north. Aircraft vacating south (W, Y) need a runway crossing at W/H or Y/K to reach Apron North, unless they park on Apron South.',
+        'The suggested stand is shown in brackets in the arrival list; business jets go to 60-65, Apron South (100-107) is for cargo or overflow.',
+      ],
+      table: {
+        head: ['From', 'Typical instruction'],
+        rows: [
+          ['Vacated via F, G or H (25)', '`taxi to stand 14 via N, L2` / `taxi to stand 33 via N, H, M`'],
+          ['Vacated via D, B or C (07)', '`taxi to stand 30 via S, H, M` / `taxi to stand 14 via N, L2`'],
+          ['Vacated via W (south)', '`taxi to stand 105 via V`'],
+        ],
+      },
+    },
+    {
+      title: 'Stands',
+      table: {
+        head: ['Stands', 'Notes'],
+        rows: [
+          ['9-19, 24-36', 'Terminal and handling stands on taxilane M, pushback. 9, 19, 24 and 29 take wide-bodies'],
+          ['40-48, 50-56', 'Drive-through: in from M, out forwards (to O / to N)'],
+          ['60-65', 'Business jets, nose south, pushback onto M'],
+          ['71-75', 'Pushback onto taxiway N'],
+          ['100-107', 'Apron South (cargo), lane V; 105-107 take wide-bodies'],
+        ],
+      },
+    },
+    {
+      title: 'Hot spots and pitfalls',
+      items: [
+        'The circle west of N/S (hot spot) joins N, S, O, K, I and L2. Do not send two aircraft through it at the same time.',
+        'Taxilane M is a single lane used in both directions. Use `give way` or a conditional clearance (`behind the A320 passing left to right, push and start approved`) when arrivals are coming in on M.',
+        'H crosses both N and S on its way from the apron to the runway: watch traffic on the parallels.',
+        'F and G cross each other just north of the holding points; a waiting arrival there can block the other exit.',
+        'Two airliners nose to nose cannot sort it out themselves. Re-route one of them before it happens - after 30 s stuck they accept a tug turnaround.',
+      ],
+    },
   ],
 };

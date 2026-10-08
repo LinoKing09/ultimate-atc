@@ -6,11 +6,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Airport briefing**: a new tab in the help window (and `BRIEFING` in the toolbar) with the airport's local procedures for your position - your job, standard taxi flows, departures, arrivals, typical routes, stands, hot spots - plus live facts from the data: the runway in use with its holding points, exits and flows, and all frequencies. New optional `briefing` and `lengthM` fields in the airport data format; EDDS has a full briefing.
+- **Clear button** (×) in the command line.
+
 - **Scenario codes and scenario builder** ([docs/scenarios.md](docs/scenarios.md)): choose what to train - runway, density, traffic mix (balanced / departure push / arrival rush), more heavies, random events and scheduled events (medical emergency arrival/departure, rejected take-off, wind shift at a chosen minute) - from presets or by hand. The code (e.g. `EDDS-25-HD1-M10R20W30-K7Q2M`) goes into the Connect dialog's Scenario field, and a link with `?scenario=...` pre-fills it. The same code always gives the same session.
 - Observed surface wind: a scenario wind shift changes the toolbar wind (and the ATIS editor's pre-filled wind) until you broadcast a new ATIS.
 
 ### Changed
 
+- The help window has tabs: *Airport briefing*, *Phraseology*, *Controls*. F1 opens the tab used last.
 - The Connect dialog's "Scenario seed" field is now "Scenario" and takes a seed or a scenario code.
 
 - Mobile mode is now **tablet mode**, optimised for the iPad.

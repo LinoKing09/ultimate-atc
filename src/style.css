@@ -653,3 +653,56 @@ body.mobile .cmdline button.mic {
 .dialog .scenario-info {
   margin-top: 6px;
 }
+
+/* ------------------------------------------------------------------ help tabs / briefing */
+.dialog .tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 8px 14px 0;
+  border-bottom: 1px solid var(--panel-border);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+.dialog .tabs button {
+  border-bottom: none;
+  border-radius: 2px 2px 0 0;
+  margin-bottom: -1px;
+}
+.dialog .tabs button.active {
+  background: var(--panel);
+  border-bottom: 1px solid var(--panel);
+}
+.dialog .briefing ul {
+  margin: 4px 0 8px;
+  padding-left: 18px;
+  line-height: 1.5;
+}
+.dialog .briefing code,
+.dialog table.ref code {
+  color: var(--atc);
+  background: #1c2326;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+.dialog table.ref.brief th {
+  text-align: left;
+  color: var(--text-dim);
+  font-weight: normal;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--panel-border);
+}
+.dialog table.ref.brief td:first-child {
+  white-space: normal;
+  width: 32%;
+}
+.cmdline button.clear {
+  padding: 2px 8px;
+  font-size: 14px;
+  line-height: 1;
+}
+.cmdline .cmd:empty + button.clear {
+  visibility: hidden;
+}

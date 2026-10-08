@@ -2,6 +2,7 @@ import type { AirportData, StationType } from '../core/airport/types';
 import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
 import type { Density, Simulation } from '../core/simulation';
 import { h } from './dom';
+import { renderBriefing } from './briefing';
 import { showScenarioBuilder } from './scenarioBuilder';
 import type { Settings } from './settings';
 
@@ -193,47 +194,82 @@ const KEYS: [string, string][] = [
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
   ['ROT (toolbar)', 'Rotate the scope: runway horizontal like the aerodrome chart / north-up'],
+  ['BRIEFING (toolbar)', 'Airport briefing: your position, runway in use, flows, entries and exits, typical routes, stands, hot spots'],
+  ['x (command line)', 'Clear the command line'],
   ['F2 / SETTINGS (toolbar)', 'Settings: tablet or PC layout, interface and tag size, voices, traffic density, special events'],
   ['Tablet mode: tap / tap again / long press', 'Select the aircraft / open its menu (or the tag item) / open its menu; + and - buttons zoom'],
 ];
 
-export function showHelp(): void {
+export type HelpTab = 'briefing' | 'phraseology' | 'controls';
+let lastHelpTab: HelpTab = 'briefing';
+
+/** Help window with tabs: airport briefing, phraseology, controls. */
+export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
+  document.querySelector('.overlay.help')?.remove();
   const close = h('button', { type: 'button', text: 'Close' });
+  const body = h('div.dbody');
+  const pages: Record<HelpTab, { label: string; render: () => HTMLElement }> = {
+    briefing: { label: `Airport briefing ${sim.config.airport.icao}`, render: () => renderBriefing(sim) },
+    phraseology: {
+      label: 'Phraseology',
+      render: () =>
+        h(
+          'div',
+          {},
+          h('p', {
+            text:
+              'You are Ground. Departures call for pushback and taxi; you hand them to Tower at the runway holding point. ' +
+              'Arrivals call you after vacating the runway; taxi them to a stand. Keep traffic moving, avoid conflicts and never let anyone onto the runway without a clearance.',
+          }),
+          h('p', {
+            text:
+              'Type instructions in ICAO phraseology. The callsign can be the ICAO code (DLH5AB), the radiotelephony callsign (Lufthansa 5AB), or omitted if an aircraft is selected. Several instructions can be combined in one transmission.',
+          }),
+          h('table.ref', {}, ...REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
+        ),
+    },
+    controls: {
+      label: 'Controls',
+      render: () =>
+        h(
+          'div',
+          {},
+          h('table.ref', {}, ...KEYS.map(([a, b]) => h('tr', {}, h('td', {}, h('kbd', { text: a })), h('td', { text: b })))),
+          h('h2', { text: 'Colours' }),
+          h('p', {
+            text: 'White: on your frequency. Grey: other controller (Tower). Flashing yellow: waiting for your answer (orange after one minute). Magenta "PAN": emergency. Red: incident.',
+          }),
+          h('p', {}, 'Full documentation: ', h('a', { href: REPO_URL, target: '_blank', rel: 'noopener', text: REPO_URL })),
+        ),
+    },
+  };
+  const tabButtons = (Object.keys(pages) as HelpTab[]).map((key) => {
+    const b = h('button', { type: 'button', text: pages[key].label, role: 'tab' });
+    b.addEventListener('click', () => show(key));
+    return { key, b };
+  });
+  const show = (key: HelpTab) => {
+    lastHelpTab = key;
+    for (const t of tabButtons) t.b.classList.toggle('active', t.key === key);
+    body.replaceChildren(pages[key].render());
+    body.scrollTop = 0;
+  };
   const overlay = h(
-    'div.overlay',
+    'div.overlay.help',
     {},
     h(
       'div.dialog.wide',
       {},
-      h('div.dtitle', {}, h('span', { text: 'Help - Ground position' }), close),
-      h(
-        'div.dbody',
-        {},
-        h('p', {
-          text:
-            'You are Ground. Departures call for pushback and taxi; you hand them to Tower at the runway holding point. ' +
-            'Arrivals call you after vacating the runway; taxi them to a stand. Keep traffic moving, avoid conflicts and never let anyone onto the runway without a clearance.',
-        }),
-        h('p', {
-          text:
-            'Type instructions in ICAO phraseology. The callsign can be the ICAO code (DLH5AB), the radiotelephony callsign (Lufthansa 5AB), or omitted if an aircraft is selected. Several instructions can be combined in one transmission.',
-        }),
-        h('h2', { text: 'Phraseology' }),
-        h('table.ref', {}, ...REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
-        h('h2', { text: 'Controls' }),
-        h('table.ref', {}, ...KEYS.map(([a, b]) => h('tr', {}, h('td', {}, h('kbd', { text: a })), h('td', { text: b })))),
-        h('h2', { text: 'Colours' }),
-        h('p', {
-          text: 'White: on your frequency. Grey: other controller (Tower). Flashing yellow: waiting for your answer (orange after one minute). Magenta "PAN": emergency. Red: incident.',
-        }),
-        h('p', {}, 'Full documentation: ', h('a', { href: REPO_URL, target: '_blank', rel: 'noopener', text: REPO_URL })),
-      ),
+      h('div.dtitle', {}, h('span', { text: `Help - ${sim.station.name}` }), close),
+      h('div.tabs', { role: 'tablist' }, ...tabButtons.map((t) => t.b)),
+      body,
     ),
   );
   const done = () => overlay.remove();
   close.addEventListener('click', done);
   overlay.addEventListener('click', (e) => e.target === overlay && done());
   document.body.append(overlay);
+  show(tab);
 }
 
 /**

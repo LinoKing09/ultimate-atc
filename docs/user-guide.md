@@ -32,7 +32,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 
 There is no runway selection: the session starts with a random wind, and the **runway in use is the one with the most headwind** (runway 25 at EDDS unless the tailwind on it is above 3 kt). You change the runway, wind, QNH and ATIS letter during the session in the [ATIS editor](#atis-editor).
 
-The yellow notice shows how accurate the airport data is. Press **Connect** to start. The session begins immediately and the clock runs.
+The yellow notice shows how accurate the airport data is. Press **Connect** to start. The session begins immediately and the clock runs. Open the [airport briefing](#airport-briefing) (`BRIEFING`) to learn the local procedures.
 
 ## 2. Screen layout
 
@@ -68,9 +68,10 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `TTS`                 | Pilots read their transmissions aloud (text-to-speech).                                         |
 | `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
 | `ROT`                 | Rotates the scope: **runway horizontal** like the aerodrome chart (default, runway 07 on the left) or north-up. |
+| `BRIEFING`            | Opens the [airport briefing](#airport-briefing).                                               |
 | `SETTINGS`            | Opens the [settings menu](#settings) (also **F2**).                                             |
 | `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#11-score). |
-| `HELP`                | In-game reference (also **F1**).                                                                |
+| `HELP`                | Help window with the tabs *Airport briefing*, *Phraseology* and *Controls* (also **F1**; it opens on the tab you used last). |
 | `DOCS`                | Opens this documentation on GitHub.                                                             |
 | `DISCONNECT`          | Ends the session and returns to the Connect dialog.                                             |
 
@@ -88,6 +89,17 @@ Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS:
 **Broadcast ATIS** publishes the new information. It appears in the message window, and pilots quote the new letter on first contact. The ATIS does not change on its own.
 
 **Runway change**: departures that are not yet taxiing get the new runway and a matching SID. Arrivals further out than 3.5 NM are re-sequenced onto the new final by Approach; arrivals closer in still land on the old runway. Aircraft that are already taxiing keep their clearance, so re-route them to a holding point of the new runway. If an aircraft ends up at the wrong end, Tower sends it back to you.
+
+### Airport briefing
+
+`BRIEFING` in the toolbar opens the help window on the **Airport briefing** tab. You can open it at any time; it always shows the current state:
+
+- **At a glance**: airport, your position and frequency, elevation, runways, transition altitude.
+- **Now**: runway in use, ATIS letter, wind and QNH, the full-length and intersection holding points, the arrival exits and the taxi flows of the runway in use.
+- **Local procedures** for your position: your job, standard taxi flows, departures (entries, push directions, typical routes), arrivals (exits, vacating, typical routes), stands, hot spots and pitfalls.
+- **Frequencies** of all stations, and the data accuracy notice.
+
+Every airport added in the future comes with its own briefing.
 
 ### Settings
 
@@ -291,6 +303,7 @@ taxi to stand 14 via N R          <- goes to the selected aircraft
   - **grey** `? ...`: words that were not understood.
 - When you transmit, the message window shows your instruction in clean phraseology. For example, `dlh5ab taxi a via l2 s` becomes `Lufthansa 5AB, taxi to holding point A via L2, S`, unless parts of it were not understood; then your raw text is shown.
 - **Up / Down** browse the history of your last 50 transmissions. **Esc** clears the line, or deselects if the line is already empty.
+- The **×** button right of the text clears the line (it appears as soon as there is text; on a tablet the keyboard stays open).
 - Typing anywhere on the page focuses the command line.
 
 ## 7. Aircraft menu

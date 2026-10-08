@@ -93,7 +93,9 @@ export class App {
     const settingsBtn = h('button.settings-btn', { html: '&#9881; SETTINGS', title: 'Settings: device layout, sizes, voice, traffic' });
     settingsBtn.addEventListener('click', () => this.openSettings());
     const helpBtn = h('button', { text: 'HELP', title: 'Phraseology and controls (F1)' });
-    helpBtn.addEventListener('click', () => showHelp());
+    helpBtn.addEventListener('click', () => showHelp(this.sim));
+    const briefBtn = h('button', { text: 'BRIEFING', title: 'Airport briefing: procedures and information for your position' });
+    briefBtn.addEventListener('click', () => showHelp(this.sim, 'briefing'));
     const docsBtn = h('a', { href: REPO_URL, target: '_blank', rel: 'noopener' }, h('button', { text: 'DOCS', type: 'button' }));
     const disconnect = h('button', { text: 'DISCONNECT', title: 'End the session' });
     disconnect.addEventListener('click', () => {
@@ -118,6 +120,7 @@ export class App {
       routesBtn,
       rotBtn,
       h('span.spacer'),
+      briefBtn,
       settingsBtn,
       field('score', 'Score: +10 per departure handed off / arrival parked, penalties for incidents, delays and "say again"'),
       helpBtn,
@@ -168,9 +171,13 @@ export class App {
     this.input = new CommandInput('Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help');
     this.previewEl = h('span.preview');
     this.micButton = h('button.mic', { text: 'MIC', title: 'Push-to-talk: hold the ^ / ` key, Right Ctrl or Insert (or click to start/stop)' });
+    const clearBtn = h('button.clear', { text: '\u00d7', title: 'Clear the command line', type: 'button', 'aria-label': 'Clear the command line' });
+    // pointerdown + preventDefault keeps the focus (and an open keyboard) where it is.
+    clearBtn.addEventListener('pointerdown', (e) => e.preventDefault());
+    clearBtn.addEventListener('click', () => this.clearInput());
     const sendBtn = h('button', { text: 'SEND', title: 'Transmit (Enter)' });
     sendBtn.addEventListener('click', () => this.submit());
-    const comms = h('div.comms', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input.el, this.previewEl, this.micButton, sendBtn));
+    const comms = h('div.comms', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input.el, clearBtn, this.previewEl, this.micButton, sendBtn));
 
     root.replaceChildren(toolbar, this.main, comms);
 
@@ -233,7 +240,7 @@ export class App {
     new ResizeObserver(() => this.scope.resize()).observe(this.main);
 
     this.setSpeed(1);
-    this.hint(`Connected as ${sim.station.callsign} (${sim.station.name}, ${sim.station.frequency}). Runway ${sim.runway} in use. Press F1 for help.`);
+    this.hint(`Connected as ${sim.station.callsign} (${sim.station.name}, ${sim.station.frequency}). Runway ${sim.runway} in use. BRIEFING shows the airport briefing, F1 the help.`);
     requestAnimationFrame((t) => this.frame(t));
   }
 
@@ -433,6 +440,12 @@ export class App {
 
   // ------------------------------------------------------------------ command line
 
+  private clearInput(): void {
+    this.input.value = '';
+    this.historyIdx = -1;
+    this.updatePreview();
+  }
+
   private submit(fromVoice = false): void {
     const text = this.input.value.trim();
     if (!text) return;
@@ -476,7 +489,7 @@ export class App {
     }
     if (e.key === 'F1') {
       e.preventDefault();
-      showHelp();
+      showHelp(this.sim);
       return;
     }
     if (e.key === 'F2') {

@@ -96,3 +96,13 @@ describe('findRoute', () => {
     expect(isRouteError(r)).toBe(false);
   });
 });
+
+describe('EDDS briefing', () => {
+  it('has a briefing that only names existing holding points', () => {
+    expect(EDDS.briefing?.length).toBeGreaterThan(3);
+    const text = JSON.stringify(EDDS.briefing);
+    for (const m of text.matchAll(/holding point ([A-Z]\d?)\b/g)) {
+      expect(EDDS.taxiNodes.some((n) => n.holdingPoint?.name === m[1])).toBe(true);
+    }
+  });
+});

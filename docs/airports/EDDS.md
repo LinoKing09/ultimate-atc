@@ -11,6 +11,8 @@
 | Runway             | **07/25**, 3345 m x 45 m, true heading 074° / 254°; landing threshold 07 displaced by 300 m (984 ft); threshold elevations 1267 ft (07) / 1181 ft (25) |
 | Data file          | [`src/data/airports/edds.ts`](../../src/data/airports/edds.ts)              |
 
+The simulator shows a condensed version of this page as the **airport briefing** (`BRIEFING` in the toolbar, data in `briefing` in `edds.ts`). Keep both consistent.
+
 ## Data sources and accuracy
 
 | Data                                         | Source                                                                  |

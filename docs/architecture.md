@@ -44,7 +44,8 @@ ultimate-atc/
 │       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input, rotation (runway-aligned / north-up)
 │       ├── lists.ts           # departure / arrival lists
 │       ├── menu.ts            # popup menus
-│       ├── dialogs.ts         # connect dialog, help
+│       ├── dialogs.ts         # connect dialog, help window (tabs), ATIS editor
+│       ├── briefing.ts        # airport briefing (data facts + the airport's briefing sections)
 │       ├── scenarioBuilder.ts # scenario builder dialog (presets, events, code and link)
 │       ├── labels.ts          # status codes for tags and lists
 │       ├── voice.ts           # text-to-speech and speech recognition

@@ -22,6 +22,7 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 | `stations`             | `StationData[]`   | ATC stations (callsign, type, radio name, frequency)                     |
 | `runwayOps`            | `RunwayOpsData[]` | Per runway end: departure entries and arrival exits                      |
 | `sids`                 | `SidData[]`       | Sample SIDs per runway end, used in generated flight plans               |
+| `briefing`             | `BriefingSection[]` | Optional airport briefing shown in the help window (see [Airport briefing](#airport-briefing)) |
 
 ## Runways
 
@@ -29,6 +30,7 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 {
   name: '07/25',
   widthM: 45,
+  lengthM: 3345,          // optional: published length, shown in the briefing
   ends: [
     { name: '07', threshold: {lat, lon}, end: {lat, lon}, elevationFt: 1267 },
     { name: '25', threshold: {lat, lon}, end: {lat, lon}, elevationFt: 1181 },
@@ -119,6 +121,25 @@ runwayOps: [
 
 `type` is one of `DEL`, `GND`, `TWR`, `APP`, `DEP`, `CTR`, `ATIS`. A position can only be selected in the Connect dialog if the airport has a station of that type (and the position is implemented).
 
+## Airport briefing
+
+Every airport should have a `briefing`: what a controller needs to know at that airport. It is shown in the help window under **Airport briefing** (also via `BRIEFING` in the toolbar).
+
+```ts
+briefing: [
+  {
+    title: 'Departures',
+    positions: ['GND', 'TWR'],          // optional: only for these positions
+    items: ['Full length: holding point A (runway 25).', 'Ask first: `advise able for departure from intersection D`.'],
+    table: { head: ['From', 'Typical instruction'], rows: [['Stands 9-19', '`taxi to holding point A via M, L2, S`']] },
+  },
+]
+```
+
+- Text in `backticks` is shown as an instruction.
+- Do not repeat facts that are already in the data: the briefing adds **At a glance** (elevation, runways, transition altitude), **Now** (runway in use, ATIS, full-length and intersection holding points, exits and flows of that runway) and **Frequencies** automatically, followed by the `dataNotice`.
+- Typical sections: your job at this position, taxi flows, departures (entries, push directions, typical routes), arrivals (exits, vacating, typical routes), stands, hot spots and pitfalls. Keep it consistent with `docs/airports/<ICAO>.md` and with how the simulator really behaves; mark simulator conventions as such.
+
 ## Authoring with `RunwayFrameBuilder`
 
 Most aerodrome charts are drawn relative to the runway. `src/data/airports/builder.ts` lets you author a layout in a **runway-aligned frame** and converts it to lat/lon:
@@ -142,8 +163,9 @@ const area = b.area('Apron South', [[-30, -215], [560, -215], [560, -375], [-30,
 2. Register it in `AIRPORTS` in `src/main.ts`, and remove it from `PLANNED_AIRPORTS` in `src/ui/dialogs.ts` if it is listed there.
 3. Add tests (copy the "EDDS data" block in `tests/routing.test.ts`): every stand must reach every departure holding point, and every exit path must exist.
 4. Add operators and destinations that fit the airport to `src/data/airlines.ts`. The traffic generator currently uses the global list; per-airport traffic mixes are on the roadmap.
-5. Document the airport in `docs/airports/<ICAO>.md` (layout, holding points, stands, typical routes, accuracy) and link it from the README.
-6. Add a `CHANGELOG.md` entry.
+5. Write the airport **briefing** (see [Airport briefing](#airport-briefing)).
+6. Document the airport in `docs/airports/<ICAO>.md` (layout, holding points, stands, typical routes, accuracy) and link it from the README.
+7. Add a `CHANGELOG.md` entry.
 
 ### Licensing of source data
 

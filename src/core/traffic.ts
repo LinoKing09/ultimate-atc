@@ -137,14 +137,30 @@ export class TrafficGenerator {
 
   /** Allocates a free stand for an aircraft that needs one (arrival, returning departure). */
   allocateStand(ac: Aircraft): Stand | undefined {
-    const airline = AIRLINES.find((a) => ac.callsign.startsWith(a.icao)) ?? AIRLINES.find((a) => a.callsignStyle === 'reg')!;
+    const airline = this.operators.find((a) => ac.callsign.startsWith(a.icao)) ?? AIRLINES.find((a) => ac.callsign.startsWith(a.icao)) ?? AIRLINES.find((a) => a.callsignStyle === 'reg')!;
     return this.pickStand(ac.type, airline, ac);
   }
 
   // ------------------------------------------------------------------ helpers
 
+  /** Operators of this airport (airport traffic data merged with the global operator table). */
+  private get operators(): Airline[] {
+    if (!this.operatorCache) {
+      const traffic = this.sim.config.airport.traffic;
+      this.operatorCache = traffic
+        ? traffic.operators.map((o) => {
+            const base = AIRLINES.find((a) => a.icao === o.airline);
+            if (!base) throw new Error(`Unknown operator ${o.airline} in the traffic of ${this.sim.config.airport.icao}`);
+            return { ...base, weight: o.weight, types: o.types ?? base.types, destinations: o.destinations ?? base.destinations };
+          })
+        : AIRLINES;
+    }
+    return this.operatorCache;
+  }
+  private operatorCache?: Airline[];
+
   private pickAirline(filter?: (a: Airline) => boolean): Airline {
-    const list = filter ? AIRLINES.filter(filter) : AIRLINES;
+    const list = filter ? this.operators.filter(filter) : this.operators;
     return this.sim.rng.weighted(list, (a) => a.weight);
   }
 
@@ -229,7 +245,7 @@ export class TrafficGenerator {
       heading: stand.heading,
       altitudeFt: sim.config.airport.elevationFt,
       phase: 'parked',
-      frequency: sim.config.position,
+      frequency: sim.stationFor('ground'),
       now: sim.time,
     });
     ac.stand = stand.id;
@@ -264,7 +280,7 @@ export class TrafficGenerator {
       heading: 0,
       altitudeFt: 3000,
       phase: 'approach',
-      frequency: 'TWR',
+      frequency: sim.stationFor('tower'),
       now: sim.time,
     });
     ac.assignedStand = stand?.id;

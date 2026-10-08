@@ -20,7 +20,8 @@ ultimate-atc/
 │   │   ├── airport/
 │   │   │   ├── types.ts       # serialisable AirportData format
 │   │   │   ├── airport.ts     # runtime Airport: local coordinates, taxi graph, lookups
-│   │   │   └── routing.ts     # taxi route finding with "via" constraints and turn limits
+│   │   │   ├── routing.ts     # taxi route finding with "via" constraints, turn and wingspan limits
+│   │   │   └── validate.ts    # airport data checks (run for every airport by the tests)
 │   │   ├── aircraft.ts        # Aircraft state, flight plan, phases
 │   │   ├── movement.ts        # path following, speed control, see-and-avoid, collisions
 │   │   ├── pilot.ts           # AI pilots: executing instructions, read-backs, own calls
@@ -37,8 +38,9 @@ ultimate-atc/
 │   │   ├── aircraftTypes.ts   # dimensions and performance per ICAO type
 │   │   ├── airlines.ts        # operators, telephony, fleets, destinations
 │   │   └── airports/
+│   │       ├── index.ts       # AIRPORTS: the airports offered in the Connect dialog
 │   │       ├── builder.ts     # helper to author layouts in a runway-aligned frame
-│   │       └── edds.ts        # Stuttgart
+│   │       └── edds.ts        # Stuttgart (layout, stands, runway operations, traffic, briefing)
 │   └── ui/                    # browser client
 │       ├── app.ts             # wires sim <-> scope, lists, messages, command line, menus
 │       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input, rotation (runway-aligned / north-up)
@@ -144,14 +146,15 @@ A `Path` (`core/path.ts`) is the route's polyline with corners replaced by curve
 
 ### Adding an airport
 
-See [airport-data.md](airport-data.md). In short: create `src/data/airports/<icao>.ts` exporting an `AirportData`, add it to `AIRPORTS` in `src/main.ts`, document it in `docs/airports/<ICAO>.md`, and add a data-consistency test.
+See [airport-data.md](airport-data.md). In short: create `src/data/airports/<icao>.ts` exporting an `AirportData`, add it to `AIRPORTS` in `src/data/airports/index.ts` (the data checks in `tests/airports.test.ts` then run for it), describe its traffic and briefing, and document it in `docs/airports/<ICAO>.md`.
 
 ### Adding a position (Delivery, Tower, Approach, Center)
 
 The groundwork is in place:
 
-- `SimConfig.position` and `Aircraft.frequency` are `StationType`s. "Is this pilot talking to me?" is `aircraft.frequency === config.position` (`Simulation.isOnMyFrequency`).
-- Everything the user doesn't control is AI. Today that is Delivery (implicit), Tower (`TowerAI`) and Approach (arrivals appear on final).
+- `SimConfig.position` (the primary position) and `SimConfig.positions` (all positions the user staffs at once, for **combined positions**) are `StationType`s, as is `Aircraft.frequency`. `Simulation.userStations` holds the staffed stations; "is this pilot talking to me?" is `Simulation.isOnMyFrequency(ac)`, "do I run this station?" is `Simulation.userControls(type)`.
+- The core never names a station type directly. It asks for the station of a **role**: `Simulation.stationFor('delivery' | 'ground' | 'tower')`. If an airport has no station for a role, the next higher one covers it (delivery -> ground -> tower), like an unstaffed position covered from above. New departures start on `stationFor('ground')`, arrivals on `stationFor('tower')`, hand-offs go to those stations.
+- Everything the user doesn't control is AI. Today that is Delivery (implicit), Tower (`TowerAI`, it only handles a stranded departure when the user doesn't staff Tower) and Approach (arrivals appear on final).
 
 To add the **Tower** position, for example:
 

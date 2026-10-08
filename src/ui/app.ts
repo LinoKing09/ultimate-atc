@@ -391,7 +391,7 @@ export class App {
         items.push(btn('TAXI', (b) => this.menu.open(arr ? `${ac.callsign} - taxi to stand` : `${ac.callsign} - taxi to`, arr ? this.standDestinations(ac) : this.taxiDestinations(ac), ...at(b))));
         items.push(btn('HOLD', () => this.say(ac, 'hold position')));
         items.push(btn('CONT', () => this.say(ac, 'continue taxi')));
-        const tower = this.sim.airport.station('TWR');
+        const tower = this.sim.airport.station(this.sim.stationFor('tower'));
         if (ac.category === 'departure' && tower && ['taxi', 'holding'].includes(ac.phase)) items.push(btn('TWR', () => this.say(ac, `contact tower ${tower.frequency}`)));
       }
     }
@@ -674,7 +674,7 @@ export class App {
     }
 
     const rwy = sim.runway;
-    const tower = sim.airport.station('TWR');
+    const tower = sim.airport.station(sim.stationFor('tower'));
 
     if (ac.phase === 'parked' && ac.category === 'departure') {
       const facings = this.pushFacings(ac);

@@ -115,7 +115,7 @@ export class TowerAI {
           break;
         case 'taxi':
           // Aircraft already with the tower that hold short of the runway on their route get a crossing.
-          if (ac.frequency === 'TWR' && ac.stoppedAt?.kind === 'runway' && !this.runwayBusy() && this.nextArrivalEta() > 90) {
+          if (ac.frequency === this.sim.stationFor('tower') && ac.stoppedAt?.kind === 'runway' && !this.runwayBusy() && this.nextArrivalEta() > 90) {
             ac.clearedToCross.add(ac.stoppedAt.target);
             ac.stoppedAt = undefined;
           }
@@ -141,7 +141,7 @@ export class TowerAI {
     ac.altitudeFt = end.elevationFt + 50 + (d * GLIDE_SLOPE) / M_PER_FT;
     ac.onGround = false;
     ac.phase = 'approach';
-    ac.frequency = 'TWR';
+    ac.frequency = this.sim.stationFor('tower');
   }
 
   private flyApproach(ac: Aircraft, dt: number): void {
@@ -254,7 +254,7 @@ export class TowerAI {
     ac.phase = 'taxi';
     ac.speedLimit = undefined;
     ac.route = null;
-    ac.frequency = sim.config.position;
+    ac.frequency = sim.stationFor('ground');
     if (!sim.isOnMyFrequency(ac)) return;
     const head = `${sim.station.name}, ${sim.tel(ac)}`;
     const via = `vacated runway ${ac.runway ?? this.end.name} via ${ac.exitName ?? ''}`;
@@ -319,7 +319,7 @@ export class TowerAI {
     const sim = this.sim;
     if (sim.aircraft.some((a) => a.phase === 'lineup')) return;
     const queue = sim.aircraft
-      .filter((a) => a.frequency === 'TWR' && a.phase === 'holding')
+      .filter((a) => a.frequency === sim.stationFor('tower') && a.phase === 'holding')
       .sort((a, b) => (a.holdingSince ?? 0) - (b.holdingSince ?? 0));
     const next = queue[0];
     if (!next || !this.canLineUp(next)) return;
@@ -375,7 +375,7 @@ export class TowerAI {
     const remaining = end.length - sim.airport.runwayCoordinates(end, lineupPt).along;
     if (remaining < 1500) {
       // Wrong end of the runway: send the aircraft back to Ground.
-      ac.frequency = sim.config.position;
+      ac.frequency = sim.stationFor('ground');
       ac.holdingSince = sim.time + 1e9;
       call(sim, ac, 'route', `${sim.station.name}, ${sim.tel(ac)}, tower sent us back, not enough runway at ${hp.holdingPoint?.name ?? ''} for departure ${end.name}, request taxi`);
       return;

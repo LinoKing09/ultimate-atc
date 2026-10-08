@@ -134,6 +134,27 @@ About 85% of arrivals vacate to the north. On runway 25 the others vacate to the
 
 Departures on drive-through stands don't need a pushback: they call `request taxi` and leave forwards. The stand allocation prefers Apron North; business jets go to stands 60-65. Apron South is only used when Apron North is full, but you can taxi any aircraft there.
 
+## Traffic
+
+The traffic generator uses the operator mix of Stuttgart (`traffic` in `edds.ts`). Shares are the airlines' passenger shares in scheduled and charter traffic from the airport's annual report 2024 as quoted in the press (Eurowings about 40 % also in 2025), used as movement shares:
+
+| Operator | Share | Types | Main destinations |
+| -------- | ----: | ----- | ----------------- |
+| Eurowings (EWG) | 39.7 % | A319, A320, A20N, A21N | Palma, Pristina, Barcelona, Berlin, Hamburg, Düsseldorf, Antalya, Dublin, Manchester, Stockholm, Malta, Mostar, Split, Zagreb, Belgrade ... |
+| SunExpress (SXS) | 8.3 % | B738, B38M | Antalya, Izmir, Dalaman, Kayseri, Bodrum |
+| TUIfly (TUI) | 5.8 % | B738, B38M | Palma, Canaries, Hurghada, Heraklion, Antalya |
+| Pegasus (PGT) | 5.4 % | A20N, A21N, B38M | Istanbul Sabiha Gökçen, Antalya, Izmir |
+| Lufthansa group (DLH, CLH) | 5.4 % | A319, A320, A20N, CRJ9, E195 | Frankfurt, Munich |
+| Turkish Airlines (THY) | 4.7 % | A321, A21N, B738, A332 | Istanbul |
+| Condor (CFG) | 3.9 % | A320, A321, A21N | Palma, Canaries, Hurghada, Antalya, Greek islands |
+| British Airways (BAW) | 3.7 % | A319, A320, A20N | London Heathrow (about 359,000 passengers in 2025) |
+| KLM Cityhopper (KLC) | 2.2 % | E190, E295 | Amsterdam |
+| Air France (AFR) | 1.2 % | A319, A320 | Paris CDG |
+| Austrian (AUA) | 1.0 % | DH8D, E195 | Vienna |
+| Business aviation | 3 % | C56X, CL35 | various |
+
+The busiest destinations in 2025 were Palma (639,000 passengers), Antalya (571,000), Istanbul Sabiha Gökçen (541,000), Istanbul (382,000), Pristina (372,000), London Heathrow (359,000), Barcelona (347,000), Berlin (313,000) and Hamburg (296,000); the destination lists are weighted accordingly. Shares for British Airways, KLM, Air France and Austrian are estimates from their routes; smaller operators (Corendon, AJet, Croatia Airlines and others) are not modelled. Sources: [Stuttgart Airport facts and figures](https://www.stuttgart-airport.com/en/company/airport-development/facts-and-figures), [Stuttgarter Zeitung: top destinations](https://www.stuttgarter-zeitung.de/lokales/stuttgart/flughafen-stuttgart-top-10-fluege-wohin-die-meisten-passagiere-reisen-78825542.html), [Schwäbische Zeitung: airline shares](https://www.schwaebische.de/regional/baden-wuerttemberg/es-ist-nicht-lufthansa-diese-airline-fliegt-am-haeufigsten-am-flughafen-stuttgart-3475888), [airliners.de: 2025 figures](https://www.airliners.de/flughafen-stuttgart-2025-passagierzahlen-steigern/86906).
+
 ## Typical routes
 
 **Runway 25**

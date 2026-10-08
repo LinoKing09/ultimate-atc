@@ -2,7 +2,7 @@
 
 **Ultimate ATC** is an air traffic control simulator that runs in your browser. It aims to come as close as possible to [EuroScope](https://www.euroscope.hu/), the radar client used on the [VATSIM](https://vatsim.net/) network. You log in to a controller position at a real airport, and AI pilots respond to your instructions in ICAO phraseology, whether you type them or speak them.
 
-> **Status: early development (v0.4).** One position is playable: **Ground at Stuttgart (EDDS)**. The code is built so that more positions (Delivery, Tower, Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
+> **Status: early development (v0.5).** One position is playable: **Ground at Stuttgart (EDDS)**. The code is built so that more positions (Delivery, Tower, Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
 
 ![Ultimate ATC - EDDS Ground overview](docs/images/screenshot-overview.png)
 

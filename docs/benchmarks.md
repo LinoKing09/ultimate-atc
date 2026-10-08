@@ -36,15 +36,16 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 0.2.0   | 10.2 | 5.7 | 0  | 0 | 0  | 13.1 | 1.9 s |
 | 0.3.0   | 13.0 | 5.1 | 0  | 0 | 0  | 13.9 | 1.9 s |
 | 0.4.0   | 13.4 | 5.2 | 0  | 0 | 0  | 10.2 | 13.8 s |
-| current (after 0.4.0) | 13.6 | 6.0 | 0 | 0 | 2 | 8.9 | 3.7 s |
+| 0.4.0 + fixes (before 0.5) | 13.6 | 6.0 | 0 | 0 | 2 | 8.9 | 3.7 s |
+| **0.5.0** | 12.3 | 6.7 | 0  | 0 | 2  | 8.9  | 3.0 s |
 
-**Since 0.1**: 2.9 times as many departures, 1.7 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
+**Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
-Soak test (current, 20 h with special events and more heavies in every third session): 11.0 departures and 5.7 arrivals per hour, no collisions, no incursions, 1 go-around.
+Soak test (0.5.0, 20 h with special events and more heavies in every third session): 11.8 departures and 6.9 arrivals per hour, no collisions, no incursions, 2 go-arounds, 3.9 s computing time per simulated hour. It now runs in CI on every push.
 
 ## Simulated traffic
 
-How many hours of traffic have been simulated while developing and testing the simulator. Since this page exists, every test file reports its simulated hours (`[simulated traffic] ... h` in the test output; a full `npm test` run currently simulates about **7.5 h**).
+How many hours of traffic have been simulated while developing and testing the simulator. Since this page exists, every test file reports its simulated hours (`[simulated traffic] ... h` in the test output; a full `npm test` run currently simulates about **8.5 h**, plus 20 h for the soak test in CI).
 
 | Period | Simulated traffic | Note |
 | ------ | ----------------: | ---- |
@@ -52,7 +53,9 @@ How many hours of traffic have been simulated while developing and testing the s
 | after v0.4 (tablet mode, scenarios, briefing, stand fixes) | ~130 h | estimate: test suite runs, debugging, soak tests |
 | version benchmark, 2026-10-08 | 120 h | measured: 5 versions x 20 h, plus a repeat of the current version |
 | soak tests, 2026-10-08 | 60 h | measured: 3 runs x 20 h |
-| **Total so far** | **~410 h** | of which 180 h exactly measured |
+| 0.5.0 development | ~70 h | estimate: test suite runs (8.5 h each) and debugging |
+| 0.5.0 release benchmark and soak test | 40 h | measured: 2 x 20 h |
+| **Total so far (0.5.0)** | **~520 h** | of which 220 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

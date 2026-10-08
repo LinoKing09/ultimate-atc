@@ -23,6 +23,7 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 | `runwayOps`            | `RunwayOpsData[]` | Per runway end: departure entries and arrival exits                      |
 | `sids`                 | `SidData[]`       | Sample SIDs per runway end, used in generated flight plans               |
 | `briefing`             | `BriefingSection[]` | Optional airport briefing shown in the help window (see [Airport briefing](#airport-briefing)) |
+| `traffic`              | `AirportTraffic`  | Optional operator mix of the airport (see [Traffic](#traffic))           |
 
 ## Runways
 
@@ -143,6 +144,29 @@ briefing: [
 - Do not repeat facts that are already in the data: the briefing adds **At a glance** (elevation, runways, transition altitude), **Now** (runway in use, ATIS, full-length and intersection holding points, exits and flows of that runway) and **Frequencies** automatically, followed by the `dataNotice`.
 - Typical sections: your job at this position, taxi flows, departures (entries, push directions, typical routes), arrivals (exits, vacating, typical routes), stands, hot spots and pitfalls. Keep it consistent with `docs/airports/<ICAO>.md` and with how the simulator really behaves; mark simulator conventions as such.
 
+## Traffic
+
+Which operators fly to the airport and how often:
+
+```ts
+traffic: {
+  source: 'Airport annual report 2024 (airline shares)',
+  operators: [
+    { airline: 'EWG', weight: 39.7, types: ['A319', 'A320', 'A20N', 'A21N'], destinations: ['LEPA', 'LEPA', 'BKPR', 'EDDH'] },
+    { airline: 'SXS', weight: 8.3, destinations: ['LTAI', 'LTBJ'] },
+    { airline: 'DCX', weight: 3 },   // business aviation, registration callsigns
+  ],
+}
+```
+
+- `airline` refers to an operator in [`src/data/airlines.ts`](../src/data/airlines.ts) (ICAO code, radiotelephony callsign, callsign style). Add new operators there.
+- `weight` is the operator's share of the movements (any unit; passenger shares are fine). `types` and `destinations` override the operator's defaults; repeat an entry to make it more frequent.
+- Without `traffic`, the global operator list is used.
+
+## Data checks
+
+`validateAirport()` (`src/core/airport/validate.ts`) checks an airport for mistakes: duplicate or dangling nodes, stands without nodes, invalid frequencies, runway operations that reference unknown holding points or nodes, flows on unknown taxiways, stands that cannot reach a full-length entry of every runway with an aircraft of their size, exits that lead to no stand, unknown operators or aircraft types in the traffic, types that fit no stand, and unknown holding points or stands named in the briefing. `tests/airports.test.ts` runs it for every airport in `src/data/airports/index.ts`, so a new airport cannot be merged with broken data.
+
 ## Authoring with `RunwayFrameBuilder`
 
 Most aerodrome charts are drawn relative to the runway. `src/data/airports/builder.ts` lets you author a layout in a **runway-aligned frame** and converts it to lat/lon:
@@ -163,9 +187,9 @@ const area = b.area('Apron South', [[-30, -215], [560, -215], [560, -375], [-30,
 
 1. Create `src/data/airports/<icao>.ts` exporting an `AirportData`. Use real runway end coordinates; [OurAirports](https://ourairports.com/data/) (`runways.csv`) is a convenient public-domain source.
    - **Digitising from an aerodrome chart** (how EDDS was made): render the chart at high resolution with a coordinate grid. Measure the runway ends to get the scale, and check it against a known distance (e.g. a displaced threshold). Then read every junction, holding point and stand position into the runway frame (`along`, `lateral`). The EDDS file shows how chart coordinates map to the builder.
-2. Register it in `AIRPORTS` in `src/main.ts`, and remove it from `PLANNED_AIRPORTS` in `src/ui/dialogs.ts` if it is listed there.
+2. Register it in `AIRPORTS` in `src/data/airports/index.ts`, and remove it from `PLANNED_AIRPORTS` in `src/ui/dialogs.ts` if it is listed there. The [data checks](#data-checks) then run for it automatically.
 3. Add tests (copy the "EDDS data" block in `tests/routing.test.ts`): every stand must reach every departure holding point, and every exit path must exist.
-4. Add operators and destinations that fit the airport to `src/data/airlines.ts`. The traffic generator currently uses the global list; per-airport traffic mixes are on the roadmap.
+4. Describe the airport's [traffic](#traffic) (operators, shares, destinations); add missing operators to `src/data/airlines.ts`.
 5. Write the airport **briefing** (see [Airport briefing](#airport-briefing)).
 6. Document the airport in `docs/airports/<ICAO>.md` (layout, holding points, stands, typical routes, accuracy) and link it from the README.
 7. Add a `CHANGELOG.md` entry.

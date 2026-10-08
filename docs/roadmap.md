@@ -6,30 +6,43 @@ Status legend: **done**, *in progress*, planned.
 
 ## Road to 1.0
 
-Version 1.0 is the first full version. It is released only when we agree on it; the proposal below gives the criteria. When the criteria are met, Claude proposes the release - it is never done automatically.
+Version 1.0 is the first full version. It is released only when we agree on it: when the criteria below are met, Claude proposes the release - it is never done automatically. (Criteria agreed on 2026-10-08.)
 
-**Proposed criteria for 1.0**
+**Criteria for 1.0**
 
-1. **Stuttgart complete**: Delivery, Ground and Tower playable at EDDS (single positions and combined), with realistic procedures, phraseology and AI for the positions you don't staff.
-2. **A second airport** with a different layout (proves the airport data format and the briefing).
-3. **No dead ends**: AI pilots solve simple conflicts themselves the way real pilots would (stop, give way, ask); remaining deadlocks always have a clear way out; no collisions caused by the AI in the soak test.
-4. **Training**: a tutorial for each position, scenario presets for typical training topics, a debriefing after a session (what went well, what cost points).
-5. **Quality**: soak test (20 h of traffic) clean, performance budget met on an iPad, documentation complete, benchmark statistics for the release in [benchmarks.md](benchmarks.md).
+1. **Stuttgart complete**: Delivery, Ground and Tower playable at EDDS - each on its own and as **combined positions** - with realistic procedures, phraseology and AI for the positions you don't staff.
+2. **No dead ends**: AI pilots solve simple conflicts themselves the way real pilots would (stop, give way, ask); remaining deadlocks always have a clear way out; no collisions in the soak test.
+3. **Training**: a tutorial for each position, scenario presets for typical training topics, a debriefing after a session (what went well, what cost points).
+4. **Quality**: soak test clean, performance budget met on an iPad, documentation complete, benchmark statistics for the release in [benchmarks.md](benchmarks.md).
 
-**Proposed path**
+Further airports follow in the 1.x releases (the airport data format, the data checks and per-airport traffic are ready for them since 0.5).
+
+**Combined positions** means one controller staffing several positions at the same time, for example Ground and Tower together, working both frequencies (or one frequency for both). This is realistic: at real airports positions are combined ("zusammengelegt") in quiet periods, for example at night or early in the morning, and split again when traffic grows. On VATSIM it is the normal case ("top-down": a Tower controller also covers Ground and Delivery while those are not staffed). The simulator's station model supports it since 0.5; the positions themselves come with 0.6-0.8.
+
+**Path**
 
 | Version | Focus |
 | ------- | ----- |
-| 0.5 | Foundations for more positions and airports: position-independent station model and hand-offs, per-airport traffic (airlines, destinations), airport data checks, soak test in CI |
+| **0.5** | **done** - Foundations: role-based station model (combined positions possible), per-airport traffic with the real Stuttgart operator mix, airport data checks, soak test in CI |
 | 0.6 | **Delivery** at EDDS: IFR clearances, squawks, start-up, CTOT |
 | 0.7 | **Tower** at EDDS: line-up / take-off / landing clearances, runway crossings, arrival sequence |
-| 0.8 | Combined positions, AI pilots that resolve simple conflicts, debriefing |
-| 0.9 | Second airport, tutorials, polish, beta testing |
+| 0.8 | Combined positions in the UI, AI pilots that resolve simple conflicts, debriefing |
+| 0.9 | Tutorials, polish, beta testing |
 | 1.0 | Release after the criteria above are met and agreed |
+| 1.x | Further airports |
 
 Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md](benchmarks.md) that compares them with the previous major release.
 
-## v0.4 - Settings and mobile (current)
+## v0.5 - Foundations
+
+- **done** - Real traffic mix for Stuttgart (airline shares, fleets, busiest destinations) as airport data (`traffic`)
+- **done** - Station roles (`delivery` / `ground` / `tower`) and staffed stations instead of fixed station types; combined positions possible in the core
+- **done** - Airport data checks for every airport (`validateAirport`, run by the tests)
+- **done** - Soak test (20 h of traffic) in CI; release benchmark
+- **done** - Stand suitability (wingtip clearance, real EDDS stand sizes, wide-body positions), taxiway wingspan limits
+- **done** - Tablet mode for the iPad, scenario builder, airport briefing (released with 0.5)
+
+## v0.4 - Settings and mobile
 
 - **done** - In-game settings menu (layout, sizes, voices, traffic, events)
 - **done** - Tablet mode (iPad): zoom buttons, tap-twice / long-press menus, quick-action bar, larger touch targets

@@ -13,6 +13,9 @@ import { TrafficGenerator } from './traffic';
 
 export type Density = 'light' | 'medium' | 'heavy';
 
+/** What a station does for an aircraft (independent of which station type does it at a given airport). */
+export type StationRole = 'delivery' | 'ground' | 'tower';
+
 /** Wingtip clearance between parked aircraft (ICAO Annex 14): 4.5 m for code C, 7.5 m for code D-F. */
 const STAND_CLEARANCE_C = 4.5;
 const STAND_CLEARANCE_D = 7.5;
@@ -21,8 +24,13 @@ const CODE_D_WINGSPAN = 36;
 
 export interface SimConfig {
   airport: AirportData;
-  /** Position the user is logged in as. Only 'GND' is implemented so far. */
+  /** Position the user is logged in as (the primary one). Only 'GND' is implemented so far. */
   position: StationType;
+  /**
+   * All positions the user staffs at the same time (combined positions, e.g. GND + TWR).
+   * Defaults to `[position]`. Unstaffed positions are run by the AI.
+   */
+  positions?: StationType[];
   /** Active runway end, e.g. "25". If omitted, the runway is chosen from the wind. */
   runway?: string;
   density: Density;
@@ -115,6 +123,8 @@ export class Simulation {
   readonly tower: TowerAI;
   readonly traffic: TrafficGenerator;
   readonly station: StationData;
+  /** Stations staffed by the user. */
+  readonly userStations: Set<StationType>;
   readonly startEpochMs: number;
 
   /** Simulation time in seconds since session start. */
@@ -163,6 +173,7 @@ export class Simulation {
     const station = this.airport.station(config.position);
     if (!station) throw new Error(`${config.airport.icao} has no ${config.position} station`);
     this.station = station;
+    this.userStations = new Set([config.position, ...(config.positions ?? [])]);
     this.startEpochMs = (config.startTime ?? new Date()).getTime();
     this.frequency = new Frequency(station.frequency, (m) => this.pushMessage(m));
     this.tower = new TowerAI(this);
@@ -419,9 +430,26 @@ export class Simulation {
     return this.aircraft.find((a) => a.callsign === c);
   }
 
-  /** True if the aircraft talks to the user's position. */
+  /** True if the aircraft talks to one of the user's positions. */
   isOnMyFrequency(ac: Aircraft): boolean {
-    return ac.frequency === this.config.position;
+    return this.userStations.has(ac.frequency);
+  }
+
+  /** True if the user staffs this station (otherwise the AI runs it). */
+  userControls(type: StationType): boolean {
+    return this.userStations.has(type);
+  }
+
+  /**
+   * The station that handles a role at this airport. If the airport has no
+   * such station, the next higher one takes over (delivery -> ground -> tower),
+   * like an unstaffed position being covered from above.
+   */
+  stationFor(role: StationRole): StationType {
+    const order: StationType[] = ['DEL', 'GND', 'TWR'];
+    const start = role === 'delivery' ? 0 : role === 'ground' ? 1 : 2;
+    for (let i = start; i < order.length; i++) if (this.airport.station(order[i])) return order[i];
+    return 'TWR';
   }
 
   /** Aircraft occupying or holding a reservation for a stand. */

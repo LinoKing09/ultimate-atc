@@ -40,6 +40,28 @@ export interface AirportData {
    * runways, entries, exits) are added automatically and need not be repeated.
    */
   briefing?: BriefingSection[];
+  /** Traffic mix of this airport. Without it, the global operator list in `data/airlines.ts` is used. */
+  traffic?: AirportTraffic;
+}
+
+/** Who flies to and from an airport, and how often. */
+export interface AirportTraffic {
+  /** Where the figures come from (shown in the airport documentation). */
+  source?: string;
+  operators: TrafficOperator[];
+}
+
+/**
+ * An operator at this airport. `weight` is its relative share of the
+ * movements; `types` and `destinations` override the operator's global
+ * defaults. Repeating an entry makes it more frequent.
+ */
+export interface TrafficOperator {
+  /** ICAO airline code from `data/airlines.ts`. */
+  airline: string;
+  weight: number;
+  types?: string[];
+  destinations?: string[];
 }
 
 /** One section of an airport briefing. Text may mark instructions with `backticks`. */

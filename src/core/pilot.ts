@@ -755,10 +755,10 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   let type = stationType;
   if (!type) {
     if (frequency) type = sim.config.airport.stations.find((s) => s.frequency === frequency)?.type;
-    if (!type) type = ac.category === 'departure' ? 'TWR' : undefined;
+    if (!type) type = ac.category === 'departure' ? sim.stationFor('tower') : undefined;
   }
   if (!type) return { unable: 'say again frequency' };
-  if (type === sim.config.position) return { unable: 'we are already on your frequency' };
+  if (sim.userControls(type) && ac.frequency === type) return { unable: 'we are already on your frequency' };
   const station = sim.airport.station(type);
   if (!station) return { unable: 'say again station' };
   if (frequency && frequency !== station.frequency) return { unable: `confirm frequency ${frequency} for ${STATION_WORD[type]}` };
@@ -766,7 +766,7 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   if (ac.category === 'departure' && !['taxi', 'holding'].includes(ac.phase)) {
     return { unable: `confirm contact ${STATION_WORD[type]}, we are not yet taxiing` };
   }
-  if (ac.category === 'arrival' && type === 'TWR') return { unable: 'confirm contact Tower, we have already landed' };
+  if (ac.category === 'arrival' && type === sim.stationFor('tower')) return { unable: 'confirm contact Tower, we have already landed' };
 
   return {
     readback: `${STATION_WORD[type]} ${station.frequency}, goodbye`,
@@ -775,7 +775,7 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
       ac.frequency = type!;
       ac.request = null;
       sim.frequency.cancel(ac.callsign);
-      if (ac.category === 'departure' && type === 'TWR') {
+      if (ac.category === 'departure' && type === sim.stationFor('tower')) {
         sim.stats.departuresHandedOff++;
         sim.updateScore();
       }
@@ -1011,8 +1011,8 @@ const TOWER_TAXI_ON_MAX = 600;
 function towerResolveStuck(sim: Simulation, ac: Aircraft): void {
   const st = ac.stoppedAt;
   const stuck =
-    ac.frequency === 'TWR' &&
-    sim.config.position !== 'TWR' &&
+    ac.frequency === sim.stationFor('tower') &&
+    !sim.userControls(sim.stationFor('tower')) &&
     ac.category === 'departure' &&
     ac.phase === 'taxi' &&
     !!st &&
@@ -1043,7 +1043,7 @@ function towerResolveStuck(sim: Simulation, ac: Aircraft): void {
     return;
   }
   // Too far from the runway: back to Ground.
-  ac.frequency = sim.config.position;
+  ac.frequency = sim.stationFor('ground');
   ac.request = null;
   sim.stats.departuresHandedOff = Math.max(0, sim.stats.departuresHandedOff - 1);
   call(sim, ac, 'route', `${sim.station.name}, ${sim.tel(ac)}, Tower sent us back to you, we are short of the holding point, request taxi`);

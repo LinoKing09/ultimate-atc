@@ -17,3 +17,5 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # 20 hours of traffic with an automatic controller: fails on any collision.
+      - run: npm run soak

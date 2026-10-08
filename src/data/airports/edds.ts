@@ -550,6 +550,33 @@ export const EDDS: AirportData = {
     { name: 'RIXED2E', runway: '07', fix: 'RIXED' },
     { name: 'KRH2E', runway: '07', fix: 'KRH' },
   ],
+  // Traffic mix: shares of the operators at Stuttgart (passengers in scheduled and charter traffic, airport annual
+  // report 2024 as quoted in the press; Eurowings about 40 % in 2025 as well) and the busiest destinations of 2025.
+  // Passenger shares are used as movement shares. Smaller operators (Corendon, AJet, Croatia ...) are not modelled.
+  traffic: {
+    source: 'Stuttgart Airport annual report 2024 (airline passenger shares, via press reports) and top destinations 2025',
+    operators: [
+      {
+        airline: 'EWG',
+        weight: 39.7,
+        types: ['A319', 'A320', 'A320', 'A20N', 'A21N'],
+        destinations: ['LEPA', 'LEPA', 'LEPA', 'BKPR', 'BKPR', 'LEBL', 'LEBL', 'EDDB', 'EDDB', 'EDDH', 'EDDH', 'EDDL', 'LTAI', 'EIDW', 'EGCC', 'ESSA', 'LMML', 'LQMO', 'LDSP', 'LDZA', 'LYBE', 'LGAV', 'LPPT', 'LHBP', 'EKCH', 'GCLP', 'LIRF'],
+      },
+      { airline: 'SXS', weight: 8.3, types: ['B738', 'B38M', 'B38M'], destinations: ['LTAI', 'LTAI', 'LTAI', 'LTBJ', 'LTBS', 'LTAU', 'LTFE'] },
+      { airline: 'TUI', weight: 5.8, types: ['B738', 'B38M'], destinations: ['LEPA', 'LEPA', 'GCFV', 'GCTS', 'GCRR', 'GCLP', 'HEGN', 'LGIR', 'LTAI'] },
+      { airline: 'PGT', weight: 5.4, types: ['A20N', 'A21N', 'B38M'], destinations: ['LTFJ', 'LTFJ', 'LTFJ', 'LTAI', 'LTBJ'] },
+      { airline: 'DLH', weight: 2.4, types: ['A319', 'A320', 'A20N'], destinations: ['EDDF', 'EDDM'] },
+      { airline: 'CLH', weight: 3.0, types: ['CRJ9', 'E195'], destinations: ['EDDM', 'EDDF'] },
+      { airline: 'THY', weight: 4.7, types: ['A321', 'A321', 'A21N', 'B738', 'A332'], destinations: ['LTFM'] },
+      { airline: 'CFG', weight: 3.9, types: ['A320', 'A321', 'A21N'], destinations: ['LEPA', 'LEPA', 'GCTS', 'GCRR', 'GCFV', 'HEGN', 'LTAI', 'LGKO', 'LGIR'] },
+      { airline: 'BAW', weight: 3.7, types: ['A319', 'A320', 'A20N'], destinations: ['EGLL'] },
+      { airline: 'KLC', weight: 2.2, types: ['E190', 'E295'], destinations: ['EHAM'] },
+      { airline: 'AFR', weight: 1.2, types: ['A319', 'A320'], destinations: ['LFPG'] },
+      { airline: 'AUA', weight: 1.0, types: ['DH8D', 'E195'], destinations: ['LOWW'] },
+      // Business aviation (registration callsigns).
+      { airline: 'DCX', weight: 3.0 },
+    ],
+  },
   // Local procedures as modelled in the simulator (see docs/airports/EDDS.md).
   // Flows and planning tips are simulator conventions, not published procedures.
   briefing: [

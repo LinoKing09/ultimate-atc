@@ -24,7 +24,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | Field             | Meaning                                                                                              |
 | ----------------- | ---------------------------------------------------------------------------------------------------- |
 | **Airport**       | Airport to control. Only EDDS has data so far; planned airports are listed but disabled.             |
-| **Position**      | Controller position. Only **Ground** is available in v0.1; Delivery, Tower, Approach/Departure and Center are planned. |
+| **Position**      | Controller position. Only **Ground** is available so far; Delivery, Tower, Approach/Departure and Center are planned. |
 | **Callsign**      | Shows the resulting station callsign, frequency and radio name, for example `EDDS_GND 118.605 "Stuttgart Ground"`. |
 | **Traffic**       | `light`, `medium` or `heavy` (see [simulation model](simulation.md#traffic-generation)).          |
 | **Special events** | Rare special situations: medical emergencies (arrivals and departures) and rejected take-offs. On by default. See [simulation model](simulation.md#special-events). |

@@ -4,8 +4,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-08
+
+Foundations for more positions and airports, real Stuttgart traffic, tablet mode, scenarios and the airport briefing.
+
 ### Added
 
+- **Real Stuttgart traffic mix**: operators, fleets and destinations follow the airport's statistics (Eurowings about 40 %, SunExpress, TUIfly, Pegasus, the Lufthansa group, Turkish, Condor, British Airways, KLM, Air France, Austrian, business aviation; Palma, Antalya, Istanbul, Pristina, London, Barcelona, Berlin, Hamburg as the busiest destinations). New `traffic` section in the airport data format; see [EDDS](docs/airports/EDDS.md#traffic).
+- **Station roles and combined positions (core)**: the simulation asks for the station of a role (delivery / ground / tower) instead of fixed station types, and the user can staff several stations at once (`SimConfig.positions`). This is the basis for Delivery, Tower and combined positions.
+- **Airport data checks** (`validateAirport`): every airport is checked by the tests for broken references, unreachable stands or holding points, unknown operators or aircraft types, and briefing mistakes.
+- **Soak test in CI**: every push simulates 20 hours of traffic and fails on any collision.
 - **Scenario codes and scenario builder** ([docs/scenarios.md](docs/scenarios.md)): choose what to train - runway, density, traffic mix (balanced / departure push / arrival rush), more heavies, random events and scheduled events (medical emergency arrival/departure, rejected take-off, wind shift at a chosen minute) - from presets or by hand. The code (e.g. `EDDS-25-HD1-M10R20W30-K7Q2M`) goes into the Connect dialog's Scenario field, and a link with `?scenario=...` pre-fills it. The same code always gives the same session.
 - Observed surface wind: a scenario wind shift changes the toolbar wind (and the ATIS editor's pre-filled wind) until you broadcast a new ATIS.
 - **Airport briefing**: a new tab in the help window (and `BRIEFING` in the toolbar) with the airport's local procedures for your position - your job, standard taxi flows, departures, arrivals, typical routes, stands, hot spots - plus live facts from the data: the runway in use with its holding points, exits and flows, and all frequencies. New optional `briefing` and `lengthM` fields in the airport data format; EDDS has a full briefing.

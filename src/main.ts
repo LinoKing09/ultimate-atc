@@ -1,12 +1,10 @@
 import './style.css';
 import { Simulation } from './core/simulation';
-import { EDDS } from './data/airports/edds';
+import { AIRPORTS } from './data/airports';
 import { App } from './ui/app';
 import { showLogin } from './ui/dialogs';
 import { loadSettings, saveSettings } from './ui/settings';
 
-/** Airports with complete data, selectable in the login dialog. */
-const AIRPORTS = [EDDS];
 
 async function start(): Promise<void> {
   const settings = loadSettings();

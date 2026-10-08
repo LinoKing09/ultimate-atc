@@ -607,6 +607,16 @@ export class App {
       } else {
         const pts = routePoints(ac, r.route.nodes.map((n) => n.pos), r.route.startPosition);
         this.scope.preview = { points: pts, ok: true };
+        // The pilot accepts any stand that fits; you see (the crew doesn't yet) whether it is free.
+        const dest = r.dest;
+        if (dest.kind === 'stand') {
+          const occ = this.sim.standOccupant(dest.stand, ac);
+          const nb = occ ? undefined : this.sim.standNeighbourConflict(dest.stand, ac.type.wingspanM, ac);
+          if (occ || nb) {
+            warn = true;
+            msg += occ ? `  -- stand ${dest.stand} taken by ${occ.callsign}` : `  -- stand ${dest.stand}: too close to ${nb!.aircraft.callsign} on ${nb!.stand.id}`;
+          }
+        }
         // A-SMGCS CATC: warn before transmitting a route that meets other traffic head-on.
         const c = this.sim.systemOn('catc') ? routeHeadOn(this.sim, ac, pts) : undefined;
         if (c) {

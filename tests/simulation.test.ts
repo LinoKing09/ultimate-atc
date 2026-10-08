@@ -85,6 +85,27 @@ describe('arrival flow', () => {
     expect(runUntil(sim, () => ac.phase === 'arrived', 900)).toBe(true);
     expect(sim.stats.arrivalsParked).toBe(1);
   });
+
+  it('only finds out on arrival that the stand is occupied', () => {
+    const sim = makeSim();
+    sim.traffic.spawnDeparture(3600, { stand: '14', callsign: 'DLH5AB', type: 'A320' });
+    const ac = sim.traffic.spawnArrival(4, { callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    expect(runUntil(sim, () => ac.request === 'taxiIn', 400)).toBe(true);
+    sim.transmit('EWG7TK taxi to stand 14');
+    runUntil(sim, () => lastPilotMessage(sim, 'EWG7TK').startsWith('Taxi to stand 14'), 20);
+    // The crew can't know that the stand is taken: it reads back ...
+    expect(lastPilotMessage(sim, 'EWG7TK')).toMatch(/^Taxi to stand 14/);
+    // ... and only reports it when it sees the stand.
+    expect(runUntil(sim, () => /stand 14 is occupied, request another stand/.test(lastPilotMessage(sim, 'EWG7TK')), 900)).toBe(true);
+    expect(ac.request).toBe('route');
+    runUntil(sim, () => ac.speed === 0, 30);
+    const stand = sim.airport.stand('14')!;
+    expect(Math.hypot(ac.pos.x - stand.pos.x, ac.pos.y - stand.pos.y)).toBeGreaterThan(40);
+    const other = sim.freeStands(ac.type.wingspanM)[0].id;
+    sim.transmit(`EWG7TK taxi to stand ${other}`);
+    expect(runUntil(sim, () => ac.phase === 'arrived', 900)).toBe(true);
+    expect(ac.stand).toBe(other);
+  });
 });
 
 describe('runway crossing', () => {

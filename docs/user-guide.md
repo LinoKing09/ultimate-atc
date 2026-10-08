@@ -315,7 +315,7 @@ taxi to stand 14 via N R          <- goes to the selected aircraft
 - The **target** on the left (`[DLH5AB]`) is the selected aircraft. It receives instructions without a callsign.
 - The **preview** on the right shows how your text was understood:
   - **green**: understood, and the route (if any) is valid. The route is drawn on the scope.
-  - **orange**: understood and valid, but the A-SMGCS (CATC) warns that the route meets other traffic head-on (`-- CATC: head-on with EWG7TK on N`). You can still transmit it.
+  - **orange**: understood and valid, but there is a catch: the A-SMGCS (CATC) warns that the route meets other traffic head-on (`-- CATC: head-on with EWG7TK on N`), or the stand is taken (`-- stand 14 taken by DLH5AB`; the crew will accept it and only notice when it gets there). You can still transmit it.
   - **red**: understood, but it won't work, for example `unable to follow route via S`, or the aircraft is not on your frequency.
   - **grey** `? ...`: words that were not understood.
 - When you transmit, the message window shows your instruction in clean phraseology. For example, `dlh5ab taxi a via l2 s` becomes `Lufthansa 5AB, taxi to holding point A via L2, S`, unless parts of it were not understood; then your raw text is shown.

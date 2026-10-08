@@ -86,6 +86,12 @@ export interface Aircraft {
   stand?: string;
   /** Stand allocated to an arrival (suggestion shown to the controller). */
   assignedStand?: string;
+  /**
+   * The crew saw on approach that its destination stand is not usable
+   * (occupied, or a neighbour too close) and stopped: `reported` once it has
+   * asked for another stand, otherwise it waits for an aircraft leaving it.
+   */
+  standBlocked?: { stand: string; reported: boolean };
   /** Departure runway end / landing runway end. */
   runway?: string;
 

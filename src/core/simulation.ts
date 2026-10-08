@@ -500,12 +500,21 @@ export class Simulation {
     return 'TWR';
   }
 
-  /** Aircraft occupying or holding a reservation for a stand. */
-  standOccupant(standId: string, except?: Aircraft): Aircraft | undefined {
+  /**
+   * Aircraft occupying or holding a reservation for a stand. With `visible`
+   * only what a crew taxiing in can see: an aircraft standing on the stand,
+   * leaving it, or just entering it (no reservations, no aircraft still on its
+   * way there or taxiing past).
+   */
+  standOccupant(standId: string, except?: Aircraft, visible = false): Aircraft | undefined {
     const id = standId.toUpperCase();
     const stand = this.airport.stand(id);
     return this.aircraft.find((a) => {
       if (a === except || a.phase === 'gone') return false;
+      if (visible) {
+        if (a.stand === id && ['parked', 'arrived', 'pushback', 'startup'].includes(a.phase)) return true;
+        return !!stand && a.phase === 'taxi' && a.routeDestination?.kind === 'stand' && a.routeDestination.stand === id && distance(a.pos, stand.pos) < 40;
+      }
       if (a.assignedStand === id && a.phase !== 'arrived') return true;
       if (a.stand === id && (a.phase === 'parked' || a.phase === 'arrived' || (a.phase === 'pushback' && a.s < 30))) return true;
       if (a.phase === 'taxi' && a.routeDestination?.kind === 'stand' && a.routeDestination.stand === id) return true;
@@ -520,14 +529,14 @@ export class Simulation {
    * are only rated for their own maximum wingspan; a wide-body on a large
    * stand can block the smaller stand next to it.
    */
-  standNeighbourConflict(standId: string, wingspanM: number, except?: Aircraft): { aircraft: Aircraft; stand: Stand } | undefined {
+  standNeighbourConflict(standId: string, wingspanM: number, except?: Aircraft, visible = false): { aircraft: Aircraft; stand: Stand } | undefined {
     const stand = this.airport.stand(standId);
     if (!stand) return undefined;
     for (const other of this.airport.stands.values()) {
       if (other === stand) continue;
       const d = distance(stand.pos, other.pos);
       if (d > 120) continue;
-      const occ = this.standOccupant(other.id, except);
+      const occ = this.standOccupant(other.id, except, visible);
       if (!occ) continue;
       const span = occ.type.wingspanM;
       const clearance = Math.max(span, wingspanM) >= CODE_D_WINGSPAN ? STAND_CLEARANCE_D : STAND_CLEARANCE_C;

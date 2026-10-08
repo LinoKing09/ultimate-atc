@@ -46,9 +46,16 @@ function departure(sim: Simulation, ac: Aircraft): void {
 }
 
 function arrival(sim: Simulation, ac: Aircraft): void {
-  if (ac.phase !== 'taxi' || ac.routeDestination?.kind === 'stand') return;
-  if (!ac.stoppedAt && ac.path) return;
-  const stand = ac.assignedStand ?? sim.freeStands(ac.type.wingspanM, undefined, ac)[0]?.id;
+  if (ac.phase !== 'taxi') return;
+  const blocked = ac.standBlocked?.reported ? ac.standBlocked.stand : undefined;
+  if (blocked) {
+    // The crew found its stand occupied: give it another one.
+    if (ac.assignedStand === blocked) ac.assignedStand = undefined;
+  } else {
+    if (ac.routeDestination?.kind === 'stand') return;
+    if (!ac.stoppedAt && ac.path) return;
+  }
+  const stand = ac.assignedStand ?? sim.freeStands(ac.type.wingspanM, (s) => s.id !== blocked, ac)[0]?.id;
   if (stand) aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] });
 }
 

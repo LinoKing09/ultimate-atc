@@ -505,11 +505,9 @@ function resolveDestination(
     case 'stand': {
       const stand = sim.airport.stand(dest.stand);
       if (!stand) return { error: `confirm stand ${dest.stand}, we can't find it` };
+      // The crew knows from its stand charts whether its aircraft fits the stand - but not
+      // whether the stand is free: that it only sees when taxiing in (checkStandAhead).
       if (stand.maxWingspanM < ac.type.wingspanM) return { error: `stand ${dest.stand} is too small for us` };
-      const occ = sim.standOccupant(stand.id, ac);
-      if (occ) return { error: `stand ${dest.stand} is occupied` };
-      const blocked = sim.standNeighbourConflict(stand.id, ac.type.wingspanM, ac);
-      if (blocked) return { error: `stand ${dest.stand} is blocked, not enough wingtip clearance to the ${blocked.aircraft.type.icao} on stand ${blocked.stand.id}` };
       const r = tryRoute(stand.node);
       if (isRouteError(r)) return { error: routeErrorText(r.error, via) };
       return { route: r, dest };
@@ -680,6 +678,7 @@ export function applyRoute(
   ac.routeDestination = dest;
   ac.stoppedAt = undefined;
   ac.holdPosition = false;
+  ac.standBlocked = undefined;
   ac.blockDistance = undefined;
   ac.clearedToCross = new Set(cross.map((r) => sim.airport.runwayNameFor(r)).filter((r): r is string => !!r));
   for (const h of holdShort) {
@@ -971,6 +970,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
   }
 
   towerResolveStuck(sim, ac);
+  checkStandAhead(sim, ac);
   if (!sim.isOnMyFrequency(ac)) return;
 
   // Special event: medical emergency while taxiing out.
@@ -1153,6 +1153,42 @@ function towerResolveStuck(sim: Simulation, ac: Aircraft): void {
   ac.request = null;
   sim.stats.departuresHandedOff = Math.max(0, sim.stats.departuresHandedOff - 1);
   call(sim, ac, 'route', `${sim.station.name}, ${sim.tel(ac)}, Tower sent us back to you, we are short of the holding point, request taxi`);
+}
+
+/** Distance before the stand at which the crew can see whether it is free (metres along the route). */
+const STAND_SIGHT_M = 150;
+
+/**
+ * Taxiing in, the crew sees its stand: if an aircraft stands on it (or too
+ * close on a neighbouring stand), it stops and asks for another stand. An
+ * aircraft that is just leaving the stand (pushback, start-up) is waited for.
+ */
+function checkStandAhead(sim: Simulation, ac: Aircraft): void {
+  const dest = ac.routeDestination;
+  if (ac.phase !== 'taxi' || !ac.path || dest?.kind !== 'stand') return;
+  if (ac.path.length - ac.s > STAND_SIGHT_M) return;
+  const occ = sim.standOccupant(dest.stand, ac, true);
+  const neighbour = occ ? undefined : sim.standNeighbourConflict(dest.stand, ac.type.wingspanM, ac, true);
+  // An aircraft that is moving (pushing back from or taxiing onto the stand) is waited for.
+  const other = occ ?? neighbour?.aircraft;
+  const leaving = !!other && !['parked', 'arrived'].includes(other.phase);
+  if (!occ && !neighbour) {
+    if (ac.standBlocked) {
+      // The stand has become free (the other aircraft left): continue.
+      if (!ac.standBlocked.reported) ac.holdPosition = false;
+      ac.standBlocked = undefined;
+    }
+    return;
+  }
+  if (ac.standBlocked?.stand === dest.stand && ac.holdPosition) return;
+  ac.holdPosition = true;
+  const reported = !leaving;
+  ac.standBlocked = { stand: dest.stand, reported: reported || !!ac.standBlocked?.reported };
+  if (!reported || !sim.isOnMyFrequency(ac)) return;
+  const why = occ
+    ? `stand ${dest.stand} is occupied`
+    : `stand ${dest.stand} is blocked, not enough wingtip clearance to the ${neighbour!.aircraft.type.icao} on stand ${neighbour!.stand.id}`;
+  call(sim, ac, 'route', `${sim.station.name}, ${sim.tel(ac)}, ${why}, request another stand`);
 }
 
 /**

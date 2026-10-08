@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- **Occupied stands are noticed where it is realistic**: crews no longer answer a taxi instruction with "stand 14 is occupied" - they can't know that on the runway exit. They accept it, see the stand when taxiing in, stop about 150 m before it and ask for another stand (`stand 14 is occupied, request another stand`); an aircraft just pushing back from it is waited for. Crews still refuse a stand that is too small for their aircraft (they know that from their stand charts). The command-line preview warns you in orange when the stand you type is taken; the AI Ground re-allocates blocked arrivals.
+
 ## [0.6.0] - 2026-10-08
 
 Clearance Delivery at Stuttgart, the systems window and realistic handling of head-on conflicts.

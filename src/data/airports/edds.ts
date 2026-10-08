@@ -612,11 +612,11 @@ export const EDDS: AirportData = {
       table: {
         head: ['Stands', 'Notes'],
         rows: [
-          ['9-19, 24-36', 'Terminal and handling stands on taxilane M, pushback. 9, 19, 24 and 29 take wide-bodies'],
+          ['9-19, 24-36', 'Terminal and handling stands on taxilane M, pushback. 9, 19, 24 and 29 take wide-bodies; a wide-body on 19 blocks 18, on 24 it blocks 25'],
           ['40-48, 50-56', 'Drive-through: in from M, out forwards (to O / to N)'],
           ['60-65', 'Business jets, nose south, pushback onto M'],
           ['71-75', 'Pushback onto taxiway N'],
-          ['100-107', 'Apron South (cargo), lane V; 105-107 take wide-bodies'],
+          ['100-107', 'Apron South (cargo), lane V; 105-107 take wide-bodies, but only every other one at a time'],
         ],
       },
     },

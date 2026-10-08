@@ -112,7 +112,7 @@ If the route is impossible, the pilot replies `unable to follow route via S, say
 
 The crew compares the take-off run available from that intersection with what their aircraft needs today (a figure per type, e.g. A320 about 2100 m, A330 about 2800 m, Citation about 1200 m, varied per flight by -10 % / +15 %). An aircraft that is not able replies `unable intersection D, we require full length` when you send it to that holding point anyway. Asking for a holding point that is not an entry to the runway in use gets `confirm intersection X, it is not an entry to runway 25`. The aircraft menu has *Able intersection?* for the intersections of the runway in use.
 
-**Stand assignments** are checked: `stand 14 is occupied` or `stand 22 is too small for us`.
+**Stand assignments** are checked: `stand 14 is occupied`, `stand 22 is too small for us`, or `stand 18 is blocked, not enough wingtip clearance to the A332 on stand 19` (a wide-body on the stand next door).
 
 **During pushback or start-up** a taxi instruction is accepted and read back. The aircraft starts taxiing once its engines are running.
 

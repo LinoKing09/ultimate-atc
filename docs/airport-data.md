@@ -85,6 +85,8 @@ Rules:
 }
 ```
 
+`maxWingspanM` is the largest aircraft the stand itself is rated for. Neighbouring stands are checked automatically: an aircraft only gets a stand if the stand centres leave enough wingtip clearance to the aircraft on the stands next to it (4.5 m between code C aircraft, 7.5 m if one is code D or larger). So stands that can only take a wide-body when the neighbour is empty (like EDDS 19 next to 18) need no special data.
+
 There must also be a node `STAND_<id>` at `pos`, connected to `laneNode` by an edge `{ name: '<id>', kind: 'stand' }`. A pushback moves the aircraft from the stand to `laneNode`, then 45 m (or 90% of the edge length, whichever is shorter) along a taxilane or taxiway edge leaving `laneNode`. The edge is picked by the requested facing.
 
 ## Runway operations

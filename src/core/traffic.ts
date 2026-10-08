@@ -138,7 +138,7 @@ export class TrafficGenerator {
   /** Allocates a free stand for an aircraft that needs one (arrival, returning departure). */
   allocateStand(ac: Aircraft): Stand | undefined {
     const airline = AIRLINES.find((a) => ac.callsign.startsWith(a.icao)) ?? AIRLINES.find((a) => a.callsignStyle === 'reg')!;
-    return this.pickStand(ac.type, airline);
+    return this.pickStand(ac.type, airline, ac);
   }
 
   // ------------------------------------------------------------------ helpers
@@ -179,13 +179,13 @@ export class TrafficGenerator {
     return s;
   }
 
-  private pickStand(type: AircraftType, airline: Airline): Stand | undefined {
+  private pickStand(type: AircraftType, airline: Airline, except?: Aircraft): Stand | undefined {
     const ga = airline.callsignStyle === 'reg';
     // Business jets prefer the small stands 60-65, airlines the rest of Apron North; Apron South is cargo.
-    const preferred = this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron North' && (ga ? /^6\d$/.test(s.id) : !/^6\d$/.test(s.id)));
+    const preferred = this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron North' && (ga ? /^6\d$/.test(s.id) : !/^6\d$/.test(s.id)), except);
     const any = preferred.length
       ? preferred
-      : this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron North').concat(this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron South'));
+      : this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron North', except).concat(this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron South', except));
     if (!any.length) return undefined;
     // Smallest stand that fits, to keep large stands available.
     const minSpan = Math.min(...any.map((s) => s.maxWingspanM));

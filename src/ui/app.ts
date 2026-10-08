@@ -785,7 +785,7 @@ export class App {
     const items: MenuItem[] = [];
     if (ac.assignedStand) items.push(this.routeItem(ac, `Stand ${ac.assignedStand}`, `stand ${ac.assignedStand}`, 'assigned'));
     const free = sim
-      .freeStands(ac.type.wingspanM, (s) => s.id !== ac.assignedStand)
+      .freeStands(ac.type.wingspanM, (s) => s.id !== ac.assignedStand, ac)
       .sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos))
       .slice(0, 14);
     if (items.length && free.length) items.push({ divider: true, label: '' });

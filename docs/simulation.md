@@ -61,7 +61,7 @@ taxi --(reaches stand)--> arrived --(150-300 s)--> gone
 | Roll-out            | Brakes at 1.6 m/s² to reach the chosen exit at 25 kt (rapid exit) or 14 kt (normal exit).   |
 | Exit choice         | The first exit that can be reached at that deceleration. 85% prefer the north side, 15% the south side. Exits whose vacate point is blocked by a waiting aircraft (within 70 m) are skipped. |
 | Vacated             | Stops between the holding point and the parallel taxiway, switches to Ground, and calls `vacated runway 25 via E` after a short delay. |
-| Stand               | A suggested stand is allocated when the arrival appears (if one is free). You can use any free stand that is big enough. |
+| Stand               | A suggested stand is allocated when the arrival appears (if one is free). You can use any free stand that is big enough and not blocked by a neighbour. |
 | Turn-around         | 150-300 s after parking, the aircraft is removed and the stand becomes free.                |
 
 ## Ground movement
@@ -147,6 +147,8 @@ Pilots only talk on the frequency they are tuned to. Aircraft with Tower are sil
 
 **Answering** a request records the waiting time (time since the first call). Every 15 s of waiting beyond 30 s costs one point.
 
+**Stand suitability**: a stand can take an aircraft only if its wingspan is within the stand's maximum **and** there is enough wingtip clearance to the aircraft on (or taxiing to, or reserved for) the neighbouring stands: the stand centres must be at least `(span A + span B) / 2 + clearance` apart, with a clearance of **4.5 m** between code C aircraft (wingspan below 36 m) and **7.5 m** when one of them is code D or larger (ICAO Annex 14). So a wide-body on a large stand can block the smaller stand next to it. This applies to the automatic stand allocation, the stand menu and your own instructions (`stand 18 is blocked, not enough wingtip clearance to the A332 on stand 19`).
+
 **Validation**: pilots check instructions against their state and the airport data. They reply `unable ...` or `confirm ...` instead of doing something impossible: an unknown taxiway or holding point, an impossible route, an occupied or too small stand, a crossing that isn't on the route, a wrong frequency, a hand-off before taxiing. See [phraseology.md](phraseology.md#pilot-read-backs-and-replies).
 
 ## AI Tower
@@ -204,7 +206,7 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 - **Operators, types and destinations** are taken from [`src/data/airlines.ts`](../src/data/airlines.ts) and weighted by frequency. The mix reflects carriers that typically serve Stuttgart (Eurowings, Lufthansa, Condor, TUI, Turkish, SunExpress, ...) plus some business jets.
 - **Callsigns** are unique within a session: alphanumeric (`EWG7TK`), numeric (`THY1734`) or registrations (`DCMGB`), depending on the operator.
 - **Flight plans** contain the destination, a SID for the active runway (placeholder names), cruise level and a squawk.
-- **Stands**: the smallest free stand that fits the wingspan on Apron North. Business jets prefer stands 60-65, airlines the others. Apron South (cargo) is only used when Apron North is full.
+- **Stands**: the smallest free stand that fits the wingspan on Apron North (and, see below, has enough wingtip clearance to its neighbours). Business jets prefer stands 60-65, airlines the others. Apron South (cargo) is only used when Apron North is full.
 
 ## Radio model
 

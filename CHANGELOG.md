@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- **Wide-bodies no longer park wing-to-wing with their neighbours**: a stand is only used (automatically, in the stand menu or by your instruction) if there is enough wingtip clearance to the aircraft on the neighbouring stands (4.5 m code C, 7.5 m code D and larger). At EDDS a wide-body on 19 blocks 18, on 24 it blocks 25, and 105-107 take only every other wide-body. Pilots answer `stand 18 is blocked, not enough wingtip clearance to the A332 on stand 19`.
+- An aircraft taxiing to a stand now reserves it, so nobody else is sent there.
+
 ### Added
 
 - **Airport briefing**: a new tab in the help window (and `BRIEFING` in the toolbar) with the airport's local procedures for your position - your job, standard taxi flows, departures, arrivals, typical routes, stands, hot spots - plus live facts from the data: the runway in use with its holding points, exits and flows, and all frequencies. New optional `briefing` and `lengthM` fields in the airport data format; EDDS has a full briefing.

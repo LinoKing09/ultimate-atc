@@ -13,6 +13,12 @@ import { TrafficGenerator } from './traffic';
 
 export type Density = 'light' | 'medium' | 'heavy';
 
+/** Wingtip clearance between parked aircraft (ICAO Annex 14): 4.5 m for code C, 7.5 m for code D-F. */
+const STAND_CLEARANCE_C = 4.5;
+const STAND_CLEARANCE_D = 7.5;
+/** Wingspan from which an aircraft is code D or larger. */
+const CODE_D_WINGSPAN = 36;
+
 export interface SimConfig {
   airport: AirportData;
   /** Position the user is logged in as. Only 'GND' is implemented so far. */
@@ -423,14 +429,42 @@ export class Simulation {
       if (a === except || a.phase === 'gone') return false;
       if (a.assignedStand === id && a.phase !== 'arrived') return true;
       if (a.stand === id && (a.phase === 'parked' || a.phase === 'arrived' || (a.phase === 'pushback' && a.s < 30))) return true;
+      if (a.phase === 'taxi' && a.routeDestination?.kind === 'stand' && a.routeDestination.stand === id) return true;
       // physically on the stand
       return !!stand && a.onGround && distance(a.pos, stand.pos) < 15 && a.phase !== 'taxi';
     });
   }
 
-  freeStands(minWingspan: number, filter?: (s: Stand) => boolean): Stand[] {
+  /**
+   * Aircraft on (or heading for) a neighbouring stand that leaves too little
+   * wingtip clearance for an aircraft of `wingspanM` on this stand. Stands
+   * are only rated for their own maximum wingspan; a wide-body on a large
+   * stand can block the smaller stand next to it.
+   */
+  standNeighbourConflict(standId: string, wingspanM: number, except?: Aircraft): { aircraft: Aircraft; stand: Stand } | undefined {
+    const stand = this.airport.stand(standId);
+    if (!stand) return undefined;
+    for (const other of this.airport.stands.values()) {
+      if (other === stand) continue;
+      const d = distance(stand.pos, other.pos);
+      if (d > 120) continue;
+      const occ = this.standOccupant(other.id, except);
+      if (!occ) continue;
+      const span = occ.type.wingspanM;
+      const clearance = Math.max(span, wingspanM) >= CODE_D_WINGSPAN ? STAND_CLEARANCE_D : STAND_CLEARANCE_C;
+      if (d < (span + wingspanM) / 2 + clearance) return { aircraft: occ, stand: other };
+    }
+    return undefined;
+  }
+
+  /** Stands that are free and usable for an aircraft of `minWingspan` (size and neighbours). */
+  freeStands(minWingspan: number, filter?: (s: Stand) => boolean, except?: Aircraft): Stand[] {
     return [...this.airport.stands.values()].filter(
-      (s) => s.maxWingspanM >= minWingspan && !this.standOccupant(s.id) && (!filter || filter(s)),
+      (s) =>
+        s.maxWingspanM >= minWingspan &&
+        !this.standOccupant(s.id, except) &&
+        (!filter || filter(s)) &&
+        !this.standNeighbourConflict(s.id, minWingspan, except),
     );
   }
 

@@ -375,3 +375,29 @@ describe('tower flow', () => {
     expect(sim.stats.goArounds).toBeLessThanOrEqual(1);
   }, 30000);
 });
+
+describe('stand allocation', () => {
+  it('keeps the stand next to a wide-body free (wingtip clearance)', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 42, generateTraffic: false });
+    sim.traffic.spawnDeparture(600, { stand: '19', callsign: 'THY635', type: 'A332' });
+    expect(sim.freeStands(35.8).map((s) => s.id)).not.toContain('18');
+    expect(sim.freeStands(35.8).map((s) => s.id)).toContain('17');
+    expect(sim.standNeighbourConflict('18', 35.8)?.stand.id).toBe('19');
+  });
+
+  it('never parks aircraft with overlapping wings', () => {
+    for (const seed of [1, 2, 3, 4]) {
+      const sim = new Simulation({ airport: EDDS, position: 'GND', density: 'heavy', seed, scenario: { heavies: true } });
+      for (let t = 0; t < 900; t++) {
+        sim.tick(1);
+        const parked = sim.aircraft.filter((a) => (a.phase === 'parked' || a.phase === 'arrived') && a.stand);
+        for (const a of parked) {
+          expect(a.type.wingspanM).toBeLessThanOrEqual(sim.airport.stand(a.stand!)!.maxWingspanM);
+          for (const b of parked) {
+            if (a !== b) expect(Math.hypot(a.pos.x - b.pos.x, a.pos.y - b.pos.y)).toBeGreaterThan((a.type.wingspanM + b.type.wingspanM) / 2 + 4);
+          }
+        }
+      }
+    }
+  }, 60000);
+});

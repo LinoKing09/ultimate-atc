@@ -126,6 +126,8 @@ About 85% of arrivals vacate to the north. On runway 25 the others vacate to the
 | Apron South    | 100-104       | 36 m          | nose-in (nose south), pushback (cargo) | V   |
 | Apron South    | 105-107       | 65 m          | nose-in, pushback (cargo widebodies)  | V    |
 
+**Wide-bodies block their neighbours** (wingtip clearance, see [simulation model](../simulation.md)): a wide-body on stand 19 blocks 18, on 24 it blocks 25, and on Apron South only every other one of 105-107 can take a wide-body at the same time. Stand 9 and 29 have enough room. This is derived from the stand positions in the simulator, not from a published stand restriction table.
+
 Departures on drive-through stands don't need a pushback: they call `request taxi` and leave forwards. The stand allocation prefers Apron North; business jets go to stands 60-65. Apron South is only used when Apron North is full, but you can taxi any aircraft there.
 
 ## Typical routes

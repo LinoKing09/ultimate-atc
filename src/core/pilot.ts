@@ -463,6 +463,8 @@ function resolveDestination(
       if (stand.maxWingspanM < ac.type.wingspanM) return { error: `stand ${dest.stand} is too small for us` };
       const occ = sim.standOccupant(stand.id, ac);
       if (occ) return { error: `stand ${dest.stand} is occupied` };
+      const blocked = sim.standNeighbourConflict(stand.id, ac.type.wingspanM, ac);
+      if (blocked) return { error: `stand ${dest.stand} is blocked, not enough wingtip clearance to the ${blocked.aircraft.type.icao} on stand ${blocked.stand.id}` };
       const r = tryRoute(stand.node);
       if (isRouteError(r)) return { error: routeErrorText(r.error, via) };
       return { route: r, dest };

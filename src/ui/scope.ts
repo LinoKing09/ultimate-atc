@@ -37,6 +37,9 @@ const C = {
 };
 
 /** Clickable items of a data tag (EuroScope style). */
+/** Distance between repeated designators along long taxiways (metres). */
+const LABEL_REPEAT_SPACING = 600;
+
 export type TagItem = 'callsign' | 'type' | 'target' | 'status';
 
 export interface ScopeCallbacks {
@@ -100,7 +103,8 @@ export class Scope {
   private pinchMid?: { x: number; y: number };
   private longPress?: ReturnType<typeof setTimeout>;
 
-  private readonly taxiwayLabels: { name: string; pos: Vec2 }[] = [];
+  /** Taxiway designators; `repeat` labels are extra copies along long taxiways, shown when zoomed in. */
+  private readonly taxiwayLabels: { name: string; pos: Vec2; repeat: boolean }[] = [];
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -357,16 +361,38 @@ export class Scope {
 
   // ------------------------------------------------------------------ static chart
 
+  /**
+   * Places taxiway designators: one on the longest segment of each taxiway,
+   * plus repeats every ~600 m along long taxiways (N, S, M ...) so the name
+   * stays visible when zoomed in on a part of the airport.
+   */
   private computeLabels(): void {
-    const byName = new Map<string, { len: number; pos: Vec2 }>();
+    const byName = new Map<string, { edges: { a: Vec2; b: Vec2; len: number }[]; total: number }>();
     for (const e of this.sim.airport.edges) {
       if (e.kind !== 'taxiway' && e.kind !== 'taxilane') continue;
-      const cur = byName.get(e.name);
-      if (!cur || e.length > cur.len) {
-        byName.set(e.name, { len: e.length, pos: scale(add(e.from.pos, e.to.pos), 0.5) });
+      const cur = byName.get(e.name) ?? { edges: [], total: 0 };
+      cur.edges.push({ a: e.from.pos, b: e.to.pos, len: e.length });
+      cur.total += e.length;
+      byName.set(e.name, cur);
+    }
+    for (const [name, t] of byName) {
+      const edges = [...t.edges].sort((p, q) => q.len - p.len);
+      const main = edges[0];
+      const placed: Vec2[] = [scale(add(main.a, main.b), 0.5)];
+      this.taxiwayLabels.push({ name, pos: placed[0], repeat: false });
+      if (t.total < LABEL_REPEAT_SPACING * 1.5) continue;
+      // Candidate points every 50 m along every segment, away from the junctions at its ends.
+      const candidates: Vec2[] = [];
+      for (const e of edges) {
+        for (let d = 30; d <= e.len - 30; d += 50) candidates.push(add(e.a, scale(sub(e.b, e.a), d / e.len)));
+      }
+      for (const c of candidates) {
+        if (placed.every((p) => Math.hypot(p.x - c.x, p.y - c.y) >= LABEL_REPEAT_SPACING)) {
+          placed.push(c);
+          this.taxiwayLabels.push({ name, pos: c, repeat: true });
+        }
       }
     }
-    for (const [name, v] of byName) this.taxiwayLabels.push({ name, pos: v.pos });
   }
 
   private drawChart(): void {
@@ -527,6 +553,7 @@ export class Scope {
     if (z > 0.12) {
       ctx.font = `bold ${Math.max(10, Math.min(13, 12 * z))}px Consolas, monospace`;
       for (const l of this.taxiwayLabels) {
+        if (l.repeat && z < 0.35) continue; // repeats only when zoomed in
         const p = this.toScreen(l.pos);
         this.labelBox(l.name, p.x, p.y, C.label);
       }

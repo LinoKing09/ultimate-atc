@@ -10,6 +10,7 @@ All notable changes to this project are documented in this file. The format is b
 - Observed surface wind: a scenario wind shift changes the toolbar wind (and the ATIS editor's pre-filled wind) until you broadcast a new ATIS.
 - **Airport briefing**: a new tab in the help window (and `BRIEFING` in the toolbar) with the airport's local procedures for your position - your job, standard taxi flows, departures, arrivals, typical routes, stands, hot spots - plus live facts from the data: the runway in use with its holding points, exits and flows, and all frequencies. New optional `briefing` and `lengthM` fields in the airport data format; EDDS has a full briefing.
 - **Clear button** (×) in the command line.
+- Long taxiways (N, S, M) show their designator repeatedly (about every 600 m) when zoomed in, so you can tell them apart on a close-up of the apron.
 - **Release benchmark and soak test** (`npm run benchmark`, `npm run soak`): 20 one-hour sessions on both runways with an automatic controller. [docs/benchmarks.md](docs/benchmarks.md) compares all versions since 0.1 (departures per hour x2.9, collisions 11 → 0, go-arounds 53 → 2) and tracks the simulated traffic hours; major releases get a statistics section there.
 - Test files report how many hours of traffic they simulated.
 - Roadmap: proposed criteria and path to version 1.0.

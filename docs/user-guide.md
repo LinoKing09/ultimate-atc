@@ -143,7 +143,7 @@ The scope is a ground radar showing the aerodrome chart. By default it is rotate
 | -------------------------------------- | ------------------------------------------------------------------------------ |
 | Runway                                 | Black strip with a dashed centre line, threshold bars and designators          |
 | Taxiways and taxilanes                 | Grey bands with a thin yellow centre line                                      |
-| Taxiway designators                    | Yellow letters in dark boxes (`N`, `S`, `R`, `D` ...)                          |
+| Taxiway designators                    | Yellow letters in dark boxes (`N`, `S`, `R`, `D` ...). Long taxiways (N, S, M) repeat their designator about every 600 m when you zoom in |
 | Runway holding positions               | Thick yellow bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
 | Stands                                 | Thin yellow lead-in line plus the stand number                                 |
 | Aprons                                 | Slightly lighter areas                                                         |

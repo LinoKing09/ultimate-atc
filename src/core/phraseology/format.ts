@@ -107,7 +107,7 @@ export function formatCommand(c: Command): string {
     case 'land':
       return `${c.runway ? `runway ${c.runway}, ` : ''}cleared to land`;
     case 'continueApproach':
-      return 'continue approach';
+      return c.lateLanding ? 'continue approach, expect late landing clearance' : 'continue approach';
     case 'goAround':
       return 'go around';
     case 'cancelTakeoff':

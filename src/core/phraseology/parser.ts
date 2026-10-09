@@ -619,6 +619,14 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       result.commands.push({ type: 'continueApproach' });
       continue;
     }
+    // "expect late landing clearance" (also alone): continue the approach, the landing clearance follows late.
+    if (w === 'expect' && c.peek(1) === 'late' && c.peek(2) === 'landing' && c.peek(3) === 'clearance') {
+      c.i += 4;
+      const prev = result.commands.at(-1);
+      if (prev?.type === 'continueApproach') prev.lateLanding = true;
+      else result.commands.push({ type: 'continueApproach', lateLanding: true });
+      continue;
+    }
     if (w === 'go' && c.peek(1) === 'around') {
       c.i += 2;
       // "go around, I say again, go around"

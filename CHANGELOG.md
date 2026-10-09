@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - **Extended runway centrelines** on the scope (as on a EuroScope map): 15 NM from each threshold with NM ticks, the runway in use brighter; marked `LOC U/S` with the localizer off.
 - **Tower speed control** on final: `maintain 160 knots until 4 miles`, `reduce speed to 150 knots`, `reduce to final approach speed`; and **immediate take-off**: `cleared for immediate take-off` / `cleared for take-off, no delay`. Both in the Tower menu.
+- Tower phraseology `continue approach, expect late landing clearance` (also in the Tower menu).
 - **Sidebar** next to the message window with large MIC and SEND buttons and NEXT, STANDBY and SAY AGAIN.
 
 ### Changed
@@ -15,6 +16,7 @@ All notable changes to this project are documented in this file. The format is b
 - `continue` to an aircraft on final means `continue approach` (not "continue taxi").
 - The AI Ground hands departures to Tower on the way to the holding point (last 600 m) when nothing is left to coordinate on the ground and no CTOT is to be waited for, instead of only once they have stopped there; their first call is `approaching holding point A, ready for departure`.
 - A departure does not line up while another aircraft is lined up or on the runway near its entry.
+- Mobile mode: the quick-action bar picks phrases instead of sending them at once - tap several (e.g. `RB OK` and `START`) and send them together with **SEND**.
 
 ### Added
 
@@ -22,6 +24,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- iPad: list rows sometimes needed two taps - the lists were rebuilt every 250 ms and a tap during a rebuild was lost. Rows are now updated in place.
 - A crew cleared for take-off before its CTOT window no longer refuses and blocks the runway: it takes off, and the early take-off counts as a slot violation (-10). The take-off menu warns `CTOT: not before ...`.
 - CATC: aircraft routed head-on now only flash red when at least one of them is on your frequency, not for conflicts between traffic the simulator handles.
 - With both Ground and Tower run by the simulator (Delivery only), aircraft that had to cross the runway waited at the runway holding point forever; the AI Ground now lets them cross when the runway is free.

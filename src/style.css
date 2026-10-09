@@ -684,6 +684,12 @@ body.mobile .quickbar button {
   min-height: 40px;
   min-width: 56px;
 }
+/* A picked phrase: sent with SEND, together with the other picked ones. */
+body.mobile .quickbar button.picked {
+  background: var(--accent);
+  color: #10181c;
+  border-color: var(--accent);
+}
 body.mobile button {
   min-height: 34px;
   padding: 4px 10px;

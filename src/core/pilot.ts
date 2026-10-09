@@ -496,7 +496,7 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
     }
     case 'continueApproach':
       if (ac.phase !== 'approach') return { unable: 'say again' };
-      return rb('continue approach');
+      return rb(c.lateLanding ? 'continue approach, expect late landing clearance' : 'continue approach');
     case 'goAround':
       if (ac.phase !== 'approach') return { unable: ac.onGround ? 'unable, we are on the ground' : 'say again' };
       sim.tower.instructGoAround(ac);

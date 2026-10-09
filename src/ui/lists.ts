@@ -12,12 +12,13 @@ export class TrafficList {
   readonly el: HTMLElement;
   private readonly tbody: HTMLTableSectionElement;
   private readonly countEl: HTMLElement;
+  private readonly rows = new Map<string, HTMLTableRowElement>();
 
   constructor(
     title: string,
     private readonly columns: { key: string; label: string; cls?: string; get: (ac: Aircraft, sim: Simulation) => string }[],
     private readonly filter: (ac: Aircraft) => boolean,
-    private readonly cb: { select(cs: string): void; center(cs: string): void; menu(cs: string, x: number, y: number): void },
+    private readonly cb: ListCallbacks,
     position: { left?: string; right?: string; top: string },
     /** Hide the whole panel while the list is empty. */
     private readonly hideWhenEmpty = false,
@@ -42,27 +43,73 @@ export class TrafficList {
     });
     this.countEl.textContent = `(${rows.length})`;
     if (this.hideWhenEmpty) this.el.style.display = rows.length ? '' : 'none';
-    this.tbody.replaceChildren();
     if (!rows.length) {
-      this.tbody.append(h('tr', {}, h('td.empty', { colspan: String(this.columns.length), text: 'no traffic' })));
+      this.rows.clear();
+      if (!this.tbody.querySelector('td.empty')) this.tbody.replaceChildren(h('tr', {}, h('td.empty', { colspan: String(this.columns.length), text: 'no traffic' })));
       return;
     }
-    for (const ac of rows) {
-      const mine = sim.isOnMyFrequency(ac);
-      const req = mine && ac.request;
-      const late = req && sim.time - ac.requestSince > 60;
-      const tr = h(`tr${ac.callsign === selected ? '.selected' : ''}${mine ? '' : '.other'}${req ? '.request' : ''}${late ? '.late' : ''}`);
-      for (const c of this.columns) tr.append(h('td', { class: c.cls, text: c.get(ac, sim) }));
-      tr.addEventListener('click', () => this.cb.select(ac.callsign));
-      tr.addEventListener('dblclick', () => this.cb.center(ac.callsign));
-      tr.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        this.cb.select(ac.callsign);
-        this.cb.menu(ac.callsign, e.clientX, e.clientY);
-      });
-      this.tbody.append(tr);
+    syncRows(
+      this.tbody,
+      this.rows,
+      rows.map((ac) => {
+        const mine = sim.isOnMyFrequency(ac);
+        const req = mine && ac.request;
+        const late = req && sim.time - ac.requestSince > 60;
+        return {
+          key: ac.callsign,
+          cls: [ac.callsign === selected ? 'selected' : '', mine ? '' : 'other', req ? 'request' : '', late ? 'late' : ''].filter(Boolean).join(' '),
+          cells: this.columns.map((c) => ({ text: c.get(ac, sim), cls: c.cls ?? '' })),
+        };
+      }),
+      this.cb,
+    );
+  }
+}
+
+type ListCallbacks = { select(cs: string): void; center(cs: string): void; menu(cs: string, x: number, y: number): void };
+
+/**
+ * Updates table rows in place, keyed by callsign. Rows are never re-created
+ * while their aircraft is listed: a tap that lands during an update still
+ * reaches its row (on touch screens a re-created row swallowed the first tap).
+ */
+function syncRows(
+  tbody: HTMLTableSectionElement,
+  rows: Map<string, HTMLTableRowElement>,
+  data: { key: string; cls: string; cells: { text: string; cls: string }[] }[],
+  cb: ListCallbacks,
+): void {
+  const keep = new Set(data.map((d) => d.key));
+  for (const [k, tr] of rows) {
+    if (!keep.has(k)) {
+      tr.remove();
+      rows.delete(k);
     }
   }
+  tbody.querySelector('td.empty')?.parentElement?.remove();
+  data.forEach((d, i) => {
+    let tr = rows.get(d.key);
+    if (!tr) {
+      const cs = d.key;
+      tr = h('tr');
+      tr.addEventListener('click', () => cb.select(cs));
+      tr.addEventListener('dblclick', () => cb.center(cs));
+      tr.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        cb.select(cs);
+        cb.menu(cs, e.clientX, e.clientY);
+      });
+      rows.set(cs, tr);
+    }
+    if (tr.className !== d.cls) tr.className = d.cls;
+    while (tr.cells.length > d.cells.length) tr.lastElementChild?.remove();
+    d.cells.forEach((c, j) => {
+      const td = tr.cells[j] ?? tr.appendChild(h('td'));
+      if (td.textContent !== c.text) td.textContent = c.text;
+      if (td.className !== c.cls) td.className = c.cls;
+    });
+    if (tbody.children[i] !== tr) tbody.insertBefore(tr, tbody.children[i] ?? null);
+  });
 }
 
 function makeDraggable(panel: HTMLElement, handle: HTMLElement): void {
@@ -130,6 +177,7 @@ export class VehicleList {
   private readonly tows: TrafficList;
   private readonly tbody: HTMLTableSectionElement;
   private readonly fmTable: HTMLElement;
+  private readonly fmRows = new Map<string, HTMLTableRowElement>();
 
   constructor(cb: ConstructorParameters<typeof TrafficList>[3]) {
     this.tows = towList(cb);
@@ -153,28 +201,26 @@ export class VehicleList {
     if (count) count.textContent = `(${towCount + active.length})`;
     const towTable = this.el.querySelector<HTMLElement>('table:not(.fm)');
     if (towTable) towTable.style.display = towCount ? '' : 'none';
-    this.tbody.replaceChildren();
-    for (const v of active) {
-      const req = v.request ? `${v.request === 'proceed' ? 'PROC' : 'RTB'} ${formatDuration(sim.time - v.requestSince)}` : '';
-      const late = v.request && sim.time - v.requestSince > 60;
-      const tr = h(`tr${v.callsign === selected ? '.selected' : ''}${v.request ? '.request' : ''}${late ? '.late' : ''}`);
-      for (const [t, cls] of [
-        [v.callsign, 'cs'],
-        ['FOLLOW-ME', ''],
-        [v.aircraft ?? '', ''],
-        [v.holding ? 'HOLD' : FOLLOW_ME_STATUS[v.state] ?? '', ''],
-        [req, 'req'],
-      ])
-        tr.append(h('td', { class: cls, text: t }));
-      tr.addEventListener('click', () => this.cb.select(v.callsign));
-      tr.addEventListener('dblclick', () => this.cb.center(v.callsign));
-      tr.addEventListener('contextmenu', (e) => {
-        e.preventDefault();
-        this.cb.select(v.callsign);
-        this.cb.menu(v.callsign, e.clientX, e.clientY);
-      });
-      this.tbody.append(tr);
-    }
+    syncRows(
+      this.tbody,
+      this.fmRows,
+      active.map((v) => {
+        const req = v.request ? `${v.request === 'proceed' ? 'PROC' : 'RTB'} ${formatDuration(sim.time - v.requestSince)}` : '';
+        const late = v.request && sim.time - v.requestSince > 60;
+        return {
+          key: v.callsign,
+          cls: [v.callsign === selected ? 'selected' : '', v.request ? 'request' : '', late ? 'late' : ''].filter(Boolean).join(' '),
+          cells: [
+            { text: v.callsign, cls: 'cs' },
+            { text: 'FOLLOW-ME', cls: '' },
+            { text: v.aircraft ?? '', cls: '' },
+            { text: v.holding ? 'HOLD' : FOLLOW_ME_STATUS[v.state] ?? '', cls: '' },
+            { text: req, cls: 'req' },
+          ],
+        };
+      }),
+      this.cb,
+    );
   }
 }
 

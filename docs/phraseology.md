@@ -209,6 +209,7 @@ A follow-me only drives onto the taxiways after your `proceed`; the aircraft wai
 | `hold position, cancel take-off [, I say again, cancel take-off]` / `stop immediately` | Cancels a take-off clearance; during the roll the crew stops below 80 kt (`unable, we are taking off` above). |
 | `[wind ...,] [runway 25,] cleared to land` | Landing clearance (required, otherwise the crew goes around at 0.5 NM) |
 | `continue approach` (also just `continue` to an aircraft on final) | The landing clearance comes later |
+| `continue approach, expect late landing clearance` (also `expect late landing clearance` alone) | The landing clearance will come late, for example because a departure is still rolling or an arrival is vacating. Common practice at European airports; it is **not** a landing clearance - the crew reads back `continue approach, expect late landing clearance` and still needs `cleared to land` |
 | `maintain 160 knots until 4 miles` / `reduce speed to 150 knots` / `speed 170 knots` | Speed control on final (default until 4 NM, then the crew slows to its approach speed). Below the approach speed: `unable, our minimum speed is 135 knots`; above 210 kt or inside the given distance: unable |
 | `reduce to final approach speed` / `resume normal speed` | Cancels the speed restriction |
 | `cleared for immediate take-off` / `cleared for take-off, no delay` | Take-off into a tight gap: brisk line-up and roll without waiting |

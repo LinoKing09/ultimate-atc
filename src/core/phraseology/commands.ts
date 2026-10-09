@@ -65,7 +65,7 @@ export type Command =
   /** Tower: "runway 25, cleared to land". */
   | { type: 'land'; runway?: string }
   /** Tower: "continue approach" (expect a late landing clearance). */
-  | { type: 'continueApproach' }
+  | { type: 'continueApproach'; lateLanding?: boolean }
   /** Tower: "go around". */
   | { type: 'goAround' }
   /** Tower: "hold position, cancel take-off" / "stop immediately" (rolling). */

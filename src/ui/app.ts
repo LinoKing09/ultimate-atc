@@ -50,6 +50,10 @@ export class App {
   /** Mobile mode: actions for the selected aircraft. */
   private readonly quickbar: HTMLElement;
   private quickbarKey = '';
+  /** Quick-action bar: phrases picked for the selected aircraft or vehicle, sent together with SEND. */
+  private quickSel: { cs: string; phrases: string[] } | null = null;
+  /** While set, say() collects the phrase instead of transmitting it (to learn what a menu action would say). */
+  private capture: string[] | null = null;
   /** Density / events last chosen in the settings; the session keeps a scenario's values until they change. */
   private densitySetting: Settings['density'];
   private eventsSetting: boolean;
@@ -434,7 +438,10 @@ export class App {
       const buttons = this.vehicleItems(v)
         .filter((i) => i.action && !i.disabled && i.label !== 'Centre view')
         .map((i) => {
-          const b = h('button', { text: short[i.label] ?? (i.label.startsWith('Proceed') ? 'PROCEED' : i.label), type: 'button' });
+          const text = short[i.label] ?? (i.label.startsWith('Proceed') ? 'PROCEED' : i.label);
+          const phrase = this.phraseOf(i.action!);
+          if (phrase) return this.quickPhrase(v.callsign, text, phrase);
+          const b = h('button', { text, type: 'button' });
           b.addEventListener('click', () => i.action!());
           return b;
         });
@@ -452,6 +459,8 @@ export class App {
     const key = `${ac.callsign}|${ac.phase}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
+    if (this.quickSel && this.quickSel.cs !== ac.callsign) this.clearQuickSel();
+    const phrase = (text: string, p: string) => this.quickPhrase(ac.callsign, text, p);
     const btn = (text: string, fn: (b: HTMLButtonElement) => void) => {
       const b = h('button', { text, type: 'button' });
       b.addEventListener('click', () => fn(b));
@@ -478,34 +487,36 @@ export class App {
       ];
       for (const i of this.towerItems(ac)) {
         const s = short.find(([re]) => re.test(i.label));
-        if (s && i.action && !i.disabled) items.push(btn(s[1], () => i.action!()));
+        if (!s || !i.action || i.disabled) continue;
+        const p = this.phraseOf(i.action);
+        items.push(p ? phrase(s[1], p) : btn(s[1], () => i.action!()));
       }
     } else if (mine && ac.frequency === this.sim.stationFor('delivery') && this.sim.stationFor('delivery') !== this.sim.stationFor('ground')) {
       const del = this.deliveryItems(ac);
       const sub = (label: string) => del.find((i) => i.label === label);
       const clr = sub('Send DCL (datalink)') ?? sub('IFR clearance') ?? sub('IFR clearance by voice') ?? sub('Amend IFR clearance');
       if (clr && !ac.cleared) items.push(btn(clr.label.startsWith('Send') ? 'DCL' : 'CLR', (b) => this.menu.open(`${ac.callsign} - ${clr.label}`, clr.submenu!(), ...at(b))));
-      if (ac.cleared) items.push(btn('RB OK', () => this.say(ac, 'readback correct')));
-      if (ac.cleared && !ac.startupApproved) items.push(btn('START', () => this.say(ac, 'start-up approved')));
+      if (ac.cleared) items.push(phrase('RB OK', 'readback correct'));
+      if (ac.cleared && !ac.startupApproved) items.push(phrase('START', 'start-up approved'));
       const ground = this.sim.airport.station(this.sim.stationFor('ground'));
-      if (ac.cleared && ground) items.push(btn('GND', () => this.say(ac, `contact ground ${ground.frequency}`)));
+      if (ac.cleared && ground) items.push(phrase('GND', `contact ground ${ground.frequency}`));
     } else if (mine) {
       if (ac.phase === 'parked' && ac.category === 'tow') {
-        items.push(btn('TOW', () => this.say(ac, 'tow approved')));
+        items.push(phrase('TOW', 'tow approved'));
       } else if (ac.phase === 'parked' && ac.category === 'departure') {
         const stand = this.sim.airport.stand(ac.stand ?? '');
         if (stand?.pushback === false) items.push(btn('TAXI', (b) => this.menu.open(`${ac.callsign} - taxi to`, this.taxiDestinations(ac), ...at(b))));
-        else items.push(btn('PUSH', () => this.say(ac, 'push and start approved')));
+        else items.push(phrase('PUSH', 'push and start approved'));
       } else if (ac.onGround && ['pushback', 'startup', 'taxi', 'holding'].includes(ac.phase)) {
         const arr = ac.category === 'arrival' || ac.returnToStand || ac.category === 'tow';
         items.push(btn('TAXI', (b) => this.menu.open(arr ? `${ac.callsign} - taxi to stand` : `${ac.callsign} - taxi to`, arr ? this.standDestinations(ac) : this.taxiDestinations(ac), ...at(b))));
-        items.push(btn('HOLD', () => this.say(ac, 'hold position')));
+        items.push(phrase('HOLD', 'hold position'));
         const partner = headOnPartner(this.sim, ac);
-        if (ac.wantsFollowMe) items.push(btn('FLWM', () => this.say(ac, 'follow the follow-me')));
+        if (ac.wantsFollowMe) items.push(phrase('FLWM', 'follow the follow-me'));
         if (partner) items.push(btn('RESOLVE', (b) => this.menu.open(`${ac.callsign} - resolve conflict`, this.resolveItem(ac, partner).submenu!(), ...at(b))));
-        items.push(btn('CONT', () => this.say(ac, 'continue taxi')));
+        items.push(phrase('CONT', 'continue taxi'));
         const tower = this.sim.airport.station(this.sim.stationFor('tower'));
-        if (ac.category === 'departure' && tower && ['taxi', 'holding'].includes(ac.phase)) items.push(btn('TWR', () => this.say(ac, `contact tower ${tower.frequency}`)));
+        if (ac.category === 'departure' && tower && ['taxi', 'holding'].includes(ac.phase)) items.push(phrase('TWR', `contact tower ${tower.frequency}`));
       }
     }
     items.push(btn('MENU', (b) => this.openMenu(ac.callsign, ...at(b))));
@@ -554,6 +565,7 @@ export class App {
   // ------------------------------------------------------------------ command line
 
   private clearInput(): void {
+    this.clearQuickSel();
     this.input.value = '';
     this.historyIdx = -1;
     this.updatePreview();
@@ -571,6 +583,7 @@ export class App {
   }
 
   private transmit(text: string, fromVoice = false): void {
+    this.clearQuickSel();
     const res = this.sim.transmit(text, this.selected, { fallbackToLastCaller: fromVoice });
     if (res.hint) this.hint(res.hint);
     if (res.callsign && this.sim.find(res.callsign)) this.select(res.callsign);
@@ -786,7 +799,49 @@ export class App {
   }
 
   private say(ac: Aircraft | Vehicle, phrase: string): void {
+    if (this.capture) {
+      this.capture.push(phrase);
+      return;
+    }
     this.transmit(`${ac.callsign} ${phrase}`);
+  }
+
+  /** The phrase a menu action would transmit (undefined if it does something else, e.g. opens a menu). */
+  private phraseOf(action: () => void): string | undefined {
+    this.capture = [];
+    try {
+      action();
+      return this.capture[0];
+    } finally {
+      this.capture = null;
+    }
+  }
+
+  /**
+   * Quick-action bar button for a phrase: a tap picks it (or unpicks it), the
+   * picked phrases are written to the command line and sent together with SEND
+   * - e.g. "readback correct, start-up approved".
+   */
+  private quickPhrase(cs: string, text: string, phrase: string): HTMLButtonElement {
+    const b = h('button', { text, type: 'button', title: phrase });
+    b.dataset.phrase = phrase;
+    if (this.quickSel?.cs === cs && this.quickSel.phrases.includes(phrase)) b.classList.add('picked');
+    b.addEventListener('click', () => {
+      if (this.quickSel?.cs !== cs) this.quickSel = { cs, phrases: [] };
+      const list = this.quickSel.phrases;
+      const i = list.indexOf(phrase);
+      if (i >= 0) list.splice(i, 1);
+      else list.push(phrase);
+      b.classList.toggle('picked', i < 0);
+      this.input.value = list.length ? `${cs} ${list.join(', ')}` : '';
+      this.updatePreview();
+    });
+    return b;
+  }
+
+  private clearQuickSel(): void {
+    this.quickSel = null;
+    this.quickbar.querySelectorAll('.picked').forEach((n) => n.classList.remove('picked'));
   }
 
   /** Follow-me car: the vehicle phraseology ("proceed", "hold position", "continue", "return to base"). */
@@ -994,6 +1049,12 @@ export class App {
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared to land`),
       });
       items.push({ label: 'Continue approach', disabled: !!ac.landingCleared, action: () => this.say(ac, 'continue approach') });
+      items.push({
+        label: 'Continue, expect late landing clearance',
+        hint: 'runway not free yet',
+        disabled: !!ac.landingCleared,
+        action: () => this.say(ac, 'continue approach, expect late landing clearance'),
+      });
       const vapp = ac.type.approachSpeedKt;
       items.push({
         label: 'Speed',

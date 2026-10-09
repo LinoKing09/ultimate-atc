@@ -24,6 +24,8 @@ describe('tower phraseology', () => {
     expect(parseTransmission('Lufthansa 5AB, cleared for takeoff runway 25', c).commands).toEqual([{ type: 'takeoff', runway: '25' }]);
     expect(parseTransmission('EWG7TK wind 240 degrees 5 knots, runway 25, cleared to land', c).commands).toEqual([{ type: 'land', runway: '25' }]);
     expect(parseTransmission('EWG7TK continue approach', c).commands).toEqual([{ type: 'continueApproach' }]);
+    expect(parseTransmission('EWG7TK continue approach, expect late landing clearance', c).commands).toEqual([{ type: 'continueApproach', lateLanding: true }]);
+    expect(parseTransmission('EWG7TK expect late landing clearance', c).commands).toEqual([{ type: 'continueApproach', lateLanding: true }]);
     expect(parseTransmission('EWG7TK go around, I say again, go around', c).commands).toEqual([{ type: 'goAround' }]);
     expect(parseTransmission('DLH5AB hold position, cancel take-off, I say again, cancel take-off', c).commands.map((x) => x.type)).toEqual(['holdPosition', 'cancelTakeoff']);
     expect(parseTransmission('EWG7TK vacate via E', c).commands).toEqual([{ type: 'vacate', exit: 'E' }]);

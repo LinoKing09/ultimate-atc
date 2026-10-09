@@ -230,7 +230,7 @@ To keep the apron readable, parked aircraft with no pending request only get a t
 | Flashing magenta, `PAN`      | Emergency (medical) - give priority                             |
 | Red                          | Involved in a collision                                         |
 | Cyan circle                  | Selected aircraft                                               |
-| Orange box at the nose       | Tug (pushback, tow, turnaround)                                 |
+| Orange box at the nose       | Tug (pushback, tow, turnaround) - only with vehicle tracking on: on the surface radar alone it merges with the aircraft |
 | Yellow box `FOLLOW-ME 1`     | Follow-me car (the label needs vehicle tracking in the [systems window](#systems-window)) |
 
 ## 5. Departure and arrival lists

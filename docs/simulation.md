@@ -199,7 +199,7 @@ Source: `src/core/conflicts.ts`. Each service can be switched off in the [system
 
 Source: `src/core/vehicles.ts`.
 
-**Tugs** are drawn at the nose of the aircraft they move: during a pushback, during a tow, and while a stuck airliner waits for its turnaround (300-600 s).
+**Tugs** are drawn at the nose of the aircraft they move (during a pushback, during a tow, and while a stuck airliner waits for its turnaround, 300-600 s) - only when vehicle tracking is on. Without the tug's squitter, the surface movement radar cannot separate a tug from the aircraft it is attached to.
 
 **Tows**: when the turnaround of an arrival on a stand that needs a pushback (a contact stand) ends, **15 %** of these aircraft are towed to a free remote (drive-through) stand instead of leaving the simulation. A tow is its own entity with the tug's callsign (`TUG1` ... `TUG9`, "Tug 1") on Ground frequency:
 

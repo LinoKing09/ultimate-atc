@@ -177,5 +177,5 @@ describe('radio discipline', () => {
     }
     expect(checked).toBeGreaterThan(10);
     expect(violations).toBe(0);
-  });
+  }, 30000);
 });

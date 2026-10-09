@@ -718,11 +718,15 @@ export class Scope {
 
   /** Tugs at the nose of the aircraft they move, and the follow-me cars (with a label if vehicle tracking is on). */
   private drawVehicles(): void {
-    for (const ac of this.sim.aircraft) {
-      const tug = tugOf(this.sim, ac);
-      if (tug) this.drawVehicle(tug.pos, tug.heading, 6, 2.6, C.tug);
-    }
     const labels = this.sim.systemOn('surveillance') && this.sim.systemOn('vehicles');
+    // A tug at the nose merges with the aircraft in the surface radar return; it only shows up
+    // separately as its own track when it carries a squitter (vehicle tracking).
+    if (labels) {
+      for (const ac of this.sim.aircraft) {
+        const tug = tugOf(this.sim, ac);
+        if (tug) this.drawVehicle(tug.pos, tug.heading, 6, 2.6, C.tug);
+      }
+    }
     const blink = Math.floor(performance.now() / 500) % 2 === 0;
     for (const v of this.sim.vehicles) {
       if (v.state === 'idle') continue;

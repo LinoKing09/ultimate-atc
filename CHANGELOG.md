@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-10-09
+
+Radio phraseology for vehicles and radio discipline.
+
 ### Added
 
 - **Vehicle phraseology**: follow-me cars are radio stations (`Follow-me 1`, `Follow-me 2`). After `follow the follow-me` the driver asks `request proceed to DCEEO at taxiway F`; you answer `proceed [to DCEEO] [via ...]`. When the job is done it asks `request return to base` (`return to base` / `proceed to base`). `hold position`, `continue` and `standby` work for vehicles; tugs also understand `proceed`. Vehicles get "proceed", aircraft "taxi". Help window (new *Vehicles* table), aircraft-style menu, quick-action bar and Tab selection for vehicles; the list is now called **VEHICLES** and also shows the follow-me cars.
@@ -11,6 +15,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- Tugs are only shown with vehicle tracking (their ADS-B squitter) switched on: on the surface movement radar alone, a tug at the nose merges with the aircraft's return.
 - ATIS editor: the hint "Runway 07 would be into wind" is gone; wind direction and speed turn red when the tailwind on the selected runway is above 5 kt.
 
 ## [0.6.1] - 2026-10-09

@@ -21,9 +21,25 @@ export class PilotVoices {
   /** Global speaking-rate factor (settings). */
   rate = 1;
   private voices: SpeechSynthesisVoice[] = [];
+  /** While the controller transmits, pilot messages wait here (instead of pause(), which iOS never resumes). */
+  private held: { callsign: string; text: string; rate: number }[] | null = null;
+  private unlocked = false;
 
   constructor() {
     if (!('speechSynthesis' in window)) return;
+    // iOS / iPadOS only lets a page speak after speech was started from a tap: start a silent
+    // utterance on the first tap or key press, after that the pilots can speak at any time.
+    const unlock = () => {
+      if (this.unlocked) return;
+      this.unlocked = true;
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      window.speechSynthesis.speak(u);
+      document.removeEventListener('pointerdown', unlock, true);
+      document.removeEventListener('keydown', unlock, true);
+    };
+    document.addEventListener('pointerdown', unlock, true);
+    document.addEventListener('keydown', unlock, true);
     const load = () => {
       const all = window.speechSynthesis.getVoices();
       const en = all.filter((v) => v.lang.toLowerCase().startsWith('en'));
@@ -39,9 +55,19 @@ export class PilotVoices {
 
   speak(callsign: string, text: string, rate = 1): void {
     if (!this.enabled || !this.supported || !text) return;
+    if (this.held) {
+      this.held.push({ callsign, text, rate });
+      return;
+    }
+    const synth = window.speechSynthesis;
+    // Safari can be left paused (e.g. after an interrupted utterance): nothing would be heard.
+    if (synth.paused) synth.resume();
     const u = new SpeechSynthesisUtterance(text);
     const hv = hash(callsign);
-    if (this.voices.length) u.voice = this.voices[hv % this.voices.length];
+    if (this.voices.length) {
+      u.voice = this.voices[hv % this.voices.length];
+      u.lang = u.voice.lang;
+    } else u.lang = 'en-US';
     u.pitch = 0.8 + ((hv >> 8) % 40) / 100;
     u.rate = Math.min(2, (1.05 + ((hv >> 16) % 25) / 100) * rate * this.rate);
     u.volume = this.volume;
@@ -49,16 +75,25 @@ export class PilotVoices {
   }
 
   cancel(): void {
+    this.held = this.held ? [] : null;
     if (this.supported) window.speechSynthesis.cancel();
   }
 
-  /** Pauses speech while the controller is transmitting (so the microphone doesn't hear the pilots). */
-  pause(): void {
-    if (this.supported) window.speechSynthesis.pause();
+  /**
+   * While the controller is transmitting the pilots are silent (so the microphone doesn't hear
+   * them): what is being said stops, new messages wait until release().
+   */
+  hold(): void {
+    if (!this.supported || this.held) return;
+    this.held = [];
+    window.speechSynthesis.cancel();
   }
 
-  resume(): void {
-    if (this.supported) window.speechSynthesis.resume();
+  /** Speaks the messages that came in during the transmission (the last three at most). */
+  release(): void {
+    const queued = this.held ?? [];
+    this.held = null;
+    for (const m of queued.slice(-3)) this.speak(m.callsign, m.text, m.rate);
   }
 }
 
@@ -87,6 +122,9 @@ export class VoiceInput {
   private rec?: Recognition;
   /** Final results so far; each entry holds the recogniser's alternatives for one phrase. */
   private finals: string[][] = [];
+  /** Results before this index were discarded (sent or cleared) and are not shown again. */
+  private skip = 0;
+  private seen = 0;
   listening = false;
 
   constructor(
@@ -104,8 +142,12 @@ export class VoiceInput {
     rec.interimResults = true;
     rec.maxAlternatives = 5;
     rec.onresult = (e) => {
+      // Rebuilt from all results of this session each time: Safari (iOS) re-sends earlier results,
+      // which would otherwise be added twice. Results discarded by discard() are skipped.
+      this.seen = e.results.length;
+      this.finals = [];
       let interim = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
+      for (let i = this.skip; i < e.results.length; i++) {
         const r = e.results[i];
         if (r.isFinal) {
           const alts: string[] = [];
@@ -113,7 +155,8 @@ export class VoiceInput {
           this.finals.push(alts);
         } else interim += r[0].transcript;
       }
-      this.onInterim(`${this.finals.map((f) => f[0]).join(' ')} ${interim}`.trim());
+      const text = `${this.finals.map((f) => f[0]).join(' ')} ${interim}`.trim();
+      if (text) this.onInterim(text);
     };
     rec.onend = () => {
       const candidates = combineAlternatives(this.finals);
@@ -138,9 +181,17 @@ export class VoiceInput {
     if (this.rec) this.rec.lang = lang;
   }
 
+  /** Forgets what was heard so far (the command was sent or cleared): it does not come back. */
+  discard(): void {
+    this.skip = this.seen;
+    this.finals = [];
+  }
+
   start(): void {
     if (!this.rec || this.listening) return;
     this.finals = [];
+    this.skip = 0;
+    this.seen = 0;
     try {
       this.rec.start();
       this.listening = true;

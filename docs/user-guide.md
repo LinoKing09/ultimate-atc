@@ -419,6 +419,8 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 
 Press **TTS** in the toolbar. Every pilot transmission is read aloud with the browser's speech synthesis. Each callsign always gets the same voice, pitch and speaking rate, so you can tell pilots apart. Designators are spelled phonetically: "Lufthansa five Alpha Bravo, taxi to holding point Golf one".
 
+On the **iPad** (and iPhone) TTS is off until you switch it on (in mobile mode the toolbar scrolls sideways - `TTS` is in it, or use the settings). Safari only lets a page speak after a tap, so the first tap anywhere unlocks the pilot voices. Speech synthesis follows the iPad's volume; if you hear nothing, check the volume and that the device is not muted.
+
 ### You speaking (speech recognition)
 
 Hold a push-to-talk key and speak your instruction: the key left of `1` (`^` on German, `` ` `` on US keyboards), **Right Ctrl** or **Insert**. You can also click **MIC** to start and stop. For example: *"Lufthansa five alpha bravo, taxi to holding point golf one via november golf"*. The recognised text appears in the command line while you speak and is transmitted when you release the key.
@@ -429,8 +431,9 @@ The goal is to work **by voice only**. Several things help with recognition erro
 - **Forgiving callsigns**: telephony designators are matched even when slightly misrecognised ("Lufthanza", "Euro wings", "speed bird"). If the flight number is off by one character, or left out and only one aircraft of that airline is on frequency, the right aircraft is still found.
 - **Typical misrecognitions** are corrected: "push back" -> pushback, "gulf" -> golf, "run way" -> runway, "holding position" -> holding point, "twenty five" -> 25, "point" -> decimal in frequencies, "to"/"for" -> 2/4 after "runway", "stand" and "number". See [phraseology.md](phraseology.md#spoken-input).
 - **No callsign heard and nothing selected**: the instruction goes to the pilot who called last and is still waiting for an answer.
-- **Pilots stop talking** while your push-to-talk key is pressed, so the microphone doesn't hear them.
-- Works in Chrome and Edge (Web Speech API). The MIC button is disabled in other browsers.
+- **Pilots stop talking** while your push-to-talk key is pressed (or MIC is on), so the microphone doesn't hear them; what they said meanwhile is spoken afterwards (the last three messages).
+- **Sent or cleared is gone**: after SEND, Enter, `×` or Escape the text you spoke does not come back into the command line, even while the microphone is still on. SEND also switches the microphone off.
+- Works in Chrome, Edge and Safari (Web Speech API, also on the iPad). The MIC button is disabled in browsers without it.
 - If recognition still gets a word wrong, edit the text in the command line and press Enter.
 
 ## 10. Your job as Ground

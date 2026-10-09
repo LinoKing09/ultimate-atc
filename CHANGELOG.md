@@ -31,6 +31,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- Speech recognition: after sending or clearing a command the spoken text no longer reappears in the command line (Safari re-sends earlier results; they are now ignored), and SEND switches the microphone off.
+- iPad: pilot voices (TTS) were not heard - Safari needs speech to be started from a tap (the first tap now unlocks it), and pausing speech while you transmit left it paused for good; pilot messages now wait and are spoken afterwards.
 - iPad: list rows sometimes needed two taps - the lists were rebuilt every 250 ms and a tap during a rebuild was lost. Rows are now updated in place.
 - A crew cleared for take-off before its CTOT window no longer refuses and blocks the runway: it takes off, and the early take-off counts as a slot violation (-10). The take-off menu warns `CTOT: not before ...`.
 - CATC: aircraft routed head-on now only flash red when at least one of them is on your frequency, not for conflicts between traffic the simulator handles.

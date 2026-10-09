@@ -252,8 +252,8 @@ export class App {
       (listening, error) => {
         this.micButton.classList.toggle('listening', listening);
         // Pilots stop talking while you transmit, so the microphone doesn't pick them up.
-        if (listening) this.voices.pause();
-        else this.voices.resume();
+        if (listening) this.voices.hold();
+        else this.voices.release();
         if (error && error !== 'aborted' && error !== 'no-speech') this.hint(`Speech recognition error: ${error}`);
       },
     );
@@ -587,6 +587,7 @@ export class App {
   // ------------------------------------------------------------------ command line
 
   private clearInput(): void {
+    this.voiceIn.discard();
     this.clearQuickSel();
     this.input.value = '';
     this.historyIdx = -1;
@@ -595,6 +596,9 @@ export class App {
 
   private submit(fromVoice = false): void {
     const text = this.input.value.trim();
+    // Sent: what the microphone heard so far must not come back into the command line.
+    this.voiceIn.discard();
+    if (this.voiceIn.listening && !fromVoice) this.voiceIn.stop();
     if (!text) return;
     this.history.unshift(text);
     this.history = this.history.slice(0, 50);
@@ -616,7 +620,7 @@ export class App {
       e.preventDefault();
       this.submit();
     } else if (e.key === 'Escape') {
-      if (this.input.value) this.input.value = '';
+      if (this.input.value) this.clearInput();
       else this.select(undefined);
       this.updatePreview();
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {

@@ -7,7 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Added
 
 - **ILS in the systems window**: localizer (LOC) and glide path (GP) of the runway in use. Without the glide path arrivals fly localizer approaches, without the localizer RNP approaches; both are spaced at least 5 NM on final. The ATIS names the approach procedure (`ILS approach runway 25`, `RNP approach runway 25, ILS runway 25 out of service`), and the arrivals list has a new `APCH` column.
-- **Position colours** in the Connect dialog (once selected): Delivery dark blue, Ground green (Tower red when it comes). A purple **COMBINED POSITIONS** banner shows when several positions are selected; the toolbar shows your stations in their colours with `COMBINED`.
+- **Position colours** in the Connect dialog (once selected): Delivery dark blue, Ground green (Tower red when it comes). Below the buttons a label reads *Single Position* or, highlighted in purple, **Combined Position**; the toolbar shows your stations in their colours with `COMBINED`.
 
 ### Changed
 

@@ -110,12 +110,9 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
         .map((t) => ap.stations.find((s) => s.type === t))
         .filter((s) => !!s);
       callsign.textContent = sts.length ? sts.map((st) => `${st!.callsign} ${st!.frequency} "${st!.name}"`).join(' + ') : '-';
-      const names = selectedPositions().map((t) => POSITIONS.find((p) => p.type === t)!.label);
-      combined.classList.toggle('on', names.length > 1);
-      combined.textContent =
-        names.length > 1
-          ? `COMBINED POSITIONS: ${names.join(' + ')} - you work all ${names.length} frequencies`
-          : 'Single position. Click another position to combine it with this one.';
+      const many = selectedPositions().length > 1;
+      combined.classList.toggle('on', many);
+      combined.textContent = many ? 'Combined Position' : 'Single Position';
       notice.textContent = ap.dataNotice;
     };
     airportSel.addEventListener('change', update);

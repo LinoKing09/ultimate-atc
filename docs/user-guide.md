@@ -59,7 +59,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 
 | Element               | Description                                                                                     |
 | --------------------- | ----------------------------------------------------------------------------------------------- |
-| `EDDS_GND 118.605`    | Your station(s) and frequency, in the position colour (several plus `COMBINED` with combined positions). |
+| `EDDS_GND 118.605`    | Your station(s) and frequency, in the position colour (several plus `COMBINED` with combined positions). **Click a frequency to switch it off**: the simulator takes the position over (pilots waiting on it are answered by the AI) and it is shown dashed with `OFF`; click again to take it back. At least one frequency stays on. |
 | `RWY 25`              | Runway in use. Click to open the [ATIS editor](#atis-editor).                                   |
 | `ATIS E`              | Current ATIS letter. Pilots report it on first contact. Click to open the ATIS editor.          |
 | `250/08KT`            | Surface wind (magnetic). Shown in red if the tailwind on the runway in use is above 5 kt. Click to edit. |

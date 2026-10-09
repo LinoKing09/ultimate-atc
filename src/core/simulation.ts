@@ -8,7 +8,7 @@ import { parseTransmission } from './phraseology/parser';
 import { executeTransmission, updatePilot } from './pilot';
 import { Frequency, type MessageKind, type RadioMessage } from './radio';
 import { updateConflictAlerts, updateRunwayAlerts } from './conflicts';
-import { updateSequencer } from './delivery';
+import { updateSequencer, updateDeliveryAI } from './delivery';
 import { updateGroundAI } from './groundAI';
 import { Rng } from './random';
 import { SYSTEMS, approachType, defaultSystemStates, type ApproachType, type SystemId, type SystemStates } from './systems';
@@ -149,7 +149,10 @@ export class Simulation {
   readonly traffic: TrafficGenerator;
   readonly station: StationData;
   /** Stations staffed by the user. */
+  /** Stations whose frequency the user is working right now (switchable in the toolbar). */
   readonly userStations: Set<StationType>;
+  /** Stations the user connected as (login); each can be switched off and on again. */
+  readonly loggedInStations: StationType[];
   /** On/off state of the ATC and airport systems (systems window). */
   readonly systems: SystemStates;
   /** Current head-on conflicts between cleared routes (CATC), by pair key. */
@@ -216,6 +219,7 @@ export class Simulation {
     if (!station) throw new Error(`${config.airport.icao} has no ${config.position} station`);
     this.station = station;
     this.userStations = new Set([config.position, ...(config.positions ?? [])]);
+    this.loggedInStations = [...this.userStations];
     this.systems = defaultSystemStates(config.airport.systems);
     this.vehicles = createVehicles(this);
     this.startEpochMs = (config.startTime ?? new Date()).getTime();
@@ -314,6 +318,7 @@ export class Simulation {
       this.nextConflictCheck = this.time + 5;
       updateConflictAlerts(this);
       updateSequencer(this);
+      updateDeliveryAI(this);
       updateGroundAI(this);
     }
     this.frequency.update(this.time);
@@ -535,6 +540,33 @@ export class Simulation {
   get userTower(): boolean {
     const tower = this.stationFor('tower');
     return this.userControls(tower) && tower !== this.stationFor('ground');
+  }
+
+  /**
+   * Switches one of your frequencies off (the simulator takes the position over) or on again
+   * (you take it back). At least one frequency stays on. Returns an error text if not possible.
+   */
+  setStationActive(type: StationType, on: boolean): string | undefined {
+    if (!this.loggedInStations.includes(type)) return `You are not connected as ${type}.`;
+    if (this.userStations.has(type) === on) return undefined;
+    if (!on && this.userStations.size === 1) return 'At least one frequency must stay on.';
+    const st = this.airport.station(type);
+    if (on) this.userStations.add(type);
+    else {
+      this.userStations.delete(type);
+      // Pilots on that frequency stop waiting for you: the AI answers them from now on.
+      for (const a of this.aircraft) {
+        if (a.frequency !== type) continue;
+        this.frequency.release(a.callsign);
+        a.request = null;
+      }
+    }
+    this.system(
+      on
+        ? `${st?.callsign ?? type} ${st?.frequency ?? ''} switched on - you work ${st?.name ?? type} again.`
+        : `${st?.callsign ?? type} ${st?.frequency ?? ''} switched off - the simulator takes over ${st?.name ?? type}.`,
+    );
+    return undefined;
   }
 
   /** True if the user staffs this station (otherwise the AI runs it). */

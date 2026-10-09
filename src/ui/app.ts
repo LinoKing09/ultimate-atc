@@ -1,5 +1,5 @@
 import { otherEnd } from '../core/airport/airport';
-import type { Compass } from '../core/airport/types';
+import type { Compass, StationType } from '../core/airport/types';
 import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
@@ -114,7 +114,7 @@ export class App {
       'div.toolbar',
       {},
       h('span.brand', { text: 'ULTIMATE ATC' }),
-      field('station', 'Your position'),
+      field('station', 'Your frequencies - click one to switch it off (the simulator takes the position over) or on again'),
       field('rwy', 'Active runway'),
       field('atis', 'Current ATIS'),
       field('wind', 'Surface wind'),
@@ -144,6 +144,16 @@ export class App {
 
     // ---------------------------------------------------------------- scope + panels
     const canvas = h('canvas.scope');
+    // Click a frequency in the toolbar: switch it off / on.
+    this.fields.station.addEventListener('click', (e) => {
+      const el = (e.target as HTMLElement).closest<HTMLElement>('[data-station]');
+      const type = el?.dataset.station as StationType | undefined;
+      if (!type) return;
+      const err = this.sim.setStationActive(type, !this.sim.userControls(type));
+      if (err) this.toast(err);
+      this.slowUpdate();
+    });
+
     this.main = h('div.main', {}, canvas);
     const listCb = {
       select: (cs: string) => this.select(cs),
@@ -291,11 +301,17 @@ export class App {
   private slowUpdate(): void {
     const sim = this.sim;
     for (const l of this.lists) l.update(sim, this.selected);
-    // Combined positions: every staffed station with its frequency.
-    const staffed = sim.config.airport.stations.filter((st) => sim.userControls(st.type));
-    this.fields.station.innerHTML =
-      staffed.map((st) => `<span class="stn pos-${st.type}"><b>${st.callsign}</b> ${st.frequency}</span>`).join(' + ') +
-      (staffed.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '');
+    // Your frequencies (combined positions: several). Switched-off ones are run by the simulator.
+    const logged = sim.config.airport.stations.filter((st) => sim.loggedInStations.includes(st.type));
+    const active = logged.filter((st) => sim.userControls(st.type));
+    const html =
+      logged
+        .map((st) => {
+          const on = sim.userControls(st.type);
+          return `<span class="stn pos-${st.type}${on ? '' : ' off'}" data-station="${st.type}" title="${on ? 'Click to switch off' : 'Switched off (run by the simulator) - click to switch on'}"><b>${st.callsign}</b> ${st.frequency}${on ? '' : ' OFF'}</span>`;
+        })
+        .join(' + ') + (active.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '');
+    if (this.fields.station.innerHTML !== html) this.fields.station.innerHTML = html;
     this.fields.rwy.innerHTML = `RWY <b>${sim.runway}</b>`;
     this.fields.atis.innerHTML = `ATIS <b>${sim.atisLetter}</b>`;
     const wind = sim.observedWind;

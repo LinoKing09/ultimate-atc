@@ -139,8 +139,29 @@ export class TowerAI {
           break;
       }
     }
+    if (!user) this.handBackToGround();
     this.sequenceDepartures();
     this.detectIncursions();
+  }
+
+  /**
+   * AI Tower (e.g. after you switched the Tower frequency off): arrivals that
+   * have vacated and aircraft that have crossed the runway go to Ground.
+   */
+  private handBackToGround(): void {
+    const sim = this.sim;
+    const tower = sim.stationFor('tower');
+    if (tower === sim.stationFor('ground')) return;
+    for (const ac of sim.aircraft) {
+      if (ac.frequency !== tower || !ac.onGround || ac.phase !== 'taxi') continue;
+      const vacated = ac.category === 'arrival' && !ac.route;
+      const crossed = (ac.crossingWithTower === 'crossing' && !this.isInRunwayArea(ac.pos)) || (ac.category !== 'departure' && ac.clearedToCross.size > 0);
+      if (!vacated && !crossed) continue;
+      ac.crossingWithTower = undefined;
+      ac.frequency = sim.stationFor('ground');
+      ac.request = null;
+      sim.frequency.release(ac.callsign);
+    }
   }
 
   // ------------------------------------------------------------------ arrivals

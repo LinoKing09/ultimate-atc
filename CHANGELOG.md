@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Switch your frequencies off and on**: click a frequency in the toolbar (e.g. `EDDS_DEL 121.915`) to hand that position to the simulator - pilots waiting on it are answered by the AI - and click again to take it back. At least one frequency stays on. New AI Delivery for crews still waiting for their clearance.
+
+### Fixed
+
+- With both Ground and Tower run by the simulator (Delivery only), aircraft that had to cross the runway waited at the runway holding point forever; the AI Ground now lets them cross when the runway is free.
+
 ## [0.7.0] - 2026-10-09
 
 The Tower position at Stuttgart.

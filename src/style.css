@@ -507,6 +507,17 @@ button:disabled {
   border-radius: 3px;
   padding: 0 5px;
   color: #fff;
+  cursor: pointer;
+}
+.toolbar .stn:hover {
+  filter: brightness(1.25);
+}
+.toolbar .stn.off {
+  background: transparent;
+  border-color: #56636a;
+  border-style: dashed;
+  color: var(--text-dim);
+  text-decoration: line-through;
 }
 .toolbar .combined-tag {
   color: #c9bfff;

@@ -184,3 +184,35 @@ describe('A-CDM sequencer', () => {
     expect(Math.abs(a.tsat! - b.tsat!)).toBeGreaterThanOrEqual(90);
   });
 });
+
+describe('switching frequencies off and on', () => {
+  it('hands a switched-off position to the simulator and back', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', positions: ['DEL', 'GND'], runway: '25', density: 'medium', seed: 42, generateTraffic: false });
+    const ac = sim.traffic.spawnDeparture(900, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    expect(ac.frequency).toBe('DEL');
+    expect(runUntil(sim, () => ac.request === 'clearance', 900)).toBe(true);
+    // Delivery off: the AI clears the waiting crew and sends it to Ground.
+    expect(sim.setStationActive('DEL', false)).toBeUndefined();
+    expect(sim.userControls('DEL')).toBe(false);
+    expect(runUntil(sim, () => ac.frequency === 'GND', 10)).toBe(true);
+    expect(ac.cleared).toBe(true);
+    expect(ac.flightPlan.squawk).toMatch(/^[0-7]{4}$/);
+    expect(sim.messages.some((m) => /EDDS_DEL 121.915 switched off - the simulator takes over Stuttgart Delivery/.test(m.text))).toBe(true);
+    // The last frequency cannot be switched off.
+    expect(sim.setStationActive('GND', false)).toMatch(/At least one frequency/);
+    // Not connected as Tower.
+    expect(sim.setStationActive('TWR', true)).toMatch(/not connected/);
+    // Back on.
+    expect(sim.setStationActive('DEL', true)).toBeUndefined();
+    expect(sim.userControls('DEL')).toBe(true);
+  });
+
+  it('lets the AI Ground take over from you', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', positions: ['DEL', 'GND'], runway: '25', density: 'medium', seed: 42, generateTraffic: false });
+    const arr = sim.traffic.spawnArrival(4, { callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    expect(runUntil(sim, () => arr.request === 'taxiIn', 400)).toBe(true);
+    sim.setStationActive('GND', false);
+    expect(arr.request).toBeNull();
+    expect(runUntil(sim, () => arr.phase === 'arrived', 900)).toBe(true);
+  });
+});

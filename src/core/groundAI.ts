@@ -23,6 +23,11 @@ export function updateGroundAI(sim: Simulation): void {
       ac.request = null;
       continue;
     }
+    // Both run by the simulator: Ground lets the aircraft cross when the AI Tower's runway is free.
+    if (!sim.userTower && ac.stoppedAt?.kind === 'runway' && ac.speed < 0.1 && !sim.tower.runwayBusy() && sim.tower.nextArrivalEta() > 90) {
+      aiInstruct(sim, ac, { type: 'cross', runway: sim.runway });
+      continue;
+    }
     if (ac.category === 'departure') departure(sim, ac);
     else if (ac.category === 'tow') tow(sim, ac);
     else arrival(sim, ac);

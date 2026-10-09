@@ -248,6 +248,27 @@ export function updateSequencer(sim: Simulation): void {
   }
 }
 
+/**
+ * AI Delivery for departures still on Delivery frequency when you do not (or
+ * no longer) work Delivery: they get their clearance and go to Ground.
+ */
+export function updateDeliveryAI(sim: Simulation): void {
+  const delivery = sim.stationFor('delivery');
+  if (delivery === sim.stationFor('ground') || sim.userControls(delivery)) return;
+  for (const ac of sim.aircraft) {
+    if (ac.frequency !== delivery) continue;
+    if (!ac.cleared) {
+      ac.flightPlan.squawk ||= allocateSquawk(sim);
+      ac.flightPlan.sid = suggestedSid(sim, ac) ?? ac.flightPlan.sid;
+      ac.clearance = { sid: ac.flightPlan.sid, climb: `${initialClimbFt(sim)} feet`, squawk: ac.flightPlan.squawk };
+      ac.cleared = true;
+    }
+    ac.frequency = sim.stationFor('ground');
+    ac.request = null;
+    sim.frequency.release(ac.callsign);
+  }
+}
+
 /** Time the crew asks for start-up: at the TSAT with A-CDM, otherwise when ready (TOBT). */
 export function startupDue(sim: Simulation, ac: Aircraft): number {
   return sim.systemOn('acdm') && ac.tsat !== undefined ? ac.tsat - 120 : ac.readyAt;

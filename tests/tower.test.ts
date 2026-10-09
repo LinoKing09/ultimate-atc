@@ -99,6 +99,18 @@ describe('tower position', () => {
     expect(sim.messages.some((m) => /EWG8LM started its take-off \d+ s too early/.test(m.text))).toBe(true);
   });
 
+  it('takes off when cleared before the CTOT window, counted as a slot violation', () => {
+    const sim = towerSim();
+    const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'EWG8LM', type: 'A320' }) as Aircraft;
+    ac.ctot = undefined;
+    expect(runUntil(sim, () => ac.phase === 'holding', 2100)).toBe(true);
+    ac.ctot = Math.round(sim.time + 20 * 60);
+    sim.transmit('EWG8LM cleared for take-off');
+    expect(runUntil(sim, () => ac.phase === 'takeoff', 120)).toBe(true);
+    expect(sim.stats.slotsMissed).toBe(1);
+    expect(sim.messages.some((m) => /EWG8LM took off before its CTOT window/.test(m.text))).toBe(true);
+  });
+
   it('runs an hour of traffic with a simple scripted Tower controller', () => {
     const sim = towerSim(3, true);
     for (let t = 0; t < 3600; t++) {

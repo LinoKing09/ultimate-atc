@@ -466,7 +466,7 @@ With **combined positions** (Delivery + Ground) you do both jobs; the aircraft s
 Stuttgart Tower (118.805) owns runway 07/25. When you staff Tower, Ground and Delivery are run by the simulator, Approach (Langen Radar) brings the arrivals onto final.
 
 1. **Departures** reach the holding point with the AI Ground and call: `Stuttgart Tower, Lufthansa 5AB, holding point A, ready for departure`. Give `line up and wait runway 25` (it lines up and waits) or straight away `wind 250 degrees 8 knots, runway 25, cleared for take-off`. Line up behind landing traffic with `behind landing EWG7TK, line up and wait behind`. A crew with a take-off clearance does not roll while someone is on the runway in front of it.
-2. **Spacing**: 2 minutes behind a heavy (3 from an intersection), 2 minutes behind a departure on the same SID fix, 1 minute on diverging SIDs - counted from the previous departure being airborne. Taking off earlier counts as a separation loss (-10). The take-off menu shows how long you still have to wait. CTOT flights may only go from CTOT -5 minutes (the crew tells you).
+2. **Spacing**: 2 minutes behind a heavy (3 from an intersection), 2 minutes behind a departure on the same SID fix, 1 minute on diverging SIDs - counted from the previous departure being airborne. Taking off earlier counts as a separation loss (-10). The take-off menu shows how long you still have to wait. CTOT flights may only go from CTOT -5 minutes: the take-off menu warns you, but a crew you clear earlier takes off and it counts as a slot violation (-10).
 3. **After take-off** the crew asks for a frequency change: `contact radar 119.200` (+10). If it leaves the control zone (4000 ft above the airport) still on your frequency, it costs 5 points.
 4. **Arrivals** call on final: `Stuttgart Tower, Eurowings 7TK, ILS approach runway 25` (or LOC / RNP if the ILS is switched off). Clear them in time: `wind 250 degrees 8 knots, runway 25, cleared to land`. Without a landing clearance the crew goes around at 0.5 NM (an incident, -15); `continue approach` tells it the clearance comes later; `go around` sends it around (-5). `vacate via E` asks for a particular exit.
 5. **After landing** the crew reports `runway 25 vacated via E`: `contact ground 118.605` (+10). Until then it waits at the vacate point - and Tower cannot use an exit whose vacate point is occupied.
@@ -489,7 +489,7 @@ The A-SMGCS runway monitoring (RMCA) warns when you give a take-off or landing c
 | Tower: go-around you instructed                             |     -5 |
 | Wrong readback caught and corrected                         |     +5 |
 | Wrong readback not caught                                   |    -10 |
-| CTOT missed (no take-off inside -5 / +10 minutes)           |    -10 |
+| CTOT missed or violated (no take-off inside -5 / +10 minutes) |    -10 |
 | Medical emergency on a stand within 6 minutes of the call   |    +15 |
 | "Say again" (pilot did not understand)                      |     -2 |
 | Slow answer: per 15 s of waiting beyond the first 30 s      |     -1 |

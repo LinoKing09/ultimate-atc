@@ -539,6 +539,12 @@ export class TowerAI {
         sim.updateScore();
         sim.system(`Separation: ${ac.callsign} started its take-off ${Math.round(early)} s too early behind the previous departure (wake turbulence / departure route).`, 'warning', ac.callsign);
       }
+      // Slot compliance is the controller's job: the crew takes off when cleared, an early take-off breaks the CTOT.
+      if (ac.ctot !== undefined && sim.time < ac.ctot - CTOT_EARLY_S) {
+        sim.stats.slotsMissed++;
+        sim.updateScore();
+        sim.system(`${ac.callsign} took off before its CTOT window (CTOT ${hhmm(sim, ac.ctot)}, window from ${hhmm(sim, ac.ctot - CTOT_EARLY_S)}): slot violation.`, 'warning', ac.callsign);
+      }
       ac.takeoffCleared = false;
       ac.immediateTakeoff = false;
     }

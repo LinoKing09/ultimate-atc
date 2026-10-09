@@ -6,7 +6,7 @@ import { KT_TO_MS, distance, headingDiff, headingOf, normalize, scale, add, sub,
 import { Path } from './path';
 import type { Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './phraseology/commands';
 import { STATION_WORD, capitalize, formatCommand, formatDestination, formatHoldShort } from './phraseology/format';
-import { CLEARANCE_LEAD_S, CTOT_EARLY_S, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
+import { CLEARANCE_LEAD_S, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
 import { destinationName } from '../data/destinations';
 import type { Simulation, TransmitResult } from './simulation';
 import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, maybeStartTow } from './vehicles';
@@ -473,9 +473,6 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       if (ac.phase === 'takeoff' || ac.phase === 'climb') return { unable: 'we are already departing' };
       const atOrToHp = ac.phase === 'holding' || ac.phase === 'lineup' || (ac.phase === 'taxi' && ac.routeDestination?.kind === 'holdingPoint');
       if (!atOrToHp) return { unable: 'negative, we are not at the holding point' };
-      if (c.type === 'takeoff' && ac.ctot !== undefined && sim.time < ac.ctot - CTOT_EARLY_S) {
-        return { unable: `negative, our CTOT is ${hhmm(sim, ac.ctot)}, we can depart from ${hhmm(sim, ac.ctot - CTOT_EARLY_S)}` };
-      }
       ac.lineUpCleared = true;
       ac.holdPosition = false;
       const rwy = ac.runway ?? sim.runway;

@@ -82,7 +82,7 @@ export interface Stats {
   readbackErrorsMissed: number;
   /** Delivery: wrong readbacks the controller corrected. */
   readbackErrorsCaught: number;
-  /** Departures that missed their CTOT window (-5/+10 min). */
+  /** Departures that missed their CTOT window (-5/+10 min) or took off before it. */
   slotsMissed: number;
   /** Tows brought to their stand. */
   towsCompleted: number;

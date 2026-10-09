@@ -237,7 +237,7 @@ When you don't staff Ground (for example when you work Delivery alone), the AI G
 | Arrival | First call right after appearing on final, reminder at 2 NM; at **0.5 NM** without a landing clearance it goes around (incident), with a clearance it still goes around if the runway is not clear |
 | Landing | Takes the exit given with `vacate via` if it can still reach it at normal braking, otherwise the usual one; reports vacated and waits for `contact ground` (calls again every 20 s if the call got lost) |
 | Runway crossing | The AI Ground hands an aircraft stopped at a runway holding point to Tower; after `cross runway 25` and crossing it reports vacated |
-| CTOT | The crew refuses a take-off clearance before CTOT -5 min; missed slots as usual |
+| CTOT | A take-off you clear before CTOT -5 min is flown and counts as a slot violation (-10, like a missed slot); missed slots as usual |
 
 The AI Ground also resolves circles of aircraft waiting for each other (A behind B, B behind C, C behind A): if one of them is pushing back, the pushback is cancelled and the tug pulls it back onto its stand.
 

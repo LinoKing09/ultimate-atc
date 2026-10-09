@@ -218,7 +218,7 @@ A follow-me only drives onto the taxiways after your `proceed`; the aircraft wai
 | `contact ground [118.605]` | Arrival (or crossing aircraft) to Ground once it has vacated |
 | `cross runway 25` | Crossing for an aircraft Ground handed over at the runway holding point |
 
-A wrong runway is queried: `confirm runway 07, we are departing runway 25`. A departure with a CTOT that is not due yet answers `negative, our CTOT is 1435, we can depart from 1430`.
+A wrong runway is queried: `confirm runway 07, we are departing runway 25`. A departure with a CTOT that is not due yet still takes off when cleared (as a real crew would; slot compliance is the controller's job): the take-off counts as a slot violation. The take-off menu warns `CTOT: not before 1430!`.
 
 ### Clearance delivery
 

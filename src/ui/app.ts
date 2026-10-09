@@ -5,7 +5,7 @@ import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { parseTransmission } from '../core/phraseology/parser';
 import { headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
-import { allocateSquawk, hhmm, initialClimbFt, sendDcl, suggestedSid } from '../core/delivery';
+import { allocateSquawk, CTOT_EARLY_S, hhmm, initialClimbFt, sendDcl, suggestedSid } from '../core/delivery';
 import { previewTaxi } from '../core/pilot';
 import { destinationName } from '../data/destinations';
 import type { RadioMessage } from '../core/radio';
@@ -961,6 +961,7 @@ export class App {
     if (ac.category === 'departure' && ac.onGround && ['holding', 'lineup', 'taxi'].includes(ac.phase)) {
       const spacing = Math.max(0, Math.round(sim.tower.spacingRemaining(ac)));
       const busy = sim.tower.runwayBusy(ac);
+      const slotOpens = ac.ctot !== undefined && sim.time < ac.ctot - CTOT_EARLY_S ? ac.ctot - CTOT_EARLY_S : undefined;
       items.push({ label: `Line up and wait runway ${rwy}`, disabled: ac.phase === 'lineup' || !!ac.lineUpCleared, hint: busy ? 'runway occupied' : undefined, action: () => this.say(ac, `line up and wait runway ${rwy}`) });
       const landing = sim.aircraft.filter((o) => (o.phase === 'approach' && sim.distanceToThresholdNm(o) < 5) || o.phase === 'landing');
       items.push({
@@ -970,13 +971,13 @@ export class App {
       });
       items.push({
         label: `Cleared for take-off runway ${rwy}`,
-        hint: busy ? 'runway occupied!' : spacing ? `spacing: wait ${spacing} s` : arrival,
+        hint: busy ? 'runway occupied!' : slotOpens !== undefined ? `CTOT: not before ${hhmm(sim, slotOpens)}!` : spacing ? `spacing: wait ${spacing} s` : arrival,
         disabled: ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint',
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for take-off`),
       });
       items.push({
         label: `Cleared for immediate take-off`,
-        hint: 'no delay - into a tight gap',
+        hint: slotOpens !== undefined ? `CTOT: not before ${hhmm(sim, slotOpens)}!` : 'no delay - into a tight gap',
         disabled: ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint',
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for immediate take-off`),
       });

@@ -22,6 +22,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- A crew cleared for take-off before its CTOT window no longer refuses and blocks the runway: it takes off, and the early take-off counts as a slot violation (-10). The take-off menu warns `CTOT: not before ...`.
+- CATC: aircraft routed head-on now only flash red when at least one of them is on your frequency, not for conflicts between traffic the simulator handles.
 - With both Ground and Tower run by the simulator (Delivery only), aircraft that had to cross the runway waited at the runway holding point forever; the AI Ground now lets them cross when the runway is free.
 
 ## [0.7.0] - 2026-10-09

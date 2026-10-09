@@ -79,6 +79,19 @@ describe('tower position', () => {
     expect(sim.stats.goArounds).toBe(0);
   });
 
+  it('arrival: handed to Ground during the roll-out, Ground takes it after vacating', () => {
+    const sim = towerSim();
+    const ac = sim.traffic.spawnArrival(6, { callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    expect(runUntil(sim, () => ac.request === 'landing', 30)).toBe(true);
+    sim.transmit('EWG7TK runway 25, cleared to land');
+    expect(runUntil(sim, () => ac.phase === 'landing', 600)).toBe(true);
+    sim.transmit('EWG7TK contact ground 118.605');
+    expect(runUntil(sim, () => ac.frequency === 'GND', 20)).toBe(true);
+    expect(sim.stats.arrivalsToGround).toBe(1);
+    expect(runUntil(sim, () => ac.phase === 'arrived', 1200)).toBe(true);
+    expect(sim.messages.some((m) => m.from === 'EWG7TK' && /vacated via/.test(m.text))).toBe(false);
+  });
+
   it('goes around without a landing clearance', () => {
     const sim = towerSim();
     const ac = sim.traffic.spawnArrival(5, { callsign: 'EWG7TK', type: 'A320' }) as Aircraft;

@@ -456,7 +456,7 @@ export class App {
       return;
     }
     const mine = this.sim.isOnMyFrequency(ac);
-    const key = `${ac.callsign}|${ac.phase}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}`;
+    const key = `${ac.callsign}|${ac.phase}|${ac.onGround}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
     if (this.quickSel && this.quickSel.cs !== ac.callsign) this.clearQuickSel();
@@ -1070,7 +1070,8 @@ export class App {
       items.push({ label: 'Vacate via', submenu: () => exits.map((e) => ({ label: `Taxiway ${e.name}`, hint: e.rapid ? 'rapid' : undefined, action: () => this.say(ac, `vacate via ${e.name}`) })) });
     }
     if (ac.onGround && ac.stoppedAt?.kind === 'runway') items.push({ label: `Cross runway ${rwy}`, hint: sim.tower.runwayBusy() ? 'runway occupied!' : arrival, action: () => this.say(ac, `cross runway ${rwy}`) });
-    if (ac.onGround && ground && ac.phase === 'taxi') {
+    // Arrivals can be handed to Ground right after touchdown (they call Ground once vacated).
+    if (ac.onGround && ground && (ac.phase === 'taxi' || (ac.category === 'arrival' && (ac.phase === 'landing' || ac.phase === 'vacating')))) {
       items.push({ label: `Contact Ground ${ground.frequency}`, hint: ac.request === 'vacated' ? 'vacated' : undefined, action: () => this.say(ac, `contact ground ${ground.frequency}`) });
     }
     if (ac.request) items.push({ label: 'Standby', action: () => this.say(ac, 'standby') });

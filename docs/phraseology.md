@@ -216,7 +216,7 @@ A follow-me only drives onto the taxiways after your `proceed`; the aircraft wai
 | `go around [, I say again, go around]` | The arrival goes around |
 | `vacate via E` | The exit to take after landing (used if it can still be reached) |
 | `contact radar [119.200]` / `contact Langen Radar 119.200` / `contact departure` | Departure to Radar after take-off (`confirm contact Radar, we are not airborne yet` on the ground) |
-| `contact ground [118.605]` | Arrival (or crossing aircraft) to Ground once it has vacated |
+| `contact ground [118.605]` | Arrival to Ground - from touchdown on (it calls Ground once vacated) - or a crossing aircraft once it has vacated |
 | `cross runway 25` | Crossing for an aircraft Ground handed over at the runway holding point |
 
 A wrong runway is queried: `confirm runway 07, we are departing runway 25`. A departure with a CTOT that is not due yet still takes off when cleared (as a real crew would; slot compliance is the controller's job): the take-off counts as a slot violation. The take-off menu warns `CTOT: not before 1430!`.

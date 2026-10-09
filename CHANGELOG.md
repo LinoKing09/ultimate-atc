@@ -16,6 +16,7 @@ All notable changes to this project are documented in this file. The format is b
 - `continue` to an aircraft on final means `continue approach` (not "continue taxi").
 - The AI Ground hands departures to Tower on the way to the holding point (last 600 m) when nothing is left to coordinate on the ground and no CTOT is to be waited for, instead of only once they have stopped there; their first call is `approaching holding point A, ready for departure`.
 - A departure does not line up while another aircraft is lined up or on the runway near its entry.
+- Tower: *Contact Ground* is offered for an arrival right after touchdown, not only once it has vacated; the crew calls Ground after vacating.
 - Shorter menus: explanatory hints such as `- not yours`, `into a tight gap` or `as requested` are gone; hints only show live data (distances, times, warnings).
 - Mobile mode: the quick-action bar picks phrases instead of sending them at once - tap several (e.g. `RB OK` and `START`) and send them together with **SEND**.
 

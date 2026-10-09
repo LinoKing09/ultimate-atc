@@ -188,6 +188,10 @@ export interface Aircraft {
   takeoffCleared?: boolean;
   /** Tower (user): landing clearance received. */
   landingCleared?: boolean;
+  /** Tower (user): "cleared for immediate take-off" / "no delay": line up briskly and roll at once. */
+  immediateTakeoff?: boolean;
+  /** Speed control on final: fly `kt` until `untilNm` from the threshold, then slow to the approach speed. */
+  speedRestriction?: { kt: number; untilNm: number };
   /** Tower: exit to vacate by ("vacate via E"). */
   requestedExit?: string;
   /** Tower: after a runway crossing on Tower frequency, the aircraft reports vacated. */

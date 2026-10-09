@@ -106,7 +106,7 @@ const KEYWORDS = new Set([
   'contact', 'monitor', 'give', 'continue', 'push', 'pushback', 'start', 'startup', 'expedite',
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
   'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise', 'climb', 'squawk',
-  'readback', 'ctot', 'slot', 'tow', 'proceed', 'return', 'wind', 'go', 'vacate', 'abort',
+  'readback', 'ctot', 'slot', 'tow', 'proceed', 'return', 'wind', 'go', 'vacate', 'abort', 'reduce', 'increase', 'maintain', 'resume', 'speed', 'no',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -1016,11 +1016,49 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     if (w === 'cleared' && (c.peek(1) === 'for' || c.peek(1) === 'takeoff')) {
       c.next();
       c.accept('for');
+      const immediate = c.accept('immediate');
       c.accept('takeoff', 'take');
       c.accept('off');
       let runway = pendingRunway;
       if (c.accept('runway')) runway = readRunway(c) ?? runway;
-      result.commands.push({ type: 'takeoff', runway });
+      const t: Extract<Command, { type: 'takeoff' }> = { type: 'takeoff', runway };
+      if (immediate) t.immediate = true;
+      result.commands.push(t);
+      continue;
+    }
+    // "..., no delay" after a take-off clearance
+    if (w === 'no' && c.peek(1) === 'delay') {
+      c.i += 2;
+      const t = [...result.commands].reverse().find((x) => x.type === 'takeoff');
+      if (t && t.type === 'takeoff') t.immediate = true;
+      else result.unparsed.push('no delay');
+      continue;
+    }
+    // ---------- speed control on final
+    if ((w === 'reduce' || w === 'resume') && ['to', 'final', 'normal'].includes(c.peek(1) ?? '') && ['final', 'normal', 'approach'].some((x) => c.t.slice(c.i, c.i + 4).includes(x))) {
+      // "reduce to final approach speed", "reduce final approach speed", "resume normal speed"
+      while (!c.done() && ['reduce', 'resume', 'to', 'final', 'approach', 'normal', 'speed'].includes(c.peek()!)) c.next();
+      result.commands.push({ type: 'speed', final: true });
+      continue;
+    }
+    if (((w === 'reduce' || w === 'increase') && c.peek(1) === 'speed') || (w === 'maintain' && /^\d+$/.test(c.peek(1) ?? '')) || (w === 'speed' && /^\d+$/.test(c.peek(1) ?? ''))) {
+      c.next();
+      c.accept('speed');
+      c.accept('to');
+      const kt = Number(c.next());
+      c.accept('knots', 'knot');
+      const sp: Extract<Command, { type: 'speed' }> = { type: 'speed', kt };
+      if (c.accept('until')) {
+        const nm = Number(c.peek());
+        if (Number.isFinite(nm)) {
+          c.next();
+          sp.untilNm = nm;
+          c.accept('miles', 'mile', 'nm', 'dme');
+          c.accept('final', 'dme');
+        }
+      }
+      if (Number.isFinite(kt)) result.commands.push(sp);
+      else result.unparsed.push('speed');
       continue;
     }
 

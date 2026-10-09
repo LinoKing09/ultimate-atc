@@ -194,9 +194,29 @@ export class App {
     // pointerdown + preventDefault keeps the focus (and an open keyboard) where it is.
     clearBtn.addEventListener('pointerdown', (e) => e.preventDefault());
     clearBtn.addEventListener('click', () => this.clearInput());
-    const sendBtn = h('button', { text: 'SEND', title: 'Transmit (Enter)' });
+    const sendBtn = h('button.send', { text: 'SEND', title: 'Transmit (Enter)' });
     sendBtn.addEventListener('click', () => this.submit());
-    const comms = h('div.comms', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input.el, clearBtn, this.previewEl, this.micButton, sendBtn));
+    // Sidebar next to the message window: large radio buttons and quick phrases.
+    const side = (text: string, title: string, fn: () => void) => {
+      const b = h('button', { text, title, type: 'button' });
+      b.addEventListener('click', fn);
+      return b;
+    };
+    const toSelected = (phrase: string) => () => {
+      const cs = this.selected ?? this.sim.lastCaller()?.callsign;
+      if (cs) this.transmit(`${cs} ${phrase}`);
+      else this.hint('Select an aircraft first.');
+    };
+    const sidebar = h(
+      'div.sidebar',
+      {},
+      this.micButton,
+      sendBtn,
+      side('NEXT', 'Select the next aircraft with a pending request (Tab)', () => this.selectNextRequest()),
+      side('STANDBY', 'Standby - to the selected aircraft (or the last caller)', toSelected('standby')),
+      side('SAY AGAIN', 'Say again - to the selected aircraft (or the last caller)', toSelected('say again')),
+    );
+    const comms = h('div.comms', {}, h('div.comms-main', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input.el, clearBtn, this.previewEl)), sidebar);
 
     root.replaceChildren(toolbar, this.main, comms);
 
@@ -954,6 +974,12 @@ export class App {
         disabled: ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint',
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for take-off`),
       });
+      items.push({
+        label: `Cleared for immediate take-off`,
+        hint: 'no delay - into a tight gap',
+        disabled: ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint',
+        action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for immediate take-off`),
+      });
       if (ac.takeoffCleared || ac.lineUpCleared) items.push({ label: 'Cancel take-off', action: () => this.say(ac, 'hold position, cancel take-off') });
       items.push({ label: 'Hold position', action: () => this.say(ac, 'hold position') });
     }
@@ -967,6 +993,17 @@ export class App {
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared to land`),
       });
       items.push({ label: 'Continue approach', disabled: !!ac.landingCleared, action: () => this.say(ac, 'continue approach') });
+      const vapp = ac.type.approachSpeedKt;
+      items.push({
+        label: 'Speed',
+        hint: ac.speedRestriction ? `${ac.speedRestriction.kt} kt until ${ac.speedRestriction.untilNm} NM` : `${Math.round(ac.speed / 0.514444)} kt`,
+        submenu: () => [
+          ...[180, 170, 160, 150]
+            .filter((kt) => kt > vapp)
+            .map((kt) => ({ label: `Maintain ${kt} knots until 4 miles`, action: () => this.say(ac, `maintain ${kt} knots until 4 miles`) })),
+          { label: 'Reduce to final approach speed', hint: `${vapp} kt`, action: () => this.say(ac, 'reduce to final approach speed') },
+        ],
+      });
       items.push({ label: 'Go around', action: () => this.say(ac, 'go around') });
       const exits = sim.airport.exits(rwy);
       items.push({ label: 'Vacate via', submenu: () => exits.map((e) => ({ label: `Taxiway ${e.name}`, hint: e.rapid ? 'rapid' : undefined, action: () => this.say(ac, `vacate via ${e.name}`) })) });

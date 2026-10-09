@@ -197,6 +197,10 @@ Airborne aircraft (arrivals on final, departures after take-off) show altitude i
 
 To keep the apron readable, parked aircraft with no pending request only get a tag when you zoom in or select them. **Drag a tag** with the mouse to move it; *Reset tag position* in the aircraft menu puts it back.
 
+### Extended centrelines
+
+From each runway threshold an extended centreline runs 15 NM outwards with a tick every NM and a longer tick every 5 NM (like the approach path / ILS localizer course lines on a EuroScope map). The runway in use is drawn solid and brighter, the other dashed. With the localizer switched off in the systems window, the line is marked `LOC U/S`. Zoom out to see the arrivals on final.
+
 ### Ground status codes
 
 | Code    | Meaning                                                     |
@@ -299,6 +303,10 @@ Click a row to select the aircraft, double-click to centre the scope on it, righ
 
 ## 6. Messages and the command line
 
+### Sidebar
+
+Right of the message window: large **MIC** (push-to-talk) and **SEND** buttons, **NEXT** (the next aircraft with a pending request, like Tab), **STANDBY** and **SAY AGAIN** (to the selected aircraft, or the pilot who called last).
+
 ### Message window
 
 Shows all radio traffic on your frequency plus system messages:
@@ -371,7 +379,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 
 **Follow-me cars** (right-click the car or its row in the VEHICLES list) have their own menu: *Proceed to DCEEO*, *Return to base*, *Hold position*, *Continue*, *Standby* - see the [vehicle phraseology](phraseology.md#vehicles). In mobile mode the quick-action bar shows `PROCEED`, `BASE`, `HOLD`, `CONT`. **Tab** also selects vehicles with a pending request.
 
-**On Tower frequency** (you staff Tower) the menu offers the Tower clearances: *Line up and wait runway 25*, *Behind ... line up and wait* (behind a landing aircraft), *Cleared for take-off* (with the wind; the hint shows whether the runway is occupied, how long the departure spacing still needs, or when the next arrival comes), *Cancel take-off* / *Stop immediately*, *Cleared to land*, *Continue approach*, *Go around*, *Vacate via*, *Cross runway 25*, *Contact Ground* and *Contact Langen Radar*. In mobile mode the quick-action bar shows `LUP`, `T/O`, `LAND`, `CONT`, `G/A`, `CROSS`, `GND`, `RDR`, `STOP`, `HOLD`.
+**On Tower frequency** (you staff Tower) the menu offers the Tower clearances: *Line up and wait runway 25*, *Behind ... line up and wait* (behind a landing aircraft), *Cleared for take-off* (with the wind; the hint shows whether the runway is occupied, how long the departure spacing still needs, or when the next arrival comes), *Cleared for immediate take-off*, *Speed* (maintain 150-180 kt until 4 NM, reduce to final approach speed), *Cancel take-off* / *Stop immediately*, *Cleared to land*, *Continue approach*, *Go around*, *Vacate via*, *Cross runway 25*, *Contact Ground* and *Contact Langen Radar*. In mobile mode the quick-action bar shows `LUP`, `T/O`, `LAND`, `CONT`, `G/A`, `CROSS`, `GND`, `RDR`, `STOP`, `HOLD`.
 
 **On Delivery frequency** the menu offers instead:
 

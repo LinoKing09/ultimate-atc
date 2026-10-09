@@ -109,7 +109,8 @@ export class TowerAI {
           break;
         case 'holding':
           // Line-up (or take-off) clearance received: enter the runway once any condition ("behind ...") is met.
-          if (user && ac.lineUpCleared && !ac.giveWayTo && !ac.holdPosition && ac.frequency === this.sim.stationFor('tower')) {
+          // The crew does not enter the runway while another aircraft is lined up or still on the runway near its entry.
+          if (user && ac.lineUpCleared && !ac.giveWayTo && !ac.holdPosition && ac.frequency === this.sim.stationFor('tower') && !this.entryBlocked(ac)) {
             const err = this.lineUp(ac);
             if (err) {
               ac.lineUpCleared = ac.takeoffCleared = false;
@@ -184,6 +185,12 @@ export class TowerAI {
 
   private flyApproach(ac: Aircraft, dt: number): void {
     const end = this.endFor(ac.runway);
+    // Speed control: the instructed speed until the given distance, then the final approach speed.
+    const vapp = ac.type.approachSpeedKt * KT_TO_MS;
+    const r = ac.speedRestriction;
+    const target = r && this.sim.distanceToThresholdNm(ac) > r.untilNm ? r.kt * KT_TO_MS : vapp;
+    const accel = 0.6 * dt; // about 1 kt per second
+    ac.speed = ac.speed < target ? Math.min(target, ac.speed + accel) : Math.max(target, ac.speed - accel);
     moveFree(ac, dt);
     const c = this.sim.airport.runwayCoordinates(end, ac.pos);
     const toThreshold = this.sim.airport.runwayCoordinates(end, end.threshold).along - c.along;
@@ -241,6 +248,17 @@ export class TowerAI {
     ac.assignedStand = undefined;
     this.sim.stats.goAroundsInstructed++;
     this.sim.updateScore();
+  }
+
+  /** Another aircraft lined up, or on the runway within 400 m of this departure's entry (and not rolling away). */
+  private entryBlocked(ac: Aircraft): boolean {
+    const end = this.end;
+    const here = this.sim.airport.runwayCoordinates(end, ac.pos).along;
+    return this.runwayOccupants(ac).some((o) => {
+      if (o.phase === 'lineup') return true;
+      if (o.phase === 'takeoff') return false;
+      return Math.abs(this.sim.airport.runwayCoordinates(end, o.pos).along - here) < 400;
+    });
   }
 
   /** Runway free in front of a departure: nobody else on the runway, nobody landing or taking off. */
@@ -483,13 +501,14 @@ export class TowerAI {
     ac.s = 0;
     ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
     ac.stoppedAt = undefined;
-    ac.speedLimit = () => LINEUP_SPEED;
+    // "Cleared for immediate take-off": a brisk line-up.
+    ac.speedLimit = () => (ac.immediateTakeoff && ac.takeoffCleared ? LINEUP_SPEED * 1.5 : LINEUP_SPEED);
     return undefined;
   }
 
   onLinedUp(ac: Aircraft): void {
     // "Ready for immediate departure": keep the time lined up short.
-    ac.timerUntil = this.sim.time + this.sim.rng.range(this.sim.userTower ? 2 : 3, this.sim.userTower ? 5 : 8);
+    ac.timerUntil = ac.immediateTakeoff ? this.sim.time + 0.5 : this.sim.time + this.sim.rng.range(this.sim.userTower ? 2 : 3, this.sim.userTower ? 5 : 8);
   }
 
   /** "Stop immediately" from Tower during the take-off roll (below 80 kt). */
@@ -521,6 +540,7 @@ export class TowerAI {
         sim.system(`Separation: ${ac.callsign} started its take-off ${Math.round(early)} s too early behind the previous departure (wake turbulence / departure route).`, 'warning', ac.callsign);
       }
       ac.takeoffCleared = false;
+      ac.immediateTakeoff = false;
     }
     ac.phase = 'takeoff';
     this.lastTakeoffAt = sim.time;

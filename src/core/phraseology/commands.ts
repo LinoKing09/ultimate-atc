@@ -55,8 +55,13 @@ export type Command =
   | { type: 'ctot'; time: string }
   /** Tower: "line up and wait runway 25" (optionally behind traffic: conditional clearance). */
   | { type: 'lineUp'; runway?: string }
-  /** Tower: "runway 25, cleared for take-off". */
-  | { type: 'takeoff'; runway?: string }
+  /** Tower: "runway 25, cleared for take-off" (`immediate`: "cleared for immediate take-off" / "..., no delay"). */
+  | { type: 'takeoff'; runway?: string; immediate?: boolean }
+  /**
+   * Tower / Approach speed control on final: "maintain 160 knots until 4 miles", "reduce speed to 150 knots",
+   * "reduce to final approach speed" (`final`).
+   */
+  | { type: 'speed'; kt?: number; untilNm?: number; final?: boolean }
   /** Tower: "runway 25, cleared to land". */
   | { type: 'land'; runway?: string }
   /** Tower: "continue approach" (expect a late landing clearance). */

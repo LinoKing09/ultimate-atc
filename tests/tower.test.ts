@@ -41,7 +41,7 @@ describe('tower position', () => {
     const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     // The AI Ground pushes, taxis and hands the departure over at the holding point.
     expect(runUntil(sim, () => ac.request === 'departure', 1500)).toBe(true);
-    expect(last(sim, 'DLH5AB')).toMatch(/^Stuttgart Tower, Lufthansa 5AB, holding point [A-Z0-9]+, ready for departure$/);
+    expect(last(sim, 'DLH5AB')).toMatch(/^Stuttgart Tower, Lufthansa 5AB, (approaching )?holding point [A-Z0-9]+, ready for departure$/);
     sim.transmit('DLH5AB line up and wait runway 25');
     runUntil(sim, () => last(sim, 'DLH5AB').startsWith('Line up and wait'), 20);
     expect(last(sim, 'DLH5AB')).toBe('Line up and wait runway 25, Lufthansa 5AB');
@@ -90,6 +90,7 @@ describe('tower position', () => {
     const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'EWG8LM', type: 'A320' }) as Aircraft;
     ac.ctot = undefined;
     expect(runUntil(sim, () => ac.request === 'departure', 1500)).toBe(true);
+    expect(runUntil(sim, () => ac.phase === 'holding', 600)).toBe(true);
     // A heavy became airborne 30 s ago: 2 minutes of wake turbulence spacing are required.
     (sim.tower as unknown as { lastDeparture: { airborneAt: number; wake: string } }).lastDeparture = { airborneAt: sim.time - 30, wake: 'H' };
     sim.transmit('EWG8LM cleared for take-off');
@@ -110,7 +111,7 @@ describe('tower position', () => {
         if (ac.phase === 'approach' && !ac.landingCleared && sim.distanceToThresholdNm(ac) < 4 && !sim.aircraft.some((o) => o.phase === 'lineup')) sim.transmit(`${ac.callsign} cleared to land`);
         if (!ac.request || sim.time - ac.lastCallAt < 3) continue;
         const slotOk = ac.ctot === undefined || sim.time >= ac.ctot - 300;
-        if (ac.request === 'departure' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) sim.transmit(`${ac.callsign} cleared for take-off`);
+        if (ac.request === 'departure' && ac.phase === 'holding' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) sim.transmit(`${ac.callsign} cleared for take-off`);
         if (ac.request === 'radar') sim.transmit(`${ac.callsign} contact radar`);
         if (ac.request === 'vacated') sim.transmit(`${ac.callsign} contact ground`);
         if (ac.request === 'crossing' && !busy && eta > 90) sim.transmit(`${ac.callsign} cross runway 25`);

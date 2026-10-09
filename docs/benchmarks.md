@@ -60,6 +60,9 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 | Version | Departures / h | Arrivals to Ground / h | Collisions | Incursions | Go-arounds | Separation losses | Missed hand-offs |
 | ------- | -------------: | ---------------------: | ---------: | ---------: | ---------: | ----------------: | ---------------: |
 | **0.7.0** | 11.4 | 10.1 | 0 | 0 | 0 | 0 | 0 |
+| Unreleased (early hand-off to Tower) | 10.3 | 10.8 | 0 | 0 | 0 | 0 | 0 |
+
+Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly.
 
 The first run of this benchmark found two problems that were fixed for the release: conflict resolution could send a departure on a detour across the runway (now never chosen by the AI Ground and shown last in the menu), and the AI Ground could not get out of a circle of aircraft blocking each other around a pushback.
 
@@ -81,7 +84,8 @@ How many hours of traffic have been simulated while developing and testing the s
 | 0.6.0 - 0.6.1 development | ~135 h | estimate: test suite runs (about 10 h each) and debugging harnesses |
 | 0.6.2 - 0.7.0 benchmark, Tower benchmark and soak runs | 160 h | measured: 3 benchmark runs (Ground and Tower) and 2 soak runs of 20 h |
 | 0.6.2 - 0.7.0 development | ~60 h | estimate: test suite runs and debugging harnesses |
-| **Total so far (0.7.0)** | **~1220 h** | of which 660 h exactly measured |
+| after 0.7.0 (Tower benchmark runs while tuning the early hand-off) | 72 h | measured: 3 Tower benchmark runs of 20 h, 3 diagnostic runs of 4 h |
+| **Total so far** | **~1290 h** | of which 732 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

@@ -208,7 +208,10 @@ A follow-me only drives onto the taxiways after your `proceed`; the aircraft wai
 | `[wind 250 degrees 8 knots,] [runway 25,] cleared for take-off` | Take-off clearance. From the holding point the aircraft lines up and rolls without stopping. The wind is information only. |
 | `hold position, cancel take-off [, I say again, cancel take-off]` / `stop immediately` | Cancels a take-off clearance; during the roll the crew stops below 80 kt (`unable, we are taking off` above). |
 | `[wind ...,] [runway 25,] cleared to land` | Landing clearance (required, otherwise the crew goes around at 0.5 NM) |
-| `continue approach` | The landing clearance comes later |
+| `continue approach` (also just `continue` to an aircraft on final) | The landing clearance comes later |
+| `maintain 160 knots until 4 miles` / `reduce speed to 150 knots` / `speed 170 knots` | Speed control on final (default until 4 NM, then the crew slows to its approach speed). Below the approach speed: `unable, our minimum speed is 135 knots`; above 210 kt or inside the given distance: unable |
+| `reduce to final approach speed` / `resume normal speed` | Cancels the speed restriction |
+| `cleared for immediate take-off` / `cleared for take-off, no delay` | Take-off into a tight gap: brisk line-up and roll without waiting |
 | `go around [, I say again, go around]` | The arrival goes around |
 | `vacate via E` | The exit to take after landing (used if it can still be reached) |
 | `contact radar [119.200]` / `contact Langen Radar 119.200` / `contact departure` | Departure to Radar after take-off (`confirm contact Radar, we are not airborne yet` on the ground) |
@@ -287,6 +290,8 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | `wind 250 degrees 8 knots, runway 25, cleared for take-off` | `Cleared for take-off runway 25, Lufthansa 5AB`             |
 | `runway 25, cleared to land`                        | `Cleared to land runway 25, Eurowings 7TK`                          |
 | `go around`                                         | `Going around, Eurowings 7TK`                                       |
+| `maintain 160 knots until 4 miles`                  | `160 knots until 4 miles, Eurowings 7TK`                            |
+| `cleared for immediate take-off`                    | `Cleared for immediate take-off runway 25, Lufthansa 5AB`           |
 | `hold position, cancel take-off`                    | `Holding position, take-off cancelled, Lufthansa 5AB`               |
 | `contact radar 119.200`                             | `Radar 119.200, goodbye, Lufthansa 5AB`                             |
 | `tow approved` (to a tug)                           | `Tow approved to stand 45, Tug 5`                                   |
@@ -317,7 +322,8 @@ Pilots on your frequency call on their own:
 | Departure ready (first contact)                         | `Stuttgart Ground, Lufthansa 5AB, stand 14, information E, request pushback` (sometimes `request push and start`) |
 | Pushback and start-up complete                          | `Lufthansa 5AB, ready for taxi`                                                        |
 | Arrival has vacated the runway (first contact)          | `Stuttgart Ground, Eurowings 7TK, vacated runway 25 via E` (crews unfamiliar with the airport add `, request follow-me to the stand`) |
-| (Tower) Departure at the holding point                   | `Stuttgart Tower, Lufthansa 5AB, holding point A, ready for departure` |
+| (Tower) Departure handed over on the way to the holding point | `Stuttgart Tower, Lufthansa 5AB, approaching holding point A, ready for departure` |
+| (Tower) Departure at the holding point (if not called before) | `Stuttgart Tower, Lufthansa 5AB, holding point A, ready for departure` |
 | (Tower) Arrival on final (first contact)                 | `Stuttgart Tower, Eurowings 7TK, ILS approach runway 25` (LOC / RNP when the ILS is off); reminder `2 miles final runway 25` |
 | (Tower) No landing clearance at 0.5 NM                   | `Eurowings 7TK, going around, no landing clearance received` |
 | (Tower) Arrival has vacated                              | `Eurowings 7TK, runway 25 vacated via E` |

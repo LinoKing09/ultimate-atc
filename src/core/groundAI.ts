@@ -1,5 +1,6 @@
 import type { Aircraft } from './aircraft';
 import { blockCycle, headOnPartner, resolveOptions } from './conflicts';
+import { CTOT_EARLY_S } from './delivery';
 import { parseTransmission } from './phraseology/parser';
 import { aiInstruct } from './pilot';
 import type { Simulation } from './simulation';
@@ -51,7 +52,7 @@ function departure(sim: Simulation, ac: Aircraft): void {
     aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.runway }, via: [], holdShort: [], cross: [] });
     return;
   }
-  if (ac.phase === 'holding') {
+  if (ac.phase === 'holding' || readyForTower(sim, ac)) {
     ac.frequency = sim.stationFor('tower');
     ac.request = null;
     return;
@@ -69,6 +70,33 @@ function departure(sim: Simulation, ac: Aircraft): void {
 function tow(sim: Simulation, ac: Aircraft): void {
   if (ac.phase !== 'parked' || !ac.tow || sim.time < ac.readyAt || busyNearby(sim, ac, 250)) return;
   aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand: ac.tow.to }, via: [], holdShort: [], cross: [], tow: true });
+}
+
+/** Distance before the holding point from which Ground hands a departure to Tower (metres along the route). */
+const HANDOFF_BEFORE_HP_M = 600;
+/** A departure is only handed over early when its CTOT window opens within this time (seconds). */
+const HANDOFF_SLOT_MARGIN_S = 120;
+
+/**
+ * Ground hands a departure to Tower before the holding point once there is
+ * nothing left to coordinate on the ground: on the last stretch to the
+ * holding point, no runway crossing ahead, no conflict, and no other ground
+ * traffic close by (except departures queuing for the same holding point),
+ * and no slot (CTOT) to wait for.
+ */
+function readyForTower(sim: Simulation, ac: Aircraft): boolean {
+  const dest = ac.routeDestination;
+  if (ac.phase !== 'taxi' || dest?.kind !== 'holdingPoint' || !ac.path) return false;
+  if (ac.path.length - ac.s > HANDOFF_BEFORE_HP_M) return false;
+  // A departure that will have to wait for its slot stays with Ground until the holding point.
+  if (ac.ctot !== undefined && sim.time + HANDOFF_SLOT_MARGIN_S < ac.ctot - CTOT_EARLY_S) return false;
+  if (ac.stoppedAt?.kind === 'runway' || ac.stops.some((s) => s.kind === 'runway' || s.kind === 'holdShort')) return false;
+  if (headOnPartner(sim, ac)) return false;
+  return !sim.aircraft.some((o) => {
+    if (o === ac || !o.onGround || !['taxi', 'pushback'].includes(o.phase)) return false;
+    const queuing = o.category === 'departure' && o.routeDestination?.kind === 'holdingPoint' && o.routeDestination.name === dest.name;
+    return !queuing && Math.hypot(o.pos.x - ac.pos.x, o.pos.y - ac.pos.y) < 200;
+  });
 }
 
 function arrival(sim: Simulation, ac: Aircraft): void {

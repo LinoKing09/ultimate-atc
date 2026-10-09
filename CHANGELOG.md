@@ -6,6 +6,18 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Extended runway centrelines** on the scope (as on a EuroScope map): 15 NM from each threshold with NM ticks, the runway in use brighter; marked `LOC U/S` with the localizer off.
+- **Tower speed control** on final: `maintain 160 knots until 4 miles`, `reduce speed to 150 knots`, `reduce to final approach speed`; and **immediate take-off**: `cleared for immediate take-off` / `cleared for take-off, no delay`. Both in the Tower menu.
+- **Sidebar** next to the message window with large MIC and SEND buttons and NEXT, STANDBY and SAY AGAIN.
+
+### Changed
+
+- `continue` to an aircraft on final means `continue approach` (not "continue taxi").
+- The AI Ground hands departures to Tower on the way to the holding point (last 600 m) when nothing is left to coordinate on the ground and no CTOT is to be waited for, instead of only once they have stopped there; their first call is `approaching holding point A, ready for departure`.
+- A departure does not line up while another aircraft is lined up or on the runway near its entry.
+
+### Added
+
 - **Switch your frequencies off and on**: click a frequency in the toolbar (e.g. `EDDS_DEL 121.915`) to hand that position to the simulator - pilots waiting on it are answered by the AI - and click again to take it back. At least one frequency stays on. New AI Delivery for crews still waiting for their clearance.
 
 ### Fixed

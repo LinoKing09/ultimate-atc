@@ -1,6 +1,6 @@
 import type { Aircraft } from '../core/aircraft';
 import { tugOf } from '../core/vehicles';
-import { KT_TO_MS, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
+import { KT_TO_MS, M_PER_NM, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
 import type { Simulation } from '../core/simulation';
 import { clearedTo, statusCode } from './labels';
 
@@ -29,6 +29,8 @@ const C = {
   previewOk: 'rgba(123, 220, 143, 0.9)',
   previewErr: 'rgba(255, 90, 90, 0.9)',
   mine: '#e8f0f0',
+  centrelineActive: 'rgba(111, 227, 255, 0.55)',
+  centrelineOther: 'rgba(160, 190, 200, 0.28)',
   tug: '#e08a2e',
   followMe: '#f5d332',
   other: '#8d9ba1',
@@ -398,6 +400,52 @@ export class Scope {
     }
   }
 
+  /**
+   * Extended runway centrelines (the approach path / ILS localizer course, as
+   * in EuroScope): from each threshold outwards, with a tick every NM and a
+   * longer one every 5 NM. The runway in use is brighter.
+   */
+  private drawExtendedCentrelines(): void {
+    const ctx = this.ctx;
+    const ap = this.sim.airport;
+    const lengthNm = 15;
+    ctx.save();
+    ctx.lineCap = 'butt';
+    for (const end of ap.runwayEnds.values()) {
+      const active = end.name === this.sim.runway;
+      const out = headingVector((end.heading + 180) % 360);
+      const n = { x: -out.y, y: out.x };
+      const a = this.toScreen(end.threshold);
+      const b = this.toScreen(add(end.threshold, scale(out, lengthNm * M_PER_NM)));
+      ctx.strokeStyle = active ? C.centrelineActive : C.centrelineOther;
+      ctx.lineWidth = 1;
+      ctx.setLineDash(active ? [] : [6, 6]);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      for (let nm = 1; nm <= lengthNm; nm++) {
+        const half = (nm % 5 === 0 ? 350 : 150) * (active ? 1 : 0.7);
+        const p = add(end.threshold, scale(out, nm * M_PER_NM));
+        const t1 = this.toScreen(add(p, scale(n, half)));
+        const t2 = this.toScreen(sub(p, scale(n, half)));
+        ctx.beginPath();
+        ctx.moveTo(t1.x, t1.y);
+        ctx.lineTo(t2.x, t2.y);
+        ctx.stroke();
+      }
+      if (active && !this.sim.systemOn('loc')) {
+        // No localizer: label the line so nobody takes it for an ILS course.
+        ctx.fillStyle = C.centrelineOther;
+        ctx.font = '10px Consolas, Menlo, monospace';
+        const lbl = this.toScreen(add(end.threshold, scale(out, 3 * M_PER_NM)));
+        ctx.fillText('LOC U/S', lbl.x + 6, lbl.y - 6);
+      }
+    }
+    ctx.restore();
+  }
+
   private drawChart(): void {
     const ctx = this.ctx;
     const ap = this.sim.airport;
@@ -432,6 +480,8 @@ export class Scope {
       const b = end.farEnd;
       poly([add(a, scale(n, w)), add(b, scale(n, w)), sub(b, scale(n, w)), sub(a, scale(n, w))], C.runway);
     }
+
+    this.drawExtendedCentrelines();
 
     // Taxiways (edges drawn as thick round lines)
     ctx.lineCap = 'round';

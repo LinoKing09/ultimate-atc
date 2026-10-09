@@ -219,7 +219,7 @@ A frequency switched off in the toolbar is run by the simulator from then on; op
 
 ## AI Ground
 
-When you don't staff Ground (for example when you work Delivery alone), the AI Ground acts every 5 s, silently on its own frequency: it approves push and start for cleared departures at their ready time when no other aircraft taxis or pushes within 250 m (taxi-out stands: taxi), taxis them to the runway in use after start-up, hands them to Tower at the holding point, taxis arrivals to their allocated (or the first suitable free) stand (another one if the crew finds it occupied), approves tows when nothing taxis within 250 m, and resolves conflicts after 40 s with the first *Resolve conflict* option - once per conflict: not again while a tug is coming or within 120 s of the last resolution.
+When you don't staff Ground (for example when you work Delivery alone), the AI Ground acts every 5 s, silently on its own frequency: it approves push and start for cleared departures at their ready time when no other aircraft taxis or pushes within 250 m (taxi-out stands: taxi), taxis them to the runway in use after start-up, hands them to Tower on the last 600 m before the holding point when nothing is left to coordinate (no runway crossing or hold-short ahead, no conflict, no other taxiing or pushing aircraft within 200 m except departures queuing for the same holding point, and no CTOT window opening later than 2 min from now), otherwise at the holding point, taxis arrivals to their allocated (or the first suitable free) stand (another one if the crew finds it occupied), approves tows when nothing taxis within 250 m, and resolves conflicts after 40 s with the first *Resolve conflict* option - once per conflict: not again while a tug is coming or within 120 s of the last resolution.
 
 ## AI Tower
 
@@ -227,7 +227,10 @@ When you don't staff Ground (for example when you work Delivery alone), the AI G
 
 | Situation | Behaviour |
 | --------- | --------- |
-| Departure at the holding point | Handed over by the AI Ground; calls `ready for departure` after 4 s |
+| Departure on the way to the holding point | Handed over by the AI Ground on the last 600 m before the holding point once there is nothing left to coordinate on the ground (no runway crossing or hold-short ahead, no conflict, no other ground traffic within 200 m except departures queuing for the same holding point), at the latest at the holding point; calls `approaching holding point A, ready for departure` |
+| Line-up | Not while another aircraft is lined up, or on the runway within 400 m of the entry (except one rolling away) |
+| Speed on final | Instructed speed (approach speed to 210 kt) until the given distance (default 4 NM), then the approach speed; speed changes at about 1 kt/s |
+| Immediate take-off | Line-up at 1.5 times the normal speed, roll 0.5 s after stopping |
 | Line-up / take-off clearance | Lines up when the clearance (and any condition, `behind ...`) allows; lined up with a take-off clearance it rolls after 2-5 s - not while another aircraft is on the runway or landing / taking off |
 | Departure spacing | At the start of the roll, the required spacing (2 min behind a heavy, 3 from an intersection, 2 min same SID fix, 1 min diverging) is checked; too early counts as a separation loss |
 | Climb-out | Asks for a frequency change above 1500 ft above the airport; leaving (4000 ft) on Tower frequency counts as a missed hand-off |

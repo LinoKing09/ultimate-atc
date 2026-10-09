@@ -78,8 +78,11 @@ function readback(sim: Simulation, ac: Aircraft, text: string, after?: () => voi
   });
 }
 
-export function executeTransmission(sim: Simulation, parsed: ParsedTransmission, raw: string): TransmitResult {
+export function executeTransmission(sim: Simulation, parsedIn: ParsedTransmission, raw: string): TransmitResult {
+  let parsed = parsedIn;
   const ac = sim.find(parsed.callsign);
+  // "continue" to an aircraft on final means "continue approach", not "continue taxi".
+  if (ac && ac.phase === 'approach') parsed = { ...parsed, commands: parsed.commands.map((c) => (c.type === 'continue' ? { type: 'continueApproach' } : c)) };
   const condText = parsed.condition ? `${parsed.condition.text}, ` : '';
   const canonical =
     ac && parsed.commands.length && parsed.unparsed.length === 0
@@ -245,6 +248,7 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
     case 'goAround':
     case 'cancelTakeoff':
     case 'vacate':
+    case 'speed':
       return execTower(sim, ac, c);
   }
 }
@@ -477,10 +481,11 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       const rwy = ac.runway ?? sim.runway;
       if (c.type === 'lineUp') return rb(`line up and wait runway ${rwy}`);
       ac.takeoffCleared = true;
+      ac.immediateTakeoff = !!c.immediate;
       if (sim.systemOn('rmca') && sim.tower.runwayBusy(ac)) {
         sim.system(`RMCA: take-off clearance for ${ac.callsign} while runway ${rwy} is occupied!`, 'warning', ac.callsign);
       }
-      return rb(`cleared for take-off runway ${rwy}`);
+      return rb(`cleared for ${c.immediate ? 'immediate ' : ''}take-off runway ${rwy}`);
     }
     case 'land': {
       if (ac.phase !== 'approach') return { unable: ac.onGround ? 'we have already landed' : 'say again' };
@@ -501,6 +506,21 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return rb('going around');
     case 'cancelTakeoff':
       return execCancelTakeoff(sim, ac);
+    case 'speed': {
+      if (ac.phase !== 'approach') return { unable: ac.onGround ? 'say again' : 'unable' };
+      if (c.final) {
+        ac.speedRestriction = undefined;
+        return rb('reducing to final approach speed', false);
+      }
+      const kt = c.kt ?? 0;
+      const min = ac.type.approachSpeedKt;
+      if (kt < min) return { unable: `unable, our minimum speed is ${min} knots` };
+      if (kt > 210) return { unable: `unable ${kt} knots on final` };
+      const untilNm = c.untilNm ?? 4;
+      if (sim.distanceToThresholdNm(ac) < untilNm + 0.5) return { unable: `unable, we are inside ${untilNm} miles` };
+      ac.speedRestriction = { kt, untilNm };
+      return rb(`${kt} knots until ${untilNm} miles`, false);
+    }
     case 'vacate': {
       if (ac.category !== 'arrival' || !['approach', 'landing'].includes(ac.phase)) return { unable: 'say again' };
       const ok = sim.airport.exits(ac.runway ?? sim.runway).some((e) => e.name.toUpperCase() === c.exit);
@@ -533,7 +553,14 @@ function execCancelTakeoff(sim: Simulation, ac: Aircraft): ExecResult {
  */
 function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: string): boolean {
   const now = sim.time;
-  if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && now - (ac.holdingSince ?? now) > 4) {
+  // Handed over while still taxiing: first call on the way to the holding point.
+  if (ac.phase === 'taxi' && ac.category === 'departure' && ac.routeDestination?.kind === 'holdingPoint' && !ac.towerContact && !ac.lineUpCleared) {
+    ac.towerContact = true;
+    call(sim, ac, 'departure', `${stationName}, ${tel}, approaching holding point ${ac.routeDestination.name}, ready for departure`);
+    return true;
+  }
+  if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && !ac.towerContact && now - (ac.holdingSince ?? now) > 4) {
+    ac.towerContact = true;
     call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`);
     return true;
   }

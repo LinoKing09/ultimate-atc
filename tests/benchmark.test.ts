@@ -71,7 +71,7 @@ describe.skipIf(!RUN)('benchmark', () => {
             if (ac.phase === 'approach' && !ac.landingCleared && sim.distanceToThresholdNm(ac) < 4 && !sim.aircraft.some((o) => o.phase === 'lineup')) sim.transmit(`${ac.callsign} cleared to land`);
             if (!ac.request || sim.time - ac.lastCallAt < 3) continue;
             const slotOk = ac.ctot === undefined || sim.time >= ac.ctot - 300;
-            if (ac.request === 'departure' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) sim.transmit(`${ac.callsign} cleared for take-off`);
+            if (ac.request === 'departure' && ac.phase === 'holding' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) sim.transmit(`${ac.callsign} cleared for take-off`);
             if (ac.request === 'radar') sim.transmit(`${ac.callsign} contact radar`);
             if (ac.request === 'vacated') sim.transmit(`${ac.callsign} contact ground`);
             if (ac.request === 'crossing' && !busy && eta > 90) sim.transmit(`${ac.callsign} cross runway ${runway}`);

@@ -246,9 +246,37 @@ button:disabled {
   flex: 0 0 auto;
   height: 190px;
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   background: var(--panel);
   border-top: 1px solid var(--panel-border);
+}
+.comms-main {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+/* Sidebar next to the message window: large MIC / SEND and quick phrases. */
+.sidebar {
+  flex: 0 0 auto;
+  width: calc(130px * var(--ui-scale, 1));
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px;
+  border-left: 1px solid var(--panel-border);
+  background: #1c2326;
+}
+.sidebar button {
+  flex: 1 1 0;
+  min-height: 0;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+}
+.sidebar button.mic,
+.sidebar button.send {
+  flex: 1.6 1 0;
+  font-size: calc(14px * var(--ui-scale, 1));
 }
 .messages {
   flex: 1 1 auto;
@@ -334,7 +362,7 @@ button:disabled {
 .cmdline .preview.err {
   color: var(--danger);
 }
-.cmdline button.mic.listening {
+button.mic.listening {
   background: #6b2525;
   border-color: var(--danger);
 }
@@ -675,8 +703,8 @@ body.mobile .panel tr td {
 body.mobile .cmdline .preview {
   display: none;
 }
-body.mobile .cmdline button.mic {
-  min-width: 70px;
+body.mobile .sidebar {
+  width: calc(110px * var(--ui-scale, 1));
 }
 
 @media (max-width: 700px) {

@@ -175,6 +175,13 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
   });
 }
 
+const VEHICLE_REFERENCE: [string, string][] = [
+  ['Follow-me 1, proceed [to DCEEO] [via N, F]', 'The follow-me drives to the aircraft it was assigned to (it asks: "request proceed to DCEEO at taxiway F"). Vehicles get "proceed", aircraft "taxi".'],
+  ['Follow-me 1, return to base / proceed to base', 'The follow-me drives back to the fire station (it asks when the job is done).'],
+  ['Follow-me 1, hold position / continue', 'Stop / drive on. While leading, the aircraft behind it stops too.'],
+  ['Tug 5, tow approved [to stand 45] [via M, N]', 'Approve a tow ("proceed" works too). Hold position, continue, hold short, cross runway and give way work as for aircraft.'],
+];
+
 const DELIVERY_REFERENCE: [string, string][] = [
   ['cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312', 'IFR clearance: clearance limit (destination), SID of the runway in use, initial climb, squawk. Add "CTOT 1435" if the flight has a slot. The crew reads it back - check the squawk.'],
   ['readback correct', 'Confirm a correct readback.'],
@@ -205,7 +212,6 @@ const REFERENCE: [string, string][] = [
   ['expect pushback in 5 minutes', 'Expected delay; the pilot waits that long.'],
   ['contact tower [118.805]', 'Hand the aircraft over to Tower (do this at or before the holding point).'],
   ['follow the follow-me [to stand 14]', 'A follow-me car comes and leads the aircraft (crews unfamiliar with the airport ask for one).'],
-  ['Tug 5, tow approved [to stand 45] [via M, N]', 'Approve a tow request (a tug moving an aircraft to another stand).'],
   ['standby', 'Acknowledge a request; the pilot waits two minutes before calling again.'],
   ['expedite taxi', 'Taxi a bit faster.'],
   ['say again', 'The pilot repeats the last transmission.'],
@@ -265,6 +271,9 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
           h('table.ref', {}, ...REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
           h('h2', { text: 'Delivery' }),
           h('table.ref', {}, ...DELIVERY_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
+          h('h2', { text: 'Vehicles' }),
+          h('table.ref', {}, ...VEHICLE_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
+          h('p', { text: 'Radio discipline: after an instruction nobody else calls until the addressed station has read back.' }),
         ),
     },
     controls: {
@@ -336,9 +345,9 @@ export function showAtisEditor(sim: Simulation): void {
     const c = sim.windComponents(rwySel.value, wind);
     const hw = Math.round(c.headwind);
     const xw = Math.abs(Math.round(c.crosswind));
-    const best = sim.bestRunwayForWind(wind);
-    comps.textContent = `${hw >= 0 ? `Headwind ${hw} kt` : `TAILWIND ${-hw} kt`}, crosswind ${xw} kt.${best !== rwySel.value ? ` Runway ${best} would be into wind.` : ''}`;
-    comps.style.color = hw < -5 ? 'var(--danger)' : '';
+    comps.textContent = `${hw >= 0 ? `Headwind ${hw} kt` : `Tailwind ${-hw} kt`}, crosswind ${xw} kt.`;
+    // Tailwind above 5 kt on the selected runway: wind direction and speed in red (as in the toolbar).
+    for (const el of [dir, spd]) el.classList.toggle('bad', hw < -5);
   };
   [dir, spd, rwySel].forEach((el) => el.addEventListener('input', update));
   update();

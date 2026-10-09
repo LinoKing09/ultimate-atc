@@ -61,7 +61,12 @@ export function call(sim: Simulation, ac: Aircraft, request: PilotRequest, text:
   });
 }
 
+/** Longest time the frequency is kept free for a read-back after the instruction ended (seconds). */
+const READBACK_WAIT_S = 6;
+
 function readback(sim: Simulation, ac: Aircraft, text: string, after?: () => void): void {
+  // Nobody else calls until this pilot has answered.
+  sim.frequency.expectReply(ac.callsign, Math.max(sim.time, sim.frequency.freeAt) + READBACK_WAIT_S);
   sim.frequency.pilotTransmit(sim.time, ac.callsign, text, {
     delay: sim.rng.range(0.8, 2.2),
     priority: 10,
@@ -156,6 +161,12 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return ac.category === 'tow' ? execTow(sim, ac, c) : execTaxi(sim, ac, c);
     case 'followMe':
       return execFollowMe(sim, ac);
+    case 'proceed':
+      // Vehicle phraseology: a tug may be told to "proceed" instead of "tow approved".
+      if (ac.category === 'tow' && !c.target && !c.base) return execTow(sim, ac, { type: 'taxi', destination: c.destination, via: c.via, holdShort: [], cross: [], tow: true });
+      return { unable: 'confirm taxi instructions' };
+    case 'returnToBase':
+      return { unable: 'say again' };
     case 'holdShort':
       return execHoldShort(sim, ac, c.target);
     case 'cross':

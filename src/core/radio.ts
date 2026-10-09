@@ -37,6 +37,11 @@ interface QueuedTransmission {
 export class Frequency {
   private busyUntil = 0;
   private queue: QueuedTransmission[] = [];
+  /**
+   * After an instruction the frequency belongs to the addressed station until
+   * it has read back: other pilots do not call in between (radio discipline).
+   */
+  private reserved?: { callsign: string; until: number };
   private nextId = 1;
 
   constructor(
@@ -48,6 +53,11 @@ export class Frequency {
   static duration(text: string): number {
     const words = text.split(/\s+/).length;
     return 0.8 + words * 0.32;
+  }
+
+  /** Time the current transmission ends. */
+  get freeAt(): number {
+    return this.busyUntil;
   }
 
   isBusy(now: number): boolean {
@@ -90,6 +100,16 @@ export class Frequency {
     });
   }
 
+  /** Keeps the frequency free for the read-back of `callsign` (until it has transmitted, at most until `until`). */
+  expectReply(callsign: string, until: number): void {
+    this.reserved = { callsign, until };
+  }
+
+  /** Station whose read-back the frequency is waiting for, if any. */
+  awaitingReplyFrom(now: number): string | undefined {
+    return this.reserved && now < this.reserved.until ? this.reserved.callsign : undefined;
+  }
+
   /** True if the pilot already has a transmission waiting. */
   hasQueued(callsign: string): boolean {
     return this.queue.some((q) => q.callsign === callsign);
@@ -100,14 +120,23 @@ export class Frequency {
     this.queue = this.queue.filter((q) => q.callsign !== callsign);
   }
 
+  /** Like `cancel`, and releases a reservation for that station (it left the frequency). */
+  release(callsign: string): void {
+    this.cancel(callsign);
+    if (this.reserved?.callsign === callsign) this.reserved = undefined;
+  }
+
   update(now: number): void {
     this.queue = this.queue.filter((q) => q.expiresAt > now);
     if (this.isBusy(now)) return;
-    const ready = this.queue.filter((q) => q.notBefore <= now);
+    const waitingFor = this.awaitingReplyFrom(now);
+    if (!waitingFor) this.reserved = undefined;
+    const ready = this.queue.filter((q) => q.notBefore <= now && (!waitingFor || q.callsign === waitingFor));
     if (!ready.length) return;
     ready.sort((a, b) => b.priority - a.priority || a.notBefore - b.notBefore);
     const q = ready[0];
     this.queue.splice(this.queue.indexOf(q), 1);
+    if (this.reserved?.callsign === q.callsign) this.reserved = undefined;
     const m: RadioMessage = {
       id: this.nextId++,
       time: now,

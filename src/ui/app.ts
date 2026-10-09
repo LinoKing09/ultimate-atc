@@ -12,7 +12,8 @@ import type { RadioMessage } from '../core/radio';
 import type { Simulation } from '../core/simulation';
 import { REPO_URL, showAtisEditor, showHelp } from './dialogs';
 import { formatTime, h } from './dom';
-import { arrivalList, departureList, vehicleList, type TrafficList } from './lists';
+import { arrivalList, departureList, VehicleList } from './lists';
+import { vehicleTel, type Vehicle } from '../core/vehicles';
 import { PopupMenu, type MenuItem } from './menu';
 import { Scope, type TagItem } from './scope';
 import { CommandInput } from './commandInput';
@@ -32,7 +33,7 @@ const PTT_KEYS = new Set(['Backquote', 'ControlRight', 'Insert']);
 export class App {
   private readonly scope: Scope;
   private readonly menu = new PopupMenu();
-  private readonly lists: TrafficList[];
+  private readonly lists: { el: HTMLElement; update(sim: Simulation, selected?: string): void }[];
   private readonly messagesEl: HTMLElement;
   private readonly input: CommandInput;
   private readonly targetEl: HTMLElement;
@@ -147,12 +148,12 @@ export class App {
     const listCb = {
       select: (cs: string) => this.select(cs),
       center: (cs: string) => {
-        const ac = this.sim.find(cs);
-        if (ac) this.scope.centerOn(ac.pos);
+        const pos = this.sim.find(cs)?.pos ?? this.sim.findVehicle(cs)?.pos;
+        if (pos) this.scope.centerOn(pos);
       },
       menu: (cs: string, x: number, y: number) => this.openMenu(cs, x, y),
     };
-    this.lists = [departureList(listCb), arrivalList(listCb), vehicleList(listCb)];
+    this.lists = [departureList(listCb), arrivalList(listCb), new VehicleList(listCb)];
     for (const l of this.lists) this.main.append(l.el);
 
     // Mobile mode: zoom buttons and a quick-action bar for the selected aircraft.
@@ -316,7 +317,9 @@ export class App {
 
   private targetText(): string {
     const ac = this.sim.find(this.selected);
-    return ac ? `[${ac.callsign} ${this.sim.tel(ac).toUpperCase()}]` : '';
+    if (ac) return `[${ac.callsign} ${this.sim.tel(ac).toUpperCase()}]`;
+    const v = this.sim.findVehicle(this.selected);
+    return v ? `[${v.callsign} ${vehicleTel(v).toUpperCase()}]` : '';
   }
 
   // ------------------------------------------------------------------ controls
@@ -382,6 +385,24 @@ export class App {
 
   /** Mobile mode: one-tap buttons for the most common instructions to the selected aircraft. */
   private updateQuickbar(): void {
+    const v = this.sim.findVehicle(this.selected);
+    if (v && this.settings.device === 'mobile') {
+      // Follow-me car: the vehicle phrases as buttons.
+      const key = `${v.callsign}|${v.state}|${v.request}|${v.holding}`;
+      this.quickbar.classList.add('show');
+      if (key === this.quickbarKey) return;
+      this.quickbarKey = key;
+      const short: Record<string, string> = { 'Return to base': 'BASE', 'Hold position': 'HOLD', Continue: 'CONT', Standby: 'STBY' };
+      const buttons = this.vehicleItems(v)
+        .filter((i) => i.action && !i.disabled && i.label !== 'Centre view')
+        .map((i) => {
+          const b = h('button', { text: short[i.label] ?? (i.label.startsWith('Proceed') ? 'PROCEED' : i.label), type: 'button' });
+          b.addEventListener('click', () => i.action!());
+          return b;
+        });
+      this.quickbar.replaceChildren(h('span.qcs', { text: v.callsign }), ...buttons);
+      return;
+    }
     const ac = this.sim.find(this.selected);
     const show = this.settings.device === 'mobile' && !!ac;
     this.quickbar.classList.toggle('show', show);
@@ -568,9 +589,11 @@ export class App {
   }
 
   private selectNextRequest(): void {
-    const pending = this.sim.aircraft
-      .filter((a) => a.request && this.sim.isOnMyFrequency(a))
-      .sort((a, b) => a.requestSince - b.requestSince);
+    const ground = this.sim.userControls(this.sim.stationFor('ground'));
+    const pending = [
+      ...this.sim.aircraft.filter((a) => a.request && this.sim.isOnMyFrequency(a)),
+      ...this.sim.vehicles.filter((v) => v.request && ground),
+    ].sort((a, b) => a.requestSince - b.requestSince);
     if (!pending.length) return;
     const idx = pending.findIndex((a) => a.callsign === this.selected);
     const next = pending[(idx + 1) % pending.length];
@@ -588,7 +611,7 @@ export class App {
       return;
     }
     const parsed = parseTransmission(text, {
-      callsigns: this.sim.aircraft.map((a) => a.callsign),
+      callsigns: this.sim.radioCallsigns,
       taxiways: this.sim.airport.taxiwayNames,
       sids: this.sim.sidNames,
       selected: this.selected,
@@ -598,7 +621,8 @@ export class App {
       this.previewEl.textContent = parsed.unparsed.length ? `? ${parsed.unparsed.slice(0, 4).join(' ')}` : '';
       return;
     }
-    let ok = !!ac;
+    const vehicle = this.sim.findVehicle(parsed.callsign);
+    let ok = !!ac || !!vehicle;
     let warn = false;
     let msg = `${ac ? ac.callsign : parsed.callsign ?? '(no callsign)'}: ${parsed.commands.map(formatCommand).join(', ')}`;
     const taxi = parsed.commands.find((c) => c.type === 'taxi');
@@ -639,7 +663,7 @@ export class App {
 
   /** Picks the speech recognition alternative that makes the most sense as an instruction. */
   private bestVoiceCandidate(candidates: string[]): string {
-    const callsigns = this.sim.aircraft.map((a) => a.callsign);
+    const callsigns = this.sim.radioCallsigns;
     let best = candidates[0];
     let bestScore = -Infinity;
     candidates.forEach((text, i) => {
@@ -695,13 +719,39 @@ export class App {
   // ------------------------------------------------------------------ aircraft menu
 
   private openMenu(cs: string, x: number, y: number): void {
+    const v = this.sim.findVehicle(cs);
+    if (v) {
+      this.menu.open(`${v.callsign}  ${vehicleTel(v).toUpperCase()}${v.aircraft ? `  > ${v.aircraft}` : ''}`, this.vehicleItems(v), x, y);
+      return;
+    }
     const ac = this.sim.find(cs);
     if (!ac) return;
     this.menu.open(`${ac.callsign}  ${ac.type.icao}  ${ac.category === 'departure' ? `> ${ac.flightPlan.destination}` : `< ${ac.flightPlan.departure}`}`, this.menuItems(ac), x, y);
   }
 
-  private say(ac: Aircraft, phrase: string): void {
+  private say(ac: Aircraft | Vehicle, phrase: string): void {
     this.transmit(`${ac.callsign} ${phrase}`);
+  }
+
+  /** Follow-me car: the vehicle phraseology ("proceed", "hold position", "continue", "return to base"). */
+  private vehicleItems(v: Vehicle): MenuItem[] {
+    const center: MenuItem = { label: 'Centre view', action: () => this.scope.centerOn(v.pos) };
+    if (!this.sim.userControls(this.sim.stationFor('ground'))) return [{ label: 'On Ground frequency - not yours', disabled: true }, { divider: true, label: '' }, center];
+    const items: MenuItem[] = [];
+    if (v.aircraft && (v.state === 'assigned' || v.state === 'toAircraft')) {
+      items.push({ label: `Proceed to ${v.aircraft}`, hint: v.request === 'proceed' ? 'requested' : undefined, action: () => this.say(v, `proceed to ${v.aircraft}`) });
+    }
+    items.push({
+      label: 'Return to base',
+      hint: v.request === 'return' ? 'requested' : undefined,
+      disabled: v.state === 'idle' || v.state === 'returning',
+      action: () => this.say(v, 'return to base'),
+    });
+    items.push({ label: 'Hold position', disabled: v.holding || v.state === 'idle', action: () => this.say(v, 'hold position') });
+    items.push({ label: 'Continue', disabled: !v.holding, action: () => this.say(v, 'continue') });
+    if (v.request) items.push({ label: 'Standby', action: () => this.say(v, 'standby') });
+    items.push({ divider: true, label: '' }, center);
+    return items;
   }
 
   private routeItem(ac: Aircraft, label: string, phraseDest: string, hint?: string): MenuItem {

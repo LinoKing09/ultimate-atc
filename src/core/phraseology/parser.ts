@@ -106,7 +106,7 @@ const KEYWORDS = new Set([
   'contact', 'monitor', 'give', 'continue', 'push', 'pushback', 'start', 'startup', 'expedite',
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
   'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise', 'climb', 'squawk',
-  'readback', 'ctot', 'slot', 'tow',
+  'readback', 'ctot', 'slot', 'tow', 'proceed', 'return',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -120,7 +120,7 @@ const SEQUENCE_FOR: Record<string, string> = {
 
 /** Multi-word and single-word telephony designators -> ICAO prefix. */
 const TELEPHONY_WORDS: { words: string[]; icao: string }[] = [...AIRLINES.filter((a) => a.telephony), ...VEHICLE_TELEPHONY]
-  .map((a) => ({ words: a.telephony.toLowerCase().split(/\s+/), icao: a.icao }))
+  .map((a) => ({ words: a.telephony.toLowerCase().replace(/-/g, ' ').split(/\s+/), icao: a.icao }))
   .sort((a, b) => b.words.length - a.words.length);
 
 /** Lower-cases, strips punctuation and converts spoken numbers/letters to characters. */
@@ -663,6 +663,47 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     }
 
     // ---------- taxi
+    // ---------- vehicles: "proceed [to DCEEO | to stand 14 | to base] [via N, F]", "return to base"
+    if (w === 'proceed') {
+      c.next();
+      const p: Extract<Command, { type: 'proceed' }> = { type: 'proceed', via: [] };
+      while (!c.done()) {
+        if (c.accept('to')) {
+          c.accept('the');
+          if (c.accept('base')) p.base = true;
+          else if (c.peek() === 'fire' && c.peek(1) === 'station') {
+            c.i += 2;
+            p.base = true;
+          } else if (['holding', 'runway', 'stand', 'gate', 'parking'].includes(c.peek()!)) {
+            const d = readTaxiDestination();
+            if (d) p.destination = d;
+          } else {
+            const m = matchCallsign(c.t, c.i, ctx.callsigns);
+            if (!m) break;
+            c.i += m.consumed;
+            p.target = m.callsign;
+          }
+          continue;
+        }
+        if (c.accept('via', 'along')) {
+          readVia(p.via);
+          continue;
+        }
+        if (c.accept('and')) continue;
+        break;
+      }
+      result.commands.push(p);
+      continue;
+    }
+    if (w === 'return' && (c.peek(1) === 'to' || c.peek(1) === 'base')) {
+      c.next();
+      c.accept('to');
+      c.accept('the');
+      if (!c.accept('base') && c.peek() === 'fire' && c.peek(1) === 'station') c.i += 2;
+      result.commands.push({ type: 'returnToBase' });
+      continue;
+    }
+
     // "follow the follow-me [to stand 14 via ...]" (before "follow <callsign>")
     const followMeAt = w === 'follow' ? (c.peek(1) === 'the' ? 2 : 1) : -1;
     if (followMeAt > 0 && ((c.peek(followMeAt) === 'follow' && c.peek(followMeAt + 1) === 'me') || c.peek(followMeAt) === 'followme')) {

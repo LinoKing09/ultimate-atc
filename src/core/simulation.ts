@@ -3,7 +3,7 @@ import type { AirportData, StationData, StationType } from './airport/types';
 import { telephony, type Aircraft } from './aircraft';
 import { M_PER_NM, distance } from './geo';
 import { detectCollisions, updateMovement, updateSeparation } from './movement';
-import { createVehicles, updateVehicles, type Vehicle } from './vehicles';
+import { createVehicles, executeVehicleTransmission, updateVehicles, type Vehicle } from './vehicles';
 import { parseTransmission } from './phraseology/parser';
 import { executeTransmission, updatePilot } from './pilot';
 import { Frequency, type MessageKind, type RadioMessage } from './radio';
@@ -307,7 +307,7 @@ export class Simulation {
     if (gone.length) {
       this.aircraft = this.aircraft.filter((a) => a.phase !== 'gone');
       for (const g of gone) {
-        this.frequency.cancel(g.callsign);
+        this.frequency.release(g.callsign);
         this.emit('aircraftRemoved', g);
       }
     }
@@ -322,14 +322,26 @@ export class Simulation {
   transmit(text: string, selected?: string, opts: { fallbackToLastCaller?: boolean } = {}): TransmitResult {
     const trimmed = text.trim();
     if (!trimmed) return { ok: false };
-    const callsigns = this.aircraft.map((a) => a.callsign);
+    const callsigns = this.radioCallsigns;
     let parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected, sids: this.sidNames });
     // Voice-only operation: without callsign and selection, address the pilot who called last.
     if (!parsed.callsign && opts.fallbackToLastCaller) {
       const last = this.lastCaller();
       if (last) parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected: last.callsign, sids: this.sidNames });
     }
+    const vehicle = this.vehicles.find((v) => v.callsign === parsed.callsign);
+    if (vehicle) return executeVehicleTransmission(this, vehicle, parsed, trimmed);
     return executeTransmission(this, parsed, trimmed);
+  }
+
+  /** Callsigns that can be addressed by radio: aircraft and tows, and the follow-me cars. */
+  get radioCallsigns(): string[] {
+    return [...this.aircraft.map((a) => a.callsign), ...this.vehicles.map((v) => v.callsign)];
+  }
+
+  /** A follow-me car by callsign. */
+  findVehicle(callsign: string | undefined): Vehicle | undefined {
+    return callsign ? this.vehicles.find((v) => v.callsign === callsign.toUpperCase()) : undefined;
   }
 
   /** The pilot on my frequency who most recently made a request that is still open. */

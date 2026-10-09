@@ -118,10 +118,69 @@ export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]):
   );
 }
 
-/** Tows (an aircraft moved by a tug, which talks to you under the tug's callsign). */
-export function vehicleList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList {
+/** Follow-me cars at work (rows for the vehicles list). */
+const FOLLOW_ME_STATUS: Record<string, string> = { assigned: 'ASSG', toAircraft: 'PROC', leading: 'LEAD', done: 'DONE', returning: 'RTB' };
+
+/**
+ * Vehicles on your frequency: tows (an aircraft moved by a tug, which talks to
+ * you under the tug's callsign) and follow-me cars. Hidden while empty.
+ */
+export class VehicleList {
+  readonly el: HTMLElement;
+  private readonly tows: TrafficList;
+  private readonly tbody: HTMLTableSectionElement;
+  private readonly fmTable: HTMLElement;
+
+  constructor(cb: ConstructorParameters<typeof TrafficList>[3]) {
+    this.tows = towList(cb);
+    this.el = this.tows.el;
+    this.tbody = h('tbody');
+    const head = ['C/S', 'TASK', 'ACFT', 'STS', 'REQ'].map((t) => h('th', { text: t }));
+    this.fmTable = h('table.fm', {}, h('thead', {}, h('tr', {}, ...head)), this.tbody);
+    this.el.querySelector('.body')?.append(this.fmTable);
+    this.cb = cb;
+  }
+
+  private readonly cb: ConstructorParameters<typeof TrafficList>[3];
+
+  update(sim: Simulation, selected?: string): void {
+    this.tows.update(sim, selected);
+    const active = sim.vehicles.filter((v) => v.state !== 'idle');
+    const towCount = sim.aircraft.filter((a) => a.category === 'tow' && a.phase !== 'gone' && a.phase !== 'arrived').length;
+    this.el.style.display = towCount || active.length ? '' : 'none';
+    this.fmTable.style.display = active.length ? '' : 'none';
+    const count = this.el.querySelector('.count');
+    if (count) count.textContent = `(${towCount + active.length})`;
+    const towTable = this.el.querySelector<HTMLElement>('table:not(.fm)');
+    if (towTable) towTable.style.display = towCount ? '' : 'none';
+    this.tbody.replaceChildren();
+    for (const v of active) {
+      const req = v.request ? `${v.request === 'proceed' ? 'PROC' : 'RTB'} ${formatDuration(sim.time - v.requestSince)}` : '';
+      const late = v.request && sim.time - v.requestSince > 60;
+      const tr = h(`tr${v.callsign === selected ? '.selected' : ''}${v.request ? '.request' : ''}${late ? '.late' : ''}`);
+      for (const [t, cls] of [
+        [v.callsign, 'cs'],
+        ['FOLLOW-ME', ''],
+        [v.aircraft ?? '', ''],
+        [v.holding ? 'HOLD' : FOLLOW_ME_STATUS[v.state] ?? '', ''],
+        [req, 'req'],
+      ])
+        tr.append(h('td', { class: cls, text: t }));
+      tr.addEventListener('click', () => this.cb.select(v.callsign));
+      tr.addEventListener('dblclick', () => this.cb.center(v.callsign));
+      tr.addEventListener('contextmenu', (e) => {
+        e.preventDefault();
+        this.cb.select(v.callsign);
+        this.cb.menu(v.callsign, e.clientX, e.clientY);
+      });
+      this.tbody.append(tr);
+    }
+  }
+}
+
+function towList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList {
   return new TrafficList(
-    'TOWS',
+    'VEHICLES',
     [
       { key: 'cs', label: 'C/S', cls: 'cs', get: csCell },
       { key: 'acft', label: 'ACFT', get: (a) => a.tow?.aircraft ?? '' },
@@ -135,7 +194,6 @@ export function vehicleList(cb: ConstructorParameters<typeof TrafficList>[3]): T
     (a) => a.category === 'tow' && a.phase !== 'gone' && a.phase !== 'arrived',
     cb,
     { left: '8px', top: '58%' },
-    true,
   );
 }
 

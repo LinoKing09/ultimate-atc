@@ -723,9 +723,21 @@ export class Scope {
       if (tug) this.drawVehicle(tug.pos, tug.heading, 6, 2.6, C.tug);
     }
     const labels = this.sim.systemOn('surveillance') && this.sim.systemOn('vehicles');
+    const blink = Math.floor(performance.now() / 500) % 2 === 0;
     for (const v of this.sim.vehicles) {
       if (v.state === 'idle') continue;
-      this.drawVehicle(v.pos, v.heading, 4.6, 1.9, C.followMe, labels ? v.name : undefined);
+      // A driver waiting for your answer flashes like an aircraft with a request.
+      const label = labels ? `${v.name}${v.request ? ' *' : ''}${v.holding ? ' HOLD' : ''}` : undefined;
+      this.drawVehicle(v.pos, v.heading, 4.6, 1.9, v.request && blink ? C.request : C.followMe, label);
+      const p = this.toScreen(v.pos);
+      this.symbolHits.push({ callsign: v.callsign, x: p.x, y: p.y, r: 12 });
+      if (v.callsign === this.selected) {
+        this.ctx.strokeStyle = C.selected;
+        this.ctx.lineWidth = 1.5;
+        this.ctx.beginPath();
+        this.ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
+        this.ctx.stroke();
+      }
     }
   }
 

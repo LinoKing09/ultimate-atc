@@ -211,7 +211,7 @@ Source: `src/core/vehicles.ts`.
 | Towing | Along the route at no more than **10 kt**; the tug can turn the aircraft anywhere (no 180 degree restriction). Runway crossings, holds and give-way work as for aircraft |
 | On the stand | Counts as a completed tow (+5); the aircraft stays parked for 20-40 min, then it leaves the simulation |
 
-**Follow-me**: two cars (`FOLLOW-ME 1`, `FOLLOW-ME 2`) wait at the taxi node next to the fire station. After `follow the follow-me` the next free car drives to a point on the aircraft's route ahead of it (at **10 m/s**, about 36 km/h), and the aircraft waits until it is there (system message with the expected time). It then drives **35 m ahead of the aircraft's nose**, turns off when the aircraft is less than that distance plus 25 m from the end of its route (the stand entry) and drives back to its base. If no car is free, the aircraft waits for the next one. Crews ask for a follow-me after vacating: 20 % of business aviation crews (registration callsigns), 3 % of airline crews.
+**Follow-me**: two cars (`FOLLOW-ME 1`, `FOLLOW-ME 2`, radio callsigns `Follow-me 1` / `Follow-me 2`) wait at the taxi node next to the fire station, on Ground frequency. After `follow the follow-me` the next free car is assigned and its driver calls `request proceed to DCEEO at taxiway F`. After your `proceed [via ...]` it drives to a point on the aircraft's route ahead of it (at **10 m/s**, about 36 km/h); the aircraft waits until it is there. It then drives **35 m ahead of the aircraft's nose** (`hold position` to the car stops both), turns off when the aircraft is less than that distance plus 25 m from the end of its route (the stand entry) and asks `request return to base`; after `return to base` (or `proceed to base`) it drives back. If no car is free, the aircraft waits for the next one. With the AI running Ground, the cars do not call and drive on their own. Crews ask for a follow-me after vacating: 20 % of business aviation crews (registration callsigns), 3 % of airline crews.
 
 ## AI Ground
 
@@ -281,6 +281,7 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 - Your transmissions go out immediately and occupy the frequency.
 - Pilot transmissions are queued. They start when the frequency is free, plus a 0.6 s gap. **Read-backs** (priority 10) go before **new calls** (priority 0).
 - Read-backs start 0.8-2.2 s after your transmission. Spontaneous calls are delayed by 0.3-2.5 s.
+- **Radio discipline**: after your instruction the frequency is reserved for the addressed station until its read-back has been transmitted, at most 6 s after your transmission has ended. Other pilots' calls wait. A new instruction to another station moves the reservation to that station.
 - Queued transmissions that wait too long are dropped (45 s for calls, 60 s for read-backs). The pilot then repeats the call later.
 - When you transmit to a pilot, their queued (not yet spoken) call is cancelled: they listen first.
 - A frequency change takes effect when the read-back has been transmitted.

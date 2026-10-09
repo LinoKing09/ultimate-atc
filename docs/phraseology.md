@@ -176,6 +176,29 @@ Words after the callsign ("from the left", "passing left to right") are ignored.
 
 Tugs are addressed by their callsign: `Tug 5` (TUG5). They refuse `pushback approved` (`we are a tow, request tow approval`) and hand-offs (`we stay on your frequency until the tow is complete`).
 
+### Vehicles
+
+Vehicles on the manoeuvring area are controlled like aircraft, with one difference in wording: vehicles get **"proceed"**, aircraft get "taxi" (vehicles are never "cleared"). Callsigns: `Follow-me 1` / `Follow-me 2` (FME1, FME2) and `Tug 1` ... `Tug 9` (TUG1 ...).
+
+| You say | Effect | Read-back |
+| ------- | ------ | --------- |
+| `Follow-me 1, proceed [to DCEEO] [via N, F]` | The follow-me drives to the aircraft it is assigned to (along the taxiways you give, otherwise the shortest way) | `Proceeding to DCEEO via N, F, Follow-me 1` |
+| `Follow-me 1, proceed to base [via ...]` / `return to base` / `return to the fire station` | Drives back to its base (job finished, or cancelled) | `Proceeding to base, Follow-me 1` / `Returning to base, Follow-me 1` |
+| `Follow-me 1, hold position` | Stops (while leading: the aircraft behind it stops too) | `Holding position, Follow-me 1` |
+| `Follow-me 1, continue` | Drives on | `Continuing, Follow-me 1` |
+| `Follow-me 1, standby` | Acknowledges the request; the driver waits a little longer before asking again | - |
+| `Tug 5, proceed [to stand 45] [via M, N]` | Same as `tow approved` | `Tow approved to stand 45 via M, N, Tug 5` |
+
+Calls from vehicles:
+
+| Situation | Example |
+| --------- | ------- |
+| Follow-me assigned to an aircraft (after `follow the follow-me`) | `Stuttgart Ground, Follow-me 1, request proceed to DCEEO at taxiway F` |
+| Follow-me has brought the aircraft to its stand | `Stuttgart Ground, Follow-me 1, DCEEO is at the stand, request return to base` |
+| Tow request | `Stuttgart Ground, Tug 5, request tow Eurowings A320 from stand 14 to stand 45` |
+
+A follow-me only drives onto the taxiways after your `proceed`; the aircraft waits until the car is in front of it. Unanswered vehicles call again like pilots (every 60-90 s, up to five times). When the AI runs Ground (you staff Delivery only), vehicles do not call: their requests are approved automatically.
+
 ### Clearance delivery
 
 | You say | Effect |
@@ -209,6 +232,10 @@ A wrong frequency gets `confirm frequency 118.700 for Tower`. Departures that ar
 | `expect pushback\|start-up\|taxi\|departure in 5 minutes` | Expected delay. The pilot waits that long (plus 20 s) before reminding you. |
 | `say again`      | The pilot repeats their last transmission                                      |
 | `line up ...`, `cleared for take-off` | Not Ground's job. The pilot asks `confirm, we are on Ground frequency, contact Tower?` |
+
+## Radio discipline
+
+After an instruction the frequency belongs to the station you addressed: **nobody else calls until it has read back** (at most 6 s after your transmission has ended; then waiting calls may go ahead). If you address a second station before the first one has answered, the frequency is kept for the second one, and the first answers afterwards.
 
 ## Combining instructions
 

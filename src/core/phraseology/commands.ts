@@ -28,6 +28,13 @@ export type Command =
   | { type: 'follow'; callsign: string }
   /** "Follow the follow-me": a follow-me car leads the aircraft along its route. */
   | { type: 'followMe' }
+  /**
+   * Vehicles: "proceed [to DCEEO | to stand 14 | to base] [via N, F]" (vehicles get "proceed",
+   * aircraft "taxi"). For a tug it means the same as "tow approved".
+   */
+  | { type: 'proceed'; target?: string; destination?: TaxiDestination; base?: boolean; via: string[] }
+  /** Vehicles: "return to base". */
+  | { type: 'returnToBase' }
   | { type: 'handoff'; station?: StationType; frequency?: string }
   | { type: 'standby' }
   /** Queue position: "number 2 for pushback". */

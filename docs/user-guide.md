@@ -85,7 +85,7 @@ Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS:
 | --------------- | ------------------------------------------------------------------------------------------ |
 | Information     | The new ATIS letter (pre-set to the next letter)                                           |
 | Runway in use   | Runway for departures and arrivals                                                         |
-| Wind direction / speed | Surface wind; the dialog shows the head-/tailwind and crosswind for the selected runway and suggests the runway into wind |
+| Wind direction / speed | Surface wind; the dialog shows the head-/tailwind and crosswind for the selected runway. Direction and speed turn red when the tailwind on the selected runway is above 5 kt |
 | QNH             | Pressure setting                                                                           |
 
 **Broadcast ATIS** publishes the new information. It appears in the message window, and pilots quote the new letter on first contact. The ATIS does not change on its own.
@@ -286,7 +286,7 @@ Request codes in the `REQ` column:
 | `FLWM` | has vacated and asks for a follow-me to the stand           |
 | `TOW`  | a tug asks to tow an aircraft to another stand              |
 
-**TOWS** (only shown while there are tows): callsign of the tug (`TUG5`), the towed aircraft and its type, from and to stand, status, frequency, request.
+**VEHICLES** (only shown while vehicles are at work): tows - callsign of the tug (`TUG5`), the towed aircraft and its type, from and to stand, status, frequency, request - and follow-me cars: callsign (`FME1`), the aircraft it works for, status (`ASSG` assigned, `PROC` proceeding to the aircraft, `LEAD` leading, `DONE` waiting to return, `RTB` returning to base, `HOLD`) and request (`PROC` wants to proceed, `RTB` wants to return to base).
 
 Click a row to select the aircraft, double-click to centre the scope on it, right-click for the [aircraft menu](#7-aircraft-menu).
 
@@ -361,6 +361,8 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 **Hovering over a destination** in the *Taxi to* sub-menus draws the proposed route on the scope. The hint on the right shows the `via` list that will be transmitted, and `! head-on EWG7TK` when the A-SMGCS (CATC) sees a conflict. With the routing service off, the menu offers the destinations without a route. Menu actions are transmitted exactly like typed text, so they show up in the message window and get a read-back.
 
 **Resolve conflict**: when two aircraft face each other on a taxiway, the menu (and `RESOLVE` in the mobile quick-action bar) offers the ways out a real Ground controller has: one aircraft turns off via another taxiway while the other waits (each option is checked to keep clear of the other aircraft's route), or - if there is no junction left between them - a **tug** turns one aircraft around. Airliners cannot make a U-turn on a taxiway, so the tug takes 5 to 10 minutes (the pilot tells you the expected time). Hover an option to see its route.
+
+**Follow-me cars** (right-click the car or its row in the VEHICLES list) have their own menu: *Proceed to DCEEO*, *Return to base*, *Hold position*, *Continue*, *Standby* - see the [vehicle phraseology](phraseology.md#vehicles). In mobile mode the quick-action bar shows `PROCEED`, `BASE`, `HOLD`, `CONT`. **Tab** also selects vehicles with a pending request.
 
 **On Delivery frequency** the menu offers instead:
 

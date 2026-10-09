@@ -39,7 +39,10 @@ export const AIRLINES: Airline[] = [
 ];
 
 /** Vehicles that talk to ATC with a callsign prefix of their own (TUG5 = "Tug 5"). Not used for traffic generation. */
-export const VEHICLE_TELEPHONY: { icao: string; telephony: string }[] = [{ icao: 'TUG', telephony: 'Tug' }];
+export const VEHICLE_TELEPHONY: { icao: string; telephony: string }[] = [
+  { icao: 'TUG', telephony: 'Tug' },
+  { icao: 'FME', telephony: 'Follow-me' },
+];
 
 /** Lookup from ICAO airline code (or vehicle prefix) to telephony designator. */
 export const TELEPHONY = new Map([...AIRLINES.filter((a) => a.telephony), ...VEHICLE_TELEPHONY].map((a) => [a.icao, a.telephony]));

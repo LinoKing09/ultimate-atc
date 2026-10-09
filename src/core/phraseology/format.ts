@@ -68,6 +68,16 @@ export function formatCommand(c: Command): string {
       return `follow ${telephonyCallsign(c.callsign)}`;
     case 'followMe':
       return 'follow the follow-me';
+    case 'proceed': {
+      let s = 'proceed';
+      if (c.base) s += ' to base';
+      else if (c.target) s += ` to ${telephonyCallsign(c.target)}`;
+      else if (c.destination) s += ` to ${formatDestination(c.destination)}`;
+      if (c.via.length) s += ` via ${c.via.join(', ')}`;
+      return s;
+    }
+    case 'returnToBase':
+      return 'return to base';
     case 'handoff':
       if (!c.station && !c.frequency) return 'frequency change approved';
       return ['contact', c.station ? STATION_WORD[c.station] : '', c.frequency ?? ''].filter(Boolean).join(' ');

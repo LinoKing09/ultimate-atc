@@ -19,6 +19,8 @@ Terms used in the simulator and in this documentation. Real-world terms are expl
 | **Holding point** | Runway holding position where departures wait before entering the runway (EDDS: A, B, C, D for runway 25; K, Y, I, H, W for runway 07). |
 | **ILS / LOC / GP** | Instrument landing system with localizer (lateral guidance) and glide path (vertical guidance). Without them: localizer-only or RNP approaches. |
 | **Incursion** | An aircraft entering the runway without a clearance, or while it is occupied - a serious incident (-50 points). |
+| **Proceed** | The instruction word for vehicles ("Follow-me 1, proceed to DCEEO via N, F"); aircraft get "taxi". |
+| **Radio discipline** | Only one station talks at a time; after an instruction the addressed station reads back before anyone else calls. |
 | **RMCA** | Runway monitoring and conflict alerting: A-SMGCS alert for aircraft approaching an occupied runway. |
 | **RNP approach** | Approach with satellite navigation (no ILS needed). |
 | **SID** | Standard instrument departure: the published departure route from the runway to the first fix of the flight plan (placeholder names in the simulator). |

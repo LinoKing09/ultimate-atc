@@ -1,10 +1,12 @@
 import { createAircraft, type Aircraft } from './aircraft';
 import type { TaxiNode } from './airport/airport';
 import { findRoute, isRouteError } from './airport/routing';
-import { add, distance, headingVector, scale, type Vec2 } from './geo';
+import { add, distance, headingVector, projectOnSegment, scale, type Vec2 } from './geo';
 import { Path } from './path';
-import { splitCallsign } from './phraseology/speech';
-import type { Simulation } from './simulation';
+import type { ParsedTransmission } from './phraseology/commands';
+import { capitalize, formatCommand } from './phraseology/format';
+import { splitCallsign, telephonyCallsign } from './phraseology/speech';
+import type { Simulation, TransmitResult } from './simulation';
 import { TELEPHONY } from '../data/airlines';
 
 /**
@@ -15,6 +17,7 @@ import { TELEPHONY } from '../data/airlines';
  */
 
 export interface Vehicle {
+  /** Radio callsign, e.g. FME1 ("Follow-me 1"). */
   callsign: string;
   /** Label on the scope, e.g. "FOLLOW-ME 1". */
   name: string;
@@ -23,9 +26,21 @@ export interface Vehicle {
   heading: number;
   path: Path | null;
   s: number;
-  state: 'idle' | 'toAircraft' | 'leading' | 'returning';
+  /**
+   * idle: at the base. assigned: waits for "proceed" to drive to the aircraft. toAircraft: driving
+   * there. leading: in front of the aircraft. done: job finished, waits for "return to base".
+   * returning: driving back to the base.
+   */
+  state: 'idle' | 'assigned' | 'toAircraft' | 'leading' | 'done' | 'returning';
   /** Aircraft the follow-me is assigned to. */
   aircraft?: string;
+  /** Stopped by "hold position" (until "continue"). */
+  holding: boolean;
+  /** What the driver is waiting for from Ground. */
+  request?: 'proceed' | 'return';
+  requestSince: number;
+  lastCallAt: number;
+  callCount: number;
 }
 
 /** Follow-me cars at the airport. */
@@ -48,7 +63,7 @@ const FOLLOW_ME_CHANCE_AIRLINE = 0.03;
 export function createVehicles(sim: Simulation): Vehicle[] {
   const base = vehicleBase(sim);
   return Array.from({ length: FOLLOW_ME_COUNT }, (_, i) => ({
-    callsign: `FOLLOWME${i + 1}`,
+    callsign: `FME${i + 1}`,
     name: `FOLLOW-ME ${i + 1}`,
     kind: 'followMe' as const,
     pos: base.pos,
@@ -56,6 +71,10 @@ export function createVehicles(sim: Simulation): Vehicle[] {
     path: null,
     s: 0,
     state: 'idle' as const,
+    holding: false,
+    requestSince: 0,
+    lastCallAt: 0,
+    callCount: 0,
   }));
 }
 
@@ -127,48 +146,130 @@ function leadDistance(ac: Aircraft): number {
   return ac.type.lengthM / 2 + LEAD_M;
 }
 
-function routeBetween(sim: Simulation, from: Vec2, heading: number | undefined, to: TaxiNode): Path | null {
-  const r = findRoute(sim.airport, { position: from, heading }, to, [], { allowUTurn: true });
-  if (isRouteError(r)) return null;
+/** Radiotelephony callsign of a vehicle ("Follow-me 1"). */
+export function vehicleTel(v: Vehicle): string {
+  return telephonyCallsign(v.callsign);
+}
+
+function routeBetween(sim: Simulation, from: Vec2, heading: number | undefined, to: TaxiNode, via: string[] = []): Path | null | { error: string } {
+  const r = findRoute(sim.airport, { position: from, heading }, to, via, { allowUTurn: true });
+  if (isRouteError(r)) return via.length ? { error: r.error } : null;
   const pts = [...(r.startPosition ? [r.startPosition] : []), ...r.nodes.map((n) => n.pos)];
   return pts.length > 1 ? new Path(pts, [], 15) : null;
 }
 
-/** Sends a free follow-me to an aircraft that has a route: it drives to a point ahead of the aircraft. */
-function dispatch(sim: Simulation, ac: Aircraft, v: Vehicle): void {
-  const path = ac.path!;
-  const ahead = ac.s + leadDistance(ac);
+/** Where the follow-me meets the aircraft: the first node of its route at least the lead distance ahead. */
+function meetingNode(ac: Aircraft): TaxiNode | undefined {
+  const path = ac.path;
   const nodes = ac.route?.nodes ?? [];
-  const target = nodes.find((n) => (path.marker(n.id)?.s ?? -1) >= ahead) ?? nodes[nodes.length - 1];
-  v.aircraft = ac.callsign;
-  ac.followMe = { vehicle: v.callsign, leading: false };
-  v.path = target ? routeBetween(sim, v.pos, undefined, target) : null;
-  v.s = 0;
-  v.state = 'toAircraft';
-  const eta = v.path ? Math.max(1, Math.round(v.path.length / VEHICLE_SPEED / 60)) : 1;
-  sim.system(`${v.name} is on its way to ${ac.callsign}, about ${eta} min. ${ac.callsign} waits for it.`, 'system', ac.callsign);
+  if (!path) return undefined;
+  const ahead = ac.s + leadDistance(ac);
+  return nodes.find((n) => (path.marker(n.id)?.s ?? -1) >= ahead) ?? nodes[nodes.length - 1];
 }
 
-/** Releases the follow-me: it drives back to its base. */
-function release(sim: Simulation, v: Vehicle): void {
+/** "Taxiway F", "stand 14": where an aircraft is, for radio calls. */
+export function locationOf(sim: Simulation, ac: Aircraft): string {
+  if (ac.phase === 'parked' && ac.stand) return `stand ${ac.stand}`;
+  let best: { name: string; d: number } | undefined;
+  for (const e of sim.airport.edges) {
+    if (!e.name || !sim.airport.taxiwayNames.has(e.name.toUpperCase())) continue;
+    const d = projectOnSegment(ac.pos, e.from.pos, e.to.pos).dist;
+    if (!best || d < best.d) best = { name: e.name, d };
+  }
+  return best ? `taxiway ${best.name.toUpperCase()}` : 'the apron';
+}
+
+/** Ground is run by the AI (the user does not staff it): vehicles do not call, their requests are approved. */
+function aiGround(sim: Simulation): boolean {
+  return !sim.userControls(sim.stationFor('ground'));
+}
+
+function vehicleCall(sim: Simulation, v: Vehicle, request: Vehicle['request'], text: string): void {
+  if (sim.frequency.hasQueued(v.callsign)) return;
+  v.lastCallAt = sim.time;
+  sim.frequency.pilotTransmit(sim.time, v.callsign, text, {
+    delay: sim.rng.range(0.5, 2),
+    ttl: 45,
+    onTransmit: () => {
+      if (v.request !== request) {
+        v.request = request;
+        v.requestSince = sim.time;
+        v.callCount = 0;
+      }
+      v.callCount++;
+      v.lastCallAt = sim.time;
+    },
+  });
+}
+
+function vehicleReadback(sim: Simulation, v: Vehicle, text: string): void {
+  sim.frequency.expectReply(v.callsign, Math.max(sim.time, sim.frequency.freeAt) + 6);
+  sim.frequency.pilotTransmit(sim.time, v.callsign, text, { delay: sim.rng.range(0.6, 1.8), priority: 10, ttl: 60 });
+}
+
+/** Starts the drive to the assigned aircraft (optionally along `via`). Returns an error text if the route is impossible. */
+function startToAircraft(sim: Simulation, v: Vehicle, via: string[] = []): string | undefined {
+  const ac = sim.find(v.aircraft);
+  const target = ac && meetingNode(ac);
+  const path = target ? routeBetween(sim, v.pos, v.state === 'idle' ? undefined : v.heading, target, via) : null;
+  if (path && 'error' in path) return path.error;
+  v.path = path;
+  v.s = 0;
+  v.state = 'toAircraft';
+  v.holding = false;
+  return undefined;
+}
+
+/** Drives back to the base. */
+function startReturn(sim: Simulation, v: Vehicle, via: string[] = []): string | undefined {
+  const path = routeBetween(sim, v.pos, v.heading, vehicleBase(sim), via);
+  if (path && 'error' in path) return path.error;
   const ac = sim.find(v.aircraft);
   if (ac?.followMe?.vehicle === v.callsign) ac.followMe = undefined;
   v.aircraft = undefined;
-  v.state = 'returning';
-  v.path = routeBetween(sim, v.pos, v.heading, vehicleBase(sim));
+  v.path = path;
   v.s = 0;
-  if (!v.path) v.state = 'idle';
+  v.state = path ? 'returning' : 'idle';
+  v.holding = false;
+  return undefined;
+}
+
+/** Assigns a free follow-me to an aircraft that has a route; the driver asks Ground to proceed. */
+function assign(sim: Simulation, ac: Aircraft, v: Vehicle): void {
+  v.aircraft = ac.callsign;
+  ac.followMe = { vehicle: v.callsign, leading: false };
+  v.state = 'assigned';
+  v.request = undefined;
+  if (aiGround(sim)) {
+    startToAircraft(sim, v);
+    return;
+  }
+  vehicleCall(sim, v, 'proceed', `${sim.station.name}, ${vehicleTel(v)}, request proceed to ${sim.tel(ac)} at ${locationOf(sim, ac)}`);
+}
+
+/** Job done (the aircraft is at its stand entry): the driver asks to return to base. */
+function finish(sim: Simulation, v: Vehicle): void {
+  const ac = sim.find(v.aircraft);
+  if (ac?.followMe?.vehicle === v.callsign) ac.followMe = undefined;
+  v.state = 'done';
+  v.path = null;
+  if (aiGround(sim)) {
+    startReturn(sim, v);
+    return;
+  }
+  vehicleCall(sim, v, 'return', `${sim.station.name}, ${vehicleTel(v)}, ${ac ? `${sim.tel(ac)} is at the stand, ` : ''}request return to base`);
 }
 
 function drive(v: Vehicle, dt: number): boolean {
   if (!v.path) return true;
+  if (v.holding) return false;
   v.s = Math.min(v.path.length, v.s + VEHICLE_SPEED * dt);
   v.pos = v.path.pointAt(v.s);
   if (v.path.length > 0.5) v.heading = v.path.headingAt(v.s);
   return v.s >= v.path.length - 0.1;
 }
 
-/** Moves the follow-me cars; called every simulation step. */
+/** Moves the follow-me cars and makes their calls; called every simulation step. */
 export function updateVehicles(sim: Simulation, dt: number): void {
   // Aircraft waiting for a follow-me get the next free one once they have a route.
   for (const ac of sim.aircraft) {
@@ -183,10 +284,11 @@ export function updateVehicles(sim: Simulation, dt: number): void {
       continue;
     }
     const free = sim.vehicles.find((v) => v.state === 'idle');
-    if (free) dispatch(sim, ac, free);
+    if (free) assign(sim, ac, free);
   }
   for (const v of sim.vehicles) {
-    if (v.state === 'idle') continue;
+    remind(sim, v);
+    if (v.state === 'idle' || v.state === 'done') continue;
     if (v.state === 'returning') {
       if (drive(v, dt)) {
         v.state = 'idle';
@@ -196,24 +298,128 @@ export function updateVehicles(sim: Simulation, dt: number): void {
     }
     const ac = sim.find(v.aircraft);
     if (!ac || ac.followMe?.vehicle !== v.callsign || !ac.path || ac.phase !== 'taxi') {
-      release(sim, v);
+      // The aircraft no longer needs the follow-me (other instruction, parked, gone).
+      if (ac?.followMe?.vehicle === v.callsign) ac.followMe = undefined;
+      finish(sim, v);
       continue;
     }
+    if (v.state === 'assigned') continue;
     if (v.state === 'toAircraft') {
       if (drive(v, dt) || !v.path) {
         v.state = 'leading';
-        ac.followMe.leading = true;
+        ac.followMe.leading = !v.holding;
       }
       continue;
     }
-    // Leading: stay ahead of the aircraft on its path; peel off before the stand.
+    // Leading: stay ahead of the aircraft on its path (it stops while the car holds); peel off before the stand.
+    ac.followMe.leading = !v.holding;
+    if (v.holding) continue;
     const lead = leadDistance(ac);
-    const ahead = ac.s + lead;
     if (ac.path.length - ac.s < lead + 25) {
-      release(sim, v);
+      finish(sim, v);
       continue;
     }
+    const ahead = ac.s + lead;
     v.pos = ac.path.pointAt(ahead);
     v.heading = ac.path.headingAt(ahead);
   }
+}
+
+/** Reminders like a pilot's: every 60-89 s, up to five calls. */
+function remind(sim: Simulation, v: Vehicle): void {
+  if (!v.request || aiGround(sim)) return;
+  const interval = 60 + (v.callsign.charCodeAt(v.callsign.length - 1) % 30);
+  if (sim.time - v.lastCallAt < interval || v.callCount >= 5 || sim.frequency.hasQueued(v.callsign)) return;
+  const ac = sim.find(v.aircraft);
+  const text =
+    v.request === 'proceed' && ac
+      ? `${sim.station.name}, ${vehicleTel(v)}, request proceed to ${sim.tel(ac)}`
+      : `${sim.station.name}, ${vehicleTel(v)}, request return to base`;
+  vehicleCall(sim, v, v.request, text);
+}
+
+/**
+ * A controller transmission to a vehicle: "Follow-me 1, proceed to DCEEO via N, F",
+ * "... hold position", "... continue", "... return to base".
+ */
+export function executeVehicleTransmission(sim: Simulation, v: Vehicle, parsed: ParsedTransmission, raw: string): TransmitResult {
+  const canonical = parsed.commands.length && parsed.unparsed.length === 0 ? `${vehicleTel(v)}, ${parsed.commands.map(formatCommand).join(', ')}` : raw;
+  sim.frequency.controllerTransmit(sim.time, canonical, v.callsign);
+  if (!sim.userControls(sim.stationFor('ground'))) return { ok: false, callsign: v.callsign, hint: `${v.name} is on Ground frequency.` };
+  sim.frequency.cancel(v.callsign);
+  if (!parsed.commands.length) {
+    vehicleReadback(sim, v, `Say again, ${vehicleTel(v)}?`);
+    return { ok: false, callsign: v.callsign, hint: 'Instruction not understood.' };
+  }
+  const parts: string[] = [];
+  let ok = true;
+  const unable = (t: string) => {
+    parts.push(t);
+    ok = false;
+  };
+  for (const c of parsed.commands) {
+    switch (c.type) {
+      case 'proceed': {
+        const back = c.base || v.state === 'done';
+        if (back) {
+          if (v.state === 'idle') {
+            unable('we are at the base');
+            break;
+          }
+          const err = startReturn(sim, v, c.via);
+          if (err) unable(`unable, ${err}, say again route`);
+          else {
+            parts.push(`proceeding to base${c.via.length ? ` via ${c.via.join(', ')}` : ''}`);
+            v.request = undefined;
+          }
+          break;
+        }
+        const ac = sim.find(v.aircraft);
+        if (!ac || v.state === 'idle') {
+          unable('negative, we have no job, say again');
+          break;
+        }
+        if (c.target && c.target !== ac.callsign) {
+          unable(`negative, we are assigned to ${sim.tel(ac)}`);
+          break;
+        }
+        if (v.state === 'assigned' || c.via.length) {
+          const err = startToAircraft(sim, v, c.via);
+          if (err) {
+            unable(`unable, ${err}, say again route`);
+            break;
+          }
+        }
+        v.holding = false;
+        v.request = undefined;
+        parts.push(`proceeding to ${sim.tel(ac)}${c.via.length ? ` via ${c.via.join(', ')}` : ''}`);
+        break;
+      }
+      case 'returnToBase': {
+        if (v.state === 'idle') {
+          unable('we are at the base');
+          break;
+        }
+        startReturn(sim, v);
+        v.request = undefined;
+        parts.push('returning to base');
+        break;
+      }
+      case 'holdPosition':
+        v.holding = true;
+        parts.push('holding position');
+        break;
+      case 'continue':
+        v.holding = false;
+        parts.push('continuing');
+        break;
+      case 'standby':
+        v.lastCallAt = sim.time + 60;
+        break;
+      default:
+        unable(`unable, ${formatCommand(c)}`);
+    }
+  }
+  if (parts.length) vehicleReadback(sim, v, `${capitalize(parts.join(', '))}, ${vehicleTel(v)}`);
+  return { ok, callsign: v.callsign };
 }

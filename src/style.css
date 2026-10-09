@@ -455,6 +455,11 @@ button:disabled {
   padding: 4px 6px;
   width: 100%;
 }
+.dialog input.bad {
+  color: var(--danger);
+  border-color: var(--danger);
+  font-weight: bold;
+}
 .dialog .positions {
   display: flex;
   flex-wrap: wrap;

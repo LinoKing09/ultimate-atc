@@ -1,5 +1,6 @@
 import type { Aircraft } from '../core/aircraft';
 import { tugOf } from '../core/vehicles';
+import { catcAlert } from '../core/conflicts';
 import { KT_TO_MS, M_PER_NM, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
 import type { Simulation } from '../core/simulation';
 import { clearedTo, statusCode } from './labels';
@@ -643,10 +644,8 @@ export class Scope {
   private colorFor(ac: Aircraft, now: number): string {
     if (ac.incident) return C.danger;
     if (ac.emergency) return Math.floor(now / 400) % 2 === 0 ? C.emergency : C.mine;
-    // A-SMGCS CATC: aircraft routed head-on flash red - only conflicts that involve your traffic.
-    for (const c of this.sim.routeConflicts.values()) {
-      if ((c.a === ac || c.b === ac) && (this.sim.isOnMyFrequency(c.a) || this.sim.isOnMyFrequency(c.b))) return Math.floor(now / 350) % 2 === 0 ? C.danger : C.mine;
-    }
+    // A-SMGCS CATC: aircraft routed head-on flash red - only conflicts that involve your traffic, until acknowledged.
+    if (catcAlert(this.sim, ac)) return Math.floor(now / 350) % 2 === 0 ? C.danger : C.mine;
     const mine = this.sim.isOnMyFrequency(ac);
     if (mine && ac.request) {
       const late = this.sim.time - ac.requestSince > 60;

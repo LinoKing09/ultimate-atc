@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Aircraft } from '../src/core/aircraft';
-import { findRouteConflicts, resolveOptions, routeHeadOn } from '../src/core/conflicts';
+import { acknowledgeCatc, catcAlert, findRouteConflicts, resolveOptions, routeHeadOn } from '../src/core/conflicts';
 import { previewTaxi } from '../src/core/pilot';
 import { Simulation } from '../src/core/simulation';
 import { EDDS } from '../src/data/airports/edds';
@@ -41,6 +41,19 @@ describe('head-on conflicts (CATC)', () => {
     expect(findRouteConflicts(sim).size).toBe(1);
     expect(sim.messages.some((m) => /CATC: DLH1AB and EWG2CD are routed head-on on N/.test(m.text))).toBe(true);
     void dep;
+  });
+
+  it('acknowledged CATC alerts stop flashing until the conflict ends', () => {
+    const { sim, dep, arr } = headOnSetup();
+    sim.transmit('DLH1AB taxi to holding point A via N');
+    sim.transmit('EWG2CD taxi to stand 14 via N, L2');
+    runUntil(sim, () => sim.routeConflicts.size > 0, 30);
+    expect(catcAlert(sim, dep)?.b.callsign).toBe('EWG2CD');
+    expect(acknowledgeCatc(sim, arr)).toBe(1);
+    expect(catcAlert(sim, dep)).toBeUndefined();
+    expect(catcAlert(sim, arr)).toBeUndefined();
+    for (let t = 0; t < 10; t++) sim.tick(1);
+    expect(catcAlert(sim, dep)).toBeUndefined();
   });
 
   it('offers a way out before they meet: one aircraft turns off via another taxiway', () => {

@@ -238,6 +238,7 @@ const REFERENCE: [string, string][] = [
   ['standby', 'Acknowledge a request; the pilot waits two minutes before calling again.'],
   ['expedite taxi', 'Taxi a bit faster.'],
   ['say again', 'The pilot repeats the last transmission.'],
+  ['Aircraft menu: Acknowledge CATC alert', 'You have checked the head-on alert and the aircraft will not meet (e.g. one stops or turns off before): the flashing stops until that conflict is over.'],
   ['Aircraft menu: Resolve conflict with ...', 'Two aircraft face each other on a taxiway (A-SMGCS CATC alert): turn one off via a junction, or order a tug (several minutes).'],
 ];
 

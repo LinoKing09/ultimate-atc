@@ -4,7 +4,7 @@ import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { parseTransmission } from '../core/phraseology/parser';
-import { headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
+import { acknowledgeCatc, catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
 import { allocateSquawk, CTOT_EARLY_S, hhmm, initialClimbFt, sendDcl, suggestedSid } from '../core/delivery';
 import { previewTaxi } from '../core/pilot';
 import { destinationName } from '../data/destinations';
@@ -456,7 +456,7 @@ export class App {
       return;
     }
     const mine = this.sim.isOnMyFrequency(ac);
-    const key = `${ac.callsign}|${ac.phase}|${ac.onGround}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}`;
+    const key = `${ac.callsign}|${ac.phase}|${ac.onGround}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}|${catcAlert(this.sim, ac)?.key ?? ''}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
     if (this.quickSel && this.quickSel.cs !== ac.callsign) this.clearQuickSel();
@@ -471,6 +471,7 @@ export class App {
       return [r.left, r.top];
     };
     const items: HTMLElement[] = [h('span.qcs', { text: ac.callsign })];
+    if (catcAlert(this.sim, ac)) items.push(btn('ACK', () => this.acknowledgeCatc(ac)));
     if (mine && this.sim.userTower && ac.frequency === this.sim.stationFor('tower')) {
       // Tower: the clearances of the moment as buttons.
       const short: [RegExp, string][] = [
@@ -798,6 +799,15 @@ export class App {
     this.menu.open(`${ac.callsign}  ${ac.type.icao}  ${ac.category === 'departure' ? `> ${ac.flightPlan.destination}` : `< ${ac.flightPlan.departure}`}`, this.menuItems(ac), x, y);
   }
 
+  /** Acknowledges the CATC alert of an aircraft (no flashing until the conflict ends). */
+  private acknowledgeCatc(ac: Aircraft): void {
+    const alert = catcAlert(this.sim, ac);
+    if (!alert || !acknowledgeCatc(this.sim, ac)) return;
+    this.sim.system(`CATC alert ${alert.a.callsign} / ${alert.b.callsign} acknowledged.`, 'system', ac.callsign);
+    this.quickbarKey = '';
+    this.updateQuickbar();
+  }
+
   private say(ac: Aircraft | Vehicle, phrase: string): void {
     if (this.capture) {
       this.capture.push(phrase);
@@ -894,6 +904,11 @@ export class App {
     const items: MenuItem[] = [];
     const center: MenuItem = { label: 'Centre view', action: () => this.scope.centerOn(ac.pos) };
     const resetTag: MenuItem = { label: 'Reset tag position', action: () => (ac.tagOffset = undefined) };
+    const alert = catcAlert(sim, ac);
+    if (alert) {
+      const other = alert.a === ac ? alert.b : alert.a;
+      items.push({ label: 'Acknowledge CATC alert', hint: other.callsign, action: () => this.acknowledgeCatc(ac) }, { divider: true, label: '' });
+    }
 
     if (!sim.isOnMyFrequency(ac)) {
       items.push({ label: `On ${ac.frequency} frequency`, disabled: true }, { divider: true, label: '' }, center, resetTag);

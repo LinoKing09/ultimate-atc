@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - **Extended runway centrelines** on the scope (as on a EuroScope map): 15 NM from each threshold with NM ticks, the runway in use brighter; marked `LOC U/S` with the localizer off.
 - **Tower speed control** on final: `maintain 160 knots until 4 miles`, `reduce speed to 150 knots`, `reduce to final approach speed`; and **immediate take-off**: `cleared for immediate take-off` / `cleared for take-off, no delay`. Both in the Tower menu.
+- **Acknowledge CATC alerts**: *Acknowledge CATC alert* in the aircraft menu (`ACK` in the quick-action bar) stops the red flashing of a head-on alert you have checked; a new conflict of the same aircraft alerts again.
 - Tower phraseology `continue approach, expect late landing clearance` (also in the Tower menu).
 - **Sidebar** next to the message window with large MIC and SEND buttons and NEXT, STANDBY and SAY AGAIN.
 

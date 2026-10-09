@@ -157,6 +157,8 @@ export class Simulation {
   readonly systems: SystemStates;
   /** Current head-on conflicts between cleared routes (CATC), by pair key. */
   readonly routeConflicts = new Map<string, { a: Aircraft; b: Aircraft; taxiway: string }>();
+  /** CATC alerts the controller has acknowledged (pair keys); dropped once the conflict is gone. */
+  readonly catcAcknowledged = new Set<string>();
   private nextConflictCheck = 0;
   /** Follow-me cars (tugs are drawn with the aircraft they move). */
   readonly vehicles: Vehicle[];

@@ -125,6 +125,33 @@ export function updateConflictAlerts(sim: Simulation): void {
   }
   sim.routeConflicts.clear();
   for (const [k, v] of now) sim.routeConflicts.set(k, v);
+  // An acknowledged alert ends with its conflict: a new conflict of the same pair alerts again.
+  for (const k of [...sim.catcAcknowledged]) if (!now.has(k)) sim.catcAcknowledged.delete(k);
+}
+
+/** The CATC alert shown for an aircraft: a conflict that involves your traffic and has not been acknowledged. */
+export function catcAlert(sim: Simulation, ac: Aircraft): { a: Aircraft; b: Aircraft; taxiway: string; key: string } | undefined {
+  for (const [key, c] of sim.routeConflicts) {
+    if (c.a !== ac && c.b !== ac) continue;
+    if (sim.catcAcknowledged.has(key)) continue;
+    if (!sim.isOnMyFrequency(c.a) && !sim.isOnMyFrequency(c.b)) continue;
+    return { ...c, key };
+  }
+  return undefined;
+}
+
+/**
+ * Acknowledges the CATC alerts of an aircraft (the controller has checked that
+ * the routes do not really conflict): no flashing until the conflict ends.
+ * Returns the number of alerts acknowledged.
+ */
+export function acknowledgeCatc(sim: Simulation, ac: Aircraft): number {
+  let n = 0;
+  for (let alert = catcAlert(sim, ac); alert; alert = catcAlert(sim, ac)) {
+    sim.catcAcknowledged.add(alert.key);
+    n++;
+  }
+  return n;
 }
 
 /** The node a destination refers to (for re-routing). */
@@ -249,7 +276,8 @@ export function headOnPartner(sim: Simulation, ac: Aircraft): Aircraft | undefin
     const o = sim.find(ac.blockedBy);
     if (o && (Math.abs(headingDiff(ac.heading, o.heading)) > 120 || o.blockedBy === ac.callsign || blockCycle(sim, ac))) return o;
   }
-  for (const c of sim.routeConflicts.values()) {
+  for (const [key, c] of sim.routeConflicts) {
+    if (sim.catcAcknowledged.has(key)) continue;
     if (c.a === ac) return c.b;
     if (c.b === ac) return c.a;
   }

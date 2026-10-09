@@ -98,9 +98,19 @@ export function formatCommand(c: Command): string {
     case 'ctot':
       return `CTOT ${c.time}`;
     case 'lineUp':
-      return 'line up';
+      return `line up and wait${c.runway ? ` runway ${c.runway}` : ''}`;
     case 'takeoff':
-      return 'cleared for take-off';
+      return `${c.runway ? `runway ${c.runway}, ` : ''}cleared for take-off`;
+    case 'land':
+      return `${c.runway ? `runway ${c.runway}, ` : ''}cleared to land`;
+    case 'continueApproach':
+      return 'continue approach';
+    case 'goAround':
+      return 'go around';
+    case 'cancelTakeoff':
+      return 'hold position, cancel take-off';
+    case 'vacate':
+      return `vacate via ${c.exit}`;
   }
 }
 

@@ -25,13 +25,20 @@ Further airports follow in the 1.x releases (the airport data format, the data c
 | ------- | ----- |
 | **0.5** | **done** - Foundations: role-based station model (combined positions possible), per-airport traffic with the real Stuttgart operator mix, airport data checks, soak test in CI |
 | **0.6** | **done** - **Delivery** at EDDS: IFR clearances, squawks, start-up, CTOT, A-CDM, DCL; combined positions in the login; systems window (A-SMGCS, A-CDM, DCL); head-on conflict resolution; AI Ground |
-| 0.7 | **Tower** at EDDS: line-up / take-off / landing clearances, runway crossings, arrival sequence |
+| **0.7** | **done** - **Tower** at EDDS: line-up / take-off / landing clearances, runway crossings, arrival sequence |
 | 0.8 | Combined positions with Tower, AI pilots that resolve simple conflicts, debriefing |
 | 0.9 | Tutorials, polish, beta testing |
 | 1.0 | Release after the criteria above are met and agreed |
 | 1.x | Further airports |
 
 Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md](benchmarks.md) that compares them with the previous major release.
+
+## v0.7 - Tower
+
+- **done** - Tower position at EDDS (on its own): line up and wait (also behind landing traffic), take-off and landing clearances with wind, continue approach, go around, cancel take-off, vacate via, hand-offs to Radar and Ground
+- **done** - Pilot calls on Tower frequency; go-around without landing clearance; separation check of departures; RMCA warnings for clearances onto an occupied runway
+- **done** - Runway crossings through Tower when Ground is run by the AI; arrival sequence in the arrivals list; Tower menu, quick-action bar, briefing and help
+- **done** - AI Ground resolves circles of aircraft blocking each other (cancels a pushback in the circle)
 
 ## v0.6 - Delivery and systems
 
@@ -98,7 +105,6 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 
 ### Positions
 
-- planned - **Tower**: line-up, take-off and landing clearances, runway crossings, departure spacing, arrival sequence display
 - planned - **Approach / Departure**: radar scope, vectoring, altitude and speed instructions, ILS clearances, handoffs
 - planned - **Radar / Center**: en-route sector, coordination, handoffs between sectors
 - planned - Combined positions (e.g. Tower + Ground when the user is alone)

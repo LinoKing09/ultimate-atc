@@ -62,7 +62,11 @@ export type PilotRequest =
   | 'clearance' // departure on Delivery asks for its IFR clearance (voice or DCL)
   | 'startup' // cleared departure ready, asks for start-up (A-CDM: at its TSAT)
   | 'frequency' // start-up approved, waits for "contact Ground"
-  | 'tow'; // tug driver asks to tow an aircraft from one stand to another
+  | 'tow' // tug driver asks to tow an aircraft from one stand to another
+  | 'departure' // Tower: at the holding point, ready for departure
+  | 'landing' // Tower: arrival on final, expects a landing clearance
+  | 'vacated' // Tower: runway vacated (after landing or crossing), expects "contact ground"
+  | 'radar'; // Tower: departure airborne, expects "contact radar"
 
 export interface Aircraft {
   callsign: string;
@@ -178,6 +182,19 @@ export interface Aircraft {
   tow?: { aircraft: string; operator: string; from: string; to: string };
   /** The crew asked for a follow-me (unfamiliar with the airport). */
   wantsFollowMe?: boolean;
+  /** Tower (user): line-up clearance received (lines up on reaching the holding point). */
+  lineUpCleared?: boolean;
+  /** Tower (user): take-off clearance received. */
+  takeoffCleared?: boolean;
+  /** Tower (user): landing clearance received. */
+  landingCleared?: boolean;
+  /** Tower: exit to vacate by ("vacate via E"). */
+  requestedExit?: string;
+  /** Tower: after a runway crossing on Tower frequency, the aircraft reports vacated. */
+  crossingWithTower?: 'cleared' | 'crossing';
+  /** Tower: first contact on final made / short-final call made. */
+  towerContact?: boolean;
+  shortFinalCall?: boolean;
   /** Last time a head-on conflict involving this aircraft was resolved (AI Ground), to resolve each pair once. */
   resolvedAt?: number;
   /** Follow-me ordered: `vehicle` once one is assigned, `leading` once it is in front of the aircraft. */

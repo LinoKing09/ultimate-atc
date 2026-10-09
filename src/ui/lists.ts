@@ -207,6 +207,17 @@ export function arrivalList(cb: ConstructorParameters<typeof TrafficList>[3]): T
       { key: 'rwy', label: 'RWY', get: (a) => a.runway ?? '' },
       { key: 'apch', label: 'APCH', get: (a, sim) => (a.phase === 'approach' ? sim.approachType : '') },
       {
+        key: 'seq',
+        label: 'SEQ',
+        // Arrival sequence on final: number 1 is the closest.
+        get: (a, sim) => {
+          if (a.phase !== 'approach') return '';
+          const d = sim.distanceToThresholdNm(a);
+          return String(1 + sim.aircraft.filter((o) => o.phase === 'approach' && sim.distanceToThresholdNm(o) < d).length);
+        },
+      },
+      { key: 'lnd', label: 'LND', get: (a) => (a.phase === 'approach' && a.landingCleared ? 'CLR' : '') },
+      {
         key: 'dist',
         label: 'DIST',
         get: (a, sim) => (a.phase === 'approach' ? `${sim.distanceToThresholdNm(a).toFixed(1)}nm` : a.exitName ?? ''),

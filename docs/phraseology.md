@@ -199,6 +199,24 @@ Calls from vehicles:
 
 A follow-me only drives onto the taxiways after your `proceed`; the aircraft waits until the car is in front of it. Unanswered vehicles call again like pilots (every 60-90 s, up to five times). When the AI runs Ground (you staff Delivery only), vehicles do not call: their requests are approved automatically.
 
+### Tower
+
+| You say | Effect |
+| ------- | ------ |
+| `line up and wait [runway 25]` | Departure at (or taxiing to) the holding point lines up and waits. It is not a take-off clearance. |
+| `behind landing EWG7TK, line up and wait behind` / `behind the landing A320, line up and wait behind` | Conditional line-up: the departure enters the runway once the landing aircraft has passed. |
+| `[wind 250 degrees 8 knots,] [runway 25,] cleared for take-off` | Take-off clearance. From the holding point the aircraft lines up and rolls without stopping. The wind is information only. |
+| `hold position, cancel take-off [, I say again, cancel take-off]` / `stop immediately` | Cancels a take-off clearance; during the roll the crew stops below 80 kt (`unable, we are taking off` above). |
+| `[wind ...,] [runway 25,] cleared to land` | Landing clearance (required, otherwise the crew goes around at 0.5 NM) |
+| `continue approach` | The landing clearance comes later |
+| `go around [, I say again, go around]` | The arrival goes around |
+| `vacate via E` | The exit to take after landing (used if it can still be reached) |
+| `contact radar [119.200]` / `contact Langen Radar 119.200` / `contact departure` | Departure to Radar after take-off (`confirm contact Radar, we are not airborne yet` on the ground) |
+| `contact ground [118.605]` | Arrival (or crossing aircraft) to Ground once it has vacated |
+| `cross runway 25` | Crossing for an aircraft Ground handed over at the runway holding point |
+
+A wrong runway is queried: `confirm runway 07, we are departing runway 25`. A departure with a CTOT that is not due yet answers `negative, our CTOT is 1435, we can depart from 1430`.
+
 ### Clearance delivery
 
 | You say | Effect |
@@ -231,7 +249,7 @@ A wrong frequency gets `confirm frequency 118.700 for Tower`. Departures that ar
 | `number 2 [for pushback\|start-up\|taxi\|departure]` | Queue position in busy periods. The pilot reads it back (`Number 2 for pushback`) and waits 60 s + 45 s per position before reminding you. The number is shown in the tag (`#2`) and in the list. |
 | `expect pushback\|start-up\|taxi\|departure in 5 minutes` | Expected delay. The pilot waits that long (plus 20 s) before reminding you. |
 | `say again`      | The pilot repeats their last transmission                                      |
-| `line up ...`, `cleared for take-off` | Not Ground's job. The pilot asks `confirm, we are on Ground frequency, contact Tower?` |
+| `line up ...`, `cleared for take-off`, `cleared to land` (to an aircraft on Ground frequency) | Not Ground's job. The pilot asks `confirm, we are on Ground frequency, contact Tower?` |
 
 ## Radio discipline
 
@@ -265,6 +283,12 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | `continue taxi`                                     | `Continue taxi, Lufthansa 5AB`                                      |
 | `give way to EWG7TK`                                | `Give way to Eurowings 7TK, Lufthansa 5AB`                          |
 | `contact tower`                                     | `Tower 118.805, goodbye, Lufthansa 5AB`                             |
+| `line up and wait runway 25`                        | `Line up and wait runway 25, Lufthansa 5AB`                         |
+| `wind 250 degrees 8 knots, runway 25, cleared for take-off` | `Cleared for take-off runway 25, Lufthansa 5AB`             |
+| `runway 25, cleared to land`                        | `Cleared to land runway 25, Eurowings 7TK`                          |
+| `go around`                                         | `Going around, Eurowings 7TK`                                       |
+| `hold position, cancel take-off`                    | `Holding position, take-off cancelled, Lufthansa 5AB`               |
+| `contact radar 119.200`                             | `Radar 119.200, goodbye, Lufthansa 5AB`                             |
 | `tow approved` (to a tug)                           | `Tow approved to stand 45, Tug 5`                                   |
 | `follow the follow-me` (just vacated)               | `Follow the follow-me to stand 14, DCEEO`                           |
 | `cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312` | `Cleared to Frankfurt, KRH2W departure, climb 5000 feet, squawk 2312[, CTOT 1435], Lufthansa 5AB` - now and then with a **wrong squawk**: correct it |
@@ -293,6 +317,12 @@ Pilots on your frequency call on their own:
 | Departure ready (first contact)                         | `Stuttgart Ground, Lufthansa 5AB, stand 14, information E, request pushback` (sometimes `request push and start`) |
 | Pushback and start-up complete                          | `Lufthansa 5AB, ready for taxi`                                                        |
 | Arrival has vacated the runway (first contact)          | `Stuttgart Ground, Eurowings 7TK, vacated runway 25 via E` (crews unfamiliar with the airport add `, request follow-me to the stand`) |
+| (Tower) Departure at the holding point                   | `Stuttgart Tower, Lufthansa 5AB, holding point A, ready for departure` |
+| (Tower) Arrival on final (first contact)                 | `Stuttgart Tower, Eurowings 7TK, ILS approach runway 25` (LOC / RNP when the ILS is off); reminder `2 miles final runway 25` |
+| (Tower) No landing clearance at 0.5 NM                   | `Eurowings 7TK, going around, no landing clearance received` |
+| (Tower) Arrival has vacated                              | `Eurowings 7TK, runway 25 vacated via E` |
+| (Tower) Crossing handed over by Ground                   | `Stuttgart Tower, Condor 11, holding short runway 25 at W, request crossing`; afterwards `Condor 11, runway 25 vacated` |
+| (Tower) Departure airborne, still on Tower               | `Lufthansa 5AB, passing 2800 feet, request frequency change` |
 | Tug ready to tow an aircraft to a remote stand          | `Stuttgart Ground, Tug 5, request tow Eurowings A320 from stand 14 to stand 45` (ICAO: REQUEST TOW (company) (type) FROM (location) TO (location)) |
 | Departure at the holding point and still with you       | `Lufthansa 5AB, holding point A, ready for departure`                                 |
 | Runway holding point on the route, no crossing clearance | `Turkish 1734, holding short runway 25 at W`                                        |
@@ -339,7 +369,7 @@ Frequent misrecognitions are corrected before parsing:
 
 ## Not supported (yet)
 
-- Taxi via a runway (backtrack) and line-up instructions; these are Tower's job and come with the Tower position.
+- Taxi via a runway (backtrack), `line up runway 25 at D` (intersection line-up by Tower), traffic information and wake turbulence cautions.
 - `follow` with real follow-the-leader behaviour.
 - Expected-start-up phrases with a time (`expect start-up at 1452`); use `expect start-up in 5 minutes`.
 - Clearance amendments in parts (`climb amended ...`) - give the full clearance again.

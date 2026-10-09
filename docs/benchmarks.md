@@ -40,7 +40,8 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 0.5.0   | 12.3 | 6.7 | 0  | 0 | 2  | 8.9  | 3.0 s |
 | 0.6.0   | 11.1 | 6.0 | 0  | 0 | 2  | 8.6  | 2.9 s |
 | 0.6.1   | 12.8 | 5.5 | 0  | 0 | 1  | 9.0  | 4.0 s |
-| **0.6.2** | 12.8 | 5.5 | 0  | 0 | 1  | 9.0  | 3.8 s |
+| 0.6.2   | 12.8 | 5.5 | 0  | 0 | 1  | 9.0  | 3.8 s |
+| **0.7.0** | 12.8 | 5.5 | 0  | 0 | 1  | 9.0  | 4.4 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -51,6 +52,16 @@ Soak test (0.5.0, 20 h with special events and more heavies in every third sessi
 **0.6.1**: the A-CDM fix (TSATs no longer slide later) brings departures up from 11.1 to 12.8 per hour. Arrivals are slightly lower because tows now keep remote stands occupied for 20-40 minutes and slow tows share the apron; the calmer session start also means fewer departures in the first minutes. The automatic controller approves tows like pushbacks (nothing taxiing within 250 m) - tows are new in 0.6.1. Computing time is higher because of the vehicles and the extra checks. Soak test 0.6.1: 11.2 departures and 6.7 arrivals per hour, no collisions, no incursions, 1 go-around, 5.4 s computing time per simulated hour.
 
 **0.6.2** (vehicle radio, radio discipline): same traffic results as 0.6.1. Soak test 0.6.2: 11.3 departures and 6.8 arrivals per hour, no collisions, no incursions, 1 go-around.
+
+### Tower benchmark (since 0.7)
+
+The same 20 sessions with you as **Tower** (Ground and Delivery run by the simulator) and a simple scripted Tower controller: it clears arrivals to land inside 4 NM when nobody is lined up, clears a departure for take-off when the runway is free, the next arrival is more than 110 s away, the departure spacing is met and its CTOT window is open, hands departures to Radar and arrivals to Ground when they ask, and clears crossings when the runway is free and the next arrival is more than 90 s away.
+
+| Version | Departures / h | Arrivals to Ground / h | Collisions | Incursions | Go-arounds | Separation losses | Missed hand-offs |
+| ------- | -------------: | ---------------------: | ---------: | ---------: | ---------: | ----------------: | ---------------: |
+| **0.7.0** | 11.4 | 10.1 | 0 | 0 | 0 | 0 | 0 |
+
+The first run of this benchmark found two problems that were fixed for the release: conflict resolution could send a departure on a detour across the runway (now never chosen by the AI Ground and shown last in the menu), and the AI Ground could not get out of a circle of aircraft blocking each other around a pushback.
 
 ## Simulated traffic
 
@@ -68,7 +79,9 @@ How many hours of traffic have been simulated while developing and testing the s
 | 0.6.0 release benchmark and soak test | 40 h | measured: 2 x 20 h |
 | 0.6.0 - 0.6.1 benchmark and soak runs (bisecting, tuning) | 240 h | measured: 7 benchmark and 5 soak runs of 20 h |
 | 0.6.0 - 0.6.1 development | ~135 h | estimate: test suite runs (about 10 h each) and debugging harnesses |
-| **Total so far (0.6.1)** | **~1000 h** | of which 500 h exactly measured |
+| 0.6.2 - 0.7.0 benchmark, Tower benchmark and soak runs | 160 h | measured: 3 benchmark runs (Ground and Tower) and 2 soak runs of 20 h |
+| 0.6.2 - 0.7.0 development | ~60 h | estimate: test suite runs and debugging harnesses |
+| **Total so far (0.7.0)** | **~1220 h** | of which 660 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

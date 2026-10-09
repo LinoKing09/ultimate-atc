@@ -2,11 +2,11 @@ import { otherEnd } from './airport/airport';
 import { findRoute, isRouteError, type RouteStart, type TaxiRoute } from './airport/routing';
 import type { Compass, StationType } from './airport/types';
 import type { Aircraft, PathStop, PilotRequest } from './aircraft';
-import { distance, headingDiff, headingOf, normalize, scale, add, sub, type Vec2 } from './geo';
+import { KT_TO_MS, distance, headingDiff, headingOf, normalize, scale, add, sub, type Vec2 } from './geo';
 import { Path } from './path';
 import type { Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './phraseology/commands';
 import { STATION_WORD, capitalize, formatCommand, formatDestination, formatHoldShort } from './phraseology/format';
-import { CLEARANCE_LEAD_S, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
+import { CLEARANCE_LEAD_S, CTOT_EARLY_S, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
 import { destinationName } from '../data/destinations';
 import type { Simulation, TransmitResult } from './simulation';
 import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, maybeStartTow } from './vehicles';
@@ -115,7 +115,7 @@ export function executeTransmission(sim: Simulation, parsed: ParsedTransmission,
   }
 
   const results = parsed.commands.map((c) => execute(sim, ac, c));
-  if (conditionTraffic && parsed.commands.some((c) => ['pushback', 'taxi', 'cross', 'continue'].includes(c.type))) {
+  if (conditionTraffic && parsed.commands.some((c) => ['pushback', 'taxi', 'cross', 'continue', 'lineUp', 'takeoff'].includes(c.type))) {
     // Wait for the traffic to pass, then go (same mechanism as "give way").
     ac.giveWayTo = conditionTraffic.callsign;
     ac.giveWaySince = sim.time;
@@ -173,6 +173,8 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return execCross(sim, ac, c.runway);
     case 'holdPosition':
       if (!ac.onGround) return { unable: 'say again' };
+      // On the runway with a take-off clearance, "hold position" / "stop immediately" cancels the take-off.
+      if (ac.phase === 'takeoff' || (ac.phase === 'lineup' && ac.takeoffCleared)) return execCancelTakeoff(sim, ac);
       ac.holdPosition = true;
       return { readback: 'holding position', answers: ac.request === 'blocked' };
     case 'continue':
@@ -238,7 +240,12 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return execCtot(sim, ac, c.time);
     case 'lineUp':
     case 'takeoff':
-      return { unable: 'confirm, we are on Ground frequency, contact Tower?' };
+    case 'land':
+    case 'continueApproach':
+    case 'goAround':
+    case 'cancelTakeoff':
+    case 'vacate':
+      return execTower(sim, ac, c);
   }
 }
 
@@ -435,6 +442,134 @@ function execPushback(sim: Simulation, ac: Aircraft, facing: Compass | undefined
   ac.timerUntil = sim.time + sim.rng.range(6, 15); // tug connects
   const text = `${startup ? 'push and start approved' : 'pushback approved'}${facing ? `, facing ${facing}` : ''}`;
   return { readback: text, answers: true };
+}
+
+// ====================================================================== Tower
+
+/** "Runway 07" when the controller names a runway that is not the one in use. */
+function wrongRunway(sim: Simulation, ac: Aircraft, runway: string | undefined): string | undefined {
+  const expected = ac.runway ?? sim.runway;
+  if (!runway || runway === expected) return undefined;
+  return `confirm runway ${runway}, we are ${ac.category === 'arrival' ? 'landing' : 'departing'} runway ${expected}`;
+}
+
+/** Tower instructions: line-up, take-off and landing clearances, go-around, exits. */
+function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
+  const tower = sim.stationFor('tower');
+  if (ac.frequency !== tower || tower === sim.stationFor('ground')) {
+    return { unable: `confirm, we are on ${STATION_WORD[ac.frequency] ?? 'your'} frequency, contact Tower?` };
+  }
+  const rb = (text: string, answers = true): ExecResult => ({ readback: text, answers });
+  switch (c.type) {
+    case 'lineUp':
+    case 'takeoff': {
+      if (ac.category !== 'departure') return { unable: 'say again, we are not a departure' };
+      const wrong = wrongRunway(sim, ac, c.runway);
+      if (wrong) return { unable: wrong };
+      if (ac.phase === 'takeoff' || ac.phase === 'climb') return { unable: 'we are already departing' };
+      const atOrToHp = ac.phase === 'holding' || ac.phase === 'lineup' || (ac.phase === 'taxi' && ac.routeDestination?.kind === 'holdingPoint');
+      if (!atOrToHp) return { unable: 'negative, we are not at the holding point' };
+      if (c.type === 'takeoff' && ac.ctot !== undefined && sim.time < ac.ctot - CTOT_EARLY_S) {
+        return { unable: `negative, our CTOT is ${hhmm(sim, ac.ctot)}, we can depart from ${hhmm(sim, ac.ctot - CTOT_EARLY_S)}` };
+      }
+      ac.lineUpCleared = true;
+      ac.holdPosition = false;
+      const rwy = ac.runway ?? sim.runway;
+      if (c.type === 'lineUp') return rb(`line up and wait runway ${rwy}`);
+      ac.takeoffCleared = true;
+      if (sim.systemOn('rmca') && sim.tower.runwayBusy(ac)) {
+        sim.system(`RMCA: take-off clearance for ${ac.callsign} while runway ${rwy} is occupied!`, 'warning', ac.callsign);
+      }
+      return rb(`cleared for take-off runway ${rwy}`);
+    }
+    case 'land': {
+      if (ac.phase !== 'approach') return { unable: ac.onGround ? 'we have already landed' : 'say again' };
+      const wrong = wrongRunway(sim, ac, c.runway);
+      if (wrong) return { unable: wrong };
+      ac.landingCleared = true;
+      if (sim.systemOn('rmca') && sim.tower.runwayBusy()) {
+        sim.system(`RMCA: landing clearance for ${ac.callsign} while runway ${ac.runway ?? sim.runway} is occupied!`, 'warning', ac.callsign);
+      }
+      return rb(`cleared to land runway ${ac.runway ?? sim.runway}`);
+    }
+    case 'continueApproach':
+      if (ac.phase !== 'approach') return { unable: 'say again' };
+      return rb('continue approach');
+    case 'goAround':
+      if (ac.phase !== 'approach') return { unable: ac.onGround ? 'unable, we are on the ground' : 'say again' };
+      sim.tower.instructGoAround(ac);
+      return rb('going around');
+    case 'cancelTakeoff':
+      return execCancelTakeoff(sim, ac);
+    case 'vacate': {
+      if (ac.category !== 'arrival' || !['approach', 'landing'].includes(ac.phase)) return { unable: 'say again' };
+      const ok = sim.airport.exits(ac.runway ?? sim.runway).some((e) => e.name.toUpperCase() === c.exit);
+      if (!ok) return { unable: `unable to vacate via ${c.exit}` };
+      ac.requestedExit = c.exit;
+      return rb(`vacate via ${c.exit}`, false);
+    }
+    default:
+      return { unable: 'say again' };
+  }
+}
+
+/** "Hold position, cancel take-off" (lined up) or "stop immediately" (rolling, below 80 kt). */
+function execCancelTakeoff(sim: Simulation, ac: Aircraft): ExecResult {
+  if (ac.phase === 'takeoff') {
+    if (ac.speed > 80 * KT_TO_MS) return { unable: 'unable, we are taking off' };
+    sim.tower.stopTakeoff(ac);
+    return { readback: 'stopping', answers: true };
+  }
+  if (!ac.takeoffCleared && !ac.lineUpCleared) return { unable: 'say again' };
+  ac.takeoffCleared = false;
+  if (ac.phase !== 'lineup') ac.lineUpCleared = false;
+  return { readback: 'holding position, take-off cancelled', answers: true };
+}
+
+/**
+ * Calls on Tower frequency (when you staff Tower): ready for departure,
+ * first contact on final, short final without landing clearance, request
+ * frequency change after take-off, runway vacated after a crossing.
+ */
+function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: string): boolean {
+  const now = sim.time;
+  if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && now - (ac.holdingSince ?? now) > 4) {
+    call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`);
+    return true;
+  }
+  if (ac.phase === 'approach' && !ac.landingCleared) {
+    const nm = sim.distanceToThresholdNm(ac);
+    if (!ac.towerContact) {
+      ac.towerContact = true;
+      call(sim, ac, 'landing', `${stationName}, ${tel}, ${sim.approachName(ac.runway)}`);
+      return true;
+    }
+    if (nm < 2 && !ac.shortFinalCall) {
+      ac.shortFinalCall = true;
+      call(sim, ac, 'landing', `${tel}, short final runway ${ac.runway ?? sim.runway}`);
+      return true;
+    }
+  }
+  if (ac.phase === 'climb' && ac.category === 'departure' && ac.altitudeFt - sim.airport.data.elevationFt > 1500) {
+    call(sim, ac, 'radar', `${tel}, passing ${Math.round(ac.altitudeFt / 100) * 100} feet, request frequency change`);
+    return true;
+  }
+  if (ac.onGround && ac.phase === 'taxi' && ac.stoppedAt?.kind === 'runway') {
+    call(sim, ac, 'crossing', `${stationName}, ${tel}, holding short runway ${ac.runway ?? sim.runway} at ${ac.stoppedAt.holdingPoint ?? ''}, request crossing`);
+    return true;
+  }
+  // Landed and vacated, still on Tower frequency (the first call may have been lost on a busy frequency).
+  if (ac.onGround && ac.phase === 'taxi' && ac.category === 'arrival' && !ac.route && ac.stoppedAt && now - ac.lastCallAt > 20) {
+    call(sim, ac, 'vacated', `${tel}, runway ${ac.runway ?? sim.runway} vacated via ${ac.exitName ?? ''}`);
+    return true;
+  }
+  if (ac.crossingWithTower === 'cleared' && sim.tower.isInRunwayArea(ac.pos)) ac.crossingWithTower = 'crossing';
+  if (ac.crossingWithTower === 'crossing' && ac.onGround && !sim.tower.isInRunwayArea(ac.pos)) {
+    ac.crossingWithTower = undefined;
+    call(sim, ac, 'vacated', `${tel}, runway ${ac.runway ?? sim.runway} vacated`);
+    return true;
+  }
+  return false;
 }
 
 // ====================================================================== tows and follow-me
@@ -852,6 +987,8 @@ function execCross(sim: Simulation, ac: Aircraft, runway: string): ExecResult {
   ac.clearedToCross.add(name);
   ac.stops = ac.stops.filter((s) => !(s.kind === 'runway' && s.target === name));
   if (ac.stoppedAt?.kind === 'runway' && ac.stoppedAt.target === name) ac.stoppedAt = undefined;
+  // Crossing on Tower frequency: the crew reports the runway vacated afterwards.
+  if (sim.userTower && ac.frequency === sim.stationFor('tower') && ac.category !== 'departure') ac.crossingWithTower = 'cleared';
   return { readback: `cross runway ${runway}`, answers: ac.request === 'crossing' };
 }
 
@@ -884,11 +1021,16 @@ function execContinue(sim: Simulation, ac: Aircraft): ExecResult {
 function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | undefined, frequency?: string): ExecResult {
   if (ac.category === 'tow') return { unable: 'negative, we stay on your frequency until the tow is complete' };
   let type = stationType;
+  const tower = sim.stationFor('tower');
+  // "Contact departure": at airports without a separate departure position that is Approach (Radar).
+  if (type === 'DEP' && !sim.airport.station('DEP')) type = 'APP';
   if (!type) {
     if (frequency) type = sim.config.airport.stations.find((s) => s.frequency === frequency)?.type;
-    // From Delivery the next station is Ground, from Ground it is Tower.
-    if (!type && ac.category === 'departure') type = ac.frequency === sim.stationFor('delivery') && ac.frequency !== sim.stationFor('ground') ? sim.stationFor('ground') : sim.stationFor('tower');
+    // From Delivery the next station is Ground, from Ground it is Tower, from Tower Radar (departures) or Ground.
+    if (!type && ac.frequency === tower && tower !== sim.stationFor('ground')) type = ac.onGround ? sim.stationFor('ground') : 'APP';
+    if (!type && ac.category === 'departure') type = ac.frequency === sim.stationFor('delivery') && ac.frequency !== sim.stationFor('ground') ? sim.stationFor('ground') : tower;
   }
+  if (type === 'APP' && ac.onGround) return { unable: 'confirm contact Radar, we are not airborne yet' };
   if (!type) return { unable: 'say again frequency' };
   if (sim.userControls(type) && ac.frequency === type) return { unable: 'we are already on your frequency' };
   const station = sim.airport.station(type);
@@ -902,6 +1044,7 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   }
   if (ac.category === 'arrival' && type === sim.stationFor('tower')) return { unable: 'confirm contact Tower, we have already landed' };
 
+  const wasTower = ac.frequency === tower;
   return {
     readback: `${STATION_WORD[type]} ${station.frequency}, goodbye`,
     answers: true,
@@ -911,6 +1054,13 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
       sim.frequency.cancel(ac.callsign);
       if (ac.category === 'departure' && type === sim.stationFor('tower')) {
         sim.stats.departuresHandedOff++;
+        sim.updateScore();
+      }
+      // Tower: departures to Radar once airborne, arrivals to Ground once they have vacated.
+      if (sim.userTower && wasTower) {
+        if (type === 'APP' && ac.category === 'departure') sim.stats.departuresToRadar++;
+        if (type === sim.stationFor('ground') && ac.category === 'arrival') sim.stats.arrivalsToGround++;
+        ac.crossingWithTower = undefined;
         sim.updateScore();
       }
       if (fromDelivery) {
@@ -1104,7 +1254,8 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       }
       return;
     }
-    if (ac.phase === 'holding' && ac.category === 'departure' && now - (ac.holdingSince ?? now) > 8) {
+    if (ac.frequency === sim.stationFor('tower') && sim.userTower && towerCall(sim, ac, stationName, tel)) return;
+    if (ac.phase === 'holding' && ac.category === 'departure' && now - (ac.holdingSince ?? now) > 8 && ac.frequency !== sim.stationFor('tower')) {
       call(sim, ac, 'handoff', `${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`);
       return;
     }
@@ -1149,6 +1300,10 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       startup: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, ready for start-up`,
       frequency: `${stationName}, ${tel}, request frequency for pushback`,
       tow: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request tow to stand ${ac.tow?.to ?? ''}`,
+      departure: `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`,
+      landing: `${stationName}, ${tel}, ${Math.max(1, Math.round(sim.distanceToThresholdNm(ac)))} miles final runway ${ac.runway ?? sim.runway}`,
+      vacated: `${stationName}, ${tel}, runway vacated, request taxi`,
+      radar: `${stationName}, ${tel}, request frequency change`,
     };
     // Datalink requests (DCL) are not repeated by voice.
     if (ac.request === 'clearance' && ac.dcl && sim.systemOn('dcl')) return;

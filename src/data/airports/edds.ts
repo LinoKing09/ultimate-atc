@@ -596,6 +596,19 @@ export const EDDS: AirportData = {
       ],
     },
     {
+      title: 'Your job as Stuttgart Tower',
+      positions: ['TWR'],
+      items: [
+        'You own the runway 07/25 and its protected area. Ground (run by the simulator) brings departures to the holding points and hands them to you; Approach (Langen Radar) brings arrivals onto final about 9 NM out.',
+        'Departures call `ready for departure` at the holding point. `line up and wait runway 25` (also as soon as a landing aircraft has passed: `behind landing EWG7TK, line up and wait behind`), then `wind 250 degrees 8 knots, runway 25, cleared for take-off`. Only one aircraft may use the runway at a time.',
+        'Departure spacing (measured from airborne to start of roll): 2 minutes behind a heavy (3 from an intersection), 2 minutes on the same SID fix, 1 minute on diverging SIDs. The take-off menu shows how long you still have to wait.',
+        'After take-off the crew asks for a frequency change: `contact Langen Radar 119.200`. A departure that leaves the control zone on your frequency costs points.',
+        'Arrivals call on final (`ILS approach runway 25`). Clear them to land in time: `wind 250 degrees 8 knots, runway 25, cleared to land` - without a clearance they go around at 0.5 NM. `continue approach` if the runway is not free yet, `go around` if it will not be. `vacate via E` asks for a particular exit.',
+        'After vacating, arrivals report `runway vacated`: hand them to Ground with `contact ground 118.605`. Keep the vacate points free - Tower cannot use an exit whose vacate point is still occupied.',
+        'Runway crossings (aircraft from or to the south apron) are yours: Ground hands them over at the runway holding point; `cross runway 25` only when nobody is landing or taking off, then `contact ground` once they report the runway vacated.',
+      ],
+    },
+    {
       title: 'Your job as Stuttgart Delivery',
       positions: ['DEL'],
       items: [

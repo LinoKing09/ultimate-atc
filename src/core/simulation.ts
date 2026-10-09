@@ -86,6 +86,16 @@ export interface Stats {
   slotsMissed: number;
   /** Tows brought to their stand. */
   towsCompleted: number;
+  /** Tower: departures handed to Radar after take-off. */
+  departuresToRadar: number;
+  /** Tower: arrivals handed to Ground after vacating. */
+  arrivalsToGround: number;
+  /** Tower: departures that left without a frequency change. */
+  handoffsMissed: number;
+  /** Tower: take-offs with less than the required departure (wake / route) spacing. */
+  separationLosses: number;
+  /** Tower: go-arounds you instructed. */
+  goAroundsInstructed: number;
   score: number;
 }
 
@@ -172,6 +182,11 @@ export class Simulation {
     readbackErrorsMissed: 0,
     readbackErrorsCaught: 0,
     towsCompleted: 0,
+    departuresToRadar: 0,
+    arrivalsToGround: 0,
+    handoffsMissed: 0,
+    separationLosses: 0,
+    goAroundsInstructed: 0,
     slotsMissed: 0,
     score: 0,
   };
@@ -516,6 +531,12 @@ export class Simulation {
     if (id === 'loc' || id === 'gp') this.system(`Approach procedure now: ${this.approachName()}. Broadcast a new ATIS (click ATIS in the toolbar) so the crews know.`);
   }
 
+  /** True if the user staffs Tower: the AI Tower then only flies the aircraft, all clearances are yours. */
+  get userTower(): boolean {
+    const tower = this.stationFor('tower');
+    return this.userControls(tower) && tower !== this.stationFor('ground');
+  }
+
   /** True if the user staffs this station (otherwise the AI runs it). */
   userControls(type: StationType): boolean {
     return this.userStations.has(type);
@@ -614,6 +635,11 @@ export class Simulation {
       s.arrivalsParked * 10 +
       s.clearancesDelivered * 10 +
       s.towsCompleted * 5 +
+      s.departuresToRadar * 10 +
+      s.arrivalsToGround * 10 -
+      s.handoffsMissed * 5 -
+      s.separationLosses * 10 -
+      s.goAroundsInstructed * 5 +
       s.readbackErrorsCaught * 5 +
       s.bonus -
       s.readbackErrorsMissed * 10 -

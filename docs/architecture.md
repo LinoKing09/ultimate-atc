@@ -157,7 +157,7 @@ A `Path` (`core/path.ts`) is the route's polyline with corners replaced by curve
 
 See [airport-data.md](airport-data.md). In short: create `src/data/airports/<icao>.ts` exporting an `AirportData`, add it to `AIRPORTS` in `src/data/airports/index.ts` (the data checks in `tests/airports.test.ts` then run for it), describe its traffic and briefing, and document it in `docs/airports/<ICAO>.md`.
 
-### Adding a position (Tower, Approach, Center)
+### Adding a position (Approach, Center)
 
 The groundwork is in place:
 
@@ -165,11 +165,7 @@ The groundwork is in place:
 - The core never names a station type directly. It asks for the station of a **role**: `Simulation.stationFor('delivery' | 'ground' | 'tower')`. If an airport has no station for a role, the next higher one covers it (delivery -> ground -> tower), like an unstaffed position covered from above. New departures start on `stationFor('delivery')` when the user staffs Delivery (`prepareDeparture` in `delivery.ts`), otherwise on `stationFor('ground')` with their clearance; arrivals start on `stationFor('tower')`, hand-offs go to those stations.
 - Everything the user doesn't control is AI: Delivery (clearance given at spawn), Ground (`groundAI.ts`, when the user only staffs Delivery), Tower (`TowerAI`) and Approach (arrivals appear on final). Delivery (v0.6) is the worked example of a position: commands in `phraseology/commands.ts`, parser and formatter; execution in `delivery.ts`; pilot calls in `pilot.ts` (`deliveryCall`); the AI for the next position (`groundAI.ts`); UI in `ui/app.ts` (`deliveryItems`).
 
-To add the **Tower** position, for example:
-
-1. Add commands (`lineUp`, `takeoff`, `landing clearance`, `cross`, `vacate`) to `phraseology/commands.ts`, the parser and the formatter.
-2. Split `TowerAI` into an AI that runs when Tower is not the user's position, and pilot behaviour that waits for explicit clearances when it is.
-3. Add Tower-specific UI (arrival sequence, runway status), and enable the position in `ui/dialogs.ts`.
+The **Tower** position (v0.7) follows the same pattern: commands `lineUp`, `takeoff`, `land`, `continueApproach`, `goAround`, `cancelTakeoff`, `vacate`; `TowerAI` decides itself only when `Simulation.userTower` is false and otherwise only flies the aircraft; pilot calls on Tower frequency in `pilot.ts` (`towerCall`); UI in `ui/app.ts` (`towerItems`).
 
 Approach and Center positions need a radar scope with airspace data (sectors, fixes, procedures) and vectoring commands. The `Scope` class would get a second render mode, and `AirportData` would get procedure and airspace data, or a separate sector data format, comparable to EuroScope's `.sct` / `.ese` files.
 

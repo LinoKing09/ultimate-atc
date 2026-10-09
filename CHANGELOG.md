@@ -4,6 +4,26 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-10-09
+
+The Tower position at Stuttgart.
+
+### Added
+
+- **Tower position** (`EDDS_TWR` 118.805, staffed on its own; combined positions with Tower come with 0.8). Ground and Delivery are run by the simulator, Approach brings the arrivals onto final.
+  - Departures call `ready for departure` at the holding point: `line up and wait runway 25` (also `behind landing EWG7TK, line up and wait behind`), `wind 250 degrees 8 knots, runway 25, cleared for take-off`, `hold position, cancel take-off` / `stop immediately`. After take-off the crew asks for a frequency change: `contact radar 119.200`.
+  - Arrivals call on final (`ILS approach runway 25`): `cleared to land`, `continue approach`, `go around`, `vacate via E`; without a landing clearance they go around at 0.5 NM. After vacating they report it: `contact ground`.
+  - Runway crossings: the AI Ground hands crossing aircraft to Tower at the runway holding point.
+  - The departure spacing (2 min behind a heavy or on the same SID fix, 1 min diverging) is checked at the start of each take-off roll; RMCA warns about take-off and landing clearances onto an occupied runway. Crews refuse a take-off before CTOT -5 min and do not roll with traffic on the runway.
+  - Tower menu (with spacing / runway / next-arrival hints), quick-action bar, `SEQ` and `LND` columns in the arrivals list, request codes `RDY`, `LDG`, `VACD`, `RDR`, a Tower section in the EDDS briefing and the help window.
+  - Score: +10 per departure handed to Radar and per arrival handed to Ground, -10 per separation loss, -5 per missed hand-off or instructed go-around.
+
+### Fixed
+
+- The AI Ground could get stuck in a circle of aircraft blocking each other (a pushback onto a taxiway with traffic behind it); it now cancels the pushback in such a circle.
+- *Resolve conflict* could offer a detour across the runway (for example to holding point K via Z, R and Y); such options now come last and are marked *crosses runway*, and the AI Ground never uses them.
+- A Tower benchmark (20 sessions with a scripted Tower controller) is part of `npm run benchmark`; see [docs/benchmarks.md](docs/benchmarks.md).
+
 ## [0.6.2] - 2026-10-09
 
 Radio phraseology for vehicles and radio discipline.

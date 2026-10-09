@@ -193,7 +193,7 @@ Source: `src/core/conflicts.ts`. Each service can be switched off in the [system
 | CATC | Every 5 s, the cleared routes (next **900 m**, sampled every 15 m) of all taxiing aircraft are compared; two routes that meet at more than **135 degrees** are a head-on conflict (only reported if one of the aircraft is on your frequency). The same check runs on the route in the command-line preview and in the *Taxi to* menu |
 | Routing | Route proposals in the menus; *Resolve conflict* options |
 
-**Resolve conflict options**: conflicts are aircraft blocking each other nose to nose, or blocking each other at any angle (for example a pushback into a taxiing aircraft's way), or routed head-on. An aircraft that is still pushing back gets `cancel pushback` first (the tug tows it back onto the stand). Otherwise, for each of the two aircraft (on your frequency), a route to its destination that avoids the other aircraft's next 150 m of route; it is checked to keep clear of the other aircraft's future route (from the second segment on). If there is no such route, a route with a turn-around (tug, 300-600 s) that stays clear of the other aircraft.
+**Resolve conflict options**: conflicts are aircraft blocking each other nose to nose, or blocking each other at any angle (for example a pushback into a taxiing aircraft's way), or routed head-on. An aircraft that is still pushing back gets `cancel pushback` first (the tug tows it back onto the stand). Options whose route crosses a runway come last (marked *crosses runway*); the AI Ground never uses them. Otherwise, for each of the two aircraft (on your frequency), a route to its destination that avoids the other aircraft's next 150 m of route; it is checked to keep clear of the other aircraft's future route (from the second segment on). If there is no such route, a route with a turn-around (tug, 300-600 s) that stays clear of the other aircraft.
 
 ## Ground vehicles
 
@@ -219,7 +219,22 @@ When you don't staff Ground (for example when you work Delivery alone), the AI G
 
 ## AI Tower
 
-Tower owns the runway. Its rules are a simplified model of ICAO PANS-ATM practice; the reasoning and the sources are in [tower-operations.md](tower-operations.md). Each step it:
+**When you staff Tower** (v0.7), the AI Tower only flies the aircraft (final approach, landing roll and exit, line-up, take-off roll, climb-out) and detects incursions; every clearance is yours:
+
+| Situation | Behaviour |
+| --------- | --------- |
+| Departure at the holding point | Handed over by the AI Ground; calls `ready for departure` after 4 s |
+| Line-up / take-off clearance | Lines up when the clearance (and any condition, `behind ...`) allows; lined up with a take-off clearance it rolls after 2-5 s - not while another aircraft is on the runway or landing / taking off |
+| Departure spacing | At the start of the roll, the required spacing (2 min behind a heavy, 3 from an intersection, 2 min same SID fix, 1 min diverging) is checked; too early counts as a separation loss |
+| Climb-out | Asks for a frequency change above 1500 ft above the airport; leaving (4000 ft) on Tower frequency counts as a missed hand-off |
+| Arrival | First call right after appearing on final, reminder at 2 NM; at **0.5 NM** without a landing clearance it goes around (incident), with a clearance it still goes around if the runway is not clear |
+| Landing | Takes the exit given with `vacate via` if it can still reach it at normal braking, otherwise the usual one; reports vacated and waits for `contact ground` (calls again every 20 s if the call got lost) |
+| Runway crossing | The AI Ground hands an aircraft stopped at a runway holding point to Tower; after `cross runway 25` and crossing it reports vacated |
+| CTOT | The crew refuses a take-off clearance before CTOT -5 min; missed slots as usual |
+
+The AI Ground also resolves circles of aircraft waiting for each other (A behind B, B behind C, C behind A): if one of them is pushing back, the pushback is cancelled and the tug pulls it back onto its stand.
+
+**When the AI runs Tower** (you staff Delivery and/or Ground), it owns the runway. Its rules are a simplified model of ICAO PANS-ATM practice; the reasoning and the sources are in [tower-operations.md](tower-operations.md). Each step it:
 
 1. **Flies arrivals** down the final approach and lands them (see above).
 2. **Sequences departures**: candidates are aircraft on Tower frequency waiting at a holding point, in the order they reached it. Only one aircraft lines up at a time. The first one may **line up** ("line up and wait") when

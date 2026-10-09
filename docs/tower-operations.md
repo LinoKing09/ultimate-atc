@@ -54,7 +54,11 @@ This is exactly what busy airports do:
 5. **Ask Approach for gaps** when the departure queue grows (6 NM, more for longer queues), and close the gaps again when it is empty.
 6. **Ground**: deliver departures to the holding point in a sensible order (mix SIDs, keep heavies apart), and keep the vacate points behind the exits free, so landing aircraft can clear the runway quickly.
 
-## 3. What the simulator does
+## 3. Playing Tower
+
+Since v0.7 you can staff Tower yourself; then the rules below are yours to apply (the AI Tower only flies the aircraft). The simulator checks the departure spacing at the start of each take-off roll, the RMCA warns about clearances onto an occupied runway, and arrivals without a landing clearance go around at 0.5 NM. See the [user guide](user-guide.md#12-your-job-as-tower).
+
+## 4. What the AI Tower does
 
 | Rule | Implementation (see `src/core/tower.ts`, `src/core/traffic.ts`) |
 | ---- | ---------------------------------------------------------------- |

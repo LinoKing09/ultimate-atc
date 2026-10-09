@@ -1,5 +1,5 @@
 import type { Aircraft } from './aircraft';
-import { headOnPartner, resolveOptions } from './conflicts';
+import { blockCycle, headOnPartner, resolveOptions } from './conflicts';
 import { parseTransmission } from './phraseology/parser';
 import { aiInstruct } from './pilot';
 import type { Simulation } from './simulation';
@@ -17,6 +17,12 @@ export function updateGroundAI(sim: Simulation): void {
   if (sim.userControls(ground)) return;
   for (const ac of sim.aircraft) {
     if (ac.frequency !== ground || !ac.onGround) continue;
+    // Runway crossings are Tower's: hand the aircraft over at the runway holding point.
+    if (sim.userTower && ac.stoppedAt?.kind === 'runway' && ac.speed < 0.1) {
+      ac.frequency = sim.stationFor('tower');
+      ac.request = null;
+      continue;
+    }
     if (ac.category === 'departure') departure(sim, ac);
     else if (ac.category === 'tow') tow(sim, ac);
     else arrival(sim, ac);
@@ -43,6 +49,14 @@ function departure(sim: Simulation, ac: Aircraft): void {
   if (ac.phase === 'holding') {
     ac.frequency = sim.stationFor('tower');
     ac.request = null;
+    return;
+  }
+  // Back from Tower without a route (e.g. after a rejected take-off): taxi to the runway, or to a stand.
+  if (ac.phase === 'taxi' && !ac.route && (!ac.path || ac.stoppedAt)) {
+    if (ac.returnToStand) {
+      const stand = ac.assignedStand ?? sim.freeStands(ac.type.wingspanM, undefined, ac)[0]?.id;
+      if (stand) aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] });
+    } else aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.runway }, via: [], holdShort: [], cross: [] });
   }
 }
 
@@ -77,7 +91,14 @@ function resolve(sim: Simulation, ac: Aircraft): void {
   // Resolve each conflict once: not again while a tug is coming or right after the last instruction.
   const recent = (a: Aircraft) => (a.tugUntil ?? 0) > sim.time || sim.time - (a.resolvedAt ?? -Infinity) < RESOLVE_AGAIN_S;
   if (recent(ac) || recent(other)) return;
-  const opt = resolveOptions(sim, ac, other)[0];
+  // A circle of aircraft waiting for each other with a pushback in it: the tug pulls that one back onto its stand.
+  const pusher = blockCycle(sim, ac)?.find((a) => a.phase === 'pushback' && !a.towingIn);
+  if (pusher) {
+    if (aiInstruct(sim, pusher, { type: 'cancelPushback' })) ac.resolvedAt = other.resolvedAt = pusher.resolvedAt = sim.time;
+    return;
+  }
+  // The AI Ground never sends an aircraft across the runway to get out of a conflict.
+  const opt = resolveOptions(sim, ac, other).find((o) => !o.crossesRunway);
   if (!opt) return;
   const cmd = parseTransmission(opt.instruction, { callsigns: [], taxiways: sim.airport.taxiwayNames }).commands[0];
   if (cmd && aiInstruct(sim, opt.aircraft, cmd)) ac.resolvedAt = other.resolvedAt = sim.time;

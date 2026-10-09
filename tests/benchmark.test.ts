@@ -55,4 +55,43 @@ describe.skipIf(!RUN)('benchmark', () => {
         `${(tot.ms / n / 1000).toFixed(1)} s computing time per simulated hour`,
     );
   });
+
+  it('measures the Tower position (scripted Tower controller)', { timeout: 900_000 }, () => {
+    const tot = { dep: 0, arr: 0, coll: 0, inc: 0, ga: 0, sep: 0, missed: 0, n: 0 };
+    for (const runway of ['25', '07']) {
+      for (let seed = 1; seed <= 10; seed++) {
+        const sim = new Simulation({ airport: EDDS, position: 'TWR', runway, density: 'medium', seed, events: false });
+        for (let t = 0; t < 3600; t++) {
+          sim.tick(1);
+          for (const ac of sim.aircraft) {
+            if (ac.frequency !== 'TWR') continue;
+            const eta = sim.tower.nextArrivalEta();
+            // Aircraft cleared to cross count as runway traffic too.
+            const busy = sim.tower.runwayBusy(ac) || sim.aircraft.some((o) => o !== ac && o.clearedToCross.size > 0 && o.crossingWithTower);
+            if (ac.phase === 'approach' && !ac.landingCleared && sim.distanceToThresholdNm(ac) < 4 && !sim.aircraft.some((o) => o.phase === 'lineup')) sim.transmit(`${ac.callsign} cleared to land`);
+            if (!ac.request || sim.time - ac.lastCallAt < 3) continue;
+            const slotOk = ac.ctot === undefined || sim.time >= ac.ctot - 300;
+            if (ac.request === 'departure' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) sim.transmit(`${ac.callsign} cleared for take-off`);
+            if (ac.request === 'radar') sim.transmit(`${ac.callsign} contact radar`);
+            if (ac.request === 'vacated') sim.transmit(`${ac.callsign} contact ground`);
+            if (ac.request === 'crossing' && !busy && eta > 90) sim.transmit(`${ac.callsign} cross runway ${runway}`);
+          }
+        }
+        const s = sim.stats;
+        tot.dep += s.departuresAirborne;
+        tot.arr += s.arrivalsToGround;
+        tot.coll += s.collisions;
+        tot.inc += s.incursions;
+        tot.ga += s.goArounds;
+        tot.sep += s.separationLosses;
+        tot.missed += s.handoffsMissed;
+        tot.n++;
+      }
+    }
+    const n = tot.n;
+    console.log(
+      `TOWER BENCHMARK (${n} x 1 h): departures airborne ${(tot.dep / n).toFixed(1)}/h | arrivals to Ground ${(tot.arr / n).toFixed(1)}/h | ` +
+        `collisions ${tot.coll} | incursions ${tot.inc} | go-arounds ${tot.ga} | separation losses ${tot.sep} | missed hand-offs ${tot.missed}`,
+    );
+  });
 });

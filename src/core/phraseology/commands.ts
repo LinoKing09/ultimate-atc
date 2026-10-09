@@ -53,8 +53,20 @@ export type Command =
   | { type: 'readbackCorrect' }
   /** Calculated take-off time (ATFM slot): "CTOT 1435" / "slot time 1435". */
   | { type: 'ctot'; time: string }
-  | { type: 'lineUp' }
-  | { type: 'takeoff' };
+  /** Tower: "line up and wait runway 25" (optionally behind traffic: conditional clearance). */
+  | { type: 'lineUp'; runway?: string }
+  /** Tower: "runway 25, cleared for take-off". */
+  | { type: 'takeoff'; runway?: string }
+  /** Tower: "runway 25, cleared to land". */
+  | { type: 'land'; runway?: string }
+  /** Tower: "continue approach" (expect a late landing clearance). */
+  | { type: 'continueApproach' }
+  /** Tower: "go around". */
+  | { type: 'goAround' }
+  /** Tower: "hold position, cancel take-off" / "stop immediately" (rolling). */
+  | { type: 'cancelTakeoff' }
+  /** Tower: "vacate via E" (the exit to take after landing). */
+  | { type: 'vacate'; exit: string };
 
 /** Conditional clearance: "behind the A320 passing left to right, ...". */
 export interface Condition {

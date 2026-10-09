@@ -97,6 +97,8 @@ export class TowerAI {
   }
 
   update(dt: number): void {
+    // When you staff Tower, this class only flies the aircraft: every clearance is yours.
+    const user = this.sim.userTower;
     for (const ac of this.sim.aircraft) {
       switch (ac.phase) {
         case 'approach':
@@ -105,8 +107,21 @@ export class TowerAI {
         case 'landing':
           this.checkVacating(ac);
           break;
+        case 'holding':
+          // Line-up (or take-off) clearance received: enter the runway once any condition ("behind ...") is met.
+          if (user && ac.lineUpCleared && !ac.giveWayTo && !ac.holdPosition && ac.frequency === this.sim.stationFor('tower')) {
+            const err = this.lineUp(ac);
+            if (err) {
+              ac.lineUpCleared = ac.takeoffCleared = false;
+              call(this.sim, ac, 'departure', `${this.sim.tel(ac)}, unable, ${err}`);
+            }
+          }
+          break;
         case 'lineup':
-          if (ac.stoppedAt && this.sim.time >= ac.timerUntil && this.canTakeOff(ac)) this.startTakeoff(ac);
+          if (user) {
+            // The crew rolls when cleared - but not with traffic on the runway in front of it.
+            if (ac.stoppedAt && ac.takeoffCleared && !ac.holdPosition && !ac.giveWayTo && this.sim.time >= ac.timerUntil && this.runwayClearFor(ac)) this.startTakeoff(ac);
+          } else if (ac.stoppedAt && this.sim.time >= ac.timerUntil && this.canTakeOff(ac)) this.startTakeoff(ac);
           break;
         case 'takeoff':
           this.takeoffRoll(ac, dt);
@@ -117,7 +132,7 @@ export class TowerAI {
           break;
         case 'taxi':
           // Aircraft already with the tower that hold short of the runway on their route get a crossing.
-          if (ac.frequency === this.sim.stationFor('tower') && ac.stoppedAt?.kind === 'runway' && !this.runwayBusy() && this.nextArrivalEta() > 90) {
+          if (!user && ac.frequency === this.sim.stationFor('tower') && ac.stoppedAt?.kind === 'runway' && !this.runwayBusy() && this.nextArrivalEta() > 90) {
             ac.clearedToCross.add(ac.stoppedAt.target);
             ac.stoppedAt = undefined;
           }
@@ -154,8 +169,12 @@ export class TowerAI {
     ac.altitudeFt = end.elevationFt + Math.max(0, 50 + (toThreshold * GLIDE_SLOPE) / M_PER_FT);
     ac.verticalSpeedFpm = -(ac.speed * GLIDE_SLOPE * 60) / M_PER_FT;
 
-    // Short final: the runway must be clear (no landing clearance otherwise).
+    // Short final: no landing clearance (you staff Tower) or the runway not clear: go around.
     if (toThreshold < GO_AROUND_CHECK_NM * M_PER_NM && toThreshold > 0) {
+      if (this.sim.userTower && !ac.landingCleared && ac.frequency === this.sim.stationFor('tower')) {
+        this.goAround(ac);
+        return;
+      }
       const blocker = this.landingBlocker(ac, end);
       if (blocker) {
         this.goAround(ac, blocker);
@@ -182,11 +201,31 @@ export class TowerAI {
     return this.sim.aircraft.find((o) => o !== ac && o.phase === 'landing');
   }
 
-  private goAround(ac: Aircraft, culprit: Aircraft): void {
+  /** The crew goes around on its own: runway occupied, or (you staff Tower) no landing clearance. */
+  private goAround(ac: Aircraft, culprit?: Aircraft): void {
     ac.phase = 'goAround';
     ac.verticalSpeedFpm = 2000;
-    this.sim.incident('goAround', `${ac.callsign} went around - runway occupied by ${culprit.callsign}.`, [ac.callsign, culprit.callsign]);
+    ac.landingCleared = false;
+    if (culprit) this.sim.incident('goAround', `${ac.callsign} went around - runway occupied by ${culprit.callsign}.`, [ac.callsign, culprit.callsign]);
+    else this.sim.incident('goAround', `${ac.callsign} went around - no landing clearance.`, [ac.callsign]);
+    if (this.sim.isOnMyFrequency(ac)) call(this.sim, ac, 'radar', `${this.sim.tel(ac)}, going around${culprit ? '' : ', no landing clearance received'}`);
     ac.assignedStand = undefined;
+  }
+
+  /** "Go around" from Tower: costs less than a go-around the crew has to make on its own. */
+  instructGoAround(ac: Aircraft): void {
+    ac.phase = 'goAround';
+    ac.verticalSpeedFpm = 2000;
+    ac.landingCleared = false;
+    ac.assignedStand = undefined;
+    this.sim.stats.goAroundsInstructed++;
+    this.sim.updateScore();
+  }
+
+  /** Runway free in front of a departure: nobody else on the runway, nobody landing or taking off. */
+  private runwayClearFor(ac: Aircraft): boolean {
+    if (this.runwayOccupants(ac).length > 0) return false;
+    return !this.sim.aircraft.some((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing'));
   }
 
   private touchdown(ac: Aircraft): void {
@@ -224,7 +263,9 @@ export class TowerAI {
       .sort((a, b) => a.along - b.along);
     const usable = candidates.filter((c) => c.ok);
     const pool = usable.length ? usable : candidates.slice(-1);
-    const chosen = pool.find((c) => c.south === preferSouth) ?? pool.find((c) => !c.south) ?? pool[0];
+    // Tower: "vacate via E" - taken if it can still be reached.
+    const requested = ac.requestedExit ? usable.find((c) => c.ex.name.toUpperCase() === ac.requestedExit) : undefined;
+    const chosen = requested ?? pool.find((c) => c.south === preferSouth) ?? pool.find((c) => !c.south) ?? pool[0];
     if (!chosen) {
       ac.phase = 'gone';
       return;
@@ -256,6 +297,12 @@ export class TowerAI {
     ac.phase = 'taxi';
     ac.speedLimit = undefined;
     ac.route = null;
+    if (sim.userTower && ac.frequency === sim.stationFor('tower')) {
+      // You staff Tower: the crew reports vacated and waits for "contact ground".
+      const what = ac.rejectedTakeoff ? 'we rejected take-off, ' : ac.emergency === 'medical' ? 'PAN PAN, medical emergency, ' : '';
+      call(sim, ac, 'vacated', `${sim.tel(ac)}, ${what}runway ${ac.runway ?? this.end.name} vacated via ${ac.exitName ?? ''}`);
+      return;
+    }
     ac.frequency = sim.stationFor('ground');
     if (!sim.isOnMyFrequency(ac)) return;
     const head = `${sim.station.name}, ${sim.tel(ac)}`;
@@ -339,6 +386,7 @@ export class TowerAI {
   private sequenceDepartures(): void {
     const sim = this.sim;
     this.checkSlots();
+    if (sim.userTower) return;
     if (sim.aircraft.some((a) => a.phase === 'lineup')) return;
     // A departure with a CTOT is only lined up when it can be airborne inside its window; others go first.
     const queue = sim.aircraft
@@ -388,21 +436,23 @@ export class TowerAI {
     return this.nextArrivalEta() > this.rollTime(ac) + 8;
   }
 
-  private lineUp(ac: Aircraft): void {
+  /** Lines a departure up from its holding point. Returns why not, if it cannot. */
+  private lineUp(ac: Aircraft): string | undefined {
     const sim = this.sim;
     const end = this.end;
     const hp = ac.stoppedAt?.nodeId ? sim.airport.node(ac.stoppedAt.nodeId) : undefined;
     const strip = hp?.edges.find((e) => e.kind === 'runwayStrip');
-    if (!hp || !strip) return;
+    if (!hp || !strip) return 'we are not at a runway holding point';
     const rwyNode = strip.from === hp ? strip.to : strip.from;
     const lineupPt = add(rwyNode.pos, scale(headingVector(end.heading), LINEUP_DISTANCE));
     const remaining = end.length - sim.airport.runwayCoordinates(end, lineupPt).along;
     if (remaining < 1500) {
+      if (sim.userTower) return `not enough runway at ${hp.holdingPoint?.name ?? ''} for departure ${end.name}`;
       // Wrong end of the runway: send the aircraft back to Ground.
       ac.frequency = sim.stationFor('ground');
       ac.holdingSince = sim.time + 1e9;
       call(sim, ac, 'route', `${sim.station.name}, ${sim.tel(ac)}, tower sent us back, not enough runway at ${hp.holdingPoint?.name ?? ''} for departure ${end.name}, request taxi`);
-      return;
+      return undefined;
     }
     const entry = sim.airport.runwayOps(end.name)?.departureEntries.find((e) => e.holdingPoint === hp.holdingPoint?.name);
     ac.intersectionDeparture = entry ? !entry.fullLength : remaining < end.length - 300;
@@ -413,11 +463,21 @@ export class TowerAI {
     ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
     ac.stoppedAt = undefined;
     ac.speedLimit = () => LINEUP_SPEED;
+    return undefined;
   }
 
   onLinedUp(ac: Aircraft): void {
     // "Ready for immediate departure": keep the time lined up short.
-    ac.timerUntil = this.sim.time + this.sim.rng.range(3, 8);
+    ac.timerUntil = this.sim.time + this.sim.rng.range(this.sim.userTower ? 2 : 3, this.sim.userTower ? 5 : 8);
+  }
+
+  /** "Stop immediately" from Tower during the take-off roll (below 80 kt). */
+  stopTakeoff(ac: Aircraft): void {
+    ac.rejectAtSpeed = undefined;
+    ac.rejectedTakeoff = true;
+    ac.takeoffCleared = false;
+    this.sim.system(`Tower: ${ac.callsign} stopped its take-off on your instruction - runway blocked until vacated.`, 'warning', ac.callsign);
+    this.planRollout(ac, this.end, REJECT_DECEL, false);
   }
 
   private startTakeoff(ac: Aircraft): void {
@@ -431,6 +491,16 @@ export class TowerAI {
     ac.stoppedAt = undefined;
     ac.speedLimit = undefined;
     ac.heading = end.heading;
+    if (sim.userTower) {
+      // Your take-off clearance: check the departure separation (wake turbulence / same route).
+      const early = this.spacingRemaining(ac);
+      if (early > 5) {
+        sim.stats.separationLosses++;
+        sim.updateScore();
+        sim.system(`Separation: ${ac.callsign} started its take-off ${Math.round(early)} s too early behind the previous departure (wake turbulence / departure route).`, 'warning', ac.callsign);
+      }
+      ac.takeoffCleared = false;
+    }
     ac.phase = 'takeoff';
     this.lastTakeoffAt = sim.time;
     // Special event: rejected take-off.
@@ -479,6 +549,11 @@ export class TowerAI {
     moveFree(ac, dt);
     if (ac.altitudeFt - sim.airport.data.elevationFt > 4000 || length(ac.pos) > 15000) {
       if (ac.phase === 'climb') sim.stats.departuresAirborne++;
+      if (ac.phase === 'climb' && sim.userTower && ac.frequency === sim.stationFor('tower')) {
+        sim.stats.handoffsMissed++;
+        sim.updateScore();
+        sim.system(`${ac.callsign} left the control zone without a frequency change to Radar.`, 'warning', ac.callsign);
+      }
       ac.phase = 'gone';
     }
   }

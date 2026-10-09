@@ -19,7 +19,7 @@ const PLANNED_AIRPORTS = [
 const POSITIONS: { type: StationType; label: string; available: boolean }[] = [
   { type: 'DEL', label: 'Delivery', available: true },
   { type: 'GND', label: 'Ground', available: true },
-  { type: 'TWR', label: 'Tower', available: false },
+  { type: 'TWR', label: 'Tower', available: true },
   { type: 'APP', label: 'Approach / Departure', available: false },
   { type: 'CTR', label: 'Radar / Center', available: false },
 ];
@@ -52,11 +52,19 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
         type: 'button',
         text: p.label,
         disabled: !p.available,
-        title: p.available ? 'Click to staff this position; select several for combined positions' : 'Planned for a later version',
+        title: !p.available
+          ? 'Planned for a later version'
+          : p.type === 'TWR'
+            ? 'Tower is staffed on its own for now (combined positions with Tower come in 0.8)'
+            : 'Click to staff this position; select several for combined positions',
       });
       b.addEventListener('click', () => {
         if (positions.has(p.type) && positions.size > 1) positions.delete(p.type);
-        else positions.add(p.type);
+        else if (p.type === 'TWR' || positions.has('TWR')) {
+          // Combined positions with Tower come with 0.8: Tower is staffed on its own.
+          positions.clear();
+          positions.add(p.type);
+        } else positions.add(p.type);
         posButtons.forEach((x, i) => x.classList.toggle('active', positions.has(POSITIONS[i].type)));
         update();
       });
@@ -175,6 +183,18 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
   });
 }
 
+const TOWER_REFERENCE: [string, string][] = [
+  ['line up and wait runway 25', 'Departure at (or taxiing to) the holding point: enter the runway and wait. Not a take-off clearance.'],
+  ['behind landing EWG7TK, line up and wait behind', 'Conditional line-up: the departure enters the runway once the landing aircraft has passed.'],
+  ['wind 250 degrees 8 knots, runway 25, cleared for take-off', 'Take-off clearance (from the holding point it lines up and rolls). Mind the spacing: 2 min behind a heavy or on the same SID, 1 min on diverging SIDs.'],
+  ['hold position, cancel take-off / stop immediately', 'Cancel a take-off clearance; during the roll below 80 kt the crew stops.'],
+  ['wind 250 degrees 8 knots, runway 25, cleared to land', 'Landing clearance. Without one the arrival goes around at 0.5 NM.'],
+  ['continue approach / go around', 'Landing clearance later / the arrival climbs away (costs less than a go-around the crew has to make).'],
+  ['vacate via E', 'The exit the arrival should take after landing (if it can still reach it).'],
+  ['contact radar 119.200 / contact ground 118.605', 'Departures to Langen Radar after take-off, arrivals to Ground once they have vacated.'],
+  ['cross runway 25', 'Runway crossing for an aircraft Ground handed over at the runway holding point; it reports the runway vacated.'],
+];
+
 const VEHICLE_REFERENCE: [string, string][] = [
   ['Follow-me 1, proceed [to DCEEO] [via N, F]', 'The follow-me drives to the aircraft it was assigned to (it asks: "request proceed to DCEEO at taxiway F"). Vehicles get "proceed", aircraft "taxi".'],
   ['Follow-me 1, return to base / proceed to base', 'The follow-me drives back to the fire station (it asks when the job is done).'],
@@ -261,7 +281,8 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
             text:
               'Delivery: departures call for their IFR clearance about 10 minutes before off-block (or request it by datalink), then for start-up; clear them, check the readback, approve start-up and hand them to Ground. ' +
               'Ground: departures call for pushback and taxi; you hand them to Tower at the runway holding point. ' +
-              'Arrivals call Ground after vacating the runway; taxi them to a stand. Keep traffic moving, avoid conflicts and never let anyone onto the runway without a clearance.',
+              'Arrivals call Ground after vacating the runway; taxi them to a stand. Keep traffic moving, avoid conflicts and never let anyone onto the runway without a clearance. ' +
+              'Tower: departures call ready for departure at the holding point, arrivals call on final; line them up, clear them for take-off or to land, keep the departure spacing, and hand departures to Radar and arrivals to Ground.',
           }),
           h('p', {
             text:
@@ -269,6 +290,8 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
           }),
           h('h2', { text: 'Ground' }),
           h('table.ref', {}, ...REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
+          h('h2', { text: 'Tower' }),
+          h('table.ref', {}, ...TOWER_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
           h('h2', { text: 'Delivery' }),
           h('table.ref', {}, ...DELIVERY_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
           h('h2', { text: 'Vehicles' }),

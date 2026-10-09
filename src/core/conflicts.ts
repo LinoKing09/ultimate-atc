@@ -161,6 +161,8 @@ export interface ResolveOption {
   route?: TaxiRoute;
   /** True if the aircraft has to be turned around by a tug first (several minutes). */
   tug: boolean;
+  /** The new route crosses a runway (a detour a Ground controller avoids). */
+  crossesRunway?: boolean;
 }
 
 /**
@@ -215,7 +217,12 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
     const back = find(true);
     if (back) tugs.push({ aircraft: x, other: y, instruction: `taxi to ${destText} via ${viaOf(back).join(', ')}`, route: back, tug: back.requiresUTurn && x.type.wingspanM > 25 });
   }
-  return out.length ? out : tugs;
+  const crosses = (o: ResolveOption) => !!o.route?.edges.some((e) => e.kind === 'runwayStrip');
+  for (const o of [...out, ...tugs]) o.crossesRunway = crosses(o);
+  // Detours across the runway come last.
+  const byCrossing = (a: ResolveOption, b: ResolveOption) => Number(!!a.crossesRunway) - Number(!!b.crossesRunway);
+  const forward = out.filter((o) => !o.crossesRunway);
+  return forward.length ? [...forward, ...out.filter((o) => o.crossesRunway)] : [...out, ...tugs].sort(byCrossing);
 }
 
 function keepsClear(route: TaxiRoute, avoid: { points: Vec2[]; radius: number }): boolean {
@@ -240,11 +247,29 @@ function distanceToSegment(p: Vec2, a: Vec2, b: Vec2): number {
 export function headOnPartner(sim: Simulation, ac: Aircraft): Aircraft | undefined {
   if (ac.blockedBy) {
     const o = sim.find(ac.blockedBy);
-    if (o && (Math.abs(headingDiff(ac.heading, o.heading)) > 120 || o.blockedBy === ac.callsign)) return o;
+    if (o && (Math.abs(headingDiff(ac.heading, o.heading)) > 120 || o.blockedBy === ac.callsign || blockCycle(sim, ac))) return o;
   }
   for (const c of sim.routeConflicts.values()) {
     if (c.a === ac) return c.b;
     if (c.b === ac) return c.a;
+  }
+  return undefined;
+}
+
+/**
+ * Aircraft that block each other in a circle (A waits for B, B for C, C for A):
+ * nobody can move on. Returns the circle starting with `ac`, if there is one.
+ */
+export function blockCycle(sim: Simulation, ac: Aircraft): Aircraft[] | undefined {
+  const chain: Aircraft[] = [ac];
+  let cur = ac;
+  for (let i = 0; i < 8 && cur.blockedBy; i++) {
+    const next = sim.find(cur.blockedBy);
+    if (!next) return undefined;
+    if (next === ac) return chain;
+    if (chain.includes(next)) return undefined;
+    chain.push(next);
+    cur = next;
   }
   return undefined;
 }

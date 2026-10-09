@@ -106,7 +106,7 @@ const KEYWORDS = new Set([
   'contact', 'monitor', 'give', 'continue', 'push', 'pushback', 'start', 'startup', 'expedite',
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
   'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise', 'climb', 'squawk',
-  'readback', 'ctot', 'slot', 'tow', 'proceed', 'return',
+  'readback', 'ctot', 'slot', 'tow', 'proceed', 'return', 'wind', 'go', 'vacate', 'abort',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -547,6 +547,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     c.i += isWhenClear ? 2 : 1;
     c.accept('of');
     c.accept('the');
+    c.accept('landing', 'departing', 'arriving');
     let callsign: string | undefined;
     let type: string | undefined;
     const m = matchCallsign(c.t, c.i, ctx.callsigns);
@@ -575,9 +576,75 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
   };
 
   readCondition();
+  /** "runway 25" in front of a take-off / landing clearance: "runway 25, cleared to land". */
+  let pendingRunway: string | undefined;
 
   while (!c.done()) {
     const w = c.peek()!;
+
+    // ---------- Tower
+    // Wind information in a clearance ("wind 250 degrees 8 knots") is information only.
+    if (w === 'wind') {
+      c.next();
+      while (!c.done() && (/^\d+$/.test(c.peek()!) || ['degrees', 'degree', 'knots', 'knot', 'calm', 'variable', 'gusting', 'gusts', 'maximum'].includes(c.peek()!))) c.next();
+      continue;
+    }
+    if (w === 'runway' && ['cleared', 'line'].includes(c.peek(2) ?? '')) {
+      c.next();
+      pendingRunway = readRunway(c);
+      continue;
+    }
+    if (w === 'line' && c.peek(1) === 'up') {
+      c.i += 2;
+      c.accept('and');
+      c.accept('wait');
+      c.accept('behind');
+      let runway = pendingRunway;
+      if (c.accept('runway')) runway = readRunway(c) ?? runway;
+      c.accept('and');
+      c.accept('wait');
+      c.accept('behind');
+      result.commands.push({ type: 'lineUp', runway });
+      continue;
+    }
+    if (w === 'cleared' && c.peek(1) === 'to' && c.peek(2) === 'land') {
+      c.i += 3;
+      let runway = pendingRunway;
+      if (c.accept('runway')) runway = readRunway(c) ?? runway;
+      result.commands.push({ type: 'land', runway });
+      continue;
+    }
+    if (w === 'continue' && c.peek(1) === 'approach') {
+      c.i += 2;
+      result.commands.push({ type: 'continueApproach' });
+      continue;
+    }
+    if (w === 'go' && c.peek(1) === 'around') {
+      c.i += 2;
+      // "go around, I say again, go around"
+      while (c.peek() === 'i' || c.peek() === 'say' || c.peek() === 'again' || (c.peek() === 'go' && c.peek(1) === 'around')) c.i += c.peek() === 'go' ? 2 : 1;
+      result.commands.push({ type: 'goAround' });
+      continue;
+    }
+    if ((w === 'cancel' || w === 'abort') && (c.peek(1) === 'takeoff' || (c.peek(1) === 'take' && c.peek(2) === 'off'))) {
+      c.i += c.peek(1) === 'takeoff' ? 2 : 3;
+      c.accept('clearance');
+      while (c.peek() === 'i' || c.peek() === 'say' || c.peek() === 'again' || c.peek() === 'cancel' || c.peek() === 'takeoff' || c.peek() === 'take' || c.peek() === 'off') c.next();
+      result.commands.push({ type: 'cancelTakeoff' });
+      continue;
+    }
+    if (w === 'vacate') {
+      c.next();
+      c.accept('left', 'right');
+      c.accept('via');
+      c.accept('taxiway');
+      const exit = c.peek();
+      if (exit && ctx.taxiways.has(exit.toUpperCase())) {
+        c.next();
+        result.commands.push({ type: 'vacate', exit: exit.toUpperCase() });
+      } else result.unparsed.push('vacate');
+      continue;
+    }
 
     // ---------- cancel / stop / continue pushback
     if (w === 'cancel' && ['push', 'pushback', 'startup', 'start'].includes(c.peek(1) ?? '')) {
@@ -772,6 +839,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       }
       c.accept('your');
       c.accept('position');
+      c.accept('immediately');
       result.commands.push({ type: 'holdPosition' });
       continue;
     }
@@ -876,11 +944,6 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       result.commands.push({ type: 'sayAgain' });
       continue;
     }
-    if (w === 'line' && c.peek(1) === 'up') {
-      c.i += 2;
-      result.commands.push({ type: 'lineUp' });
-      continue;
-    }
     // ---------- IFR clearance (Delivery)
     if (w === 'cleared' && c.peek(1) === 'to' && c.peek(2) === 'cross') {
       c.i += 2; // "cleared to cross runway 25" = "cross runway 25"
@@ -955,7 +1018,9 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       c.accept('for');
       c.accept('takeoff', 'take');
       c.accept('off');
-      result.commands.push({ type: 'takeoff' });
+      let runway = pendingRunway;
+      if (c.accept('runway')) runway = readRunway(c) ?? runway;
+      result.commands.push({ type: 'takeoff', runway });
       continue;
     }
 

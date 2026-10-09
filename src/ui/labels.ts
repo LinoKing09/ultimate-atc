@@ -59,7 +59,14 @@ export function requestLabel(ac: Aircraft): string {
     case 'taxiIn':
       return ac.wantsFollowMe ? 'FLWM' : 'TXIN';
     case 'handoff':
+    case 'departure':
       return 'RDY';
+    case 'landing':
+      return 'LDG';
+    case 'vacated':
+      return 'VACD';
+    case 'radar':
+      return 'RDR';
     case 'crossing':
       return 'XRWY';
     case 'blocked':

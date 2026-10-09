@@ -375,7 +375,9 @@ export class App {
     this.voiceIn.lang = s.voiceLang;
     if (s.density !== this.densitySetting) this.sim.config.density = this.densitySetting = s.density;
     if (s.events !== this.eventsSetting) this.sim.config.events = this.eventsSetting = s.events;
-    this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : this.sim.userControls('GND')
+    this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : this.sim.userTower
+        ? 'Type an instruction, e.g. "DLH5AB line up and wait runway 25" - F1 for help'
+        : this.sim.userControls('GND')
         ? 'Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help'
         : 'Type an instruction, e.g. "DLH5AB cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312" - F1 for help';
     this.quickbarKey = '';
@@ -411,7 +413,7 @@ export class App {
       return;
     }
     const mine = this.sim.isOnMyFrequency(ac);
-    const key = `${ac.callsign}|${ac.phase}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${headOnPartner(this.sim, ac)?.callsign ?? ''}`;
+    const key = `${ac.callsign}|${ac.phase}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
     const btn = (text: string, fn: (b: HTMLButtonElement) => void) => {
@@ -424,7 +426,25 @@ export class App {
       return [r.left, r.top];
     };
     const items: HTMLElement[] = [h('span.qcs', { text: ac.callsign })];
-    if (mine && ac.frequency === this.sim.stationFor('delivery') && this.sim.stationFor('delivery') !== this.sim.stationFor('ground')) {
+    if (mine && this.sim.userTower && ac.frequency === this.sim.stationFor('tower')) {
+      // Tower: the clearances of the moment as buttons.
+      const short: [RegExp, string][] = [
+        [/^Line up/, 'LUP'],
+        [/^Cleared for take-off/, 'T/O'],
+        [/^Cleared to land/, 'LAND'],
+        [/^Continue approach/, 'CONT'],
+        [/^Go around/, 'G/A'],
+        [/^Cross runway/, 'CROSS'],
+        [/^Contact Ground/, 'GND'],
+        [/^Contact .*Radar/, 'RDR'],
+        [/^Stop immediately/, 'STOP'],
+        [/^Hold position/, 'HOLD'],
+      ];
+      for (const i of this.towerItems(ac)) {
+        const s = short.find(([re]) => re.test(i.label));
+        if (s && i.action && !i.disabled) items.push(btn(s[1], () => i.action!()));
+      }
+    } else if (mine && ac.frequency === this.sim.stationFor('delivery') && this.sim.stationFor('delivery') !== this.sim.stationFor('ground')) {
       const del = this.deliveryItems(ac);
       const sub = (label: string) => del.find((i) => i.label === label);
       const clr = sub('Send DCL (datalink)') ?? sub('IFR clearance') ?? sub('IFR clearance by voice') ?? sub('Amend IFR clearance');
@@ -797,6 +817,11 @@ export class App {
       items.push({ divider: true, label: '' }, center, resetTag);
       return items;
     }
+    if (sim.userTower && ac.frequency === sim.stationFor('tower')) {
+      items.push(...this.towerItems(ac));
+      items.push({ divider: true, label: '' }, center, resetTag);
+      return items;
+    }
 
     if (ac.phase === 'parked' && ac.category === 'tow') {
       const to = ac.tow?.to ?? '';
@@ -879,6 +904,63 @@ export class App {
     }
     items.push({ label: 'Say again', action: () => this.say(ac, 'say again') });
     items.push({ divider: true, label: '' }, center, resetTag);
+    return items;
+  }
+
+  /** "wind 250 degrees 8 knots" - the wind is given with take-off and landing clearances. */
+  private windPhrase(): string {
+    const w = this.sim.observedWind;
+    return w.speedKt === 0 ? 'wind calm' : `wind ${String(w.direction).padStart(3, '0')} degrees ${w.speedKt} knots`;
+  }
+
+  /** Tower: line-up, take-off and landing clearances, go-around, exits, crossings, hand-offs. */
+  private towerItems(ac: Aircraft): MenuItem[] {
+    const sim = this.sim;
+    const items: MenuItem[] = [];
+    const rwy = ac.runway ?? sim.runway;
+    const ground = sim.airport.station(sim.stationFor('ground'));
+    const radar = sim.airport.station('APP');
+    const eta = sim.tower.nextArrivalEta();
+    const arrival = Number.isFinite(eta) ? `next arrival ${Math.round(eta)} s` : 'no arrival';
+    if (ac.category === 'departure' && ac.onGround && ['holding', 'lineup', 'taxi'].includes(ac.phase)) {
+      const spacing = Math.max(0, Math.round(sim.tower.spacingRemaining(ac)));
+      const busy = sim.tower.runwayBusy(ac);
+      items.push({ label: `Line up and wait runway ${rwy}`, disabled: ac.phase === 'lineup' || !!ac.lineUpCleared, hint: busy ? 'runway occupied' : undefined, action: () => this.say(ac, `line up and wait runway ${rwy}`) });
+      const landing = sim.aircraft.filter((o) => (o.phase === 'approach' && sim.distanceToThresholdNm(o) < 5) || o.phase === 'landing');
+      items.push({
+        label: 'Behind ... line up and wait',
+        disabled: !landing.length || ac.phase === 'lineup',
+        submenu: () => landing.map((o) => ({ label: `behind landing ${o.callsign}`, hint: o.type.icao, action: () => this.say(ac, `behind landing ${o.callsign}, line up and wait behind`) })),
+      });
+      items.push({
+        label: `Cleared for take-off runway ${rwy}`,
+        hint: busy ? 'runway occupied!' : spacing ? `spacing: wait ${spacing} s` : arrival,
+        disabled: ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint',
+        action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for take-off`),
+      });
+      if (ac.takeoffCleared || ac.lineUpCleared) items.push({ label: 'Cancel take-off', action: () => this.say(ac, 'hold position, cancel take-off') });
+      items.push({ label: 'Hold position', action: () => this.say(ac, 'hold position') });
+    }
+    if (ac.phase === 'takeoff') items.push({ label: 'Stop immediately', hint: 'below 80 kt', action: () => this.say(ac, 'stop immediately') });
+    if (ac.phase === 'climb' && radar) items.push({ label: `Contact ${radar.name} ${radar.frequency}`, hint: ac.request === 'radar' ? 'requested' : undefined, action: () => this.say(ac, `contact radar ${radar.frequency}`) });
+    if (ac.phase === 'approach') {
+      items.push({
+        label: `Cleared to land runway ${rwy}`,
+        disabled: !!ac.landingCleared,
+        hint: sim.tower.runwayBusy() ? 'runway occupied!' : `${sim.distanceToThresholdNm(ac).toFixed(1)} NM`,
+        action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared to land`),
+      });
+      items.push({ label: 'Continue approach', disabled: !!ac.landingCleared, action: () => this.say(ac, 'continue approach') });
+      items.push({ label: 'Go around', action: () => this.say(ac, 'go around') });
+      const exits = sim.airport.exits(rwy);
+      items.push({ label: 'Vacate via', submenu: () => exits.map((e) => ({ label: `Taxiway ${e.name}`, hint: e.rapid ? 'rapid' : undefined, action: () => this.say(ac, `vacate via ${e.name}`) })) });
+    }
+    if (ac.onGround && ac.stoppedAt?.kind === 'runway') items.push({ label: `Cross runway ${rwy}`, hint: sim.tower.runwayBusy() ? 'runway occupied!' : arrival, action: () => this.say(ac, `cross runway ${rwy}`) });
+    if (ac.onGround && ground && ac.phase === 'taxi') {
+      items.push({ label: `Contact Ground ${ground.frequency}`, hint: ac.request === 'vacated' ? 'vacated' : undefined, action: () => this.say(ac, `contact ground ${ground.frequency}`) });
+    }
+    if (ac.request) items.push({ label: 'Standby', action: () => this.say(ac, 'standby') });
+    items.push({ label: 'Say again', action: () => this.say(ac, 'say again') });
     return items;
   }
 
@@ -980,7 +1062,7 @@ export class App {
         if (!options.length) return [{ label: 'No way out found - hold both and re-route by hand', disabled: true }];
         return options.map((o) => ({
           label: `${o.aircraft.callsign}: ${o.tug ? 'tug turnaround, then ' : ''}${o.instruction.replace(/^taxi to /, 'to ')}`,
-          hint: o.tug ? 'tug: 5-10 min' : o.route ? `${o.other.callsign} waits` : 'towed back onto the stand',
+          hint: `${o.tug ? 'tug: 5-10 min' : o.route ? `${o.other.callsign} waits` : 'towed back onto the stand'}${o.crossesRunway ? ', crosses runway' : ''}`,
           action: () => this.say(o.aircraft, o.instruction),
           onHover: (on: boolean) => {
             this.menuPreview = on;

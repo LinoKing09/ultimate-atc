@@ -1,6 +1,6 @@
 # User guide
 
-This guide explains the controller client screen by screen. It covers the **Delivery** and **Ground** positions at **EDDS** (since v0.6), alone or combined.
+This guide explains the controller client screen by screen. It covers the **Delivery**, **Ground** (since v0.6 alone or combined) and **Tower** (since v0.7, on its own) positions at **EDDS**.
 
 - [1. Connecting](#1-connecting)
 - [2. Screen layout](#2-screen-layout)
@@ -13,8 +13,9 @@ This guide explains the controller client screen by screen. It covers the **Deli
 - [9. Voice](#9-voice)
 - [10. Your job as Ground](#10-your-job-as-ground)
 - [11. Your job as Delivery](#11-your-job-as-delivery)
-- [12. Score](#12-score)
-- [13. Tips](#13-tips)
+- [12. Your job as Tower](#12-your-job-as-tower)
+- [13. Score](#13-score)
+- [14. Tips](#14-tips)
 
 ---
 
@@ -25,7 +26,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | Field             | Meaning                                                                                              |
 | ----------------- | ---------------------------------------------------------------------------------------------------- |
 | **Airport**       | Airport to control. Only EDDS has data so far; planned airports are listed but disabled.             |
-| **Position**      | Controller position: **Delivery** and **Ground** are available; Tower, Approach/Departure and Center are planned. A selected position is coloured (Delivery dark blue, Ground green, later Tower red). Click several to staff them together (**combined positions**, for example Delivery + Ground, as one controller does at night): the label below the buttons changes from *Single Position* to a purple **Combined Position**, and the toolbar shows all your stations in their colours with `COMBINED`. Positions you don't staff are run by the simulator. |
+| **Position**      | Controller position: **Delivery**, **Ground** and **Tower** are available; Approach/Departure and Center are planned. A selected position is coloured (Delivery dark blue, Ground green, Tower red). Tower is staffed on its own for now (combined positions with Tower come with 0.8). Click several to staff them together (**combined positions**, for example Delivery + Ground, as one controller does at night): the label below the buttons changes from *Single Position* to a purple **Combined Position**, and the toolbar shows all your stations in their colours with `COMBINED`. Positions you don't staff are run by the simulator. |
 | **Callsign**      | Shows the resulting station callsigns, frequencies and radio names, for example `EDDS_DEL 121.915 "Stuttgart Delivery" + EDDS_GND 118.605 "Stuttgart Ground"`. |
 | **Traffic**       | `light`, `medium` or `heavy` (see [simulation model](simulation.md#traffic-generation)).          |
 | **Special events** | Rare special situations: medical emergencies (arrivals and departures) and rejected take-offs. On by default. See [simulation model](simulation.md#special-events). |
@@ -72,7 +73,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `BRIEFING`            | Opens the [airport briefing](#airport-briefing).                                               |
 | `SYSTEMS`             | Opens the [systems window](#systems-window) (also **F3**). Reads `SYSTEMS (n OFF)` in orange while systems are off. |
 | `SETTINGS`            | Opens the [settings menu](#settings) (also **F2**).                                             |
-| `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#12-score). |
+| `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#13-score). |
 | `HELP`                | Help window with the tabs *Airport briefing*, *Phraseology* and *Controls* (also **F1**; it opens on the tab you used last). |
 | `DOCS`                | Opens this documentation on GitHub.                                                             |
 | `DISCONNECT`          | Ends the session and returns to the Connect dialog.                                             |
@@ -263,6 +264,8 @@ The lists work like EuroScope's departure and arrival lists. Aircraft waiting fo
 | C/S, TYPE | as above                                                                        |
 | ADEP   | Origin airport                                                                     |
 | RWY    | Landing runway                                                                     |
+| SEQ    | Position in the arrival sequence on final (1 = next to land)                       |
+| LND    | `CLR` once the arrival is cleared to land (Tower)                                   |
 | APCH   | Approach procedure while on final: `ILS`, `LOC` (localizer only) or `RNP` - see the [systems window](#systems-window) |
 | DIST   | Distance to the threshold while on final; afterwards the exit used                 |
 | STD    | Cleared stand, or the **suggested stand in brackets** (from the stand allocation)  |
@@ -285,6 +288,10 @@ Request codes in the `REQ` column:
 | `FREQ` | has start-up and asks for the frequency for pushback (`contact ground`) |
 | `FLWM` | has vacated and asks for a follow-me to the stand           |
 | `TOW`  | a tug asks to tow an aircraft to another stand              |
+| `RDY`  | (Tower) at the holding point, ready for departure           |
+| `LDG`  | (Tower) on final, expects the landing clearance             |
+| `VACD` | (Tower) has vacated the runway (after landing or a crossing), expects `contact ground` |
+| `RDR`  | (Tower) airborne, asks for the frequency change to Radar    |
 
 **VEHICLES** (only shown while vehicles are at work): tows - callsign of the tug (`TUG5`), the towed aircraft and its type, from and to stand, status, frequency, request - and follow-me cars: callsign (`FME1`), the aircraft it works for, status (`ASSG` assigned, `PROC` proceeding to the aircraft, `LEAD` leading, `DONE` waiting to return, `RTB` returning to base, `HOLD`) and request (`PROC` wants to proceed, `RTB` wants to return to base).
 
@@ -363,6 +370,8 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 **Resolve conflict**: when two aircraft face each other on a taxiway, the menu (and `RESOLVE` in the mobile quick-action bar) offers the ways out a real Ground controller has: one aircraft turns off via another taxiway while the other waits (each option is checked to keep clear of the other aircraft's route), or - if there is no junction left between them - a **tug** turns one aircraft around. Airliners cannot make a U-turn on a taxiway, so the tug takes 5 to 10 minutes (the pilot tells you the expected time). Hover an option to see its route.
 
 **Follow-me cars** (right-click the car or its row in the VEHICLES list) have their own menu: *Proceed to DCEEO*, *Return to base*, *Hold position*, *Continue*, *Standby* - see the [vehicle phraseology](phraseology.md#vehicles). In mobile mode the quick-action bar shows `PROCEED`, `BASE`, `HOLD`, `CONT`. **Tab** also selects vehicles with a pending request.
+
+**On Tower frequency** (you staff Tower) the menu offers the Tower clearances: *Line up and wait runway 25*, *Behind ... line up and wait* (behind a landing aircraft), *Cleared for take-off* (with the wind; the hint shows whether the runway is occupied, how long the departure spacing still needs, or when the next arrival comes), *Cancel take-off* / *Stop immediately*, *Cleared to land*, *Continue approach*, *Go around*, *Vacate via*, *Cross runway 25*, *Contact Ground* and *Contact Langen Radar*. In mobile mode the quick-action bar shows `LUP`, `T/O`, `LAND`, `CONT`, `G/A`, `CROSS`, `GND`, `RDR`, `STOP`, `HOLD`.
 
 **On Delivery frequency** the menu offers instead:
 
@@ -444,7 +453,20 @@ Clearance Delivery (EDDS: `Stuttgart Delivery` 121.915) gives departures their I
 
 With **combined positions** (Delivery + Ground) you do both jobs; the aircraft still changes frequency from Delivery to Ground as on a split position.
 
-## 12. Score
+## 12. Your job as Tower
+
+Stuttgart Tower (118.805) owns runway 07/25. When you staff Tower, Ground and Delivery are run by the simulator, Approach (Langen Radar) brings the arrivals onto final.
+
+1. **Departures** reach the holding point with the AI Ground and call: `Stuttgart Tower, Lufthansa 5AB, holding point A, ready for departure`. Give `line up and wait runway 25` (it lines up and waits) or straight away `wind 250 degrees 8 knots, runway 25, cleared for take-off`. Line up behind landing traffic with `behind landing EWG7TK, line up and wait behind`. A crew with a take-off clearance does not roll while someone is on the runway in front of it.
+2. **Spacing**: 2 minutes behind a heavy (3 from an intersection), 2 minutes behind a departure on the same SID fix, 1 minute on diverging SIDs - counted from the previous departure being airborne. Taking off earlier counts as a separation loss (-10). The take-off menu shows how long you still have to wait. CTOT flights may only go from CTOT -5 minutes (the crew tells you).
+3. **After take-off** the crew asks for a frequency change: `contact radar 119.200` (+10). If it leaves the control zone (4000 ft above the airport) still on your frequency, it costs 5 points.
+4. **Arrivals** call on final: `Stuttgart Tower, Eurowings 7TK, ILS approach runway 25` (or LOC / RNP if the ILS is switched off). Clear them in time: `wind 250 degrees 8 knots, runway 25, cleared to land`. Without a landing clearance the crew goes around at 0.5 NM (an incident, -15); `continue approach` tells it the clearance comes later; `go around` sends it around (-5). `vacate via E` asks for a particular exit.
+5. **After landing** the crew reports `runway 25 vacated via E`: `contact ground 118.605` (+10). Until then it waits at the vacate point - and Tower cannot use an exit whose vacate point is occupied.
+6. **Runway crossings**: Ground hands aircraft that must cross the runway over at the runway holding point (`holding short runway 25 at W, request crossing`). `cross runway 25` only when nobody is landing or taking off; after crossing the crew reports the runway vacated, then `contact ground`.
+
+The A-SMGCS runway monitoring (RMCA) warns when you give a take-off or landing clearance while the runway is occupied.
+
+## 13. Score
 
 | Event                                                       | Points |
 | ----------------------------------------------------------- | -----: |
@@ -452,17 +474,22 @@ With **combined positions** (Delivery + Ground) you do both jobs; the aircraft s
 | Arrival parked on a stand                                   |    +10 |
 | IFR clearance delivered (departure handed from Delivery to Ground) |    +10 |
 | Tow brought to its stand                                    |     +5 |
+| Tower: departure handed to Radar after take-off             |    +10 |
+| Tower: arrival handed to Ground after vacating              |    +10 |
+| Tower: departure left the control zone on your frequency    |     -5 |
+| Tower: take-off with too little departure spacing           |    -10 |
+| Tower: go-around you instructed                             |     -5 |
 | Wrong readback caught and corrected                         |     +5 |
 | Wrong readback not caught                                   |    -10 |
 | CTOT missed (no take-off inside -5 / +10 minutes)           |    -10 |
 | Medical emergency on a stand within 6 minutes of the call   |    +15 |
 | "Say again" (pilot did not understand)                      |     -2 |
 | Slow answer: per 15 s of waiting beyond the first 30 s      |     -1 |
-| Go-around caused by an occupied runway                      |    -15 |
+| Go-around caused by an occupied runway (or, as Tower, a missing landing clearance) |    -15 |
 | Runway incursion                                            |    -50 |
 | Collision                                                   |   -100 |
 
-## 13. Tips
+## 14. Tips
 
 - Use **Tab** to work through requests in order. Then you only need to type the instruction, without the callsign.
 - Hover over destinations in the **Taxi to** menu to compare routes before you send one. The suggestions (also those of the quick-action bar in mobile mode) follow the airport's **standard taxi flows** (at EDDS: N eastbound, S westbound), see the [airport page](airports/EDDS.md#standard-taxi-flows) and the airport briefing.

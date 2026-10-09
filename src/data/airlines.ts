@@ -38,5 +38,8 @@ export const AIRLINES: Airline[] = [
   { icao: 'DCX', telephony: '', types: ['C56X', 'CL35'], destinations: ['EDDB', 'LFMN', 'LSGG', 'EGLF', 'LIML'], weight: 1, callsignStyle: 'reg' },
 ];
 
-/** Lookup from ICAO airline code to telephony designator. */
-export const TELEPHONY = new Map(AIRLINES.filter((a) => a.telephony).map((a) => [a.icao, a.telephony]));
+/** Vehicles that talk to ATC with a callsign prefix of their own (TUG5 = "Tug 5"). Not used for traffic generation. */
+export const VEHICLE_TELEPHONY: { icao: string; telephony: string }[] = [{ icao: 'TUG', telephony: 'Tug' }];
+
+/** Lookup from ICAO airline code (or vehicle prefix) to telephony designator. */
+export const TELEPHONY = new Map([...AIRLINES.filter((a) => a.telephony), ...VEHICLE_TELEPHONY].map((a) => [a.icao, a.telephony]));

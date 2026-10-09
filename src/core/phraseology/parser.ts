@@ -1,5 +1,5 @@
 import type { Compass, StationType } from '../airport/types';
-import { AIRLINES } from '../../data/airlines';
+import { AIRLINES, VEHICLE_TELEPHONY } from '../../data/airlines';
 import type { Altitude, Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './commands';
 
 /**
@@ -106,7 +106,7 @@ const KEYWORDS = new Set([
   'contact', 'monitor', 'give', 'continue', 'push', 'pushback', 'start', 'startup', 'expedite',
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
   'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise', 'climb', 'squawk',
-  'readback', 'ctot', 'slot',
+  'readback', 'ctot', 'slot', 'tow',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -115,11 +115,11 @@ const TYPE_WORD = /^(a\d{3}|a\d{2}n|b\d{3}|b\d{2}m|7\d7|e\d{3}|crj\d*|dh8d|q400|
 /** What a sequence number / expected delay refers to. */
 const SEQUENCE_FOR: Record<string, string> = {
   push: 'pushback', pushback: 'pushback', start: 'start-up', startup: 'start-up', taxi: 'taxi',
-  departure: 'departure', takeoff: 'departure', take: 'departure', crossing: 'crossing',
+  departure: 'departure', takeoff: 'departure', take: 'departure', crossing: 'crossing', tow: 'tow',
 };
 
 /** Multi-word and single-word telephony designators -> ICAO prefix. */
-const TELEPHONY_WORDS: { words: string[]; icao: string }[] = AIRLINES.filter((a) => a.telephony)
+const TELEPHONY_WORDS: { words: string[]; icao: string }[] = [...AIRLINES.filter((a) => a.telephony), ...VEHICLE_TELEPHONY]
   .map((a) => ({ words: a.telephony.toLowerCase().split(/\s+/), icao: a.icao }))
   .sort((a, b) => b.words.length - a.words.length);
 
@@ -663,10 +663,22 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     }
 
     // ---------- taxi
-    if (w === 'taxi' || (w === 'continue' && c.peek(1) === 'taxi' && ['to', 'via'].includes(c.peek(2) ?? ''))) {
-      if (w === 'continue') c.next();
+    // "follow the follow-me [to stand 14 via ...]" (before "follow <callsign>")
+    const followMeAt = w === 'follow' ? (c.peek(1) === 'the' ? 2 : 1) : -1;
+    if (followMeAt > 0 && ((c.peek(followMeAt) === 'follow' && c.peek(followMeAt + 1) === 'me') || c.peek(followMeAt) === 'followme')) {
+      c.i += followMeAt + (c.peek(followMeAt) === 'followme' ? 1 : 2);
+      if (/^\d$/.test(c.peek() ?? '')) c.next(); // "follow-me 1"
+      result.commands.push({ type: 'followMe' });
+      if (c.peek() !== 'to' && c.peek() !== 'via') continue;
+      // the destination follows directly: parse it like a taxi instruction
+      c.t[--c.i] = 'taxi';
+    }
+    const tow = w === 'tow' && c.peek(1) === 'approved';
+    if (c.peek() === 'taxi' || tow || (w === 'continue' && c.peek(1) === 'taxi' && ['to', 'via'].includes(c.peek(2) ?? ''))) {
+      if (c.peek() === 'continue' || tow) c.next();
       c.next();
       taxi = { type: 'taxi', via: [], holdShort: [], cross: [] };
+      if (tow) taxi.tow = true;
       while (!c.done()) {
         if (c.accept('to')) {
           const d = readTaxiDestination();

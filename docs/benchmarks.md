@@ -38,13 +38,16 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 0.4.0   | 13.4 | 5.2 | 0  | 0 | 0  | 10.2 | 13.8 s |
 | 0.4.0 + fixes (before 0.5) | 13.6 | 6.0 | 0 | 0 | 2 | 8.9 | 3.7 s |
 | 0.5.0   | 12.3 | 6.7 | 0  | 0 | 2  | 8.9  | 3.0 s |
-| **0.6.0** | 11.1 | 6.0 | 0  | 0 | 2  | 8.6  | 2.9 s |
+| 0.6.0   | 11.1 | 6.0 | 0  | 0 | 2  | 8.6  | 2.9 s |
+| **0.6.1** | 12.8 | 5.5 | 0  | 0 | 1  | 9.0  | 4.0 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
 Soak test (0.5.0, 20 h with special events and more heavies in every third session): 11.8 departures and 6.9 arrivals per hour, no collisions, no incursions, 2 go-arounds, 3.9 s computing time per simulated hour. It now runs in CI on every push.
 
 **0.6.0**: A-CDM and CTOTs make the departure flow more realistic, not faster: crews call for pushback 2 minutes before their TSAT instead of at their ready time, 12 % of the departures have a CTOT and wait for it (on the stand via the TSAT, at the holding point if early), and the sequencer spaces start-ups by 90 s. That costs about 1 departure per hour in the benchmark (the automatic controller is still Ground only; Delivery is AI). Soak test 0.6.0: 12.2 departures and 7.2 arrivals per hour, no collisions, no incursions, 2 go-arounds, 3.1 s computing time per simulated hour.
+
+**0.6.1**: the A-CDM fix (TSATs no longer slide later) brings departures up from 11.1 to 12.8 per hour. Arrivals are slightly lower because tows now keep remote stands occupied for 20-40 minutes and slow tows share the apron; the calmer session start also means fewer departures in the first minutes. The automatic controller approves tows like pushbacks (nothing taxiing within 250 m) - tows are new in 0.6.1. Computing time is higher because of the vehicles and the extra checks. Soak test 0.6.1: 11.2 departures and 6.7 arrivals per hour, no collisions, no incursions, 1 go-around, 5.4 s computing time per simulated hour.
 
 ## Simulated traffic
 
@@ -60,7 +63,9 @@ How many hours of traffic have been simulated while developing and testing the s
 | 0.5.0 release benchmark and soak test | 40 h | measured: 2 x 20 h |
 | 0.6.0 development (systems, conflicts, Delivery) | ~60 h | estimate: test suite runs (about 9 h each) and debugging |
 | 0.6.0 release benchmark and soak test | 40 h | measured: 2 x 20 h |
-| **Total so far (0.6.0)** | **~620 h** | of which 260 h exactly measured |
+| 0.6.0 - 0.6.1 benchmark and soak runs (bisecting, tuning) | 240 h | measured: 7 benchmark and 5 soak runs of 20 h |
+| 0.6.0 - 0.6.1 development | ~135 h | estimate: test suite runs (about 10 h each) and debugging harnesses |
+| **Total so far (0.6.1)** | **~1000 h** | of which 500 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

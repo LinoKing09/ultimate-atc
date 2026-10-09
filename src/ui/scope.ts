@@ -1,4 +1,5 @@
 import type { Aircraft } from '../core/aircraft';
+import { tugOf } from '../core/vehicles';
 import { KT_TO_MS, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
 import type { Simulation } from '../core/simulation';
 import { clearedTo, statusCode } from './labels';
@@ -28,6 +29,8 @@ const C = {
   previewOk: 'rgba(123, 220, 143, 0.9)',
   previewErr: 'rgba(255, 90, 90, 0.9)',
   mine: '#e8f0f0',
+  tug: '#e08a2e',
+  followMe: '#f5d332',
   other: '#8d9ba1',
   request: '#ffcf4d',
   late: '#ff7b54',
@@ -713,6 +716,40 @@ export class Scope {
     }
   }
 
+  /** Tugs at the nose of the aircraft they move, and the follow-me cars (with a label if vehicle tracking is on). */
+  private drawVehicles(): void {
+    for (const ac of this.sim.aircraft) {
+      const tug = tugOf(this.sim, ac);
+      if (tug) this.drawVehicle(tug.pos, tug.heading, 6, 2.6, C.tug);
+    }
+    const labels = this.sim.systemOn('surveillance') && this.sim.systemOn('vehicles');
+    for (const v of this.sim.vehicles) {
+      if (v.state === 'idle') continue;
+      this.drawVehicle(v.pos, v.heading, 4.6, 1.9, C.followMe, labels ? v.name : undefined);
+    }
+  }
+
+  private drawVehicle(pos: Vec2, heading: number, lengthM: number, widthM: number, color: string, label?: string): void {
+    const ctx = this.ctx;
+    const p = this.toScreen(pos);
+    const k = Math.max(this.zoom, 6 / lengthM);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(this.screenAngle(heading));
+    ctx.fillStyle = color;
+    ctx.fillRect((-widthM / 2) * k, (-lengthM / 2) * k, widthM * k, lengthM * k);
+    ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+    ctx.lineWidth = 1;
+    ctx.strokeRect((-widthM / 2) * k, (-lengthM / 2) * k, widthM * k, lengthM * k);
+    ctx.restore();
+    if (label) {
+      const fs = Math.round(10 * this.tagScale);
+      ctx.font = `${fs}px Consolas, Menlo, monospace`;
+      ctx.fillStyle = color;
+      ctx.fillText(label, p.x + 8, p.y - 6);
+    }
+  }
+
   private drawTag(ac: Aircraft, color: string): void {
     const ctx = this.ctx;
     const p = this.toScreen(ac.pos);
@@ -799,12 +836,15 @@ export class Scope {
     // selected last so its tag is on top
     list.sort((a, b) => (a.callsign === this.selected ? 1 : 0) - (b.callsign === this.selected ? 1 : 0));
     for (const ac of list) this.drawAircraft(ac, this.colorFor(ac, now));
+    this.drawVehicles();
     for (const ac of list) {
       // Declutter: quiet parked aircraft only get a tag when zoomed in or selected.
       const quiet = (ac.phase === 'parked' && !ac.request) || ac.phase === 'arrived';
       if (quiet && this.zoom < 0.6 && ac.callsign !== this.selected) continue;
       // Without A-SMGCS surveillance the targets have no identity: no data tags.
       if (!this.sim.systemOn('surveillance')) continue;
+      // A towed aircraft has its transponder off: it is identified by the tug's squitter (vehicle tracking).
+      if (ac.category === 'tow' && !this.sim.systemOn('vehicles')) continue;
       this.drawTag(ac, this.colorFor(ac, now));
     }
 

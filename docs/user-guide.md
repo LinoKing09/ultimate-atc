@@ -134,7 +134,7 @@ Mobile mode is made for touch screens, above all the **iPad** (a phone screen is
 - **+ / - / home buttons** on the right of the scope zoom in, out and reset the view.
 - **One finger** pans the scope (also when the drag starts on an aircraft), **two fingers** pan and zoom at the same time. The page itself never scrolls, bounces or zooms.
 - **Tap once** on an aircraft to select it. **Tap it again** to open its menu; a second tap on a tag item opens that item's function (flight plan, taxi destinations, aircraft menu). A **long press** opens the menu directly. A single tap therefore never sends anything by accident.
-- A **quick-action bar** for the selected aircraft: `PUSH` (push and start approved), `TAXI` (taxi destinations), `HOLD`, `RESOLVE` (head-on conflict), `CONT` (continue taxi), `TWR` (contact Tower) and `MENU`, depending on what the aircraft is doing. On Delivery frequency: `CLR` or `DCL` (IFR clearance), `RB OK` (readback correct), `START` (start-up approved), `GND` (contact Ground).
+- A **quick-action bar** for the selected aircraft: `PUSH` (push and start approved), `TAXI` (taxi destinations), `HOLD`, `RESOLVE` (head-on conflict), `CONT` (continue taxi), `TWR` (contact Tower) and `MENU`, depending on what the aircraft is doing. For tows: `TOW` (tow approved); for a crew that asked for a follow-me: `FLWM`. On Delivery frequency: `CLR` or `DCL` (IFR clearance), `RB OK` (readback correct), `START` (start-up approved), `GND` (contact Ground).
 - Larger buttons, menu entries, list rows, symbol hit areas and tags; sub-menus open with a tap.
 - On narrow screens (portrait) the departure and arrival lists start collapsed so the scope has room.
 - The command-line preview is hidden; use voice (`MIC`), the menus or a keyboard.
@@ -230,6 +230,8 @@ To keep the apron readable, parked aircraft with no pending request only get a t
 | Flashing magenta, `PAN`      | Emergency (medical) - give priority                             |
 | Red                          | Involved in a collision                                         |
 | Cyan circle                  | Selected aircraft                                               |
+| Orange box at the nose       | Tug (pushback, tow, turnaround)                                 |
+| Yellow box `FOLLOW-ME 1`     | Follow-me car (the label needs vehicle tracking in the [systems window](#systems-window)) |
 
 ## 5. Departure and arrival lists
 
@@ -281,6 +283,10 @@ Request codes in the `REQ` column:
 | `DCL`  | requests its IFR clearance by datalink - send it from the aircraft menu |
 | `STUP` | is ready for start-up (with A-CDM: at its TSAT)             |
 | `FREQ` | has start-up and asks for the frequency for pushback (`contact ground`) |
+| `FLWM` | has vacated and asks for a follow-me to the stand           |
+| `TOW`  | a tug asks to tow an aircraft to another stand              |
+
+**TOWS** (only shown while there are tows): callsign of the tug (`TUG5`), the towed aircraft and its type, from and to stand, status, frequency, request.
 
 Click a row to select the aircraft, double-click to centre the scope on it, right-click for the [aircraft menu](#7-aircraft-menu).
 
@@ -342,7 +348,9 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Hold short of -> taxiway       | `hold short of taxiway D`                          | Taxiways the remaining route joins or crosses |
 | Cross runway 25               | `cross runway 25`                                  | A runway holding point is ahead on the route  |
 | Give way to -> traffic         | `give way to EWG7TK`                               | Other ground traffic (not parked) within 800 m |
-| Resolve conflict with ... -> option | a re-route (`taxi to holding point A via ...`) for one of the two | Two aircraft face each other on a taxiway (see below) |
+| Resolve conflict with ... -> option | a re-route (`taxi to holding point A via ...`) for one of the two, or `cancel pushback` | Two aircraft block each other (see below) |
+| Follow the follow-me          | `follow the follow-me` (to the allocated stand if the aircraft has no route yet) | Aircraft on the ground, not parked |
+| Tow approved to stand 45 / Tow approved to stand -> stand | `tow approved` / `tow approved to stand 52` | A tug on a stand (tow request) |
 | Contact Tower 118.805         | `contact tower 118.805`                            | Departure taxiing or at the holding point     |
 | Number ... for pushback/taxi/departure | `number 2 for pushback`                   | A request is pending                          |
 | Standby                       | `standby`                                          | A request is pending                          |
@@ -441,6 +449,7 @@ With **combined positions** (Delivery + Ground) you do both jobs; the aircraft s
 | Departure handed over to Tower                              |    +10 |
 | Arrival parked on a stand                                   |    +10 |
 | IFR clearance delivered (departure handed from Delivery to Ground) |    +10 |
+| Tow brought to its stand                                    |     +5 |
 | Wrong readback caught and corrected                         |     +5 |
 | Wrong readback not caught                                   |    -10 |
 | CTOT missed (no take-off inside -5 / +10 minutes)           |    -10 |

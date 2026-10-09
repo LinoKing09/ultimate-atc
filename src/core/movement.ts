@@ -1,4 +1,5 @@
 import { nextStop, noseHeading, type Aircraft } from './aircraft';
+import { TOW_SPEED_KT } from './vehicles';
 import { KT_TO_MS, distance, dot, headingVector, sub, type Vec2 } from './geo';
 import { onStopReached } from './pilot';
 import type { Simulation } from './simulation';
@@ -41,6 +42,7 @@ export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void 
   } else {
     vTarget = (ac.type.taxiSpeedKt + (ac.expedite ? 5 : 0)) * KT_TO_MS;
     if (ac.speedLimit) vTarget = ac.speedLimit(ac.s);
+    if (ac.category === 'tow') vTarget = Math.min(vTarget, TOW_SPEED_KT * KT_TO_MS);
     vTarget = Math.min(vTarget, turnSpeedLimit(path.maxTurnAhead(ac.s, 25 + ac.speed * 3)));
   }
 
@@ -52,6 +54,8 @@ export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void 
 
   // Hard holds
   if (ac.stoppedAt || ac.holdPosition || ac.giveWayTo) vTarget = 0;
+  // Waiting for the follow-me to arrive in front.
+  if (ac.followMe && !ac.followMe.leading && ac.phase === 'taxi') vTarget = 0;
 
   // Traffic ahead
   if (ac.blockDistance !== undefined) {

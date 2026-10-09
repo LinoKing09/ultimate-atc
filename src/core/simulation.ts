@@ -3,6 +3,7 @@ import type { AirportData, StationData, StationType } from './airport/types';
 import { telephony, type Aircraft } from './aircraft';
 import { M_PER_NM, distance } from './geo';
 import { detectCollisions, updateMovement, updateSeparation } from './movement';
+import { createVehicles, updateVehicles, type Vehicle } from './vehicles';
 import { parseTransmission } from './phraseology/parser';
 import { executeTransmission, updatePilot } from './pilot';
 import { Frequency, type MessageKind, type RadioMessage } from './radio';
@@ -83,6 +84,8 @@ export interface Stats {
   readbackErrorsCaught: number;
   /** Departures that missed their CTOT window (-5/+10 min). */
   slotsMissed: number;
+  /** Tows brought to their stand. */
+  towsCompleted: number;
   score: number;
 }
 
@@ -142,6 +145,8 @@ export class Simulation {
   /** Current head-on conflicts between cleared routes (CATC), by pair key. */
   readonly routeConflicts = new Map<string, { a: Aircraft; b: Aircraft; taxiway: string }>();
   private nextConflictCheck = 0;
+  /** Follow-me cars (tugs are drawn with the aircraft they move). */
+  readonly vehicles: Vehicle[];
   readonly startEpochMs: number;
 
   /** Simulation time in seconds since session start. */
@@ -166,6 +171,7 @@ export class Simulation {
     clearancesDelivered: 0,
     readbackErrorsMissed: 0,
     readbackErrorsCaught: 0,
+    towsCompleted: 0,
     slotsMissed: 0,
     score: 0,
   };
@@ -196,6 +202,7 @@ export class Simulation {
     this.station = station;
     this.userStations = new Set([config.position, ...(config.positions ?? [])]);
     this.systems = defaultSystemStates(config.airport.systems);
+    this.vehicles = createVehicles(this);
     this.startEpochMs = (config.startTime ?? new Date()).getTime();
     this.frequency = new Frequency(station.frequency, (m) => this.pushMessage(m));
     this.tower = new TowerAI(this);
@@ -285,6 +292,7 @@ export class Simulation {
       updatePilot(this, ac);
       updateMovement(this, ac, dt);
     }
+    updateVehicles(this, dt);
     detectCollisions(this);
     updateRunwayAlerts(this);
     if (this.time >= this.nextConflictCheck) {
@@ -593,6 +601,7 @@ export class Simulation {
       s.departuresHandedOff * 10 +
       s.arrivalsParked * 10 +
       s.clearancesDelivered * 10 +
+      s.towsCompleted * 5 +
       s.readbackErrorsCaught * 5 +
       s.bonus -
       s.readbackErrorsMissed * 10 -

@@ -29,7 +29,8 @@ ultimate-atc/
 │   │   ├── delivery.ts        # Clearance Delivery: IFR clearances, squawks, readback errors, CTOTs, DCL, A-CDM sequencer
 │   │   ├── groundAI.ts        # AI Ground (when the user doesn't staff Ground)
 │   │   ├── conflicts.ts       # A-SMGCS: CATC head-on checks, Resolve conflict options, RMCA runway alerts
-│   │   ├── systems.ts         # airport/ATC systems (A-SMGCS services, A-CDM, DCL) and their states
+│   │   ├── systems.ts         # airport/ATC systems (A-SMGCS services, A-CDM, DCL, ILS) and their states
+│   │   ├── vehicles.ts        # follow-me cars, tug positions, tow creation
 │   │   ├── traffic.ts         # traffic generator: departures, arrivals, callsigns, stands
 │   │   ├── radio.ts           # single-frequency radio with queued pilot transmissions
 │   │   ├── simulation.ts      # the world: owns everything above, fixed-step loop, stats
@@ -100,6 +101,7 @@ ultimate-atc/
    - `updatePilot` handles timers (tug, engine start), give-way, spontaneous calls and reminders,
    - `updateMovement` moves aircraft along their paths and fires `onStopReached`,
    - `detectCollisions`, `updateRunwayAlerts` (A-SMGCS RMCA),
+   - `updateVehicles` (follow-me cars),
    - every 5 s: `updateConflictAlerts` (A-SMGCS CATC), `updateSequencer` (A-CDM TSATs), `updateGroundAI`,
    - `Frequency.update` starts the next queued pilot transmission when the frequency is free.
 5. **Output**: the UI reads `sim.aircraft` every frame for drawing and listens to the `message`, `incident` and `aircraftRemoved` events.

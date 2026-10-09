@@ -4,12 +4,25 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-10-09
+
+Ground vehicles (tugs, tows, follow-me), ILS and vehicle tracking in the systems window, a calmer session start, and an A-CDM fix.
+
 ### Added
 
-- **Glossary** ([docs/glossary.md](docs/glossary.md)): deadlock, gridlock, head-on, TOBT, TSAT, CTOT, A-SMGCS and other terms.
-
+- **Tugs on the scope**: an orange tug at the nose of every aircraft being pushed back or towed, or waiting for a turnaround.
+- **Tows**: 15 % of the aircraft on contact stands are towed to a remote stand after their turnaround. The tug driver calls Ground (`Stuttgart Ground, Tug 5, request tow Eurowings A320 from stand 14 to stand 45`, ICAO PANS-ATM wording); you answer `tow approved [to stand ...] [via ...]`. The tug pushes the aircraft off the stand and tows it at up to 10 kt; hold position, give way and runway crossings work as for aircraft. New `TOWS` list, aircraft menu and `TOW` quick-action button; +5 points per tow.
+- **Follow-me**: `follow the follow-me [to stand 14]` sends one of two follow-me cars from the fire station; it drives to the aircraft (the aircraft waits), leads it 35 m ahead and turns off at the stand entry. Crews unfamiliar with the airport ask for one after vacating (`request follow-me to the stand`, `FLWM` in the list).
+- **Vehicle tracking** (ADS-B squitter) in the systems window: with it, follow-me cars and tows are shown with their callsign; without it they are unlabelled targets.
+- **Resolve conflict** also covers aircraft blocking each other at an angle, for example a pushback into a taxiing aircraft's way, and then offers `cancel pushback`.
+- **Glossary** ([docs/glossary.md](docs/glossary.md)): deadlock, gridlock, head-on, follow-me, tow, TOBT, TSAT, CTOT, A-SMGCS and other terms.
 - **ILS in the systems window**: localizer (LOC) and glide path (GP) of the runway in use. Without the glide path arrivals fly localizer approaches, without the localizer RNP approaches; both are spaced at least 5 NM on final. The ATIS names the approach procedure (`ILS approach runway 25`, `RNP approach runway 25, ILS runway 25 out of service`), and the arrivals list has a new `APCH` column.
 - **Position colours** in the Connect dialog (once selected): Delivery dark blue, Ground green (Tower red when it comes). Below the buttons a label reads *Single Position* or, highlighted in purple, **Combined Position**; the toolbar shows your stations in their colours with `COMBINED`.
+
+### Fixed
+
+- **A-CDM TSATs kept sliding later**: a flight that missed its TSAT took the next slot and bumped a flight that was still on time, which bumped the next one, and so on - with a busy apron no crew called for pushback any more. Valid TSATs now stay; late flights get the next free slot after them (as in real A-CDM). The release benchmark went from 10.9 to 12.8 departures per hour.
+- The AI Ground (and the resolve logic) re-routed both aircraft of a head-on conflict, so both turned around and met again; each conflict is now resolved once.
 
 ### Changed
 

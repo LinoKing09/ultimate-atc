@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Aircraft } from '../src/core/aircraft';
-import { allocateSquawk, hhmm, sendDcl, suggestedSid } from '../src/core/delivery';
+import { allocateSquawk, hhmm, sendDcl, suggestedSid, updateSequencer } from '../src/core/delivery';
 import { parseTransmission } from '../src/core/phraseology/parser';
 import { Simulation } from '../src/core/simulation';
 import { EDDS } from '../src/data/airports/edds';
@@ -164,5 +164,23 @@ describe('session start', () => {
       expect(first[0]).toBeGreaterThanOrEqual(10);
       for (let i = 1; i < first.length; i++) expect(first[i] - first[i - 1]).toBeGreaterThanOrEqual(85);
     }
+  });
+});
+
+describe('A-CDM sequencer', () => {
+  it('keeps valid TSATs when an earlier flight misses its own', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 42, generateTraffic: false });
+    const a = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const b = sim.traffic.spawnDeparture(0, { stand: '16', callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    for (let t = 0; t < 600; t++) sim.tick(1);
+    a.ctot = b.ctot = undefined;
+    // DLH5AB missed its TSAT; EWG7TK's TSAT is due in a minute and still valid.
+    const now = Math.ceil(sim.time / 60) * 60;
+    a.tsat = now - 300;
+    b.tsat = now + 60;
+    updateSequencer(sim);
+    expect(b.tsat).toBe(now + 60);
+    expect(a.tsat).toBeGreaterThanOrEqual(now);
+    expect(Math.abs(a.tsat! - b.tsat!)).toBeGreaterThanOrEqual(90);
   });
 });

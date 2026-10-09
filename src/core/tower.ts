@@ -1,4 +1,5 @@
 import { CTOT_EARLY_S, CTOT_LATE_S, hhmm } from './delivery';
+import { wantsFollowMe } from './vehicles';
 import type { RunwayEnd, TaxiNode } from './airport/airport';
 import { moveFree, type Aircraft } from './aircraft';
 import { KT_TO_MS, M_PER_FT, M_PER_NM, add, distance, headingVector, length, scale } from './geo';
@@ -275,7 +276,9 @@ export class TowerAI {
       call(sim, ac, 'taxiIn', `${head}, PAN PAN, medical emergency on board, ${via}, request expedited taxi to the stand, ambulance requested`);
       return;
     }
-    call(sim, ac, 'taxiIn', `${head}, ${via}`);
+    // Crews unfamiliar with the airport ask for a follow-me.
+    ac.wantsFollowMe = wantsFollowMe(sim, ac);
+    call(sim, ac, 'taxiIn', `${head}, ${via}${ac.wantsFollowMe ? ', request follow-me to the stand' : ''}`);
   }
 
   // ------------------------------------------------------------------ departures

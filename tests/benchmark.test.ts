@@ -34,6 +34,8 @@ describe.skipIf(!RUN)('benchmark', () => {
               sim.transmit(`${ac.callsign} taxi to stand ${ac.assignedStand ?? sim.freeStands(ac.type.wingspanM)[0]?.id}`);
             }
             if (ac.request === 'handoff') sim.transmit(`${ac.callsign} contact tower`);
+            // Tows (since 0.6.x): approved like pushbacks.
+            if (ac.request === 'tow' && !sim.aircraft.some((o) => o !== ac && o.phase === 'taxi' && Math.hypot(o.pos.x - ac.pos.x, o.pos.y - ac.pos.y) < 250)) sim.transmit(`${ac.callsign} tow approved`);
           }
         }
         tot.ms += performance.now() - t0;

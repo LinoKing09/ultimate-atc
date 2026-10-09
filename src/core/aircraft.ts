@@ -6,7 +6,8 @@ import type { Path } from './path';
 import type { Command, TaxiDestination } from './phraseology/commands';
 import { telephonyCallsign } from './phraseology/speech';
 
-export type FlightCategory = 'departure' | 'arrival';
+/** `tow`: an aircraft without crew towed by a tug (callsign of the tug, e.g. TUG5). */
+export type FlightCategory = 'departure' | 'arrival' | 'tow';
 
 export type Phase =
   // departures
@@ -60,7 +61,8 @@ export type PilotRequest =
   | 'route' // route was unclear / taxi ended without destination
   | 'clearance' // departure on Delivery asks for its IFR clearance (voice or DCL)
   | 'startup' // cleared departure ready, asks for start-up (A-CDM: at its TSAT)
-  | 'frequency'; // start-up approved, waits for "contact Ground"
+  | 'frequency' // start-up approved, waits for "contact Ground"
+  | 'tow'; // tug driver asks to tow an aircraft from one stand to another
 
 export interface Aircraft {
   callsign: string;
@@ -172,6 +174,14 @@ export interface Aircraft {
   towingIn?: boolean;
   /** Waiting for a tug to turn the aircraft around (until this simulation time). */
   tugUntil?: number;
+  /** Tow (category 'tow'): the towed aircraft and the requested stands. */
+  tow?: { aircraft: string; operator: string; from: string; to: string };
+  /** The crew asked for a follow-me (unfamiliar with the airport). */
+  wantsFollowMe?: boolean;
+  /** Last time a head-on conflict involving this aircraft was resolved (AI Ground), to resolve each pair once. */
+  resolvedAt?: number;
+  /** Follow-me ordered: `vehicle` once one is assigned, `leading` once it is in front of the aircraft. */
+  followMe?: { vehicle?: string; leading: boolean };
   /** Time since when the AI Tower sees this departure stranded short of the holding point. */
   towerStuckSince?: number;
   /** Pre-rolled special event: medical emergency while taxiing out. */

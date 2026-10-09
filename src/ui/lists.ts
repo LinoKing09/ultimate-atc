@@ -19,6 +19,8 @@ export class TrafficList {
     private readonly filter: (ac: Aircraft) => boolean,
     private readonly cb: { select(cs: string): void; center(cs: string): void; menu(cs: string, x: number, y: number): void },
     position: { left?: string; right?: string; top: string },
+    /** Hide the whole panel while the list is empty. */
+    private readonly hideWhenEmpty = false,
   ) {
     this.countEl = h('span.count');
     const collapse = h('button', { title: 'Collapse / expand', text: '_' });
@@ -39,6 +41,7 @@ export class TrafficList {
       return ra - rb || (ra === 0 ? a.requestSince - b.requestSince : a.spawnedAt - b.spawnedAt);
     });
     this.countEl.textContent = `(${rows.length})`;
+    if (this.hideWhenEmpty) this.el.style.display = rows.length ? '' : 'none';
     this.tbody.replaceChildren();
     if (!rows.length) {
       this.tbody.append(h('tr', {}, h('td.empty', { colspan: String(this.columns.length), text: 'no traffic' })));
@@ -112,6 +115,27 @@ export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]):
     (a) => a.category === 'departure' && a.phase !== 'climb' && a.phase !== 'gone',
     cb,
     { left: '8px', top: '8px' },
+  );
+}
+
+/** Tows (an aircraft moved by a tug, which talks to you under the tug's callsign). */
+export function vehicleList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList {
+  return new TrafficList(
+    'TOWS',
+    [
+      { key: 'cs', label: 'C/S', cls: 'cs', get: csCell },
+      { key: 'acft', label: 'ACFT', get: (a) => a.tow?.aircraft ?? '' },
+      { key: 'type', label: 'TYPE', get: (a) => a.type.icao },
+      { key: 'from', label: 'FROM', get: (a) => a.tow?.from ?? '' },
+      { key: 'to', label: 'TO', get: (a) => a.tow?.to ?? '' },
+      { key: 'sts', label: 'STS', get: (a) => statusCode(a) },
+      { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
+      { key: 'req', label: 'REQ', cls: 'req', get: reqCell },
+    ],
+    (a) => a.category === 'tow' && a.phase !== 'gone' && a.phase !== 'arrived',
+    cb,
+    { left: '8px', top: '58%' },
+    true,
   );
 }
 

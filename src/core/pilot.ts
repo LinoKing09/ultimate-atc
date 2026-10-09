@@ -9,6 +9,7 @@ import { STATION_WORD, capitalize, formatCommand, formatDestination, formatHoldS
 import { CLEARANCE_LEAD_S, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
 import { destinationName } from '../data/destinations';
 import type { Simulation, TransmitResult } from './simulation';
+import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, maybeStartTow } from './vehicles';
 
 /**
  * AI pilots: execute controller instructions, read them back, and make their
@@ -152,7 +153,9 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       ac.startupApproved = true;
       return { readback: 'start-up approved', answers: ac.request === 'startup' };
     case 'taxi':
-      return execTaxi(sim, ac, c);
+      return ac.category === 'tow' ? execTow(sim, ac, c) : execTaxi(sim, ac, c);
+    case 'followMe':
+      return execFollowMe(sim, ac);
     case 'holdShort':
       return execHoldShort(sim, ac, c.target);
     case 'cross':
@@ -398,6 +401,7 @@ function planPushback(sim: Simulation, ac: Aircraft, facing?: Compass): PushPlan
 }
 
 function execPushback(sim: Simulation, ac: Aircraft, facing: Compass | undefined, startup: boolean): ExecResult {
+  if (ac.category === 'tow') return { unable: 'we are a tow, request tow approval' };
   if (ac.category !== 'departure' || ac.phase !== 'parked') {
     return { unable: ac.phase === 'pushback' ? 'we are already pushing' : 'unable, we are not on a stand' };
   }
@@ -420,6 +424,70 @@ function execPushback(sim: Simulation, ac: Aircraft, facing: Compass | undefined
   ac.timerUntil = sim.time + sim.rng.range(6, 15); // tug connects
   const text = `${startup ? 'push and start approved' : 'pushback approved'}${facing ? `, facing ${facing}` : ''}`;
   return { readback: text, answers: true };
+}
+
+// ====================================================================== tows and follow-me
+
+/**
+ * "Tow approved [to stand 45] via ...": the tug pushes the aircraft off a
+ * stand that needs a pushback, then tows it along the route (at towing speed).
+ * Without a destination the tow goes to the stand it asked for.
+ */
+function execTow(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
+  const t = ac.tow;
+  const hasLimit = c.holdShort.length > 0 && c.via.length > 0;
+  const destination: TaxiDestination | undefined = c.destination ?? (hasLimit ? undefined : t ? { kind: 'stand', stand: t.to } : undefined);
+  if (destination && destination.kind !== 'stand' && destination.kind !== 'holdShort') return { unable: 'negative, we are a tow, we can only tow to a stand' };
+  const cmd: TaxiCommand = { ...c, destination, tow: true };
+  if (destination?.kind === 'stand' && t) {
+    t.to = destination.stand;
+    ac.assignedStand = destination.stand;
+  }
+  const verb = (rb: string | undefined) => rb?.replace(/^taxi/, 'tow approved');
+  if (ac.phase === 'parked') {
+    const stand = sim.airport.stand(ac.stand ?? '');
+    if (stand?.pushback) {
+      // Push off the stand first; the tow route is resolved when the tug has repositioned.
+      const plan = planPushback(sim, ac, undefined);
+      if ('error' in plan) return { unable: plan.error };
+      if (destination?.kind === 'stand') {
+        const target = sim.airport.stand(destination.stand);
+        if (!target) return { unable: `confirm stand ${destination.stand}, we can't find it` };
+        if (target.maxWingspanM < ac.type.wingspanM) return { unable: `stand ${destination.stand} is too small for the ${ac.type.icao}` };
+      }
+      ac.phase = 'pushback';
+      ac.path = plan.path;
+      ac.s = 0;
+      ac.reverse = true;
+      ac.pushFacing = plan.facing;
+      ac.stops = [{ s: plan.path.length, kind: 'destination', target: 'pushback' }];
+      ac.stoppedAt = undefined;
+      ac.timerUntil = sim.time + sim.rng.range(6, 15);
+      ac.pendingTaxi = cmd;
+      return { readback: formatCommand(cmd), answers: true };
+    }
+  }
+  const res = execTaxi(sim, ac, { ...cmd });
+  return { ...res, readback: verb(res.readback) };
+}
+
+/** "Follow the follow-me": a follow-me car comes and leads the aircraft (see vehicles.ts). */
+function execFollowMe(sim: Simulation, ac: Aircraft): ExecResult {
+  if (!ac.onGround || !['taxi', 'pushback', 'startup', 'holding'].includes(ac.phase)) return { unable: 'unable, say again' };
+  ac.wantsFollowMe = false;
+  if (!ac.followMe) ac.followMe = { leading: false };
+  // Without a route of its own (e.g. just vacated), the follow-me leads to the allocated stand.
+  // A taxi instruction in the same transmission replaces that route.
+  const stand = ac.assignedStand;
+  if (!ac.route && ac.phase === 'taxi' && stand) {
+    const dest: TaxiDestination = { kind: 'stand', stand };
+    const r = autoRoute(sim, ac, dest);
+    if (r) {
+      applyRoute(sim, ac, r, dest);
+      return { readback: `follow the follow-me to stand ${stand}`, answers: true };
+    }
+  }
+  return { readback: 'follow the follow-me', answers: !!ac.route && ac.request === 'taxiIn' };
 }
 
 // ====================================================================== taxi
@@ -568,7 +636,8 @@ function routeOptions(sim: Simulation, ac: Aircraft): { flows: Map<string, Vec2>
   return {
     wingspanM: ac.type.wingspanM,
     flows: sim.airport.flowVectors(sim.runway),
-    allowUTurn: ac.type.wingspanM <= UTURN_MAX_WINGSPAN || atHoldingPoint || isStuck(sim, ac),
+    // A towed aircraft turns wherever the tug can turn it.
+    allowUTurn: ac.type.wingspanM <= UTURN_MAX_WINGSPAN || atHoldingPoint || isStuck(sim, ac) || ac.category === 'tow',
   };
 }
 
@@ -641,7 +710,7 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
   if (via.length) rb += ` via ${via.join(', ')}`;
   for (const h of c.holdShort) rb += `, ${formatHoldShort(h)}`;
   for (const r of c.cross) rb += `, cross runway ${r}`;
-  if (res.route.requiresUTurn && ac.type.wingspanM > UTURN_MAX_WINGSPAN && !atHoldingPoint) {
+  if (res.route.requiresUTurn && ac.type.wingspanM > UTURN_MAX_WINGSPAN && !atHoldingPoint && ac.category !== 'tow') {
     // An airliner can only turn around with a tug.
     // Ordering a tug, connecting it and turning the aircraft takes several minutes.
     const wait = sim.rng.range(TUG_MIN_S, TUG_MAX_S);
@@ -802,6 +871,7 @@ function execContinue(sim: Simulation, ac: Aircraft): ExecResult {
 // ====================================================================== handoff
 
 function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | undefined, frequency?: string): ExecResult {
+  if (ac.category === 'tow') return { unable: 'negative, we stay on your frequency until the tow is complete' };
   let type = stationType;
   if (!type) {
     if (frequency) type = sim.config.airport.stations.find((s) => s.frequency === frequency)?.type;
@@ -867,7 +937,8 @@ export function onStopReached(sim: Simulation, ac: Aircraft, stop: PathStop): vo
     ac.reverse = false;
     ac.speed = 0;
     ac.stand = undefined;
-    ac.timerUntil = sim.time + (ac.startupApproved ? sim.rng.range(15, 35) : sim.rng.range(40, 80));
+    // A tow: the tug repositions from pushing to towing; otherwise engine start.
+    ac.timerUntil = sim.time + (ac.category === 'tow' ? sim.rng.range(10, 20) : ac.startupApproved ? sim.rng.range(15, 35) : sim.rng.range(40, 80));
     return;
   }
   if (ac.phase === 'landing' || ac.phase === 'vacating') {
@@ -894,6 +965,11 @@ export function onStopReached(sim: Simulation, ac: Aircraft, stop: PathStop): vo
       ac.assignedStand = undefined;
       ac.timerUntil = sim.time + sim.rng.range(150, 300);
       if (ac.category === 'arrival') sim.stats.arrivalsParked++;
+      if (ac.category === 'tow') {
+        // The aircraft stays on the remote stand for a while; the tug leaves.
+        sim.stats.towsCompleted++;
+        ac.timerUntil = sim.time + sim.rng.range(TOW_PARK_MIN_S, TOW_PARK_MAX_S);
+      }
       if (ac.emergency === 'medical') {
         const t = sim.time - (ac.emergencySince ?? sim.time);
         sim.stats.emergenciesHandled++;
@@ -925,6 +1001,8 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
   const now = sim.time;
 
   if (ac.phase === 'arrived' && now >= ac.timerUntil) {
+    // Turnaround over: the aircraft leaves the simulation - or is towed to a remote stand.
+    if (ac.category === 'arrival') maybeStartTow(sim, ac);
     ac.phase = 'gone';
     return;
   }
@@ -938,7 +1016,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       const start = { position: ac.pos, heading: ac.heading };
       const res = resolveDestination(sim, ac, c.destination, start, c.via, c.holdShort);
       if ('error' in res) {
-        call(sim, ac, 'route', `${sim.tel(ac)}, ready for taxi, ${res.error}`);
+        call(sim, ac, 'route', `${sim.tel(ac)}, ${ac.category === 'tow' ? 'ready to tow' : 'ready for taxi'}, ${res.error}`);
         ac.stoppedAt = { s: ac.s, kind: 'destination', target: 'none' };
       } else {
         applyRoute(sim, ac, res.route, res.dest, c.holdShort, c.cross);
@@ -998,6 +1076,12 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       deliveryCall(sim, ac, stationName, tel);
       return;
     }
+    // A tug driver asks for the tow (ICAO: REQUEST TOW (company) (type) FROM (location) TO (location)).
+    if (ac.phase === 'parked' && ac.category === 'tow' && ac.tow && now >= ac.readyAt) {
+      const t = ac.tow;
+      call(sim, ac, 'tow', `${stationName}, ${tel}, request tow ${t.operator ? `${t.operator} ` : ''}${ac.type.icao} from stand ${t.from} to stand ${t.to}`);
+      return;
+    }
     // Ground: the crew calls for pushback when start-up is approved (TSAT with A-CDM) or it is ready.
     const pushDue = ac.startupApproved ? ac.readyAt : startupDue(sim, ac);
     if (ac.phase === 'parked' && ac.category === 'departure' && now >= pushDue) {
@@ -1053,6 +1137,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       clearance: `${stationName}, ${tel}, request clearance to ${destinationName(ac.flightPlan.destination)}`,
       startup: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, ready for start-up`,
       frequency: `${stationName}, ${tel}, request frequency for pushback`,
+      tow: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request tow to stand ${ac.tow?.to ?? ''}`,
     };
     // Datalink requests (DCL) are not repeated by voice.
     if (ac.request === 'clearance' && ac.dcl && sim.systemOn('dcl')) return;

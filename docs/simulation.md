@@ -10,6 +10,7 @@ This page describes how the simulated world behaves: AI pilots, the AI Tower, tr
 - [Delivery, A-CDM and slots](#delivery-a-cdm-and-slots)
 - [A-SMGCS](#a-smgcs)
 - [AI Ground](#ai-ground)
+- [Ground vehicles](#ground-vehicles)
 - [AI Tower](#ai-tower)
 - [Runway incursions and go-arounds](#runway-incursions-and-go-arounds)
 - [Collisions](#collisions)
@@ -179,7 +180,7 @@ Source: `src/core/delivery.ts`.
 | CTOT | 12 % of the departures; CTOT = ready time + 10 min taxi time + 5-25 min, rounded to the minute |
 | CTOT window | take-off from CTOT - 5 min to CTOT + 10 min. Tower lines a CTOT flight up only when it can be airborne inside the window (others go first). After CTOT + 10 min the flight gets a new CTOT 20-40 min later (-10) |
 
-**A-CDM pre-departure sequencer** (every 5 s, when A-CDM is on): every parked departure without start-up approval gets a **TSAT** - not before its ready time, not before CTOT - 10 min (taxi time), rounded up to the minute and at least **90 s** from every other TSAT. A TSAT once issued is kept while it is still valid. Start-ups already approved (and aircraft off-block) keep their slot. Crews call for start-up (on Delivery) or pushback (on Ground) 2 minutes before their TSAT. Without A-CDM there is no TSAT: crews call when ready.
+**A-CDM pre-departure sequencer** (every 5 s, when A-CDM is on): every parked departure without start-up approval gets a **TSAT** - not before its ready time, not before CTOT - 10 min (taxi time), rounded up to the minute and at least **90 s** from every other TSAT. A TSAT once issued is kept while it is still valid; flights that missed their TSAT (and new flights) only get a new one after that, in the earliest free slot - a late flight never bumps one that is on time. Start-ups already approved (and aircraft off-block) keep their slot. Crews call for start-up (on Delivery) or pushback (on Ground) 2 minutes before their TSAT. Without A-CDM there is no TSAT: crews call when ready.
 
 ## A-SMGCS
 
@@ -192,11 +193,29 @@ Source: `src/core/conflicts.ts`. Each service can be switched off in the [system
 | CATC | Every 5 s, the cleared routes (next **900 m**, sampled every 15 m) of all taxiing aircraft are compared; two routes that meet at more than **135 degrees** are a head-on conflict (only reported if one of the aircraft is on your frequency). The same check runs on the route in the command-line preview and in the *Taxi to* menu |
 | Routing | Route proposals in the menus; *Resolve conflict* options |
 
-**Resolve conflict options**: for each of the two aircraft (on your frequency), a route to its destination that avoids the other aircraft's next 150 m of route; it is checked to keep clear of the other aircraft's future route (from the second segment on). If there is no such route, a route with a turn-around (tug, 300-600 s) that stays clear of the other aircraft.
+**Resolve conflict options**: conflicts are aircraft blocking each other nose to nose, or blocking each other at any angle (for example a pushback into a taxiing aircraft's way), or routed head-on. An aircraft that is still pushing back gets `cancel pushback` first (the tug tows it back onto the stand). Otherwise, for each of the two aircraft (on your frequency), a route to its destination that avoids the other aircraft's next 150 m of route; it is checked to keep clear of the other aircraft's future route (from the second segment on). If there is no such route, a route with a turn-around (tug, 300-600 s) that stays clear of the other aircraft.
+
+## Ground vehicles
+
+Source: `src/core/vehicles.ts`.
+
+**Tugs** are drawn at the nose of the aircraft they move: during a pushback, during a tow, and while a stuck airliner waits for its turnaround (300-600 s).
+
+**Tows**: when the turnaround of an arrival on a stand that needs a pushback (a contact stand) ends, **15 %** of these aircraft are towed to a free remote (drive-through) stand instead of leaving the simulation. A tow is its own entity with the tug's callsign (`TUG1` ... `TUG9`, "Tug 1") on Ground frequency:
+
+| Step | Timing / behaviour |
+| ---- | ------------------ |
+| Tow request | 10-60 s after the turnaround: `request tow (operator) (type) from stand X to stand Y` (request `tow`, list `TOWS`) |
+| Approval | `tow approved [to stand ...] [via ...]`; the destination stand is reserved from the request on |
+| Pushback | From a pushback stand the tug first pushes the aircraft back (same pushback as a departure), then repositions in 10-20 s |
+| Towing | Along the route at no more than **10 kt**; the tug can turn the aircraft anywhere (no 180 degree restriction). Runway crossings, holds and give-way work as for aircraft |
+| On the stand | Counts as a completed tow (+5); the aircraft stays parked for 20-40 min, then it leaves the simulation |
+
+**Follow-me**: two cars (`FOLLOW-ME 1`, `FOLLOW-ME 2`) wait at the taxi node next to the fire station. After `follow the follow-me` the next free car drives to a point on the aircraft's route ahead of it (at **10 m/s**, about 36 km/h), and the aircraft waits until it is there (system message with the expected time). It then drives **35 m ahead of the aircraft's nose**, turns off when the aircraft is less than that distance plus 25 m from the end of its route (the stand entry) and drives back to its base. If no car is free, the aircraft waits for the next one. Crews ask for a follow-me after vacating: 20 % of business aviation crews (registration callsigns), 3 % of airline crews.
 
 ## AI Ground
 
-When you don't staff Ground (for example when you work Delivery alone), the AI Ground acts every 5 s, silently on its own frequency: it approves push and start for cleared departures at their ready time when no other aircraft taxis or pushes within 250 m (taxi-out stands: taxi), taxis them to the runway in use after start-up, hands them to Tower at the holding point, taxis arrivals to their allocated (or the first suitable free) stand, and resolves head-on conflicts after 40 s with the first *Resolve conflict* option.
+When you don't staff Ground (for example when you work Delivery alone), the AI Ground acts every 5 s, silently on its own frequency: it approves push and start for cleared departures at their ready time when no other aircraft taxis or pushes within 250 m (taxi-out stands: taxi), taxis them to the runway in use after start-up, hands them to Tower at the holding point, taxis arrivals to their allocated (or the first suitable free) stand (another one if the crew finds it occupied), approves tows when nothing taxis within 250 m, and resolves conflicts after 40 s with the first *Resolve conflict* option - once per conflict: not again while a tug is coming or within 120 s of the last resolution.
 
 ## AI Tower
 

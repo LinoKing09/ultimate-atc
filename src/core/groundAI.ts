@@ -18,6 +18,7 @@ export function updateGroundAI(sim: Simulation): void {
   for (const ac of sim.aircraft) {
     if (ac.frequency !== ground || !ac.onGround) continue;
     if (ac.category === 'departure') departure(sim, ac);
+    else if (ac.category === 'tow') tow(sim, ac);
     else arrival(sim, ac);
     resolve(sim, ac);
   }
@@ -45,6 +46,12 @@ function departure(sim: Simulation, ac: Aircraft): void {
   }
 }
 
+/** Tows: approved when no other traffic moves nearby. */
+function tow(sim: Simulation, ac: Aircraft): void {
+  if (ac.phase !== 'parked' || !ac.tow || sim.time < ac.readyAt || busyNearby(sim, ac, 250)) return;
+  aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand: ac.tow.to }, via: [], holdShort: [], cross: [], tow: true });
+}
+
 function arrival(sim: Simulation, ac: Aircraft): void {
   if (ac.phase !== 'taxi') return;
   const blocked = ac.standBlocked?.reported ? ac.standBlocked.stand : undefined;
@@ -59,13 +66,19 @@ function arrival(sim: Simulation, ac: Aircraft): void {
   if (stand) aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] });
 }
 
+/** Time after a resolution before the AI Ground resolves a conflict of the same aircraft again (seconds). */
+const RESOLVE_AGAIN_S = 120;
+
 /** Head-on: re-route one of the two (as a real Ground controller would). */
 function resolve(sim: Simulation, ac: Aircraft): void {
   if (!ac.blockedBy || ac.blockedSince === undefined || sim.time - ac.blockedSince < 40) return;
   const other = headOnPartner(sim, ac);
   if (!other) return;
+  // Resolve each conflict once: not again while a tug is coming or right after the last instruction.
+  const recent = (a: Aircraft) => (a.tugUntil ?? 0) > sim.time || sim.time - (a.resolvedAt ?? -Infinity) < RESOLVE_AGAIN_S;
+  if (recent(ac) || recent(other)) return;
   const opt = resolveOptions(sim, ac, other)[0];
   if (!opt) return;
   const cmd = parseTransmission(opt.instruction, { callsigns: [], taxiways: sim.airport.taxiwayNames }).commands[0];
-  if (cmd) aiInstruct(sim, opt.aircraft, cmd);
+  if (cmd && aiInstruct(sim, opt.aircraft, cmd)) ac.resolvedAt = other.resolvedAt = sim.time;
 }

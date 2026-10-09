@@ -16,7 +16,7 @@
  *   approach is a localizer (non-precision) approach, without the localizer
  *   an RNP (satellite) approach.
  */
-export type SystemId = 'surveillance' | 'rmca' | 'catc' | 'routing' | 'acdm' | 'dcl' | 'loc' | 'gp';
+export type SystemId = 'surveillance' | 'vehicles' | 'rmca' | 'catc' | 'routing' | 'acdm' | 'dcl' | 'loc' | 'gp';
 
 export interface SystemInfo {
   id: SystemId;
@@ -35,6 +35,13 @@ export const SYSTEMS: SystemInfo[] = [
     group: 'A-SMGCS',
     description: 'Surface movement radar and multilateration: every aircraft on the scope with its identity (data tag).',
     whenOff: 'Targets lose their identity: no data tags on the scope. Work with the lists, the out-of-the-window view and position reports.',
+  },
+  {
+    id: 'vehicles',
+    name: 'Vehicle tracking (ADS-B squitter)',
+    group: 'A-SMGCS',
+    description: 'Airside vehicles carry a squitter beacon (Stuttgart ordered 135 of them in 2020): follow-me cars and tows are shown with their callsign.',
+    whenOff: 'Vehicles and tows are only unlabelled radar targets (no callsign).',
   },
   {
     id: 'rmca',

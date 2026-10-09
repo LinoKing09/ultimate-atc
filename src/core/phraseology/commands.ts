@@ -18,13 +18,16 @@ export type Command =
   | { type: 'cancelPushback' }
   | { type: 'stopPushback' }
   | { type: 'startup' }
-  | { type: 'taxi'; destination?: TaxiDestination; via: string[]; holdShort: HoldShortTarget[]; cross: string[] }
+  /** Taxi instruction; `tow` for a tow ("tow approved via N, W"). */
+  | { type: 'taxi'; destination?: TaxiDestination; via: string[]; holdShort: HoldShortTarget[]; cross: string[]; tow?: boolean }
   | { type: 'holdShort'; target: HoldShortTarget }
   | { type: 'cross'; runway: string }
   | { type: 'holdPosition' }
   | { type: 'continue' }
   | { type: 'giveWay'; callsign: string }
   | { type: 'follow'; callsign: string }
+  /** "Follow the follow-me": a follow-me car leads the aircraft along its route. */
+  | { type: 'followMe' }
   | { type: 'handoff'; station?: StationType; frequency?: string }
   | { type: 'standby' }
   /** Queue position: "number 2 for pushback". */

@@ -57,7 +57,7 @@ export function requestLabel(ac: Aircraft): string {
     case 'taxi':
       return 'TAXI';
     case 'taxiIn':
-      return 'TXIN';
+      return ac.wantsFollowMe ? 'FLWM' : 'TXIN';
     case 'handoff':
       return 'RDY';
     case 'crossing':
@@ -72,6 +72,8 @@ export function requestLabel(ac: Aircraft): string {
       return 'STUP';
     case 'frequency':
       return 'FREQ';
+    case 'tow':
+      return 'TOW';
     default:
       return '';
   }

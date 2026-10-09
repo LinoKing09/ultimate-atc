@@ -227,16 +227,22 @@ export function updateSequencer(sim: Simulation): void {
     .filter((a) => a.category === 'departure' && a.tsat !== undefined && (a.startupApproved || a.phase !== 'parked'))
     .map((a) => a.tsat!);
   const free = (t: number) => !taken.some((x) => Math.abs(x - t) < TSAT_SPACING_S);
-  // Flights keep an issued TSAT if it is still valid; the others get the earliest free slot.
-  waiting.sort((x, y) => (x.a.tsat ?? x.earliest) - (y.a.tsat ?? y.earliest));
+  // Flights keep an issued TSAT while it is still valid. Only then do the others (new flights, or
+  // flights that missed their TSAT) get the earliest free slot - a late flight never bumps one on time.
+  const slotStart = (w: (typeof waiting)[number]) => Math.ceil(Math.max(w.earliest, sim.time) / 60) * 60;
+  const keep: typeof waiting = [];
+  const reslot: typeof waiting = [];
   for (const w of waiting) {
-    const earliest = Math.ceil(Math.max(w.earliest, sim.time) / 60) * 60;
-    let t: number;
-    if (w.a.tsat !== undefined && w.a.tsat >= earliest && free(w.a.tsat)) t = w.a.tsat;
-    else {
-      t = earliest;
-      while (!free(t)) t += 60;
-    }
+    const t = w.a.tsat;
+    if (t !== undefined && t >= slotStart(w) && free(t)) {
+      keep.push(w);
+      taken.push(t);
+    } else reslot.push(w);
+  }
+  reslot.sort((x, y) => slotStart(x) - slotStart(y));
+  for (const w of reslot) {
+    let t = slotStart(w);
+    while (!free(t)) t += 60;
     w.a.tsat = t;
     taken.push(t);
   }

@@ -204,6 +204,8 @@ const REFERENCE: [string, string][] = [
   ['number 2 for pushback | taxi | departure', 'Queue position; the pilot waits without reminding you.'],
   ['expect pushback in 5 minutes', 'Expected delay; the pilot waits that long.'],
   ['contact tower [118.805]', 'Hand the aircraft over to Tower (do this at or before the holding point).'],
+  ['follow the follow-me [to stand 14]', 'A follow-me car comes and leads the aircraft (crews unfamiliar with the airport ask for one).'],
+  ['Tug 5, tow approved [to stand 45] [via M, N]', 'Approve a tow request (a tug moving an aircraft to another stand).'],
   ['standby', 'Acknowledge a request; the pilot waits two minutes before calling again.'],
   ['expedite taxi', 'Taxi a bit faster.'],
   ['say again', 'The pilot repeats the last transmission.'],

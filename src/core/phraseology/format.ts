@@ -47,7 +47,8 @@ export function formatCommand(c: Command): string {
     case 'expect':
       return `expect ${c.what} in ${c.minutes} minute${c.minutes === 1 ? '' : 's'}`;
     case 'taxi': {
-      let s = c.destination && c.destination.kind !== 'holdShort' ? `taxi to ${formatDestination(c.destination)}` : 'taxi';
+      const verb = c.tow ? 'tow approved' : 'taxi';
+      let s = c.destination && c.destination.kind !== 'holdShort' ? `${verb} to ${formatDestination(c.destination)}` : verb;
       if (c.via.length) s += ` via ${c.via.join(', ')}`;
       for (const h of c.holdShort) s += `, ${formatHoldShort(h)}`;
       for (const r of c.cross) s += `, cross runway ${r}`;
@@ -65,6 +66,8 @@ export function formatCommand(c: Command): string {
       return `give way to ${telephonyCallsign(c.callsign)}`;
     case 'follow':
       return `follow ${telephonyCallsign(c.callsign)}`;
+    case 'followMe':
+      return 'follow the follow-me';
     case 'handoff':
       if (!c.station && !c.frequency) return 'frequency change approved';
       return ['contact', c.station ? STATION_WORD[c.station] : '', c.frequency ?? ''].filter(Boolean).join(' ');

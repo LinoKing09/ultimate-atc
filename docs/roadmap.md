@@ -40,6 +40,7 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 - **done** - Combined positions in the Connect dialog (Delivery + Ground); AI Ground when only Delivery is staffed
 - **done** - Systems window: A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL - status and on/off
 - **done** - Head-on conflicts: CATC warning before transmitting, *Resolve conflict* menu (turn off via a junction, or a tug taking 5-10 minutes)
+- **done** (0.6.1) - Ground vehicles: tugs on the scope, tow requests, follow-me on request; vehicle tracking and ILS in the systems window; calmer session start
 
 ## v0.5 - Foundations
 
@@ -90,7 +91,7 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 - planned - EDDS details: de-icing pads DP1-DP4, holding bays P1/P2, GA apron, A-stands (9A, 24A ...)
 - planned - Real `follow` behaviour (follow-the-leader)
 - planned - Stand allocation per airline and terminal (Schengen / non-Schengen), contact/remote stands
-- planned - More special events (bird strike, blocked taxiway, follow-me, towing), de-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short; squawk read-back errors are done since 0.6)
+- planned - More special events (bird strike, blocked taxiway; follow-me and tows are done since 0.6.1), de-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short; squawk read-back errors are done since 0.6)
 - planned - Low visibility procedures (CAT II/III holding points, larger spacing)
 - planned - Wind that changes during the session (METAR updates)
 - planned - Scenario files (fixed traffic for training) and a tutorial mode

@@ -12,7 +12,7 @@ import type { RadioMessage } from '../core/radio';
 import type { Simulation } from '../core/simulation';
 import { REPO_URL, showAtisEditor, showHelp } from './dialogs';
 import { formatTime, h } from './dom';
-import { arrivalList, departureList, type TrafficList } from './lists';
+import { arrivalList, departureList, vehicleList, type TrafficList } from './lists';
 import { PopupMenu, type MenuItem } from './menu';
 import { Scope, type TagItem } from './scope';
 import { CommandInput } from './commandInput';
@@ -152,7 +152,7 @@ export class App {
       },
       menu: (cs: string, x: number, y: number) => this.openMenu(cs, x, y),
     };
-    this.lists = [departureList(listCb), arrivalList(listCb)];
+    this.lists = [departureList(listCb), arrivalList(listCb), vehicleList(listCb)];
     for (const l of this.lists) this.main.append(l.el);
 
     // Mobile mode: zoom buttons and a quick-action bar for the selected aircraft.
@@ -390,7 +390,7 @@ export class App {
       return;
     }
     const mine = this.sim.isOnMyFrequency(ac);
-    const key = `${ac.callsign}|${ac.phase}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${headOnPartner(this.sim, ac)?.callsign ?? ''}`;
+    const key = `${ac.callsign}|${ac.phase}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${headOnPartner(this.sim, ac)?.callsign ?? ''}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
     const btn = (text: string, fn: (b: HTMLButtonElement) => void) => {
@@ -413,15 +413,18 @@ export class App {
       const ground = this.sim.airport.station(this.sim.stationFor('ground'));
       if (ac.cleared && ground) items.push(btn('GND', () => this.say(ac, `contact ground ${ground.frequency}`)));
     } else if (mine) {
-      if (ac.phase === 'parked' && ac.category === 'departure') {
+      if (ac.phase === 'parked' && ac.category === 'tow') {
+        items.push(btn('TOW', () => this.say(ac, 'tow approved')));
+      } else if (ac.phase === 'parked' && ac.category === 'departure') {
         const stand = this.sim.airport.stand(ac.stand ?? '');
         if (stand?.pushback === false) items.push(btn('TAXI', (b) => this.menu.open(`${ac.callsign} - taxi to`, this.taxiDestinations(ac), ...at(b))));
         else items.push(btn('PUSH', () => this.say(ac, 'push and start approved')));
       } else if (ac.onGround && ['pushback', 'startup', 'taxi', 'holding'].includes(ac.phase)) {
-        const arr = ac.category === 'arrival' || ac.returnToStand;
+        const arr = ac.category === 'arrival' || ac.returnToStand || ac.category === 'tow';
         items.push(btn('TAXI', (b) => this.menu.open(arr ? `${ac.callsign} - taxi to stand` : `${ac.callsign} - taxi to`, arr ? this.standDestinations(ac) : this.taxiDestinations(ac), ...at(b))));
         items.push(btn('HOLD', () => this.say(ac, 'hold position')));
         const partner = headOnPartner(this.sim, ac);
+        if (ac.wantsFollowMe) items.push(btn('FLWM', () => this.say(ac, 'follow the follow-me')));
         if (partner) items.push(btn('RESOLVE', (b) => this.menu.open(`${ac.callsign} - resolve conflict`, this.resolveItem(ac, partner).submenu!(), ...at(b))));
         items.push(btn('CONT', () => this.say(ac, 'continue taxi')));
         const tower = this.sim.airport.station(this.sim.stationFor('tower'));
@@ -745,7 +748,18 @@ export class App {
       return items;
     }
 
-    if (ac.phase === 'parked' && ac.category === 'departure') {
+    if (ac.phase === 'parked' && ac.category === 'tow') {
+      const to = ac.tow?.to ?? '';
+      items.push({ label: `Tow approved to stand ${to}`, hint: 'as requested', action: () => this.say(ac, 'tow approved') });
+      items.push({
+        label: 'Tow approved to stand',
+        submenu: () =>
+          sim
+            .freeStands(ac.type.wingspanM, undefined, ac)
+            .slice(0, 16)
+            .map((s) => ({ label: `Stand ${s.id}`, action: () => this.say(ac, `tow approved to stand ${s.id}`) })),
+      });
+    } else if (ac.phase === 'parked' && ac.category === 'departure') {
       const facings = this.pushFacings(ac);
       const pushSub = (startup: boolean) => (): MenuItem[] => [
         { label: 'Pilot decides', action: () => this.say(ac, startup ? 'push and start approved' : 'pushback approved') },
@@ -764,7 +778,7 @@ export class App {
       items.push({ label: 'Start-up approved', action: () => this.say(ac, 'start-up approved') });
       items.push(this.ableItem(ac));
     } else if (ac.onGround && ['pushback', 'startup', 'taxi', 'holding'].includes(ac.phase)) {
-      if (ac.category === 'arrival' || ac.returnToStand) {
+      if (ac.category === 'arrival' || ac.returnToStand || ac.category === 'tow') {
         items.push({ label: 'Taxi to stand', submenu: () => this.standDestinations(ac) });
       } else {
         items.push({ label: 'Taxi to', submenu: () => this.taxiDestinations(ac) });
@@ -781,6 +795,7 @@ export class App {
       items.push({ label: `Cross runway ${rwy}`, disabled: !rwyStop, action: () => this.say(ac, `cross runway ${rwy}`) });
       const partner = headOnPartner(sim, ac);
       if (partner) items.push(this.resolveItem(ac, partner));
+      if (ac.category !== 'tow') items.push(this.followMeItem(ac));
       const near = sim.aircraft
         .filter((o) => o !== ac && o.onGround && o.phase !== 'parked' && o.phase !== 'arrived' && distance(o.pos, ac.pos) < 800)
         .sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos))
@@ -805,7 +820,7 @@ export class App {
       items.push({ label: 'Cancel pushback', action: () => this.say(ac, 'cancel pushback') });
     }
     if (ac.request) {
-      const what = ac.request === 'pushback' ? 'pushback' : ac.request === 'handoff' ? 'departure' : 'taxi';
+      const what = ac.request === 'pushback' ? 'pushback' : ac.request === 'handoff' ? 'departure' : ac.request === 'tow' ? 'tow' : 'taxi';
       items.push({
         label: `Number ... for ${what}`,
         submenu: () => [1, 2, 3, 4, 5].map((n) => ({ label: `Number ${n}`, action: () => this.say(ac, `number ${n} for ${what}`) })),
@@ -915,15 +930,26 @@ export class App {
         if (!options.length) return [{ label: 'No way out found - hold both and re-route by hand', disabled: true }];
         return options.map((o) => ({
           label: `${o.aircraft.callsign}: ${o.tug ? 'tug turnaround, then ' : ''}${o.instruction.replace(/^taxi to /, 'to ')}`,
-          hint: o.tug ? 'tug: 5-10 min' : `${o.other.callsign} waits`,
+          hint: o.tug ? 'tug: 5-10 min' : o.route ? `${o.other.callsign} waits` : 'towed back onto the stand',
           action: () => this.say(o.aircraft, o.instruction),
           onHover: (on: boolean) => {
             this.menuPreview = on;
-            this.scope.preview = on ? { points: routePoints(o.aircraft, o.route.nodes.map((n) => n.pos), o.route.startPosition), ok: true } : undefined;
+            this.scope.preview = on && o.route ? { points: routePoints(o.aircraft, o.route.nodes.map((n) => n.pos), o.route.startPosition), ok: true } : undefined;
             if (!on) this.updatePreview();
           },
         }));
       },
+    };
+  }
+
+  /** "Follow the follow-me" - to the allocated stand if the aircraft has no route yet. */
+  private followMeItem(ac: Aircraft): MenuItem {
+    const toStand = !ac.route && ac.assignedStand;
+    return {
+      label: 'Follow the follow-me',
+      hint: ac.followMe ? 'ordered' : ac.wantsFollowMe ? 'requested' : toStand ? `to stand ${ac.assignedStand}` : undefined,
+      disabled: !!ac.followMe,
+      action: () => this.say(ac, 'follow the follow-me'),
     };
   }
 

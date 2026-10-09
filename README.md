@@ -2,7 +2,7 @@
 
 **Ultimate ATC** is an air traffic control simulator that runs in your browser. It aims to come as close as possible to [EuroScope](https://www.euroscope.hu/), the radar client used on the [VATSIM](https://vatsim.net/) network. You log in to a controller position at a real airport, and AI pilots respond to your instructions in ICAO phraseology, whether you type them or speak them.
 
-> **Status: early development (v0.6).** Two positions are playable at **Stuttgart (EDDS)**: **Delivery** and **Ground**, alone or combined. The code is built so that more positions (Tower, Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
+> **Status: early development (v0.6.1).** Two positions are playable at **Stuttgart (EDDS)**: **Delivery** and **Ground**, alone or combined. The code is built so that more positions (Tower, Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
 
 ![Ultimate ATC - EDDS Ground overview](docs/images/screenshot-overview.png)
 
@@ -12,6 +12,7 @@
 - **Logging in like on VATSIM:** choose the airport, position(s) and traffic density. You then work as `EDDS_GND` on 118.605 "Stuttgart Ground", `EDDS_DEL` on 121.915 "Stuttgart Delivery", or both (**combined positions**). Positions you don't staff are run by the simulator.
 - **Clearance Delivery:** IFR clearances (`cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312`) with readbacks to check (crews sometimes read back a wrong squawk), start-up at the **A-CDM TSAT**, **CTOT** slots, and **datalink clearances (DCL)** sent from the list.
 - **Systems window** (`SYSTEMS` / F3): status of the airport's systems with on/off switches - **A-SMGCS** (surveillance, runway monitoring RMCA, conflicting-clearance alerts CATC, routing service), **A-CDM**, **DCL** and the **ILS** (localizer, glide path). Switch one off to train working without it. See [docs/systems.md](docs/systems.md).
+- **Ground vehicles:** tugs are shown at the nose during pushbacks and tows; tug drivers ask Ground for **tows** to remote stands (`request tow ... from stand 14 to stand 45` - `tow approved via ...`); crews can ask for a **follow-me**, a car that drives out and leads them to the stand. Vehicle tracking (ADS-B squitter) in the systems window decides whether vehicles get a label.
 - **Head-on conflicts handled like in reality:** the A-SMGCS warns before you transmit a route that meets other traffic head-on, and *Resolve conflict* offers the way out: turn one aircraft off via a junction, or call a tug (5-10 minutes).
 - **ATIS editor:** set the runway in use, wind, QNH and information letter during the session. A runway change re-plans departures and arrivals.
 - **ICAO phraseology parser:** type `DLH5AB taxi to holding point A via L2, S` or `Lufthansa five alpha bravo, push and start approved, facing east`. It also understands:

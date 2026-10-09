@@ -165,6 +165,17 @@ EWG7TK, when clear of the Boeing, taxi to holding point A via L2, S
 
 Words after the callsign ("from the left", "passing left to right") are ignored. The callsign of the traffic can be in any form listed under [Callsigns](#callsigns).
 
+### Follow-me and tows
+
+| You say | Effect |
+| ------- | ------ |
+| `follow the follow-me` / `follow follow-me 1` | A follow-me car drives from its base to the aircraft and leads it along its route (ICAO: FOLLOW (description of vehicle)). Without a route of its own (just vacated) the aircraft is led to its allocated stand. |
+| `follow the follow-me to stand 14 [via N, L2]` / `taxi to stand 14 via N, follow the follow-me` | The same with a destination |
+| `Tug 5, tow approved [to stand 45] [via M, N]` | Approves a tow (ICAO PANS-ATM: TOW APPROVED VIA (routing)). Without a destination the tug tows to the stand it asked for. A tug on a stand that needs a pushback pushes the aircraft off first. |
+| `Tug 5, hold position` / `continue` / `hold short of ...` / `cross runway 25` / `give way to ...` | As for aircraft |
+
+Tugs are addressed by their callsign: `Tug 5` (TUG5). They refuse `pushback approved` (`we are a tow, request tow approval`) and hand-offs (`we stay on your frequency until the tow is complete`).
+
 ### Clearance delivery
 
 | You say | Effect |
@@ -227,6 +238,8 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | `continue taxi`                                     | `Continue taxi, Lufthansa 5AB`                                      |
 | `give way to EWG7TK`                                | `Give way to Eurowings 7TK, Lufthansa 5AB`                          |
 | `contact tower`                                     | `Tower 118.805, goodbye, Lufthansa 5AB`                             |
+| `tow approved` (to a tug)                           | `Tow approved to stand 45, Tug 5`                                   |
+| `follow the follow-me` (just vacated)               | `Follow the follow-me to stand 14, DCEEO`                           |
 | `cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312` | `Cleared to Frankfurt, KRH2W departure, climb 5000 feet, squawk 2312[, CTOT 1435], Lufthansa 5AB` - now and then with a **wrong squawk**: correct it |
 | IFR clearance with a missing or wrong part          | `Confirm KRH2E departure, information R says runway 25 in use, ...` / `Confirm clearance limit, our destination is Frankfurt` / `Request squawk` / `Confirm initial climb` |
 | `squawk 2312`                                       | `Squawk 2312, Lufthansa 5AB`                                        |
@@ -252,7 +265,8 @@ Pilots on your frequency call on their own:
 | After start-up approval (Delivery)                      | `Stuttgart Delivery, Lufthansa 5AB, start-up approved, request frequency for pushback`  |
 | Departure ready (first contact)                         | `Stuttgart Ground, Lufthansa 5AB, stand 14, information E, request pushback` (sometimes `request push and start`) |
 | Pushback and start-up complete                          | `Lufthansa 5AB, ready for taxi`                                                        |
-| Arrival has vacated the runway (first contact)          | `Stuttgart Ground, Eurowings 7TK, vacated runway 25 via E`                             |
+| Arrival has vacated the runway (first contact)          | `Stuttgart Ground, Eurowings 7TK, vacated runway 25 via E` (crews unfamiliar with the airport add `, request follow-me to the stand`) |
+| Tug ready to tow an aircraft to a remote stand          | `Stuttgart Ground, Tug 5, request tow Eurowings A320 from stand 14 to stand 45` (ICAO: REQUEST TOW (company) (type) FROM (location) TO (location)) |
 | Departure at the holding point and still with you       | `Lufthansa 5AB, holding point A, ready for departure`                                 |
 | Runway holding point on the route, no crossing clearance | `Turkish 1734, holding short runway 25 at W`                                        |
 | Head-on with other traffic for over a minute            | `Lufthansa 5AB, we have opposite traffic ahead, EWG7TK, request instructions`          |

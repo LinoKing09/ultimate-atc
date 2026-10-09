@@ -157,7 +157,8 @@ export interface ResolveOption {
   other: Aircraft;
   /** The instruction to transmit (without callsign). */
   instruction: string;
-  route: TaxiRoute;
+  /** The new route (none for "cancel pushback"). */
+  route?: TaxiRoute;
   /** True if the aircraft has to be turned around by a tug first (several minutes). */
   tug: boolean;
 }
@@ -175,6 +176,11 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
     [a, b],
     [b, a],
   ]) {
+    // An aircraft pushing back into the other's way: stop and tow it back onto the stand.
+    if (x.phase === 'pushback' && !x.towingIn) {
+      out.unshift({ aircraft: x, other: y, instruction: 'cancel pushback', tug: false });
+      continue;
+    }
     const dest = intendedDestination(sim, x);
     const node = dest && destinationNode(sim, dest);
     if (!dest || !node || x.phase === 'parked') continue;
@@ -226,11 +232,15 @@ function distanceToSegment(p: Vec2, a: Vec2, b: Vec2): number {
   return Math.hypot(p.x - (a.x + dx * t), p.y - (a.y + dy * t));
 }
 
-/** The aircraft this one is in a head-on conflict with (blocked nose to nose, or routed head-on). */
+/**
+ * The aircraft this one is in a head-on conflict with: blocked nose to nose,
+ * blocking each other (e.g. a pushback into a taxiing aircraft's way), or
+ * routed head-on.
+ */
 export function headOnPartner(sim: Simulation, ac: Aircraft): Aircraft | undefined {
   if (ac.blockedBy) {
     const o = sim.find(ac.blockedBy);
-    if (o && Math.abs(headingDiff(ac.heading, o.heading)) > 120) return o;
+    if (o && (Math.abs(headingDiff(ac.heading, o.heading)) > 120 || o.blockedBy === ac.callsign)) return o;
   }
   for (const c of sim.routeConflicts.values()) {
     if (c.a === ac) return c.b;

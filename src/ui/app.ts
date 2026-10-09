@@ -847,7 +847,7 @@ export class App {
   /** Follow-me car: the vehicle phraseology ("proceed", "hold position", "continue", "return to base"). */
   private vehicleItems(v: Vehicle): MenuItem[] {
     const center: MenuItem = { label: 'Centre view', action: () => this.scope.centerOn(v.pos) };
-    if (!this.sim.userControls(this.sim.stationFor('ground'))) return [{ label: 'On Ground frequency - not yours', disabled: true }, { divider: true, label: '' }, center];
+    if (!this.sim.userControls(this.sim.stationFor('ground'))) return [{ label: `On ${this.sim.stationFor('ground')} frequency`, disabled: true }, { divider: true, label: '' }, center];
     const items: MenuItem[] = [];
     if (v.aircraft && (v.state === 'assigned' || v.state === 'toAircraft')) {
       items.push({ label: `Proceed to ${v.aircraft}`, hint: v.request === 'proceed' ? 'requested' : undefined, action: () => this.say(v, `proceed to ${v.aircraft}`) });
@@ -896,7 +896,7 @@ export class App {
     const resetTag: MenuItem = { label: 'Reset tag position', action: () => (ac.tagOffset = undefined) };
 
     if (!sim.isOnMyFrequency(ac)) {
-      items.push({ label: `On ${ac.frequency} frequency - not yours`, disabled: true }, { divider: true, label: '' }, center, resetTag);
+      items.push({ label: `On ${ac.frequency} frequency`, disabled: true }, { divider: true, label: '' }, center, resetTag);
       return items;
     }
 
@@ -916,7 +916,7 @@ export class App {
 
     if (ac.phase === 'parked' && ac.category === 'tow') {
       const to = ac.tow?.to ?? '';
-      items.push({ label: `Tow approved to stand ${to}`, hint: 'as requested', action: () => this.say(ac, 'tow approved') });
+      items.push({ label: `Tow approved to stand ${to}`, action: () => this.say(ac, 'tow approved') });
       items.push({
         label: 'Tow approved to stand',
         submenu: () =>
@@ -1032,14 +1032,14 @@ export class App {
       });
       items.push({
         label: `Cleared for immediate take-off`,
-        hint: slotOpens !== undefined ? `CTOT: not before ${hhmm(sim, slotOpens)}!` : 'no delay - into a tight gap',
+        hint: slotOpens !== undefined ? `CTOT: not before ${hhmm(sim, slotOpens)}!` : undefined,
         disabled: ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint',
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for immediate take-off`),
       });
       if (ac.takeoffCleared || ac.lineUpCleared) items.push({ label: 'Cancel take-off', action: () => this.say(ac, 'hold position, cancel take-off') });
       items.push({ label: 'Hold position', action: () => this.say(ac, 'hold position') });
     }
-    if (ac.phase === 'takeoff') items.push({ label: 'Stop immediately', hint: 'below 80 kt', action: () => this.say(ac, 'stop immediately') });
+    if (ac.phase === 'takeoff') items.push({ label: 'Stop immediately', action: () => this.say(ac, 'stop immediately') });
     if (ac.phase === 'climb' && radar) items.push({ label: `Contact ${radar.name} ${radar.frequency}`, hint: ac.request === 'radar' ? 'requested' : undefined, action: () => this.say(ac, `contact radar ${radar.frequency}`) });
     if (ac.phase === 'approach') {
       items.push({
@@ -1051,7 +1051,6 @@ export class App {
       items.push({ label: 'Continue approach', disabled: !!ac.landingCleared, action: () => this.say(ac, 'continue approach') });
       items.push({
         label: 'Continue, expect late landing clearance',
-        hint: 'runway not free yet',
         disabled: !!ac.landingCleared,
         action: () => this.say(ac, 'continue approach, expect late landing clearance'),
       });
@@ -1126,7 +1125,7 @@ export class App {
       label: 'Squawk',
       disabled: !assigned,
       submenu: () => [
-        { label: `Negative, squawk ${assigned}`, hint: 'correct a wrong readback', action: () => this.say(ac, `negative, squawk ${assigned}`) },
+        { label: `Negative, squawk ${assigned}`, action: () => this.say(ac, `negative, squawk ${assigned}`) },
         { label: 'New code', hint: allocateSquawk(sim), action: () => this.say(ac, `squawk ${allocateSquawk(sim)}`) },
       ],
     });
@@ -1137,7 +1136,7 @@ export class App {
       disabled: !ac.cleared || ac.startupApproved || ac.phase !== 'parked',
       action: () => this.say(ac, 'start-up approved'),
     });
-    if (ac.ctot !== undefined) items.push({ label: `CTOT ${hhmm(sim, ac.ctot)}`, hint: 'slot (-5/+10 min)', action: () => this.say(ac, `CTOT ${hhmm(sim, ac.ctot!)}`) });
+    if (ac.ctot !== undefined) items.push({ label: `CTOT ${hhmm(sim, ac.ctot)}`, action: () => this.say(ac, `CTOT ${hhmm(sim, ac.ctot!)}`) });
     const ground = sim.airport.station(sim.stationFor('ground'));
     if (ground) {
       items.push({ divider: true, label: '' });
@@ -1172,9 +1171,9 @@ export class App {
     return {
       label: `Resolve conflict with ${other.callsign}`,
       submenu: () => {
-        if (!this.sim.systemOn('routing')) return [{ label: 'No route proposals (routing service off)', disabled: true }];
+        if (!this.sim.systemOn('routing')) return [{ label: 'Routing service off', disabled: true }];
         const options = resolveOptions(this.sim, ac, other).filter((o) => this.sim.isOnMyFrequency(o.aircraft));
-        if (!options.length) return [{ label: 'No way out found - hold both and re-route by hand', disabled: true }];
+        if (!options.length) return [{ label: 'No way out found', disabled: true }];
         return options.map((o) => ({
           label: `${o.aircraft.callsign}: ${o.tug ? 'tug turnaround, then ' : ''}${o.instruction.replace(/^taxi to /, 'to ')}`,
           hint: `${o.tug ? 'tug: 5-10 min' : o.route ? `${o.other.callsign} waits` : 'towed back onto the stand'}${o.crossesRunway ? ', crosses runway' : ''}`,

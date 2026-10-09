@@ -4,7 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **ILS in the systems window**: localizer (LOC) and glide path (GP) of the runway in use. Without the glide path arrivals fly localizer approaches, without the localizer RNP approaches; both are spaced at least 5 NM on final. The ATIS names the approach procedure (`ILS approach runway 25`, `RNP approach runway 25, ILS runway 25 out of service`), and the arrivals list has a new `APCH` column.
+- **Position colours** in the Connect dialog (once selected): Delivery dark blue, Ground green (Tower red when it comes). A purple **COMBINED POSITIONS** banner shows when several positions are selected; the toolbar shows your stations in their colours with `COMBINED`.
+
 ### Changed
+
+- **Calmer session start**: the initial departures no longer all call at once. Their first calls (clearance request on Delivery, pushback on Ground) are at least 90 s apart, and their ready times get denser towards the end of the first 25 minutes, so the traffic builds up gradually.
 
 - **Occupied stands are noticed where it is realistic**: crews no longer answer a taxi instruction with "stand 14 is occupied" - they can't know that on the runway exit. They accept it, see the stand when taxiing in, stop about 150 m before it and ask for another stand (`stand 14 is occupied, request another stand`); an aircraft just pushing back from it is waited for. Crews still refuse a stand that is too small for their aircraft (they know that from their stand charts). The command-line preview warns you in orange when the stand you type is taken; the AI Ground re-allocates blocked arrivals.
 

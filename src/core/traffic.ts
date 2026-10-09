@@ -2,8 +2,9 @@ import { aircraftType, type AircraftType } from '../data/aircraftTypes';
 import { AIRLINES, type Airline } from '../data/airlines';
 import type { Stand } from './airport/airport';
 import { createAircraft, type Aircraft, type FlightPlan } from './aircraft';
-import { prepareDeparture } from './delivery';
+import { CLEARANCE_LEAD_S, prepareDeparture } from './delivery';
 import type { Density, Simulation } from './simulation';
+import { NON_PRECISION_SPACING_NM } from './systems';
 
 /** Movements per hour for each traffic density. */
 const RATES: Record<Density, { departures: number; arrivals: number }> = {
@@ -68,12 +69,16 @@ export class TrafficGenerator {
   populateInitial(): void {
     const sim = this.sim;
     const r = this.rates;
-    // Departures already at their stands, ready times spread over the first ~25 minutes.
+    // Departures already at their stands, ready times spread over the first ~25 minutes. The square root
+    // makes them denser towards the end, so the workload builds up instead of starting with a rush.
     const count = Math.round(r.departures * 0.55);
+    const initial: Aircraft[] = [];
     for (let i = 0; i < count; i++) {
-      const readyIn = i === 0 ? sim.rng.range(5, 20) : sim.rng.range(30, 25 * 60);
-      this.spawnDeparture(readyIn);
+      const readyIn = i === 0 ? sim.rng.range(5, 20) : 30 + Math.sqrt(sim.rng.next()) * (25 * 60 - 30);
+      const ac = this.spawnDeparture(readyIn);
+      if (ac) initial.push(ac);
     }
+    staggerInitialCalls(sim, initial);
     // A couple of arrivals already inbound.
     this.spawnArrival(sim.rng.range(4, 6));
     this.nextArrivalAt = sim.time + sim.rng.range(60, 180);
@@ -112,7 +117,9 @@ export class TrafficGenerator {
     const wake = last ? wakeSpacingNm(last.type.wake, followerWake) : 3;
     const demand = sim.tower.departureDemand();
     const gap = demand >= 4 ? 8 : demand >= 1 ? 6 : 4;
-    return Math.max(wake, gap);
+    // Non-precision approaches (localizer only, RNP) get more room on final.
+    const approach = sim.approachType === 'ILS' ? 0 : NON_PRECISION_SPACING_NM;
+    return Math.max(wake, gap, approach);
   }
 
   private lastArrivalOnFinal(): Aircraft | undefined {
@@ -296,5 +303,34 @@ export class TrafficGenerator {
     sim.tower.setupApproach(ac, distanceNm);
     sim.aircraft.push(ac);
     return ac;
+  }
+}
+
+/** Minimum time between the first calls of the initial departures at session start (seconds). */
+const INITIAL_CALL_SPACING_S = 90;
+/** The first initial departure calls this long after the session starts. */
+const INITIAL_FIRST_CALL_S = 15;
+/** Time a crew needs between its clearance and being ready for start-up / pushback (seconds). */
+const CLEARANCE_TO_READY_S = 4 * 60;
+
+/**
+ * At session start the initial departures would all ask for their clearance
+ * (or pushback) at once, because many are due within the first minutes. Their
+ * first calls are staggered: at least 90 s apart, in the order of their ready
+ * times; ready times move back where needed.
+ */
+function staggerInitialCalls(sim: Simulation, initial: Aircraft[]): void {
+  const delivery = sim.stationFor('delivery');
+  const onDelivery = !!sim.airport.station(delivery) && sim.userControls(delivery);
+  let next = sim.time + INITIAL_FIRST_CALL_S;
+  for (const ac of [...initial].sort((a, b) => a.readyAt - b.readyAt)) {
+    if (onDelivery) {
+      ac.clearanceAt = Math.max(ac.readyAt - CLEARANCE_LEAD_S, next);
+      ac.readyAt = Math.max(ac.readyAt, ac.clearanceAt + CLEARANCE_TO_READY_S);
+      next = ac.clearanceAt + INITIAL_CALL_SPACING_S;
+    } else {
+      ac.readyAt = Math.max(ac.readyAt, next);
+      next = ac.readyAt + INITIAL_CALL_SPACING_S;
+    }
   }
 }

@@ -11,8 +11,12 @@
  *   sequencer: TOBT, TSAT, and the CTOTs of the Network Manager. Stuttgart has
  *   been a full A-CDM airport since November 2014.
  * - DCL: departure clearance by datalink instead of voice.
+ * - ILS (instrument landing system) of the runway: localizer (lateral
+ *   guidance) and glide path (vertical guidance). Without the glide path the
+ *   approach is a localizer (non-precision) approach, without the localizer
+ *   an RNP (satellite) approach.
  */
-export type SystemId = 'surveillance' | 'rmca' | 'catc' | 'routing' | 'acdm' | 'dcl';
+export type SystemId = 'surveillance' | 'rmca' | 'catc' | 'routing' | 'acdm' | 'dcl' | 'loc' | 'gp';
 
 export interface SystemInfo {
   id: SystemId;
@@ -67,7 +71,32 @@ export const SYSTEMS: SystemInfo[] = [
     description: 'Crews of equipped aircraft request their IFR clearance by datalink; you send it from the list without a voice transmission. Start-up is still requested by voice.',
     whenOff: 'All clearances by voice.',
   },
+  {
+    id: 'loc',
+    name: 'ILS localizer (LOC)',
+    group: 'Navigation aids',
+    description: 'Lateral guidance of the ILS for the runway in use. With the glide path: ILS (precision) approaches.',
+    whenOff: 'No ILS: arrivals fly RNP (satellite) approaches; Approach spaces them at least 5 NM apart.',
+  },
+  {
+    id: 'gp',
+    name: 'ILS glide path (GP)',
+    group: 'Navigation aids',
+    description: 'Vertical guidance of the ILS for the runway in use.',
+    whenOff: 'Localizer-only (non-precision) approaches; Approach spaces arrivals at least 5 NM apart.',
+  },
 ];
+
+export type ApproachType = 'ILS' | 'LOC' | 'RNP';
+
+/** Approach procedure flown with the given navigation aids. */
+export function approachType(states: SystemStates): ApproachType {
+  if (!states.loc) return 'RNP';
+  return states.gp ? 'ILS' : 'LOC';
+}
+
+/** Minimum arrival spacing on final for non-precision approaches (NM; simulator value). */
+export const NON_PRECISION_SPACING_NM = 5;
 
 export type SystemStates = Record<SystemId, boolean>;
 

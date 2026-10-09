@@ -168,7 +168,7 @@ Source: `src/core/delivery.ts`.
 
 | Item | Value |
 | ---- | ----- |
-| Clearance request | 10 min before the ready time (TOBT); immediately if the aircraft appears later than that |
+| Clearance request | 10 min before the ready time (TOBT); immediately if the aircraft appears later than that. At session start staggered (see [Traffic generation](#traffic-generation)) |
 | DCL equipped | 40 % of the departures with an airline callsign (not German-registered `D-xxxx` aircraft), when DCL is on |
 | Initial climb | from the airport data (`initialClimbFt`, EDDS 5000 ft - a simulator value); 5000 ft if not set |
 | Squawk codes | next free code from the octal blocks 2101-2177, 2201-2277, 2301-2377, 2401-2477 (codes ending in 0 skipped; a simulator range, not the real ORCAM allocation). Special codes 7500, 7600, 7700, 7000, 2000, 1000, 0000 are refused |
@@ -245,11 +245,12 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 | medium   | 14                | 12              |
 | heavy    | 22                | 18              |
 
-- **Initial situation**: about 55% of an hour's departures are already parked at stands, with ready times spread over the first 25 minutes (the first one calls after 5-20 s). One arrival is on a 4-6 NM final.
+- **Initial situation**: about 55% of an hour's departures are already parked at stands, with ready times spread over the first 25 minutes, **denser towards the end** (`30 s + sqrt(u) x 24.5 min`), so the workload builds up gradually. Their first calls are **staggered**: the first after 15 s, each next one at least **90 s** later, in the order of their ready times. On Delivery that is the clearance request (a crew then needs at least 4 minutes until it is ready); on Ground the pushback call. One arrival is on a 4-6 NM final.
 - **New departures** appear at exponentially distributed intervals (a Poisson process) with the mean given by the rate.
 - **New arrivals** follow the same kind of process. A new arrival is only released onto the final (at 9 NM) when the distance to the previous arrival is at least the **required spacing**, which is the larger of:
   - the **wake turbulence minimum**: 3 NM normally; 4 NM heavy behind heavy, 5 NM medium behind heavy, 6 NM light behind heavy, 5 NM light behind medium (larger values behind an A380, category J),
-  - the **runway spacing**: 4 NM when no departures are waiting, **6 NM** when at least one departure is holding or taxiing to a holding point, **8 NM** with four or more. These are the "departure gaps" Approach gives on request.
+  - the **runway spacing**: 4 NM when no departures are waiting, **6 NM** when at least one departure is holding or taxiing to a holding point, **8 NM** with four or more. These are the "departure gaps" Approach gives on request,
+  - **5 NM** for non-precision approaches (localizer only or RNP, when the ILS glide path or localizer is switched off in the [systems window](systems.md); simulator value).
 - **Operators, types and destinations** come from the airport's `traffic` data (see [airport data format](airport-data.md#traffic)), weighted by each operator's share. At EDDS this follows the real airline shares (Eurowings about 40 %, SunExpress 8 %, TUIfly 6 %, Pegasus and the Lufthansa group 5 % each, Turkish 5 %, Condor 4 %, British Airways 4 % ...) and the busiest destinations (Palma, Antalya, Istanbul, Pristina, London, Barcelona, Berlin, Hamburg); see [EDDS](airports/EDDS.md#traffic). Airports without traffic data use the global list in [`src/data/airlines.ts`](../src/data/airlines.ts).
 - **Callsigns** are unique within a session: alphanumeric (`EWG7TK`), numeric (`THY1734`) or registrations (`DCMGB`), depending on the operator.
 - **Flight plans** contain the destination, a SID for the active runway (placeholder names), cruise level and a squawk.

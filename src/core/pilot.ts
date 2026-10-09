@@ -6,7 +6,7 @@ import { distance, headingDiff, headingOf, normalize, scale, add, sub, type Vec2
 import { Path } from './path';
 import type { Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './phraseology/commands';
 import { STATION_WORD, capitalize, formatCommand, formatDestination, formatHoldShort } from './phraseology/format';
-import { execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
+import { CLEARANCE_LEAD_S, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
 import { destinationName } from '../data/destinations';
 import type { Simulation, TransmitResult } from './simulation';
 
@@ -1070,7 +1070,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
 function deliveryCall(sim: Simulation, ac: Aircraft, stationName: string, tel: string): void {
   const now = sim.time;
   if (!ac.cleared) {
-    if (now < ac.readyAt - 10 * 60) return;
+    if (now < (ac.clearanceAt ?? ac.readyAt - CLEARANCE_LEAD_S)) return;
     if (ac.dcl && sim.systemOn('dcl')) {
       // Datalink request: shows up in the list, no voice transmission.
       ac.request = 'clearance';

@@ -145,3 +145,24 @@ describe('delivery position', () => {
     expect(tookOffAt).toBeLessThanOrEqual(1800 + 600);
   });
 });
+
+describe('session start', () => {
+  it('staggers the first clearance requests instead of a rush', () => {
+    for (const seed of [1, 2, 3]) {
+      const sim = new Simulation({ airport: EDDS, position: 'DEL', positions: ['DEL'], runway: '25', density: 'medium', seed });
+      const first: number[] = [];
+      const seen = new Set<string>();
+      for (let t = 0; t < 300; t++) {
+        sim.tick(1);
+        for (const a of sim.aircraft) {
+          if (a.request === 'clearance' && !seen.has(a.callsign) && a.spawnedAt === 0) {
+            seen.add(a.callsign);
+            first.push(sim.time);
+          }
+        }
+      }
+      expect(first[0]).toBeGreaterThanOrEqual(10);
+      for (let i = 1; i < first.length; i++) expect(first[i] - first[i - 1]).toBeGreaterThanOrEqual(85);
+    }
+  });
+});

@@ -17,6 +17,8 @@ export interface DeliveryResult {
   after?: () => void;
 }
 
+/** Crews ask for their IFR clearance this long before their ready time (TOBT), seconds. */
+export const CLEARANCE_LEAD_S = 10 * 60;
 /** Initial climb of the SIDs when the airport data gives none (feet). */
 const DEFAULT_INITIAL_CLIMB_FT = 5000;
 /** Chance that a crew reads back the squawk wrongly (two digits swapped) - the controller must catch it. */

@@ -12,12 +12,17 @@ The toolbar button reads `SYSTEMS (n OFF)` in orange while any system is off. Ev
 | A-SMGCS  | **Routing service**                               | Proposes taxi routes (following the standard taxi flows) in the *Taxi to* menu, the quick-action bar and the *Resolve conflict* menu | Menus offer destinations without a proposed route; you plan the route yourself |
 | A-CDM    | **A-CDM / pre-departure sequencer**               | TOBT from the airline, TSAT from the sequencer, CTOTs from the Network Manager; crews ask for start-up at their TSAT | No TSAT: crews ask for start-up when they are ready (first come, first served). CTOTs still apply. |
 | Datalink | **DCL** (departure clearance by datalink)         | About 4 in 10 crews request their IFR clearance by datalink; you send it from the aircraft menu, no voice and no readback | All clearances by voice                                      |
+| Navigation aids | **ILS localizer (LOC)**                    | Lateral guidance of the ILS for the runway in use; with the glide path, arrivals fly ILS approaches | No ILS: arrivals fly **RNP** (satellite) approaches, spaced at least 5 NM |
+| Navigation aids | **ILS glide path (GP)**                    | Vertical guidance of the ILS                                                                  | **Localizer** (non-precision) approaches, spaced at least 5 NM |
+
+Switching the ILS changes the approach procedure: the ATIS text includes it (`RNP approach runway 25, ILS runway 25 out of service`) once you broadcast a new ATIS, and the arrivals list shows the procedure in the `APCH` column (`ILS`, `LOC`, `RNP`).
 
 ## Background: what real airports use
 
 - **A-SMGCS** (Advanced Surface Movement Guidance and Control System) is defined by EUROCONTROL (and ICAO Doc 9830) as a set of services: *surveillance* (surface movement radar and multilateration, which identifies aircraft by their transponder), *airport safety support* (RMCA for the runway, CATC for conflicting clearances, and alerts for restricted areas), *routing* (route proposals) and *guidance* (follow-the-greens lighting). Most larger European airports have surveillance and RMCA; CATC, routing and guidance are found at the larger hubs. The simulator offers all four services for training; guidance by airfield lighting is not modelled.
 - **A-CDM** (Airport Collaborative Decision Making): airlines, ground handlers, the airport and ATC share their times. The airline gives a **TOBT** (target off-block time), the pre-departure sequencer computes a **TSAT** (target start-up approval time) that respects the runway capacity and any **CTOT**. Start-up is approved at the TSAT (EUROCONTROL tolerance -5 / +5 minutes). Stuttgart has been a full A-CDM airport since November 2014.
 - **CTOT** (calculated take-off time): an ATFM slot from the EUROCONTROL Network Manager when a sector or the destination is regulated. The aircraft must take off between CTOT -5 and CTOT +10 minutes; otherwise it needs a new slot.
+- **ILS** (instrument landing system): the **localizer** gives lateral guidance along the runway centre line, the **glide path** vertical guidance (normally 3 degrees). Without the glide path a localizer approach (non-precision, higher minima) is possible; without the localizer, airports with satellite procedures use **RNP** approaches. In low visibility the ILS critical and sensitive areas must be kept clear, which moves departures to the CAT II/III holding points - low visibility procedures are not simulated yet. Stuttgart has ILS approaches on both runway directions.
 - **DCL** (departure clearance by datalink, ED-85A / ARINC 623): the crew requests and receives the IFR clearance as a text message and confirms it with WILCO. Stuttgart offers DCL; start-up is still requested by voice.
 
 ## Simplifications
@@ -25,4 +30,5 @@ The toolbar button reads `SYSTEMS (n OFF)` in orange while any system is off. Ev
 - Surveillance off removes all data tags at once. In reality a single radar sensor may fail while multilateration still works.
 - RMCA only watches aircraft with a clearance to cross; incursions without a clearance are detected as incursions.
 - CATC only looks for head-on encounters on taxiways (two aircraft meeting at more than 135 degrees, within 900 m of route ahead). Real CATC also checks, for example, a line-up clearance against a landing clearance.
+- An ILS failure applies to the runway in use, whichever direction that is. Non-precision approaches only change the arrival spacing (5 NM, a simulator value); weather minima and missed approaches are not modelled.
 - The pre-departure sequencer uses a fixed taxi time of 10 minutes and a TSAT spacing of 90 s. See [simulation model](simulation.md#delivery-a-cdm-and-slots) for all numbers.

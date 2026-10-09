@@ -10,7 +10,7 @@ import { updateConflictAlerts, updateRunwayAlerts } from './conflicts';
 import { updateSequencer } from './delivery';
 import { updateGroundAI } from './groundAI';
 import { Rng } from './random';
-import { SYSTEMS, defaultSystemStates, type SystemId, type SystemStates } from './systems';
+import { SYSTEMS, approachType, defaultSystemStates, type ApproachType, type SystemId, type SystemStates } from './systems';
 import { SCENARIO_EVENT_TEXT, type ScenarioEvent, type ScenarioSetup } from './scenario';
 import { TowerAI } from './tower';
 import { TrafficGenerator } from './traffic';
@@ -424,12 +424,24 @@ export class Simulation {
     this.system(`ATIS information ${a.letter} is now current: ${this.atisText()}`);
   }
 
+  /** Approach procedure flown with the navigation aids that are on. */
+  get approachType(): ApproachType {
+    return approachType(this.systems);
+  }
+
+  /** "ILS approach runway 25", "localizer approach runway 25", "RNP approach runway 25". */
+  approachName(runway = this.runway): string {
+    const t = this.approachType;
+    return `${t === 'ILS' ? 'ILS' : t === 'LOC' ? 'localizer' : 'RNP'} approach runway ${runway}`;
+  }
+
   /** ATIS broadcast text (abbreviated). */
   atisText(): string {
     const a = this.atis;
     const hhmm = this.utc().toISOString().slice(11, 16).replace(':', '');
     const w = a.wind.speedKt === 0 ? 'calm' : `${String(a.wind.direction).padStart(3, '0')} degrees ${a.wind.speedKt} knots`;
-    return `${this.station.name.split(' ')[0]} information ${a.letter}, time ${hhmm}, runway in use ${a.runway}, wind ${w}, QNH ${a.qnh}, transition level 70.`;
+    const navaids = !this.systems.loc ? `, ILS runway ${a.runway} out of service` : !this.systems.gp ? `, glide path runway ${a.runway} out of service` : '';
+    return `${this.station.name.split(' ')[0]} information ${a.letter}, time ${hhmm}, ${this.approachName(a.runway)}${navaids}, runway in use ${a.runway}, wind ${w}, QNH ${a.qnh}, transition level 70.`;
   }
 
   private changeRunway(newEnd: string): void {
@@ -481,6 +493,7 @@ export class Simulation {
     this.systems[id] = on;
     const info = SYSTEMS.find((s) => s.id === id)!;
     this.system(`${info.group}: ${info.name} switched ${on ? 'on' : 'off'}.${on ? '' : ` ${info.whenOff}`}`, on ? 'system' : 'warning');
+    if (id === 'loc' || id === 'gp') this.system(`Approach procedure now: ${this.approachName()}. Broadcast a new ATIS (click ATIS in the toolbar) so the crews know.`);
   }
 
   /** True if the user staffs this station (otherwise the AI runs it). */

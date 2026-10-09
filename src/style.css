@@ -463,6 +463,51 @@ button:disabled {
 .dialog .positions button {
   min-width: 92px;
 }
+/* Position colours (only once selected): Delivery dark blue, Ground green, Tower red. */
+.dialog .positions button.pos-DEL.active,
+.toolbar .stn.pos-DEL {
+  background: #1d3a6b;
+  border-color: #5b8fe0;
+}
+.dialog .positions button.pos-GND.active,
+.toolbar .stn.pos-GND {
+  background: #1e5631;
+  border-color: #5fcf82;
+}
+.dialog .positions button.pos-TWR.active,
+.toolbar .stn.pos-TWR {
+  background: #6b2222;
+  border-color: #e86060;
+}
+.dialog .positions button.active {
+  color: #fff;
+  font-weight: bold;
+}
+.dialog .combined {
+  grid-column: 2;
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: -4px;
+}
+.dialog .combined.on {
+  color: #fff;
+  background: #3b3360;
+  border: 1px solid #9d8cff;
+  border-radius: 3px;
+  padding: 4px 8px;
+  font-weight: bold;
+}
+.toolbar .stn {
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 0 5px;
+  color: #fff;
+}
+.toolbar .combined-tag {
+  color: #c9bfff;
+  font-weight: bold;
+  margin-left: 4px;
+}
 .dialog .notice {
   color: var(--warn);
   font-size: 11px;

@@ -95,7 +95,7 @@ export class App {
       saveSettings(this.settings);
       this.applySettings();
     });
-    const sysBtn = (this.sysBtn = h('button', { text: 'SYSTEMS', title: 'ATC and airport systems: A-SMGCS, A-CDM, datalink (F3)' }));
+    const sysBtn = (this.sysBtn = h('button', { text: 'SYSTEMS', title: 'ATC and airport systems: A-SMGCS, A-CDM, datalink, ILS (F3)' }));
     sysBtn.addEventListener('click', () => this.openSystems());
     const settingsBtn = h('button.settings-btn', { html: '&#9881; SETTINGS', title: 'Settings: device layout, sizes, voice, traffic' });
     settingsBtn.addEventListener('click', () => this.openSettings());
@@ -291,10 +291,10 @@ export class App {
     const sim = this.sim;
     for (const l of this.lists) l.update(sim, this.selected);
     // Combined positions: every staffed station with its frequency.
-    this.fields.station.innerHTML = sim.config.airport.stations
-      .filter((st) => sim.userControls(st.type))
-      .map((st) => `<b>${st.callsign}</b> ${st.frequency}`)
-      .join(' + ');
+    const staffed = sim.config.airport.stations.filter((st) => sim.userControls(st.type));
+    this.fields.station.innerHTML =
+      staffed.map((st) => `<span class="stn pos-${st.type}"><b>${st.callsign}</b> ${st.frequency}</span>`).join(' + ') +
+      (staffed.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '');
     this.fields.rwy.innerHTML = `RWY <b>${sim.runway}</b>`;
     this.fields.atis.innerHTML = `ATIS <b>${sim.atisLetter}</b>`;
     const wind = sim.observedWind;

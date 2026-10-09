@@ -25,7 +25,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | Field             | Meaning                                                                                              |
 | ----------------- | ---------------------------------------------------------------------------------------------------- |
 | **Airport**       | Airport to control. Only EDDS has data so far; planned airports are listed but disabled.             |
-| **Position**      | Controller position: **Delivery** and **Ground** are available; Tower, Approach/Departure and Center are planned. Click several to staff them together (**combined positions**, for example Delivery + Ground, as one controller does at night). Positions you don't staff are run by the simulator. |
+| **Position**      | Controller position: **Delivery** and **Ground** are available; Tower, Approach/Departure and Center are planned. A selected position is coloured (Delivery dark blue, Ground green, later Tower red). Click several to staff them together (**combined positions**, for example Delivery + Ground, as one controller does at night): a purple **COMBINED POSITIONS** banner below the buttons confirms it, and the toolbar shows all your stations in their colours with `COMBINED`. Positions you don't staff are run by the simulator. |
 | **Callsign**      | Shows the resulting station callsigns, frequencies and radio names, for example `EDDS_DEL 121.915 "Stuttgart Delivery" + EDDS_GND 118.605 "Stuttgart Ground"`. |
 | **Traffic**       | `light`, `medium` or `heavy` (see [simulation model](simulation.md#traffic-generation)).          |
 | **Special events** | Rare special situations: medical emergencies (arrivals and departures) and rejected take-offs. On by default. See [simulation model](simulation.md#special-events). |
@@ -58,7 +58,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 
 | Element               | Description                                                                                     |
 | --------------------- | ----------------------------------------------------------------------------------------------- |
-| `EDDS_GND 118.605`    | Your station(s) and frequency (several with combined positions).                                |
+| `EDDS_GND 118.605`    | Your station(s) and frequency, in the position colour (several plus `COMBINED` with combined positions). |
 | `RWY 25`              | Runway in use. Click to open the [ATIS editor](#atis-editor).                                   |
 | `ATIS E`              | Current ATIS letter. Pilots report it on first contact. Click to open the ATIS editor.          |
 | `250/08KT`            | Surface wind (magnetic). Shown in red if the tailwind on the runway in use is above 5 kt. Click to edit. |
@@ -125,7 +125,7 @@ Every airport added in the future comes with its own briefing.
 
 ### Systems window
 
-`SYSTEMS` (or **F3**) shows the status of the airport's systems - A-SMGCS (surveillance, runway monitoring RMCA, conflicting clearances CATC, routing service), A-CDM and datalink clearances (DCL) - with a lamp and an ON/OFF switch each. Switch a system off to train working without it (maintenance, failure). What each system does and what changes when it is off: [Airport and ATC systems](systems.md).
+`SYSTEMS` (or **F3**) shows the status of the airport's systems - A-SMGCS (surveillance, runway monitoring RMCA, conflicting clearances CATC, routing service), A-CDM, datalink clearances (DCL) and the ILS (localizer, glide path) - with a lamp and an ON/OFF switch each. Switch a system off to train working without it (maintenance, failure). What each system does and what changes when it is off: [Airport and ATC systems](systems.md).
 
 ### Mobile mode
 
@@ -261,6 +261,7 @@ The lists work like EuroScope's departure and arrival lists. Aircraft waiting fo
 | C/S, TYPE | as above                                                                        |
 | ADEP   | Origin airport                                                                     |
 | RWY    | Landing runway                                                                     |
+| APCH   | Approach procedure while on final: `ILS`, `LOC` (localizer only) or `RNP` - see the [systems window](#systems-window) |
 | DIST   | Distance to the threshold while on final; afterwards the exit used                 |
 | STD    | Cleared stand, or the **suggested stand in brackets** (from the stand allocation)  |
 | STS, FRQ, REQ | as above                                                                    |

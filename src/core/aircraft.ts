@@ -131,6 +131,8 @@ export interface Aircraft {
   standbyUntil: number;
   /** Time the pilot will make the next spontaneous call (e.g. departure ready to push). */
   readyAt: number;
+  /** Time the crew asks Delivery for its IFR clearance (default: 10 minutes before `readyAt`). */
+  clearanceAt?: number;
   startupApproved: boolean;
   /** IFR clearance (Delivery). `cleared` = the crew has it and read it back. */
   cleared: boolean;

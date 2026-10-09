@@ -49,7 +49,7 @@ The geometry was **digitised by hand**. Positions were measured on the charts, u
 
 ## Systems and procedures
 
-Stuttgart has been a **full A-CDM airport** since November 2014 (TOBT from the airlines, TSAT from the pre-departure sequencer, start-up at the TSAT) and offers **departure clearance by datalink (DCL)**; start-up is requested by voice. The simulator gives EDDS all [systems](../systems.md): A-SMGCS surveillance, RMCA, CATC and routing (the services offered for training; which A-SMGCS levels are installed at Stuttgart is not modelled from a published source), A-CDM and DCL.
+Stuttgart has been a **full A-CDM airport** since November 2014 (TOBT from the airlines, TSAT from the pre-departure sequencer, start-up at the TSAT) and offers **departure clearance by datalink (DCL)**; start-up is requested by voice. The simulator gives EDDS all [systems](../systems.md): A-SMGCS surveillance, RMCA, CATC and routing (the services offered for training; which A-SMGCS levels are installed at Stuttgart is not modelled from a published source), A-CDM, DCL and the ILS (localizer and glide path) of the runway in use.
 
 Delivery procedure in the simulator: clearance request about 10 minutes before off-block, IFR clearance `cleared to <destination> via <SID> departure, climb 5000 feet, squawk <code>`, start-up at the TSAT, then `contact ground 118.605` for pushback.
 

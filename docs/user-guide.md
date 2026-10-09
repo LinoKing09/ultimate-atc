@@ -235,7 +235,6 @@ From each runway threshold an extended centreline runs 15 NM outwards with a tic
 | Flashing magenta, `PAN`      | Emergency (medical) - give priority                             |
 | Red                          | Involved in a collision                                         |
 | Cyan circle                  | Selected aircraft                                               |
-| Orange box at the nose       | Tug (pushback, tow, turnaround) - only with vehicle tracking on: on the surface radar alone it merges with the aircraft |
 | Yellow box `FOLLOW-ME 1`     | Follow-me car (the label needs vehicle tracking in the [systems window](#systems-window)) |
 
 ## 5. Departure and arrival lists
@@ -305,7 +304,7 @@ Click a row to select the aircraft, double-click to centre the scope on it, righ
 
 ### Sidebar
 
-Right of the message window: large **MIC** (push-to-talk) and **SEND** buttons, **NEXT** (the next aircraft with a pending request, like Tab), **STANDBY** and **SAY AGAIN** (to the selected aircraft, or the pilot who called last).
+Right of the message window, from the top: a large **SEND** button, **MIC** (push-to-talk), **STANDBY** (to the selected aircraft, or the pilot who called last) and **ALL STN** - broadcasts to all stations: `information B is now current, QNH 1013`, `runway 25 in use`, `standby` (puts every open request on hold) and `expect delays`. Nobody reads a broadcast back. On the desktop ALL STN opens a menu; in mobile mode the quick-action bar shows the broadcasts as phrase buttons (pick one or more, then SEND). Tab still selects the next aircraft with a pending request.
 
 ### Message window
 

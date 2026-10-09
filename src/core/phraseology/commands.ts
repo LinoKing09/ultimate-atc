@@ -35,6 +35,7 @@ export type Command =
   | { type: 'proceed'; target?: string; destination?: TaxiDestination; base?: boolean; via: string[] }
   /** Vehicles: "return to base". */
   | { type: 'returnToBase' }
+  | { type: 'reportPosition' }
   | { type: 'handoff'; station?: StationType; frequency?: string }
   | { type: 'standby' }
   /** Queue position: "number 2 for pushback". */

@@ -294,6 +294,11 @@ export class Simulation {
   }
 
   /** Advances the simulation by `dt` seconds (already multiplied by the sim rate). */
+  /** How far the next simulation step is (0-1): the scope interpolates vehicle positions with it. */
+  get stepFraction(): number {
+    return this.accumulator / STEP;
+  }
+
   tick(dt: number): void {
     this.accumulator += Math.min(dt, 5);
     while (this.accumulator >= STEP) {
@@ -344,6 +349,7 @@ export class Simulation {
   transmit(text: string, selected?: string, opts: { fallbackToLastCaller?: boolean } = {}): TransmitResult {
     const trimmed = text.trim();
     if (!trimmed) return { ok: false };
+    if (/^all stations\b/i.test(trimmed)) return this.broadcast(trimmed);
     const callsigns = this.radioCallsigns;
     let parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected, sids: this.sidNames });
     // Voice-only operation: without callsign and selection, address the pilot who called last.
@@ -354,6 +360,27 @@ export class Simulation {
     const vehicle = this.vehicles.find((v) => v.callsign === parsed.callsign);
     if (vehicle) return executeVehicleTransmission(this, vehicle, parsed, trimmed);
     return executeTransmission(this, parsed, trimmed);
+  }
+
+  /**
+   * A broadcast to all stations on your frequencies ("all stations, information Bravo is now
+   * current"). Nobody reads it back. "All stations, standby" puts every open request on hold.
+   */
+  private broadcast(text: string): TransmitResult {
+    const body = text.replace(/^all stations[,\s]*/i, '');
+    const clean = body.replace(/^stuttgart (delivery|ground|tower)[,\s]*/i, '');
+    this.frequency.controllerTransmit(this.time, `All stations, ${this.station.name}, ${clean}`);
+    if (/^standby\b/i.test(clean)) {
+      for (const ac of this.aircraft) {
+        if (!this.isOnMyFrequency(ac)) continue;
+        ac.standbyUntil = this.time + 120;
+        if (ac.request) {
+          this.recordAnswer(ac);
+          ac.requestSince = this.time;
+        }
+      }
+    }
+    return { ok: true };
   }
 
   /** Callsigns that can be addressed by radio: aircraft and tows, and the follow-me cars. */

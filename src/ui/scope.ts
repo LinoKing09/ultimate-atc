@@ -1,5 +1,4 @@
 import type { Aircraft } from '../core/aircraft';
-import { tugOf } from '../core/vehicles';
 import { catcAlert } from '../core/conflicts';
 import { KT_TO_MS, M_PER_NM, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
 import type { Simulation } from '../core/simulation';
@@ -32,7 +31,6 @@ const C = {
   mine: '#e8f0f0',
   centrelineActive: 'rgba(111, 227, 255, 0.55)',
   centrelineOther: 'rgba(160, 190, 200, 0.28)',
-  tug: '#e08a2e',
   followMe: '#f5d332',
   other: '#8d9ba1',
   request: '#ffcf4d',
@@ -765,24 +763,24 @@ export class Scope {
     }
   }
 
-  /** Tugs at the nose of the aircraft they move, and the follow-me cars (with a label if vehicle tracking is on). */
+  /**
+   * The follow-me cars (with a label if vehicle tracking is on). Tugs are not drawn: at the nose of
+   * the aircraft they move they merge with its return on the ground radar.
+   */
   private drawVehicles(): void {
     const labels = this.sim.systemOn('surveillance') && this.sim.systemOn('vehicles');
-    // A tug at the nose merges with the aircraft in the surface radar return; it only shows up
-    // separately as its own track when it carries a squitter (vehicle tracking).
-    if (labels) {
-      for (const ac of this.sim.aircraft) {
-        const tug = tugOf(this.sim, ac);
-        if (tug) this.drawVehicle(tug.pos, tug.heading, 6, 2.6, C.tug);
-      }
-    }
     const blink = Math.floor(performance.now() / 500) % 2 === 0;
+    // Positions between two simulation steps, for a smooth movement on screen.
+    const f = Math.min(1, this.sim.stepFraction);
     for (const v of this.sim.vehicles) {
       if (v.state === 'idle') continue;
+      const pos = { x: v.prevPos.x + (v.pos.x - v.prevPos.x) * f, y: v.prevPos.y + (v.pos.y - v.prevPos.y) * f };
+      const turn = ((v.heading - v.prevHeading + 540) % 360) - 180;
+      const heading = v.prevHeading + turn * f;
       // A driver waiting for your answer flashes like an aircraft with a request.
       const label = labels ? `${v.name}${v.request ? ' *' : ''}${v.holding ? ' HOLD' : ''}` : undefined;
-      this.drawVehicle(v.pos, v.heading, 4.6, 1.9, v.request && blink ? C.request : C.followMe, label);
-      const p = this.toScreen(v.pos);
+      this.drawVehicle(pos, heading, 4.6, 1.9, v.request && blink ? C.request : C.followMe, label);
+      const p = this.toScreen(pos);
       this.symbolHits.push({ callsign: v.callsign, x: p.x, y: p.y, r: 12 });
       if (v.callsign === this.selected) {
         this.ctx.strokeStyle = C.selected;

@@ -200,6 +200,8 @@ const TOWER_REFERENCE: [string, string][] = [
 
 const VEHICLE_REFERENCE: [string, string][] = [
   ['Follow-me 1, proceed [to DCEEO] [via N, F]', 'The follow-me drives to the aircraft it was assigned to (it asks: "request proceed to DCEEO at taxiway F"). Vehicles get "proceed", aircraft "taxi".'],
+  ['Follow-me 1, report position', 'The driver reports where the car is (also to an aircraft on the ground: "DLH5AB report position").'],
+  ['all stations, information B is now current / standby', 'Broadcast (ALL STN in the sidebar): nobody reads it back. "all stations, standby" puts every open request on hold.'],
   ['Follow-me 1, return to base / proceed to base', 'The follow-me drives back to the fire station (it asks when the job is done).'],
   ['Follow-me 1, hold position / continue', 'Stop / drive on. While leading, the aircraft behind it stops too.'],
   ['Tug 5, tow approved [to stand 45] [via M, N]', 'Approve a tow ("proceed" works too). Hold position, continue, hold short, cross runway and give way work as for aircraft.'],

@@ -24,8 +24,15 @@ export interface Vehicle {
   kind: 'followMe';
   pos: Vec2;
   heading: number;
+  /** Position and heading one simulation step earlier (the scope interpolates between them). */
+  prevPos: Vec2;
+  prevHeading: number;
+  /** Current speed (m/s): the car accelerates and brakes smoothly. */
+  speed: number;
   path: Path | null;
   s: number;
+  /** Leading: distance along the aircraft's path where the car is. */
+  leadS?: number;
   /**
    * idle: at the base. assigned: waits for "proceed" to drive to the aircraft. toAircraft: driving
    * there. leading: in front of the aircraft. done: job finished, waits for "return to base".
@@ -47,6 +54,11 @@ export interface Vehicle {
 const FOLLOW_ME_COUNT = 2;
 /** Driving speed of a follow-me on its own (m/s, about 36 km/h). */
 export const VEHICLE_SPEED = 10;
+/** Acceleration and braking of a follow-me (m/s^2). */
+const VEHICLE_ACCEL = 2.5;
+const VEHICLE_BRAKE = 3;
+/** Maximum turn rate of a follow-me (degrees per second). */
+const VEHICLE_TURN_RATE = 120;
 /** Distance the follow-me keeps ahead of the aircraft's nose (metres). */
 const LEAD_M = 35;
 /** Towing speed (knots). */
@@ -68,6 +80,9 @@ export function createVehicles(sim: Simulation): Vehicle[] {
     kind: 'followMe' as const,
     pos: base.pos,
     heading: 0,
+    prevPos: base.pos,
+    prevHeading: 0,
+    speed: 0,
     path: null,
     s: 0,
     state: 'idle' as const,
@@ -227,6 +242,7 @@ function startReturn(sim: Simulation, v: Vehicle, via: string[] = []): string | 
   const ac = sim.find(v.aircraft);
   if (ac?.followMe?.vehicle === v.callsign) ac.followMe = undefined;
   v.aircraft = undefined;
+  v.leadS = undefined;
   v.path = path;
   v.s = 0;
   v.state = path ? 'returning' : 'idle';
@@ -260,12 +276,28 @@ function finish(sim: Simulation, v: Vehicle): void {
   vehicleCall(sim, v, 'return', `${sim.station.name}, ${vehicleTel(v)}, ${ac ? `${sim.tel(ac)} is at the stand, ` : ''}request return to base`);
 }
 
+/** Speed towards `target` (m/s), braking in time for a stop `toGo` metres ahead. */
+function approachSpeed(v: Vehicle, target: number, toGo: number, dt: number): number {
+  const brakeLimit = Math.sqrt(Math.max(0, 2 * VEHICLE_BRAKE * Math.max(0, toGo - 0.3)));
+  const want = Math.min(target, brakeLimit);
+  return want > v.speed ? Math.min(want, v.speed + VEHICLE_ACCEL * dt) : Math.max(want, v.speed - VEHICLE_BRAKE * dt);
+}
+
+/** Turns the car towards a heading at a limited rate (no jumps at corners). */
+function steer(v: Vehicle, heading: number, dt: number): void {
+  const diff = ((heading - v.heading + 540) % 360) - 180;
+  const max = VEHICLE_TURN_RATE * dt;
+  v.heading = (v.heading + Math.max(-max, Math.min(max, diff)) + 360) % 360;
+}
+
 function drive(v: Vehicle, dt: number): boolean {
   if (!v.path) return true;
+  const toGo = v.path.length - v.s;
+  v.speed = approachSpeed(v, v.holding ? 0 : VEHICLE_SPEED, v.holding ? 0 : toGo, dt);
   if (v.holding) return false;
-  v.s = Math.min(v.path.length, v.s + VEHICLE_SPEED * dt);
+  v.s = Math.min(v.path.length, v.s + v.speed * dt);
   v.pos = v.path.pointAt(v.s);
-  if (v.path.length > 0.5) v.heading = v.path.headingAt(v.s);
+  if (v.path.length > 0.5) steer(v, v.path.headingAt(v.s), dt);
   return v.s >= v.path.length - 0.1;
 }
 
@@ -287,12 +319,15 @@ export function updateVehicles(sim: Simulation, dt: number): void {
     if (free) assign(sim, ac, free);
   }
   for (const v of sim.vehicles) {
+    v.prevPos = v.pos;
+    v.prevHeading = v.heading;
     remind(sim, v);
     if (v.state === 'idle' || v.state === 'done') continue;
     if (v.state === 'returning') {
       if (drive(v, dt)) {
         v.state = 'idle';
         v.path = null;
+        v.speed = 0;
       }
       continue;
     }
@@ -308,21 +343,47 @@ export function updateVehicles(sim: Simulation, dt: number): void {
       if (drive(v, dt) || !v.path) {
         v.state = 'leading';
         ac.followMe.leading = !v.holding;
+        // Where on the aircraft's path the car waits: the meeting point (it waits there until the aircraft is close).
+        const meet = meetingNode(ac);
+        v.leadS = (meet && ac.path.marker(meet.id)?.s) ?? ac.s + leadDistance(ac);
       }
       continue;
     }
     // Leading: stay ahead of the aircraft on its path (it stops while the car holds); peel off before the stand.
     ac.followMe.leading = !v.holding;
-    if (v.holding) continue;
     const lead = leadDistance(ac);
-    if (ac.path.length - ac.s < lead + 25) {
+    if (!v.holding && ac.path.length - ac.s < lead + 25) {
       finish(sim, v);
       continue;
     }
-    const ahead = ac.s + lead;
-    v.pos = ac.path.pointAt(ahead);
-    v.heading = ac.path.headingAt(ahead);
+    // The car drives along the aircraft's path towards its lead position - smoothly, never backwards.
+    const ahead = Math.min(ac.s + lead, ac.path.length);
+    const at = v.leadS ?? ahead;
+    v.speed = approachSpeed(v, v.holding ? 0 : Math.max(ac.speed + 2, 3), v.holding ? 0 : Math.max(0, ahead - at), dt);
+    v.leadS = Math.min(ac.path.length, at + v.speed * dt);
+    v.pos = ac.path.pointAt(v.leadS);
+    steer(v, ac.path.headingAt(v.leadS), dt);
   }
+}
+
+/** "Report position": where the car is and what it is doing. */
+function vehiclePosition(sim: Simulation, v: Vehicle): string {
+  if (v.state === 'idle') return 'at the base';
+  const ac = sim.find(v.aircraft);
+  let best: { name: string; d: number } | undefined;
+  for (const e of sim.airport.edges) {
+    if (!e.name || !sim.airport.taxiwayNames.has(e.name.toUpperCase())) continue;
+    const d = projectOnSegment(v.pos, e.from.pos, e.to.pos).dist;
+    if (!best || d < best.d) best = { name: e.name, d };
+  }
+  const where = best && best.d < 60 ? `on taxiway ${best.name.toUpperCase()}` : 'on the apron';
+  const doing =
+    v.holding ? ', holding position'
+    : v.state === 'leading' && ac ? `, leading ${sim.tel(ac)}`
+    : v.state === 'toAircraft' && ac ? `, proceeding to ${sim.tel(ac)}`
+    : v.state === 'returning' ? ', returning to base'
+    : '';
+  return `${where}${doing}`;
 }
 
 /** Reminders like a pilot's: every 60-89 s, up to five calls. */
@@ -415,6 +476,9 @@ export function executeVehicleTransmission(sim: Simulation, v: Vehicle, parsed: 
         break;
       case 'standby':
         v.lastCallAt = sim.time + 60;
+        break;
+      case 'reportPosition':
+        parts.push(vehiclePosition(sim, v));
         break;
       default:
         unable(`unable, ${formatCommand(c)}`);

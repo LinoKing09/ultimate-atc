@@ -184,6 +184,7 @@ Vehicles on the manoeuvring area are controlled like aircraft, with one differen
 | ------- | ------ | --------- |
 | `Follow-me 1, proceed [to DCEEO] [via N, F]` | The follow-me drives to the aircraft it is assigned to (along the taxiways you give, otherwise the shortest way) | `Proceeding to DCEEO via N, F, Follow-me 1` |
 | `Follow-me 1, proceed to base [via ...]` / `return to base` / `return to the fire station` | Drives back to its base (job finished, or cancelled) | `Proceeding to base, Follow-me 1` / `Returning to base, Follow-me 1` |
+| `Follow-me 1, report position` / `say position` | Where the car is and what it does | `On taxiway N, leading DCEEO, Follow-me 1` / `At the base, Follow-me 1` |
 | `Follow-me 1, hold position` | Stops (while leading: the aircraft behind it stops too) | `Holding position, Follow-me 1` |
 | `Follow-me 1, continue` | Drives on | `Continuing, Follow-me 1` |
 | `Follow-me 1, standby` | Acknowledges the request; the driver waits a little longer before asking again | - |
@@ -253,6 +254,8 @@ A wrong frequency gets `confirm frequency 118.700 for Tower`. Departures that ar
 | `number 2 [for pushback\|start-up\|taxi\|departure]` | Queue position in busy periods. The pilot reads it back (`Number 2 for pushback`) and waits 60 s + 45 s per position before reminding you. The number is shown in the tag (`#2`) and in the list. |
 | `expect pushback\|start-up\|taxi\|departure in 5 minutes` | Expected delay. The pilot waits that long (plus 20 s) before reminding you. |
 | `say again`      | The pilot repeats their last transmission                                      |
+| `report position` / `say position` (aircraft on the ground) | The pilot reports where it is: `Taxiing on taxiway N`, `At holding point A`, `On stand 14` |
+| `all stations, ...` | Broadcast to everybody on your frequencies, no read-back: `all stations, information B is now current, QNH 1013`, `all stations, runway 25 in use`, `all stations, expect delays`. `all stations, standby` puts every open request on hold for 2 minutes. Sent as `All stations, Stuttgart Ground, ...` |
 | `line up ...`, `cleared for take-off`, `cleared to land` (to an aircraft on Ground frequency) | Not Ground's job. The pilot asks `confirm, we are on Ground frequency, contact Tower?` |
 
 ## Radio discipline

@@ -278,6 +278,11 @@ button:disabled {
   flex: 1.6 1 0;
   font-size: calc(14px * var(--ui-scale, 1));
 }
+/* SEND on top, one and a half times as high as MIC. */
+.sidebar button.send {
+  flex: 2.4 1 0;
+  font-size: calc(16px * var(--ui-scale, 1));
+}
 .messages {
   flex: 1 1 auto;
   overflow-y: auto;

@@ -9,7 +9,7 @@ import { STATION_WORD, capitalize, formatCommand, formatDestination, formatHoldS
 import { CLEARANCE_LEAD_S, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
 import { destinationName } from '../data/destinations';
 import type { Simulation, TransmitResult } from './simulation';
-import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, maybeStartTow } from './vehicles';
+import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, locationOf, maybeStartTow } from './vehicles';
 
 /**
  * AI pilots: execute controller instructions, read them back, and make their
@@ -17,6 +17,12 @@ import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, maybeStartTow } from './vehicles';
  */
 
 type TaxiCommand = Extract<Command, { type: 'taxi' }>;
+
+/** "Report position": where the aircraft is on the ground. */
+function rbPosition(sim: Simulation, ac: Aircraft): ExecResult {
+  const where = ac.phase === 'holding' && ac.stoppedAt?.holdingPoint ? `holding point ${ac.stoppedAt.holdingPoint}` : locationOf(sim, ac);
+  return { readback: `${ac.phase === 'parked' ? 'on' : ac.speed > 0.5 ? 'taxiing on' : 'holding on'} ${where}`.replace('on holding point', 'at holding point').replace('on stand', 'at stand'), answers: false };
+}
 
 interface ExecResult {
   readback?: string;
@@ -170,6 +176,9 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return { unable: 'confirm taxi instructions' };
     case 'returnToBase':
       return { unable: 'say again' };
+    case 'reportPosition':
+      if (!ac.onGround) return { unable: 'say again' };
+      return rbPosition(sim, ac);
     case 'holdShort':
       return execHoldShort(sim, ac, c.target);
     case 'cross':

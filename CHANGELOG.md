@@ -8,9 +8,11 @@ All notable changes to this project are documented in this file. The format is b
 
 - **Extended runway centrelines** on the scope (as on a EuroScope map): 15 NM from each threshold with NM ticks, the runway in use brighter; marked `LOC U/S` with the localizer off.
 - **Tower speed control** on final: `maintain 160 knots until 4 miles`, `reduce speed to 150 knots`, `reduce to final approach speed`; and **immediate take-off**: `cleared for immediate take-off` / `cleared for take-off, no delay`. Both in the Tower menu.
+- **All stations** broadcasts: `all stations, information B is now current`, `... runway 25 in use`, `... standby` (holds every open request), `... expect delays` - no read-back. ALL STN in the sidebar (a menu; in mobile mode phrase buttons in the quick-action bar).
+- `report position` / `say position` to a follow-me (`On taxiway N, leading DCEEO`) or an aircraft on the ground.
 - **Acknowledge CATC alerts**: *Acknowledge CATC alert* in the aircraft menu (`ACK` in the quick-action bar) stops the red flashing of a head-on alert you have checked; a new conflict of the same aircraft alerts again.
 - Tower phraseology `continue approach, expect late landing clearance` (also in the Tower menu).
-- **Sidebar** next to the message window with large MIC and SEND buttons and NEXT, STANDBY and SAY AGAIN.
+- **Sidebar** next to the message window: a large SEND button on top, MIC, STANDBY and ALL STN.
 
 ### Changed
 
@@ -18,6 +20,8 @@ All notable changes to this project are documented in this file. The format is b
 - The AI Ground hands departures to Tower on the way to the holding point (last 600 m) when nothing is left to coordinate on the ground and no CTOT is to be waited for, instead of only once they have stopped there; their first call is `approaching holding point A, ready for departure`.
 - A departure does not line up while another aircraft is lined up or on the runway near its entry.
 - Tower: *Contact Ground* is offered for an arrival right after touchdown, not only once it has vacated; the crew calls Ground after vacating.
+- Tugs are no longer drawn at the nose of aircraft (pushback, tow, turnaround): on the ground radar they merge with the aircraft.
+- Follow-me cars move smoothly: they accelerate and brake, turn at a limited rate, wait at the meeting point instead of jumping in front of the aircraft, and are drawn between simulation steps.
 - Shorter menus: explanatory hints such as `- not yours`, `into a tight gap` or `as requested` are gone; hints only show live data (distances, times, warnings).
 - Mobile mode: the quick-action bar picks phrases instead of sending them at once - tap several (e.g. `RB OK` and `START`) and send them together with **SEND**.
 

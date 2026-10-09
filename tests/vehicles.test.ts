@@ -133,6 +133,34 @@ describe('follow-me', () => {
     expect(runUntil(sim, () => v.state === 'idle', 900)).toBe(true);
   });
 
+  it('drives smoothly and reports its position', () => {
+    const sim = makeSim();
+    const ac = sim.traffic.spawnArrival(4, { callsign: 'DCEEO', type: 'CL35' }) as Aircraft;
+    expect(runUntil(sim, () => ac.request === 'taxiIn', 400)).toBe(true);
+    sim.transmit('DCEEO follow the follow-me');
+    const v = sim.findVehicle('FME1')!;
+    expect(runUntil(sim, () => v.state === 'assigned' && !!v.request, 60)).toBe(true);
+    sim.transmit('Follow-me 1, report position');
+    expect(runUntil(sim, () => last(sim, 'FME1').startsWith('On '), 20)).toBe(true);
+    sim.transmit('Follow-me 1, proceed to DCEEO');
+    // No jumps: the speed and the heading change gradually from step to step.
+    let maxDv = 0;
+    let maxTurn = 0;
+    let maxJump = 0;
+    for (let i = 0; i < 1500 && v.state !== 'done'; i++) {
+      const { speed, heading, pos } = v;
+      sim.tick(0.2);
+      maxDv = Math.max(maxDv, Math.abs(v.speed - speed));
+      maxTurn = Math.max(maxTurn, Math.abs(((v.heading - heading + 540) % 360) - 180));
+      maxJump = Math.max(maxJump, Math.hypot(v.pos.x - pos.x, v.pos.y - pos.y));
+    }
+    expect(maxDv).toBeLessThanOrEqual(0.61);
+    expect(maxTurn).toBeLessThanOrEqual(24.1);
+    expect(maxJump).toBeLessThan(2.5);
+    sim.transmit('DCEEO report position');
+    expect(runUntil(sim, () => /^(Holding|Taxiing|On|At) /.test(last(sim, 'DCEEO')), 20)).toBe(true);
+  });
+
   it('is sent without radio calls when the AI runs Ground', () => {
     const sim = makeSim(['DEL']);
     const ac = sim.traffic.spawnArrival(4, { callsign: 'DCEEO', type: 'CL35' }) as Aircraft;
@@ -178,4 +206,19 @@ describe('radio discipline', () => {
     expect(checked).toBeGreaterThan(10);
     expect(violations).toBe(0);
   }, 30000);
+});
+
+describe('all stations', () => {
+  it('broadcasts without read-backs; "all stations, standby" holds the open requests', () => {
+    const sim = makeSim();
+    const ac = sim.traffic.spawnArrival(4, { callsign: 'DCEEO', type: 'CL35' }) as Aircraft;
+    expect(runUntil(sim, () => ac.request === 'taxiIn', 400)).toBe(true);
+    const before = sim.messages.length;
+    expect(sim.transmit(`all stations, information ${sim.atisLetter} is now current`).ok).toBe(true);
+    expect(sim.messages.at(-1)?.text).toBe(`All stations, Stuttgart Ground, information ${sim.atisLetter} is now current`);
+    sim.transmit('all stations, standby');
+    expect(ac.standbyUntil).toBeGreaterThan(sim.time);
+    for (let t = 0; t < 10; t++) sim.tick(1);
+    expect(sim.messages.slice(before).filter((m) => m.kind === 'pilot').length).toBe(0);
+  });
 });

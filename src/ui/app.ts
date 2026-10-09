@@ -54,6 +54,8 @@ export class App {
   private quickSel: { cs: string; phrases: string[] } | null = null;
   /** While set, say() collects the phrase instead of transmitting it (to learn what a menu action would say). */
   private capture: string[] | null = null;
+  /** Mobile mode: the quick-action bar shows the ALL STATIONS broadcasts. */
+  private allStationsMode = false;
   /** Density / events last chosen in the settings; the session keeps a scenario's values until they change. */
   private densitySetting: Settings['density'];
   private eventsSetting: boolean;
@@ -211,14 +213,14 @@ export class App {
       if (cs) this.transmit(`${cs} ${phrase}`);
       else this.hint('Select an aircraft first.');
     };
+    const allBtn = side('ALL STN', 'Broadcast to all stations', () => this.openAllStations(allBtn));
     const sidebar = h(
       'div.sidebar',
       {},
-      this.micButton,
       sendBtn,
-      side('NEXT', 'Select the next aircraft with a pending request (Tab)', () => this.selectNextRequest()),
+      this.micButton,
       side('STANDBY', 'Standby - to the selected aircraft (or the last caller)', toSelected('standby')),
-      side('SAY AGAIN', 'Say again - to the selected aircraft (or the last caller)', toSelected('say again')),
+      allBtn,
     );
     const comms = h('div.comms', {}, h('div.comms-main', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input.el, clearBtn, this.previewEl)), sidebar);
 
@@ -427,6 +429,25 @@ export class App {
 
   /** Mobile mode: one-tap buttons for the most common instructions to the selected aircraft. */
   private updateQuickbar(): void {
+    if (this.allStationsMode && this.settings.device === 'mobile' && !this.selected) {
+      const key = `ALL|${this.sim.atisLetter}|${this.sim.runway}`;
+      this.quickbar.classList.add('show');
+      if (key === this.quickbarKey) return;
+      this.quickbarKey = key;
+      const close = h('button', { text: '\u00d7', type: 'button', title: 'Close' });
+      close.addEventListener('click', () => {
+        this.allStationsMode = false;
+        this.clearInput();
+        this.updateQuickbar();
+      });
+      this.quickbar.replaceChildren(
+        h('span.qcs', { text: 'ALL STATIONS' }),
+        ...this.allStationsPhrases().map((p) => this.quickPhrase('all stations', p.short, p.phrase)),
+        close,
+      );
+      return;
+    }
+    this.allStationsMode = false;
     const v = this.sim.findVehicle(this.selected);
     if (v && this.settings.device === 'mobile') {
       // Follow-me car: the vehicle phrases as buttons.
@@ -680,6 +701,11 @@ export class App {
       this.previewEl.textContent = '';
       return;
     }
+    if (/^all stations\b/i.test(text)) {
+      this.previewEl.textContent = '-> broadcast to all stations (no read-back)';
+      this.previewEl.classList.add('ok');
+      return;
+    }
     const parsed = parseTransmission(text, {
       callsigns: this.sim.radioCallsigns,
       taxiways: this.sim.airport.taxiwayNames,
@@ -797,6 +823,35 @@ export class App {
     const ac = this.sim.find(cs);
     if (!ac) return;
     this.menu.open(`${ac.callsign}  ${ac.type.icao}  ${ac.category === 'departure' ? `> ${ac.flightPlan.destination}` : `< ${ac.flightPlan.departure}`}`, this.menuItems(ac), x, y);
+  }
+
+  /** Broadcasts to all stations on your frequencies (no read-back). */
+  private allStationsPhrases(): { label: string; short: string; phrase: string }[] {
+    const sim = this.sim;
+    return [
+      { label: `Information ${sim.atisLetter} is now current`, short: `INFO ${sim.atisLetter}`, phrase: `information ${sim.atisLetter} is now current, QNH ${sim.atis.qnh}` },
+      { label: `Runway ${sim.runway} in use`, short: `RWY ${sim.runway}`, phrase: `runway ${sim.runway} in use` },
+      { label: 'Standby', short: 'STBY', phrase: 'standby' },
+      { label: 'Expect delays', short: 'DELAYS', phrase: 'expect delays' },
+    ];
+  }
+
+  /** ALL STATIONS: the broadcasts as a menu, in mobile mode in the quick-action bar (pick, then SEND). */
+  private openAllStations(anchor: HTMLElement): void {
+    if (this.settings.device === 'mobile') {
+      this.select(undefined);
+      this.allStationsMode = true;
+      this.quickbarKey = '';
+      this.updateQuickbar();
+      return;
+    }
+    const r = anchor.getBoundingClientRect();
+    this.menu.open(
+      'ALL STATIONS',
+      this.allStationsPhrases().map((p) => ({ label: p.label, action: () => this.transmit(`all stations, ${p.phrase}`) })),
+      r.left - 220,
+      r.top,
+    );
   }
 
   /** Acknowledges the CATC alert of an aircraft (no flashing until the conflict ends). */

@@ -78,6 +78,8 @@ export function formatCommand(c: Command): string {
     }
     case 'returnToBase':
       return 'return to base';
+    case 'reportPosition':
+      return 'report position';
     case 'handoff':
       if (!c.station && !c.frequency) return 'frequency change approved';
       return ['contact', c.station ? STATION_WORD[c.station] : '', c.frequency ?? ''].filter(Boolean).join(' ');

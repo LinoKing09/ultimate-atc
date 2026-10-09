@@ -770,6 +770,12 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       result.commands.push(p);
       continue;
     }
+    // "report position" / "say position" (vehicles and aircraft on the ground)
+    if ((w === 'report' || w === 'say') && (c.peek(1) === 'position' || (c.peek(1) === 'your' && c.peek(2) === 'position'))) {
+      c.i += c.peek(1) === 'your' ? 3 : 2;
+      result.commands.push({ type: 'reportPosition' });
+      continue;
+    }
     if (w === 'return' && (c.peek(1) === 'to' || c.peek(1) === 'base')) {
       c.next();
       c.accept('to');

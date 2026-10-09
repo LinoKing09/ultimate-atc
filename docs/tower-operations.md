@@ -78,7 +78,7 @@ This is exactly what busy airports do:
 | Departures airborne                  |            7 |    20 |
 | Go-arounds                           |           18 |     0 |
 
-Many v0.1 go-arounds were caused by gridlock, so the before figures are pessimistic. The model now behaves like a reasonable single-runway operation.
+Many v0.1 go-arounds were caused by [gridlock](glossary.md), so the before figures are pessimistic. The model now behaves like a reasonable single-runway operation.
 
 ## Sources
 

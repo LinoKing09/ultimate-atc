@@ -102,7 +102,7 @@ If the route is impossible, the pilot replies `unable to follow route via S, say
 **No turning around on the spot**: an airliner (wingspan above 25 m) cannot make a 180 degree turn on a taxiway. If the route you give would need one, for example `taxi to holding point A via N` for an aircraft facing west on N when A is to the east, the pilot replies `unable, we are facing west and cannot turn around here, say again route`. Give a route that continues in the direction the aircraft is facing, or loops around. Smaller aircraft (business jets, CRJ900) can turn around. Exceptions:
 
 - at a runway holding point (there is room to turn), and
-- when the aircraft has been **stuck** for over 30 seconds (blocked by other traffic): a route that needs a turn is accepted, the pilot reads it back with `we need a tug to turn around, ready in about two minutes`, and starts taxiing 100-160 seconds later. Use this to solve a deadlock.
+- when the aircraft has been **stuck** for over 30 seconds (blocked by other traffic): a route that needs a turn is accepted, the pilot reads it back with `we need a tug to turn around, expect about 7 minutes`, and starts taxiing 5-10 minutes later. Use this to solve a [deadlock](glossary.md) when there is no junction left to turn off (the *Resolve conflict* menu offers it).
 
 **Intersection departures**: ask first, as in real operations:
 

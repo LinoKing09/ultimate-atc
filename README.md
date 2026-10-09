@@ -90,6 +90,7 @@ Press **F1** in the app for the in-game reference.
 | [Airport data format](docs/airport-data.md)  | How airports are described and how to add a new one                         |
 | [Roadmap](docs/roadmap.md)                   | What is planned next, the proposed criteria for version 1.0                 |
 | [Benchmarks](docs/benchmarks.md)             | Release benchmark, results per version, simulated traffic, major release statistics |
+| [Glossary](docs/glossary.md)                 | Terms used in the simulator and the docs (deadlock, gridlock, TSAT, CTOT ...) |
 | [Contributing](docs/contributing.md)         | Development workflow, conventions, tests                                    |
 | [Changelog](CHANGELOG.md)                    | Release history                                                             |
 

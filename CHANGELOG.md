@@ -4,8 +4,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-10-10
+
+Combined positions with Tower, pilots who resolve simple conflicts, and a debriefing after each session.
+
 ### Added
 
+- **Debriefing** (0.8): DISCONNECT opens a debriefing of the session - what earned and what cost points, answer times and the longest waits, incidents and warnings, and advice for the next session - with *Continue session* or *End session*.
 - **Combined positions with Tower** (0.8): staff Ground + Tower, Delivery + Tower or all three. Aircraft change frequency as on split positions; after `contact ground` a vacated arrival calls you on Ground for its taxi.
 - **Extended runway centrelines** on the scope (as on a EuroScope map): 15 NM from each threshold with NM ticks, the runway in use brighter; marked `LOC U/S` with the localizer off.
 - **Tower speed control** on final: `maintain 160 knots until 4 miles`, `reduce speed to 150 knots`, `reduce to final approach speed`; and **immediate take-off**: `cleared for immediate take-off` / `cleared for take-off, no delay`. Both in the Tower menu.
@@ -14,6 +19,7 @@ All notable changes to this project are documented in this file. The format is b
 - **Acknowledge CATC alerts**: *Acknowledge CATC alert* in the aircraft menu (`ACK` in the quick-action bar) stops the red flashing of a head-on alert you have checked; a new conflict of the same aircraft alerts again.
 - Tower phraseology `continue approach, expect late landing clearance` (also in the Tower menu).
 - **Sidebar** next to the message window: a large SEND button on top, MIC, STANDBY and ALL STN.
+- **Switch your frequencies off and on**: click a frequency in the toolbar (e.g. `EDDS_DEL 121.915`) to hand that position to the simulator - pilots waiting on it are answered by the AI - and click again to take it back. At least one frequency stays on. New AI Delivery for crews still waiting for their clearance.
 
 ### Changed
 
@@ -26,10 +32,6 @@ All notable changes to this project are documented in this file. The format is b
 - Follow-me cars move smoothly: they accelerate and brake, turn at a limited rate, wait at the meeting point instead of jumping in front of the aircraft, and are drawn between simulation steps.
 - Shorter menus: explanatory hints such as `- not yours`, `into a tight gap` or `as requested` are gone; hints only show live data (distances, times, warnings).
 - Mobile mode: the quick-action bar picks phrases instead of sending them at once - tap several (e.g. `RB OK` and `START`) and send them together with **SEND**.
-
-### Added
-
-- **Switch your frequencies off and on**: click a frequency in the toolbar (e.g. `EDDS_DEL 121.915`) to hand that position to the simulator - pilots waiting on it are answered by the AI - and click again to take it back. At least one frequency stays on. New AI Delivery for crews still waiting for their clearance.
 
 ### Fixed
 

@@ -26,12 +26,19 @@ Further airports follow in the 1.x releases (the airport data format, the data c
 | **0.5** | **done** - Foundations: role-based station model (combined positions possible), per-airport traffic with the real Stuttgart operator mix, airport data checks, soak test in CI |
 | **0.6** | **done** - **Delivery** at EDDS: IFR clearances, squawks, start-up, CTOT, A-CDM, DCL; combined positions in the login; systems window (A-SMGCS, A-CDM, DCL); head-on conflict resolution; AI Ground |
 | **0.7** | **done** - **Tower** at EDDS: line-up / take-off / landing clearances, runway crossings, arrival sequence |
-| 0.8 | *in progress* - Combined positions with Tower (**done**), AI pilots that resolve simple conflicts (**done**), debriefing |
+| **0.8** | **done** - Combined positions with Tower, AI pilots that resolve simple conflicts (opposite traffic, lane priority), debriefing |
 | 0.9 | Tutorials, polish, beta testing |
 | 1.0 | Release after the criteria above are met and agreed |
 | 1.x | Further airports |
 
 Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md](benchmarks.md) that compares them with the previous major release.
+
+## v0.8 - Combined positions, pilots, debriefing
+
+- **done** - Combined positions with Tower: Ground + Tower, Delivery + Tower or all three, with the frequency changes of split positions
+- **done** - Pilots resolve simple conflicts: crews who see opposite traffic stop short of the junction between them and ask; lane priority at intersections and connectors
+- **done** - Debriefing after a session (DISCONNECT): what earned and what cost points, answer times, incidents, advice
+- **done** - Tower extras: extended centrelines, speed control, immediate take-off, expect late landing clearance, early hand-off from Ground; all-stations broadcasts, CATC acknowledge, sidebar
 
 ## v0.7 - Tower
 

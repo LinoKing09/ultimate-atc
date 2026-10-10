@@ -845,3 +845,42 @@ body.mobile .sidebar {
 .cmdline .preview.warn {
   color: var(--warn);
 }
+
+/* ------------------------------------------------------------------ debriefing */
+.debrief-head > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+.debrief-score {
+  font-size: 22px;
+  font-weight: bold;
+  color: var(--accent);
+}
+.debrief-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 6px;
+}
+.debrief-table td {
+  padding: 2px 6px;
+  border-bottom: 1px solid var(--panel-border);
+}
+.debrief-table td.num {
+  text-align: right;
+  white-space: nowrap;
+  width: 4em;
+}
+.debrief-table td.plus {
+  color: #7fdc8a;
+}
+.debrief-table td.minus {
+  color: #ff7a6b;
+}
+.debrief-list {
+  margin: 2px 0 8px 18px;
+  padding: 0;
+}
+.debrief-list li {
+  margin: 2px 0;
+}

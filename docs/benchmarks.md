@@ -41,7 +41,8 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 0.6.0   | 11.1 | 6.0 | 0  | 0 | 2  | 8.6  | 2.9 s |
 | 0.6.1   | 12.8 | 5.5 | 0  | 0 | 1  | 9.0  | 4.0 s |
 | 0.6.2   | 12.8 | 5.5 | 0  | 0 | 1  | 9.0  | 3.8 s |
-| **0.7.0** | 12.8 | 5.5 | 0  | 0 | 1  | 9.0  | 4.4 s |
+| 0.7.0   | 12.8 | 5.5 | 0  | 0 | 1  | 9.0  | 4.4 s |
+| **0.8.0** | 13.3 | 6.3 | 0  | 0 | 0  | 12.0 | 4.3 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -53,16 +54,19 @@ Soak test (0.5.0, 20 h with special events and more heavies in every third sessi
 
 **0.6.2** (vehicle radio, radio discipline): same traffic results as 0.6.1. Soak test 0.6.2: 11.3 departures and 6.8 arrivals per hour, no collisions, no incursions, 1 go-around.
 
+**0.8.0** (pilots resolve simple conflicts): an aircraft already in the other one's lane now always goes first, so two aircraft no longer stop nose to nose on a connector like H (stand-offs at intersections dropped from 6 to 0 in the 20 hours). Departures rise from 12.8 to 13.3 and arrivals from 5.5 to 6.3 per hour. Deadlock calls rise from 9.0 to 12.0 per hour because crews who see opposite traffic in time now stop short of the junction between them and call (`opposite traffic on taxiway N ... request instructions`) - the automatic controller never answers, but a controller (or the AI Ground) can now turn one of them off at that junction instead of ordering a tug. Soak test 0.8.0: 12.1 departures and 6.8 arrivals per hour, no collisions, no incursions, 1 go-around, 6.3 s computing time per simulated hour.
+
 ### Tower benchmark (since 0.7)
 
 The same 20 sessions with you as **Tower** (Ground and Delivery run by the simulator) and a simple scripted Tower controller: it clears arrivals to land inside 4 NM when nobody is lined up, clears a departure for take-off when the runway is free, the next arrival is more than 110 s away, the departure spacing is met and its CTOT window is open, hands departures to Radar and arrivals to Ground when they ask, and clears crossings when the runway is free and the next arrival is more than 90 s away.
 
 | Version | Departures / h | Arrivals to Ground / h | Collisions | Incursions | Go-arounds | Separation losses | Missed hand-offs |
 | ------- | -------------: | ---------------------: | ---------: | ---------: | ---------: | ----------------: | ---------------: |
-| **0.7.0** | 11.4 | 10.1 | 0 | 0 | 0 | 0 | 0 |
-| Unreleased (early hand-off to Tower) | 10.3 | 10.8 | 0 | 0 | 0 | 0 | 0 |
+| 0.7.0 | 11.4 | 10.1 | 0 | 0 | 0 | 0 | 0 |
+| 0.7.x (early hand-off to Tower) | 10.3 | 10.8 | 0 | 0 | 0 | 0 | 0 |
+| **0.8.0** | 11.2 | 10.3 | 0 | 0 | 0 | 0 | 0 |
 
-Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly.
+Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
 
 The first run of this benchmark found two problems that were fixed for the release: conflict resolution could send a departure on a detour across the runway (now never chosen by the AI Ground and shown last in the menu), and the AI Ground could not get out of a circle of aircraft blocking each other around a pushback.
 
@@ -85,7 +89,9 @@ How many hours of traffic have been simulated while developing and testing the s
 | 0.6.2 - 0.7.0 benchmark, Tower benchmark and soak runs | 160 h | measured: 3 benchmark runs (Ground and Tower) and 2 soak runs of 20 h |
 | 0.6.2 - 0.7.0 development | ~60 h | estimate: test suite runs and debugging harnesses |
 | after 0.7.0 (Tower benchmark runs while tuning the early hand-off) | 72 h | measured: 3 Tower benchmark runs of 20 h, 3 diagnostic runs of 4 h |
-| **Total so far** | **~1290 h** | of which 732 h exactly measured |
+| 0.8.0 development and release (combined positions, opposite traffic, debriefing) | 288 h | measured: 4 benchmark runs and 4 soak runs of 20 h, 3 deadlock analysis runs of 20 h, combined-position test runs (28 h) |
+| 0.8.0 development | ~100 h | estimate: test suite runs (about 11 h each) and debugging harnesses |
+| **Total so far (0.8.0)** | **~1680 h** | of which 1020 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

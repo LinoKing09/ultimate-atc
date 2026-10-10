@@ -21,6 +21,7 @@ import { saveSettings, type Settings } from './settings';
 import { showSettings } from './settingsDialog';
 import { showSystems } from './systemsDialog';
 import { PilotVoices, VoiceInput } from './voice';
+import { showDebrief } from './debriefDialog';
 
 const SPEEDS = [1, 2, 4, 8];
 /** Keys that work as push-to-talk (held down). */
@@ -113,7 +114,15 @@ export class App {
     const docsBtn = h('a', { href: REPO_URL, target: '_blank', rel: 'noopener' }, h('button', { text: 'DOCS', type: 'button' }));
     const disconnect = h('button', { text: 'DISCONNECT', title: 'End the session' });
     disconnect.addEventListener('click', () => {
-      if (confirm('Disconnect and end this session?')) location.reload();
+      // The debriefing first: the simulation pauses while it is open.
+      const wasPaused = this.paused;
+      if (!wasPaused) this.togglePause();
+      showDebrief(this.sim, {
+        onContinue: () => {
+          if (!wasPaused && this.paused) this.togglePause();
+        },
+        onEnd: () => location.reload(),
+      });
     });
 
     const toolbar = h(

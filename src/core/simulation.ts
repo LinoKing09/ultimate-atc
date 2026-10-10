@@ -9,6 +9,7 @@ import { executeTransmission, updatePilot } from './pilot';
 import { Frequency, type MessageKind, type RadioMessage } from './radio';
 import { updateConflictAlerts, updateRunwayAlerts } from './conflicts';
 import { updateOppositeTraffic } from './opposite';
+import { scoreOf } from './debrief';
 import { updateSequencer, updateDeliveryAI } from './delivery';
 import { updateGroundAI } from './groundAI';
 import { Rng } from './random';
@@ -162,6 +163,8 @@ export class Simulation {
   readonly catcAcknowledged = new Set<string>();
   private nextConflictCheck = 0;
   private nextOppositeCheck = 0;
+  /** The longest waits for an answer this session (debriefing). */
+  readonly longestWaits: { callsign: string; seconds: number }[] = [];
   /** Follow-me cars (tugs are drawn with the aircraft they move). */
   readonly vehicles: Vehicle[];
   readonly startEpochMs: number;
@@ -697,30 +700,17 @@ export class Simulation {
     this.stats.totalWaitSeconds += wait;
     this.stats.delayPenalty += Math.floor(Math.max(0, wait - 30) / 15);
     this.stats.answeredRequests++;
+    // The five longest waits of the session, for the debriefing.
+    if (wait > 30) {
+      this.longestWaits.push({ callsign: ac.callsign, seconds: Math.round(wait) });
+      this.longestWaits.sort((a, b) => b.seconds - a.seconds);
+      this.longestWaits.length = Math.min(this.longestWaits.length, 5);
+    }
     this.updateScore();
   }
 
   updateScore(): void {
-    const s = this.stats;
-    s.score =
-      s.departuresHandedOff * 10 +
-      s.arrivalsParked * 10 +
-      s.clearancesDelivered * 10 +
-      s.towsCompleted * 5 +
-      s.departuresToRadar * 10 +
-      s.arrivalsToGround * 10 -
-      s.handoffsMissed * 5 -
-      s.separationLosses * 10 -
-      s.goAroundsInstructed * 5 +
-      s.readbackErrorsCaught * 5 +
-      s.bonus -
-      s.readbackErrorsMissed * 10 -
-      s.slotsMissed * 10 -
-      s.sayAgains * 2 -
-      s.delayPenalty -
-      s.incursions * 50 -
-      s.collisions * 100 -
-      s.goArounds * 15;
+    this.stats.score = scoreOf(this.stats);
   }
 
   /** Display name of an aircraft for messages. */

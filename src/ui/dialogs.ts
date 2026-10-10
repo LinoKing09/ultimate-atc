@@ -254,6 +254,7 @@ const KEYS: [string, string][] = [
   ['ROT (toolbar)', 'Rotate the scope: runway horizontal like the aerodrome chart / north-up'],
   ['BRIEFING (toolbar)', 'Airport briefing: your position, runway in use, flows, entries and exits, typical routes, stands, hot spots'],
   ['x (command line)', 'Clear the command line'],
+  ['DISCONNECT (toolbar)', 'Debriefing of the session (what earned and what cost points, answer times, incidents, advice), then continue or end the session'],
   ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL and the ILS (localizer, glide path); switch them on or off'],
   ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, voices, traffic density, special events'],
   ['Mobile mode: tap / tap again / long press', 'Select the aircraft / open its menu (or the tag item) / open its menu; + and - buttons zoom'],

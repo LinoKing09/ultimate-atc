@@ -29,6 +29,8 @@ ultimate-atc/
 │   │   ├── delivery.ts        # Clearance Delivery: IFR clearances, squawks, readback errors, CTOTs, DCL, A-CDM sequencer
 │   │   ├── groundAI.ts        # AI Ground (when the user doesn't staff Ground)
 │   │   ├── conflicts.ts       # A-SMGCS: CATC head-on checks, Resolve conflict options, RMCA runway alerts
+│   │   ├── opposite.ts        # pilots stop short of a junction for opposite traffic and ask
+│   │   ├── debrief.ts         # score table and the debriefing after a session
 │   │   ├── systems.ts         # airport/ATC systems (A-SMGCS services, A-CDM, DCL, ILS) and their states
 │   │   ├── vehicles.ts        # follow-me cars, tug positions, tow creation
 │   │   ├── traffic.ts         # traffic generator: departures, arrivals, callsigns, stands
@@ -60,6 +62,7 @@ ultimate-atc/
 │       ├── settings.ts        # localStorage-backed preferences
 │       ├── settingsDialog.ts  # in-game settings menu (device mode, sizes, voice, traffic)
 │       ├── systemsDialog.ts   # systems window (status and on/off switches)
+│       ├── debriefDialog.ts   # debriefing dialog (DISCONNECT)
 │       ├── commandInput.ts    # single-line plain-text command field (no form input, iPad-friendly)
 │       └── dom.ts             # tiny DOM helper
 ├── tests/                     # Vitest unit and scenario tests

@@ -76,7 +76,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#13-score). |
 | `HELP`                | Help window with the tabs *Airport briefing*, *Phraseology* and *Controls* (also **F1**; it opens on the tab you used last). |
 | `DOCS`                | Opens this documentation on GitHub.                                                             |
-| `DISCONNECT`          | Ends the session and returns to the Connect dialog.                                             |
+| `DISCONNECT`          | Opens the **debriefing** (the simulation pauses): *Continue session* goes back, *End session* returns to the Connect dialog. See [Debriefing](#debriefing). |
 
 ### ATIS editor
 
@@ -498,6 +498,18 @@ The A-SMGCS runway monitoring (RMCA) warns when you give a take-off or landing c
 | Go-around caused by an occupied runway (or, as Tower, a missing landing clearance) |    -15 |
 | Runway incursion                                            |    -50 |
 | Collision                                                   |   -100 |
+
+### Debriefing
+
+`DISCONNECT` opens the debriefing of your session before you leave:
+
+- your positions, the time worked, the score, departures airborne, requests answered, the **average answer time** and the five longest waits,
+- **What went well**: everything that earned points (count and points), largest first,
+- **What cost points**: everything that lost points, largest loss first,
+- the **incidents** (collisions, incursions, go-arounds) and the last system **warnings** (RMCA/CATC alerts, missed CTOTs, separation, missed hand-offs) with the time since the session start,
+- **For the next session**: advice for what cost the most (for example answering sooner with `standby` or queue numbers, waiting for the departure spacing, clearing arrivals to land in time).
+
+*Continue session* goes back to work (the simulation resumes), *End session* returns to the Connect dialog.
 
 ## 14. Tips
 

@@ -884,3 +884,11 @@ body.mobile .sidebar {
 .debrief-list li {
   margin: 2px 0;
 }
+
+/* MIC is held like a push-to-talk key: no text selection or callout on a long press. */
+button.mic {
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}

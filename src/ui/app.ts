@@ -204,7 +204,7 @@ export class App {
     this.targetEl = h('span.target');
     this.input = new CommandInput('Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help');
     this.previewEl = h('span.preview');
-    this.micButton = h('button.mic', { text: 'MIC', title: 'Push-to-talk: hold the ^ / ` key, Right Ctrl or Insert (or click to start/stop)' });
+    this.micButton = h('button.mic', { text: 'MIC', title: 'Push-to-talk: hold MIC (or the ^ / ` key, Right Ctrl, Insert) while you speak - or tap MIC to start and tap again to stop' });
     const clearBtn = h('button.clear', { text: '\u00d7', title: 'Clear the command line', type: 'button', 'aria-label': 'Clear the command line' });
     // pointerdown + preventDefault keeps the focus (and an open keyboard) where it is.
     clearBtn.addEventListener('pointerdown', (e) => e.preventDefault());
@@ -270,7 +270,25 @@ export class App {
       this.micButton.disabled = true;
       this.micButton.title = 'Speech recognition is not supported by this browser (try Chrome or Edge)';
     }
-    this.micButton.addEventListener('click', () => (this.voiceIn.listening ? this.voiceIn.stop() : this.voiceIn.start()));
+    // MIC: hold it like a push-to-talk key (release ends the transmission), or tap to start and tap again to stop.
+    let pressedAt = 0;
+    let startedByPress = false;
+    this.micButton.addEventListener('pointerdown', (e) => {
+      e.preventDefault();
+      pressedAt = performance.now();
+      startedByPress = !this.voiceIn.listening;
+      if (startedByPress) this.voiceIn.start();
+    });
+    const release = () => {
+      if (!pressedAt) return;
+      const held = performance.now() - pressedAt;
+      pressedAt = 0;
+      // A long press is push-to-talk; a short tap toggles (a second tap stops).
+      if (!startedByPress || held > 400) this.voiceIn.stop();
+    };
+    this.micButton.addEventListener('pointerup', release);
+    this.micButton.addEventListener('pointercancel', release);
+    this.micButton.addEventListener('contextmenu', (e) => e.preventDefault());
     this.applySettings();
 
     // ---------------------------------------------------------------- events

@@ -168,11 +168,18 @@ interface Recognition {
 
 export class VoiceInput {
   private rec?: Recognition;
-  /** Final results so far; each entry holds the recogniser's alternatives for one phrase. */
+  /** Final results of earlier recognition runs of this transmission (Safari ends a run at every pause). */
+  private committed: string[][] = [];
+  /** Final results of the current run; each entry holds the recogniser's alternatives for one phrase. */
   private finals: string[][] = [];
+  /** Words heard but not yet final (Safari often never finalises the last phrase when stopped). */
+  private interim = '';
   /** Results before this index were discarded (sent or cleared) and are not shown again. */
   private skip = 0;
   private seen = 0;
+  /** The controller is transmitting (MIC on / key held): restart the recogniser when it stops by itself. */
+  private wanted = false;
+  private startedAt = 0;
   listening = false;
 
   constructor(
@@ -190,7 +197,7 @@ export class VoiceInput {
     rec.interimResults = true;
     rec.maxAlternatives = 5;
     rec.onresult = (e) => {
-      // Rebuilt from all results of this session each time: Safari (iOS) re-sends earlier results,
+      // Rebuilt from all results of this run each time: Safari (iOS) re-sends earlier results,
       // which would otherwise be added twice. Results discarded by discard() are skipped.
       this.seen = e.results.length;
       this.finals = [];
@@ -203,21 +210,55 @@ export class VoiceInput {
           this.finals.push(alts);
         } else interim += r[0].transcript;
       }
-      const text = `${this.finals.map((f) => f[0]).join(' ')} ${interim}`.trim();
+      this.interim = interim.trim();
+      const text = this.text();
       if (text) this.onInterim(text);
     };
     rec.onend = () => {
-      const candidates = combineAlternatives(this.finals);
-      this.listening = false;
-      this.onState(false);
-      if (candidates.length) this.onFinal(candidates);
-      this.finals = [];
+      this.commitRun();
+      // Safari stops after a short pause even in continuous mode: carry on while the controller still transmits.
+      if (this.wanted && performance.now() - this.startedAt < 60_000) {
+        try {
+          rec.start();
+          return;
+        } catch {
+          /* could not restart: end the transmission */
+        }
+      }
+      this.finish();
     };
     rec.onerror = (e) => {
-      this.listening = false;
-      this.onState(false, e.error);
+      // "no-speech" / "aborted" end the run; onend follows and decides.
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
+        this.wanted = false;
+        this.onState(this.listening, e.error);
+      }
     };
     this.rec = rec;
+  }
+
+  /** Everything heard in this transmission so far. */
+  private text(): string {
+    return [...this.committed.map((f) => f[0]), ...this.finals.map((f) => f[0]), this.interim].filter(Boolean).join(' ').trim();
+  }
+
+  /** The run ended: keep what it heard (the last unfinished phrase too). */
+  private commitRun(): void {
+    this.committed.push(...this.finals);
+    if (this.interim) this.committed.push([this.interim]);
+    this.finals = [];
+    this.interim = '';
+    this.skip = 0;
+    this.seen = 0;
+  }
+
+  private finish(): void {
+    const candidates = combineAlternatives(this.committed);
+    this.committed = [];
+    this.wanted = false;
+    this.listening = false;
+    this.onState(false);
+    if (candidates.length) this.onFinal(candidates);
   }
 
   get supported(): boolean {
@@ -232,25 +273,32 @@ export class VoiceInput {
   /** Forgets what was heard so far (the command was sent or cleared): it does not come back. */
   discard(): void {
     this.skip = this.seen;
+    this.committed = [];
     this.finals = [];
+    this.interim = '';
   }
 
   start(): void {
     if (!this.rec || this.listening) return;
+    this.committed = [];
     this.finals = [];
+    this.interim = '';
     this.skip = 0;
     this.seen = 0;
+    this.wanted = true;
+    this.startedAt = performance.now();
     try {
       this.rec.start();
       this.listening = true;
       this.onState(true);
     } catch {
-      /* already started */
+      this.wanted = false;
     }
   }
 
   stop(): void {
     if (!this.rec || !this.listening) return;
+    this.wanted = false;
     this.rec.stop();
   }
 }

@@ -4,8 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- The AI Ground hands a departure to Tower early only once it is on one of the last two taxiways of its route (runway 07 via M, L2, K: from L2 on, no longer already on M).
+- MIC works like a push-to-talk key on touch screens: hold it while you speak, or tap to start and tap again to stop.
+
 ### Fixed
 
+- Speech recognition on the iPad: Safari ended the recognition at the first short pause and dropped the last phrase when stopped. It is now restarted until you release MIC, everything heard is kept, and the last unfinished phrase is used too.
 - iPad / iPhone: pilot voices (TTS) still silent. The unlock now runs on a real tap (click / end of touch - Safari ignores touchstart), switching TTS on speaks a confirmation, only voices installed on the device are used (no effect voices), stuck speech queues are cleared, utterances are kept until they have been spoken, and the speech engine is reset after the microphone. New *Test* button in the settings.
 
 ## [0.8.0] - 2026-10-10

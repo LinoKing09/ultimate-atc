@@ -80,7 +80,7 @@ const HANDOFF_SLOT_MARGIN_S = 120;
 /**
  * Ground hands a departure to Tower before the holding point once there is
  * nothing left to coordinate on the ground: on the last stretch to the
- * holding point, no runway crossing ahead, no conflict, and no other ground
+ * holding point (and on one of the last two taxiways of the route), no runway crossing ahead, no conflict, and no other ground
  * traffic close by (except departures queuing for the same holding point),
  * and no slot (CTOT) to wait for.
  */
@@ -88,6 +88,10 @@ function readyForTower(sim: Simulation, ac: Aircraft): boolean {
   const dest = ac.routeDestination;
   if (ac.phase !== 'taxi' || dest?.kind !== 'holdingPoint' || !ac.path) return false;
   if (ac.path.length - ac.s > HANDOFF_BEFORE_HP_M) return false;
+  // Only on the last two taxiways of the route (EDDS runway 07: from L2 on, not yet on M).
+  const twys = ac.route?.taxiways.filter((t) => sim.airport.taxiwayNames.has(t.toUpperCase())) ?? [];
+  const here = sim.airport.nearestEdge(ac.pos)?.edge.name ?? '';
+  if (twys.length > 2 && !twys.slice(-2).includes(here)) return false;
   // A departure that will have to wait for its slot stays with Ground until the holding point.
   if (ac.ctot !== undefined && sim.time + HANDOFF_SLOT_MARGIN_S < ac.ctot - CTOT_EARLY_S) return false;
   if (ac.stoppedAt?.kind === 'runway' || ac.stops.some((s) => s.kind === 'runway' || s.kind === 'holdShort')) return false;

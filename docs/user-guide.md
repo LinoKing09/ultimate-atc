@@ -423,7 +423,7 @@ On the **iPad** (and iPhone) TTS is off until you switch it on (in mobile mode t
 
 ### You speaking (speech recognition)
 
-Hold a push-to-talk key and speak your instruction: the key left of `1` (`^` on German, `` ` `` on US keyboards), **Right Ctrl** or **Insert**. You can also click **MIC** to start and stop. For example: *"Lufthansa five alpha bravo, taxi to holding point golf one via november golf"*. The recognised text appears in the command line while you speak and is transmitted when you release the key.
+Hold a push-to-talk key and speak your instruction: the key left of `1` (`^` on German, `` ` `` on US keyboards), **Right Ctrl** or **Insert**. On a touch screen **hold MIC** while you speak (release ends the transmission, like a push-to-talk key), or tap MIC once to start and tap again to stop. Safari (iPad) ends its recognition at every short pause; the simulator restarts it at once and keeps everything you said until you release or tap MIC again (at most 60 s). For example: *"Lufthansa five alpha bravo, taxi to holding point golf one via november golf"*. The recognised text appears in the command line while you speak and is transmitted when you release the key.
 
 The goal is to work **by voice only**. Several things help with recognition errors:
 

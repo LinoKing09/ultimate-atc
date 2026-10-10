@@ -8,6 +8,7 @@ import { parseTransmission } from './phraseology/parser';
 import { executeTransmission, updatePilot } from './pilot';
 import { Frequency, type MessageKind, type RadioMessage } from './radio';
 import { updateConflictAlerts, updateRunwayAlerts } from './conflicts';
+import { updateOppositeTraffic } from './opposite';
 import { updateSequencer, updateDeliveryAI } from './delivery';
 import { updateGroundAI } from './groundAI';
 import { Rng } from './random';
@@ -160,6 +161,7 @@ export class Simulation {
   /** CATC alerts the controller has acknowledged (pair keys); dropped once the conflict is gone. */
   readonly catcAcknowledged = new Set<string>();
   private nextConflictCheck = 0;
+  private nextOppositeCheck = 0;
   /** Follow-me cars (tugs are drawn with the aircraft they move). */
   readonly vehicles: Vehicle[];
   readonly startEpochMs: number;
@@ -314,6 +316,10 @@ export class Simulation {
     if (this.config.generateTraffic !== false) this.traffic.update();
     this.tower.update(dt);
     updateSeparation(this);
+    if (this.time >= this.nextOppositeCheck) {
+      this.nextOppositeCheck = this.time + 2;
+      updateOppositeTraffic(this);
+    }
     for (const ac of this.aircraft) {
       updatePilot(this, ac);
       updateMovement(this, ac, dt);

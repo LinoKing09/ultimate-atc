@@ -52,6 +52,9 @@ export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void 
   const toStop = stopS - ac.s;
   vTarget = Math.min(vTarget, Math.sqrt(2 * BRAKE * Math.max(0, toStop - 0.2)));
 
+  // Opposite traffic ahead: stop short of the junction between us.
+  if (ac.oppositeStop?.path === path) vTarget = Math.min(vTarget, Math.sqrt(2 * BRAKE * Math.max(0, ac.oppositeStop.s - ac.s - 0.2)));
+
   // Hard holds
   if (ac.stoppedAt || ac.holdPosition || ac.giveWayTo) vTarget = 0;
   // Waiting for the follow-me to arrive in front.
@@ -276,9 +279,15 @@ function crossingConflict(sim: Simulation, a: Aircraft, ground: Aircraft[], look
       }
     }
     if (!found) continue;
+    // Already inside the other's lane? Then stopping here would block it for good (nose to nose
+    // on a connector): the one already in the lane goes on, the other waits before entering it.
+    const aInside = found.dA <= 9;
+    let bInside = false;
+    for (let i = 0; i < own.p.length && !bInside; i++) bInside = distance(own.p[i], b.pos) < r;
     // Priority: a decision, once made, is kept until the conflict is over (no flip-flopping as speeds change).
     let aYields: boolean;
-    if (yielding.get(a) === b.callsign) aYields = true;
+    if (aInside !== bInside) aYields = bInside;
+    else if (yielding.get(a) === b.callsign) aYields = true;
     else if (yielding.get(b) === a.callsign) aYields = false;
     else {
       const tA = found.dA / Math.max(a.speed, 2);

@@ -214,8 +214,10 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
     const node = dest && destinationNode(sim, dest);
     if (!dest || !node || x.phase === 'parked') continue;
     const radius = (x.type.wingspanM + y.type.wingspanM) * 0.38 + 10;
-    // Keep clear of the other aircraft and of the first part of its path.
-    const avoid = { points: futureOf(y).slice(0, 10).map((s) => s.p), radius };
+    // Keep clear of the other aircraft and of the first part of its path. Both stopped short of a
+    // junction for opposite traffic: the other one waits, so only its position counts.
+    const waiting = x.oppositeStop?.other === y.callsign || y.oppositeStop?.other === x.callsign;
+    const avoid = { points: waiting ? [y.pos] : futureOf(y).slice(0, 10).map((s) => s.p), radius };
     const destText = dest.kind === 'runway' ? `holding point ${node.holdingPoint?.name ?? ''}` : formatDestination(dest);
     const target: TaxiDestination = dest.kind === 'runway' ? { kind: 'holdingPoint', name: node.holdingPoint?.name ?? '' } : dest;
 
@@ -272,6 +274,10 @@ function distanceToSegment(p: Vec2, a: Vec2, b: Vec2): number {
  * routed head-on.
  */
 export function headOnPartner(sim: Simulation, ac: Aircraft): Aircraft | undefined {
+  if (ac.oppositeStop) {
+    const o = sim.find(ac.oppositeStop.other);
+    if (o) return o;
+  }
   if (ac.blockedBy) {
     const o = sim.find(ac.blockedBy);
     if (o && (Math.abs(headingDiff(ac.heading, o.heading)) > 120 || o.blockedBy === ac.callsign || blockCycle(sim, ac))) return o;

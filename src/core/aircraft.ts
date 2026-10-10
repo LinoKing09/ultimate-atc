@@ -114,6 +114,11 @@ export interface Aircraft {
   holdPosition: boolean;
   giveWayTo?: string;
   giveWaySince?: number;
+  /**
+   * Opposite traffic on the same taxiway seen in time: the crew stops short of the junction between
+   * them (path distance `s`), keeping it free so one of them can turn off there, and asks Ground.
+   */
+  oppositeStop?: { s: number; path: Path; other: string; junction: string; taxiway: string; since: number; called?: boolean };
   expedite: boolean;
   /** Speed limit for the current path segment (m/s), e.g. landing roll-out profile. */
   speedLimit?: (s: number) => number;

@@ -17,6 +17,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- **Pilots resolve simple conflicts** (0.8): crews who see opposite traffic on their taxiway stop short of the junction between them and ask Ground (`opposite traffic on taxiway N, ... holding short of G, request instructions`), so one can turn off there instead of meeting nose to nose; an aircraft already in the other one's lane goes first, the other waits before entering it (no more stand-offs on connectors like H). The release benchmark rises from 12.8 to 13.3 departures and 5.5 to 6.3 arrivals per hour.
 - `continue` to an aircraft on final means `continue approach` (not "continue taxi").
 - The AI Ground hands departures to Tower on the way to the holding point (last 600 m) when nothing is left to coordinate on the ground and no CTOT is to be waited for, instead of only once they have stopped there; their first call is `approaching holding point A, ready for departure`.
 - A departure does not line up while another aircraft is lined up or on the runway near its entry.

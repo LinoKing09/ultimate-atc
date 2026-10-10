@@ -70,11 +70,31 @@ describe('head-on conflicts (CATC)', () => {
     expect(sim.stats.collisions).toBe(0);
   });
 
+  it('pilots who see opposite traffic stop short of the junction between them and ask; one turns off there', () => {
+    const { sim, dep, arr } = headOnSetup();
+    sim.transmit('DLH1AB taxi to holding point A via N');
+    sim.transmit('EWG2CD taxi to stand 14 via N, L2');
+    expect(runUntil(sim, () => !!dep.oppositeStop && !!arr.oppositeStop && dep.speed === 0 && arr.speed === 0, 300)).toBe(true);
+    expect(dep.oppositeStop?.junction).toBe(arr.oppositeStop?.junction);
+    expect(runUntil(sim, () => sim.messages.some((m) => /opposite traffic on taxiway N, .*holding short of [A-Z0-9]+, request instructions/.test(m.text)), 30)).toBe(true);
+    // The junction is free: a way out without a tug.
+    const options = resolveOptions(sim, dep, arr);
+    expect(options.length).toBeGreaterThan(0);
+    expect(options[0].tug).toBe(false);
+    sim.transmit(`${options[0].aircraft.callsign} ${options[0].instruction}`);
+    expect(runUntil(sim, () => dep.phase === 'holding' && arr.phase === 'arrived', 1500)).toBe(true);
+    expect(sim.stats.collisions).toBe(0);
+  });
+
   it('needs a tug when they already stand nose to nose with no junction between them', () => {
     const { sim, dep, arr } = headOnSetup();
     sim.transmit('DLH1AB taxi to holding point A via N');
     sim.transmit('EWG2CD taxi to stand 14 via N, L2');
-    runUntil(sim, () => !!arr.blockedBy && !!dep.blockedBy && arr.speed === 0 && dep.speed === 0, 400);
+    // The crews do not see each other in time (as if in low visibility): they meet nose to nose.
+    for (let t = 0; t < 400 && !(arr.blockedBy && dep.blockedBy && arr.speed === 0 && dep.speed === 0); t++) {
+      dep.oppositeStop = arr.oppositeStop = undefined;
+      sim.tick(1);
+    }
     for (let t = 0; t < 40; t++) sim.tick(1); // stuck for a while: pilots accept a tug
     const options = resolveOptions(sim, dep, arr);
     expect(options.length).toBeGreaterThan(0);

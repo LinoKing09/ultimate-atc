@@ -336,6 +336,7 @@ Pilots on your frequency call on their own:
 | Tug ready to tow an aircraft to a remote stand          | `Stuttgart Ground, Tug 5, request tow Eurowings A320 from stand 14 to stand 45` (ICAO: REQUEST TOW (company) (type) FROM (location) TO (location)) |
 | Departure at the holding point and still with you       | `Lufthansa 5AB, holding point A, ready for departure`                                 |
 | Runway holding point on the route, no crossing clearance | `Turkish 1734, holding short runway 25 at W`                                        |
+| Opposite traffic seen in time (stops short of a junction) | `Lufthansa 5AB, opposite traffic on taxiway N, Eurowings 7TK, holding short of G, request instructions` |
 | Head-on with other traffic for over a minute            | `Lufthansa 5AB, we have opposite traffic ahead, EWG7TK, request instructions`          |
 | Stopped for over a minute behind an aircraft that waits for instructions (for example at a vacate point) | `Lufthansa 5AB, we are blocked by Eurowings 7TK, waiting on the taxiway ahead, request instructions` |
 | Departure on Tower frequency stuck short of the holding point and far from it | `Stuttgart Ground, Lufthansa 5AB, Tower sent us back to you, we are short of the holding point, request taxi` |

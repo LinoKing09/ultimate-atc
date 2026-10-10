@@ -118,7 +118,9 @@ const RESOLVE_AGAIN_S = 120;
 
 /** Head-on: re-route one of the two (as a real Ground controller would). */
 function resolve(sim: Simulation, ac: Aircraft): void {
-  if (!ac.blockedBy || ac.blockedSince === undefined || sim.time - ac.blockedSince < 40) return;
+  // Stopped for opposite traffic at a junction (the crew asks), or stuck behind traffic for 40 s.
+  const waitingOpposite = !!ac.oppositeStop && ac.speed < 0.1 && sim.time - ac.oppositeStop.since > 20;
+  if (!waitingOpposite && (!ac.blockedBy || ac.blockedSince === undefined || sim.time - ac.blockedSince < 40)) return;
   const other = headOnPartner(sim, ac);
   if (!other) return;
   // Resolve each conflict once: not again while a tug is coming or right after the last instruction.

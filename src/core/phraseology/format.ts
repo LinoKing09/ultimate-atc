@@ -85,6 +85,8 @@ export function formatCommand(c: Command): string {
       return ['contact', c.station ? STATION_WORD[c.station] : '', c.frequency ?? ''].filter(Boolean).join(' ');
     case 'standby':
       return 'standby';
+    case 'roger':
+      return 'roger';
     case 'expedite':
       return 'expedite taxi';
     case 'sayAgain':

@@ -645,7 +645,8 @@ export class Scope {
     // A-SMGCS CATC: aircraft routed head-on flash red - only conflicts that involve your traffic, until acknowledged.
     if (catcAlert(this.sim, ac)) return Math.floor(now / 350) % 2 === 0 ? C.danger : C.mine;
     const mine = this.sim.isOnMyFrequency(ac);
-    if (mine && ac.request) {
+    // Acknowledged requests ("roger", "standby") do not flash.
+    if (mine && ac.request && !ac.requestAck) {
       const late = this.sim.time - ac.requestSince > 60;
       const blink = Math.floor(now / 500) % 2 === 0;
       return blink ? (late ? C.late : C.request) : C.mine;

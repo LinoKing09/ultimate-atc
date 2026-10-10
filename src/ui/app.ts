@@ -26,6 +26,11 @@ import { showDebrief } from './debriefDialog';
 const SPEEDS = [1, 2, 4, 8];
 /** Keys that work as push-to-talk (held down). */
 const PTT_KEYS = new Set(['Backquote', 'ControlRight', 'Insert']);
+/**
+ * Pilot voices (TTS) and speech recognition (MIC) are switched off for 1.0: they are not reliable
+ * enough on all devices yet. The code stays; set this to true to bring them back.
+ */
+const VOICE_ENABLED = false;
 
 /**
  * The controller client: wires the simulation to the scope, the traffic
@@ -228,9 +233,11 @@ export class App {
       {},
       sendBtn,
       this.micButton,
+      side('ROGER', 'Roger - acknowledge the call of the selected aircraft (or the last caller): it stops flashing', toSelected('roger')),
       side('STANDBY', 'Standby - to the selected aircraft (or the last caller)', toSelected('standby')),
       allBtn,
     );
+    if (!VOICE_ENABLED) this.micButton.remove();
     const comms = h('div.comms', {}, h('div.comms-main', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input.el, clearBtn, this.previewEl)), sidebar);
 
     root.replaceChildren(toolbar, this.main, comms);
@@ -244,8 +251,9 @@ export class App {
 
     // ---------------------------------------------------------------- voice
     this.voices.volume = settings.ttsVolume;
-    this.setTts(settings.tts && this.voices.supported);
+    this.setTts(VOICE_ENABLED && settings.tts && this.voices.supported);
     if (!this.voices.supported) this.ttsButton.disabled = true;
+    if (!VOICE_ENABLED) this.ttsButton.style.display = 'none';
     this.voiceIn = new VoiceInput(
       (interim) => {
         this.input.value = interim;
@@ -302,7 +310,7 @@ export class App {
     this.input.el.addEventListener('keydown', (e) => this.onInputKey(e));
     window.addEventListener('keydown', (e) => this.onGlobalKey(e));
     window.addEventListener('keyup', (e) => {
-      if (PTT_KEYS.has(e.code)) {
+      if (VOICE_ENABLED && PTT_KEYS.has(e.code)) {
         e.preventDefault();
         this.voiceIn.stop();
       }
@@ -422,7 +430,7 @@ export class App {
 
   private openSettings(): void {
     this.menu.close();
-    showSettings(this.sim, this.settings, () => this.applySettings(), { tts: this.voices.supported, mic: this.voiceIn.supported, test: () => this.voices.test('Stuttgart Ground, radio check, readability five') });
+    showSettings(this.sim, this.settings, () => this.applySettings(), { tts: VOICE_ENABLED && this.voices.supported, mic: VOICE_ENABLED && this.voiceIn.supported, hidden: !VOICE_ENABLED, test: () => this.voices.test('Stuttgart Ground, radio check, readability five') });
   }
 
   /** Applies the (possibly changed) settings to the running session. */
@@ -441,7 +449,7 @@ export class App {
     this.routesBtn.classList.toggle('active', s.showRoutes);
     if (s.runwayAligned !== this.scope.runwayAligned) this.scope.setRotation(s.runwayAligned);
     this.rotBtn.classList.toggle('active', s.runwayAligned);
-    if (this.voices.enabled !== (s.tts && this.voices.supported)) this.setTts(s.tts && this.voices.supported, true);
+    if (this.voices.enabled !== (VOICE_ENABLED && s.tts && this.voices.supported)) this.setTts(VOICE_ENABLED && s.tts && this.voices.supported, true);
     this.voices.volume = s.ttsVolume;
     this.voices.rate = s.ttsRate;
     this.voiceIn.lang = s.voiceLang;
@@ -507,7 +515,7 @@ export class App {
       return;
     }
     const mine = this.sim.isOnMyFrequency(ac);
-    const key = `${ac.callsign}|${ac.phase}|${ac.onGround}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}|${catcAlert(this.sim, ac)?.key ?? ''}`;
+    const key = `${ac.callsign}|${ac.phase}|${ac.onGround}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}|${catcAlert(this.sim, ac)?.key ?? ''}|${ac.requestAck}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
     if (this.quickSel && this.quickSel.cs !== ac.callsign) this.clearQuickSel();
@@ -522,6 +530,8 @@ export class App {
       return [r.left, r.top];
     };
     const items: HTMLElement[] = [h('span.qcs', { text: ac.callsign })];
+    if (!mine && this.sim.handoffTarget(ac)) items.push(btn('REQ H/O', () => this.requestHandoff(ac)));
+    if (mine && ac.request && !ac.requestAck) items.push(phrase('ROGER', 'roger'));
     if (catcAlert(this.sim, ac)) items.push(btn('ACK', () => this.acknowledgeCatc(ac)));
     if (mine && this.sim.userTower && ac.frequency === this.sim.stationFor('tower')) {
       // Tower: the clearances of the moment as buttons.
@@ -542,6 +552,9 @@ export class App {
         if (!s || !i.action || i.disabled) continue;
         const p = this.phraseOf(i.action);
         items.push(p ? phrase(s[1], p) : btn(s[1], () => i.action!()));
+      }
+      if (ac.category === 'departure' && ac.onGround && (ac.phase === 'taxi' || ac.phase === 'holding')) {
+        items.push(btn('TAXI', (b) => this.menu.open(`${ac.callsign} - taxi to`, this.taxiDestinations(ac), ...at(b))));
       }
     } else if (mine && ac.frequency === this.sim.stationFor('delivery') && this.sim.stationFor('delivery') !== this.sim.stationFor('ground')) {
       const del = this.deliveryItems(ac);
@@ -664,7 +677,7 @@ export class App {
 
   private onGlobalKey(e: KeyboardEvent): void {
     if (document.querySelector('.overlay')) return;
-    if (PTT_KEYS.has(e.code)) {
+    if (VOICE_ENABLED && PTT_KEYS.has(e.code)) {
       e.preventDefault();
       if (!e.repeat) this.voiceIn.start();
       return;
@@ -888,6 +901,13 @@ export class App {
     );
   }
 
+  private requestHandoff(ac: Aircraft): void {
+    const err = this.sim.requestHandoff(ac);
+    if (err) this.hint(err);
+    this.quickbarKey = '';
+    this.updateQuickbar();
+  }
+
   /** Acknowledges the CATC alert of an aircraft (no flashing until the conflict ends). */
   private acknowledgeCatc(ac: Aircraft): void {
     const alert = catcAlert(this.sim, ac);
@@ -1000,7 +1020,11 @@ export class App {
     }
 
     if (!sim.isOnMyFrequency(ac)) {
-      items.push({ label: `On ${ac.frequency} frequency`, disabled: true }, { divider: true, label: '' }, center, resetTag);
+      items.push({ label: `On ${ac.frequency} frequency`, disabled: true });
+      // Ask the (simulator-run) position for the aircraft now, e.g. a departure from Ground before the holding point.
+      const to = sim.handoffTarget(ac);
+      if (to) items.push({ label: `Request hand-off to ${to}`, action: () => this.requestHandoff(ac) });
+      items.push({ divider: true, label: '' }, center, resetTag);
       return items;
     }
 
@@ -1121,6 +1145,8 @@ export class App {
       const spacing = Math.max(0, Math.round(sim.tower.spacingRemaining(ac)));
       const busy = sim.tower.runwayBusy(ac);
       const slotOpens = ac.ctot !== undefined && sim.time < ac.ctot - CTOT_EARLY_S ? ac.ctot - CTOT_EARLY_S : undefined;
+      // Tower may send a departure to another holding point (e.g. an intersection) before it gets there.
+      if (ac.phase === 'taxi' || ac.phase === 'holding') items.push({ label: 'Taxi to', submenu: () => this.taxiDestinations(ac) });
       items.push({ label: `Line up and wait runway ${rwy}`, disabled: ac.phase === 'lineup' || !!ac.lineUpCleared, hint: busy ? 'runway occupied' : undefined, action: () => this.say(ac, `line up and wait runway ${rwy}`) });
       const landing = sim.aircraft.filter((o) => (o.phase === 'approach' && sim.distanceToThresholdNm(o) < 5) || o.phase === 'landing');
       items.push({
@@ -1144,7 +1170,8 @@ export class App {
       items.push({ label: 'Hold position', action: () => this.say(ac, 'hold position') });
     }
     if (ac.phase === 'takeoff') items.push({ label: 'Stop immediately', action: () => this.say(ac, 'stop immediately') });
-    if (ac.phase === 'climb' && radar) items.push({ label: `Contact ${radar.name} ${radar.frequency}`, hint: ac.request === 'radar' ? 'requested' : undefined, action: () => this.say(ac, `contact radar ${radar.frequency}`) });
+    // Every aircraft in the air (departures, go-arounds) can be handed to Radar.
+    if ((ac.phase === 'climb' || ac.phase === 'goAround') && radar) items.push({ label: `Contact ${radar.name} ${radar.frequency}`, hint: ac.request === 'radar' ? 'requested' : undefined, action: () => this.say(ac, `contact radar ${radar.frequency}`) });
     if (ac.phase === 'approach') {
       items.push({
         label: `Cleared to land runway ${rwy}`,

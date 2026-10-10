@@ -38,6 +38,7 @@ export type Command =
   | { type: 'reportPosition' }
   | { type: 'handoff'; station?: StationType; frequency?: string }
   | { type: 'standby' }
+  | { type: 'roger' }
   /** Queue position: "number 2 for pushback". */
   | { type: 'sequence'; number: number; for?: string }
   /** Expected delay: "expect pushback in 5 minutes". */

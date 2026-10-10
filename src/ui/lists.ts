@@ -53,7 +53,7 @@ export class TrafficList {
       this.rows,
       rows.map((ac) => {
         const mine = sim.isOnMyFrequency(ac);
-        const req = mine && ac.request;
+        const req = mine && ac.request && !ac.requestAck;
         const late = req && sim.time - ac.requestSince > 60;
         return {
           key: ac.callsign,

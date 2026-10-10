@@ -4,13 +4,24 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **ROGER**: `roger` (sidebar button, quick-action bar) acknowledges a call without a read-back - the aircraft stops flashing and the pilot waits 4 minutes before calling again (2 minutes after `standby`, which also stops the flashing now).
+- **Request hand-off** for aircraft still with a simulator-run position (aircraft menu, `REQ H/O`): a departure taxiing on Ground, an arrival on final with Approach, a vacated arrival with Tower, a cleared departure with Delivery.
+- Tower: *Taxi to* another holding point for departures still taxiing (e.g. to the intersection B); *Contact Radar* for every aircraft in the air, also after a go-around (it was missing in the quick-action bar).
+- Arrivals appear 11 NM out on Approach frequency and are handed to Tower at 7-9 NM; departures stay on the scope until 10 NM (about the size of the Stuttgart control zone).
+- More natural movement: every crew taxis at its own pace (±15 %, drifting a little), brakes differently after landing (1.2-2.0 m/s²) and now and then rolls on to the next exit.
+
 ### Changed
 
+- **Pilot voices (TTS) and speech recognition (MIC) are switched off** for now (hidden; the code stays).
+- Without a landing clearance an arrival asks again at one mile (`one mile final, request landing clearance`) and goes around only just before the threshold (0.15 NM) instead of at 0.5 NM.
 - The AI Ground hands a departure to Tower early only once it is on one of the last two taxiways of its route (runway 07 via M, L2, K: from L2 on, no longer already on M).
 - MIC works like a push-to-talk key on touch screens: hold it while you speak, or tap to start and tap again to stop.
 
 ### Fixed
 
+- A new departure could appear on a drive-through stand that another departure was still taxiing out of (collision).
 - Speech recognition on the iPad: Safari ended the recognition at the first short pause and dropped the last phrase when stopped. It is now restarted until you release MIC, everything heard is kept, and the last unfinished phrase is used too.
 - iPad / iPhone: pilot voices (TTS) still silent. The unlock now runs on a real tap (click / end of touch - Safari ignores touchstart), switching TTS on speaks a confirmation, only voices installed on the device are used (no effect voices), stuck speech queues are cleared, utterances are kept until they have been spoken, and the speech engine is reset after the microphone. New *Test* button in the settings.
 

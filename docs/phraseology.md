@@ -251,6 +251,7 @@ A wrong frequency gets `confirm frequency 118.700 for Tower`. Departures that ar
 | You say          | Effect                                                                         |
 | ---------------- | ------------------------------------------------------------------------------ |
 | `standby`        | Acknowledges a request; the pilot doesn't call again for 2 minutes            |
+| `roger`          | Acknowledges a call without an instruction (no read-back); the pilot doesn't call again for 4 minutes and stops flashing on the scope |
 | `number 2 [for pushback\|start-up\|taxi\|departure]` | Queue position in busy periods. The pilot reads it back (`Number 2 for pushback`) and waits 60 s + 45 s per position before reminding you. The number is shown in the tag (`#2`) and in the list. |
 | `expect pushback\|start-up\|taxi\|departure in 5 minutes` | Expected delay. The pilot waits that long (plus 20 s) before reminding you. |
 | `say again`      | The pilot repeats their last transmission                                      |

@@ -67,7 +67,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `14:32:10Z`           | Simulation time in UTC. The session starts at the current real time.                            |
 | `II` / `>`            | Pause / resume. **Space** does the same when the command line is empty.                         |
 | `1x 2x 4x 8x`         | Simulation rate. Pilots and Tower run faster too; text-to-speech gets slightly faster.          |
-| `TTS`                 | Pilots read their transmissions aloud (text-to-speech).                                         |
+| `TTS`                 | Pilots read their transmissions aloud (text-to-speech). *Hidden in this version, see [Voice](#9-voice).* |
 | `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
 | `ROT`                 | Rotates the scope: **runway horizontal** like the aerodrome chart (default, runway 07 on the left) or north-up. |
 | `BRIEFING`            | Opens the [airport briefing](#airport-briefing).                                               |
@@ -230,7 +230,7 @@ From each runway threshold an extended centreline runs 15 NM outwards with a tic
 | White                        | On your frequency                                               |
 | Grey                         | On another frequency (Tower, or a position run by the simulator) |
 | Flashing red                 | A-SMGCS CATC: cleared routes meet head-on (see [Resolve conflict](#7-aircraft-menu)); *Acknowledge CATC alert* in the aircraft menu (`ACK` in the quick-action bar) stops the flashing when you know they will not meet |
-| Flashing yellow              | Waiting for your answer (a request is pending)                  |
+| Flashing yellow              | Waiting for your answer (a request is pending); `roger` / `standby` (or ROGER in the sidebar) stops it until the pilot calls again |
 | Flashing orange              | Waiting for more than a minute                                  |
 | Flashing magenta, `PAN`      | Emergency (medical) - give priority                             |
 | Red                          | Involved in a collision                                         |
@@ -304,7 +304,7 @@ Click a row to select the aircraft, double-click to centre the scope on it, righ
 
 ### Sidebar
 
-Right of the message window, from the top: a large **SEND** button, **MIC** (push-to-talk), **STANDBY** (to the selected aircraft, or the pilot who called last) and **ALL STN** - broadcasts to all stations: `information B is now current, QNH 1013`, `runway 25 in use`, `standby` (puts every open request on hold) and `expect delays`. Nobody reads a broadcast back. On the desktop ALL STN opens a menu; in mobile mode the quick-action bar shows the broadcasts as phrase buttons (pick one or more, then SEND). Tab still selects the next aircraft with a pending request.
+Right of the message window, from the top: a large **SEND** button, **ROGER** (acknowledges the call of the selected aircraft, or of the pilot who called last: no read-back, the aircraft stops flashing and the pilot waits 4 minutes before calling again - for example the departures queuing at the holding point), **STANDBY** (the same, 2 minutes) and **ALL STN** - broadcasts to all stations: `information B is now current, QNH 1013`, `runway 25 in use`, `standby` (puts every open request on hold) and `expect delays`. Nobody reads a broadcast back. On the desktop ALL STN opens a menu; in mobile mode the quick-action bar shows the broadcasts as phrase buttons (pick one or more, then SEND). Tab still selects the next aircraft with a pending request.
 
 ### Message window
 
@@ -378,7 +378,9 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 
 **Follow-me cars** (right-click the car or its row in the VEHICLES list) have their own menu: *Proceed to DCEEO*, *Return to base*, *Hold position*, *Continue*, *Standby* - see the [vehicle phraseology](phraseology.md#vehicles). In mobile mode the quick-action bar shows `PROCEED`, `BASE`, `HOLD`, `CONT`. **Tab** also selects vehicles with a pending request.
 
-**On Tower frequency** (you staff Tower) the menu offers the Tower clearances: *Line up and wait runway 25*, *Behind ... line up and wait* (behind a landing aircraft), *Cleared for take-off* (with the wind; the hint shows whether the runway is occupied, how long the departure spacing still needs, or when the next arrival comes), *Cleared for immediate take-off*, *Speed* (maintain 150-180 kt until 4 NM, reduce to final approach speed), *Cancel take-off* / *Stop immediately*, *Cleared to land*, *Continue approach*, *Continue, expect late landing clearance*, *Go around*, *Vacate via*, *Cross runway 25*, *Contact Ground* and *Contact Langen Radar*. In mobile mode the quick-action bar shows `LUP`, `T/O`, `LAND`, `CONT`, `G/A`, `CROSS`, `GND`, `RDR`, `STOP`, `HOLD`.
+**On Tower frequency** (you staff Tower) the menu offers the Tower clearances: *Taxi to* (another holding point, for example the intersection B, while the departure is still taxiing), *Line up and wait runway 25*, *Behind ... line up and wait* (behind a landing aircraft), *Cleared for take-off* (with the wind; the hint shows whether the runway is occupied, how long the departure spacing still needs, or when the next arrival comes), *Cleared for immediate take-off*, *Speed* (maintain 150-180 kt until 4 NM, reduce to final approach speed), *Cancel take-off* / *Stop immediately*, *Cleared to land*, *Continue approach*, *Continue, expect late landing clearance*, *Go around*, *Vacate via*, *Cross runway 25*, *Contact Ground* and *Contact Langen Radar* (for every aircraft in the air: departures and go-arounds). In mobile mode the quick-action bar shows `LUP`, `T/O`, `LAND`, `CONT`, `G/A`, `CROSS`, `GND`, `RDR`, `STOP`, `HOLD`, `TAXI` and `ROGER` while a call is open.
+
+**Request hand-off**: for an aircraft that is still with a position the simulator runs (shown as *On GND frequency*), the menu (and `REQ H/O` in the quick-action bar) offers *Request hand-off to TWR* (or GND) when it would come to you next: a departure taxiing on Ground (to you as Tower), an arrival on final still with Approach, a vacated arrival still with Tower (to you as Ground), a cleared departure still with Delivery. The position hands it over at once and the crew calls you.
 
 **On Delivery frequency** the menu offers instead:
 
@@ -414,6 +416,8 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Mobile mode: tap / tap again / long press | Select / menu (or tag item) / menu                           |
 
 ## 9. Voice
+
+> **Switched off in this version.** Pilot voices (TTS) and speech recognition (MIC) are not reliable enough on all devices yet and are disabled for 1.0 (the `TTS` and `MIC` buttons and the voice settings are hidden). The description below applies when they come back.
 
 ### Pilots speaking (TTS)
 

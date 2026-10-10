@@ -146,6 +146,24 @@ export class Simulation {
   static simulatedSeconds = 0;
   readonly airport: Airport;
   readonly rng: Rng;
+  readonly seed: number;
+
+  /**
+   * A stable pseudo-random number in [0, 1) for a key (e.g. "DLH5AB:pace"), derived from the
+   * session seed without drawing from `rng`: small per-aircraft variations (taxi pace, braking)
+   * do not shift the random sequence of the rest of the simulation.
+   */
+  variation(key: string): number {
+    let x = 2166136261 ^ this.seed;
+    for (let i = 0; i < key.length; i++) {
+      x ^= key.charCodeAt(i);
+      x = Math.imul(x, 16777619);
+    }
+    x ^= x >>> 15;
+    x = Math.imul(x, 2246822507);
+    x ^= x >>> 13;
+    return (x >>> 0) / 2 ** 32;
+  }
   readonly frequency: Frequency;
   readonly tower: TowerAI;
   readonly traffic: TrafficGenerator;
@@ -221,7 +239,8 @@ export class Simulation {
 
   constructor(readonly config: SimConfig) {
     this.airport = new Airport(config.airport);
-    this.rng = new Rng(config.seed ?? Math.floor(Math.random() * 2 ** 31));
+    this.seed = config.seed ?? Math.floor(Math.random() * 2 ** 31);
+    this.rng = new Rng(this.seed);
     const station = this.airport.station(config.position);
     if (!station) throw new Error(`${config.airport.icao} has no ${config.position} station`);
     this.station = station;
@@ -607,6 +626,37 @@ export class Simulation {
     return undefined;
   }
 
+  /**
+   * The position of yours that may ask the simulator-run position for this aircraft now
+   * ("request hand-off"), or undefined.
+   */
+  handoffTarget(ac: Aircraft): StationType | undefined {
+    if (this.userControls(ac.frequency) || ac.phase === 'gone') return undefined;
+    const del = this.stationFor('delivery');
+    const gnd = this.stationFor('ground');
+    const twr = this.stationFor('tower');
+    if (ac.frequency === del && ac.cleared && ac.phase === 'parked' && this.userControls(gnd)) return gnd;
+    if (ac.frequency === gnd && ac.category === 'departure' && ['taxi', 'holding'].includes(ac.phase) && this.userControls(twr)) return twr;
+    if (ac.frequency === twr && ac.category === 'arrival' && ac.onGround && ['landing', 'vacating', 'taxi'].includes(ac.phase) && this.userControls(gnd)) return gnd;
+    if (ac.frequency === 'APP' && ac.phase === 'approach' && this.userControls(twr)) return twr;
+    return undefined;
+  }
+
+  /** Asks the simulator-run position to hand an aircraft over to you now. Returns an error text if not possible. */
+  requestHandoff(ac: Aircraft): string | undefined {
+    const to = this.handoffTarget(ac);
+    if (!to) return `${ac.callsign} cannot be handed over to you now.`;
+    const from = this.airport.station(ac.frequency);
+    this.frequency.release(ac.callsign);
+    ac.frequency = to;
+    ac.request = null;
+    ac.requestAck = false;
+    this.system(`${from?.name ?? ac.frequency} hands ${ac.callsign} over to you (${this.airport.station(to)?.callsign ?? to}).`);
+    // A vacated arrival calls Ground at once; the others call when they are ready (holding point, final, pushback).
+    if (to === this.stationFor('ground') && ac.category === 'arrival' && ac.phase === 'taxi' && !ac.route) this.tower.callGround(ac);
+    return undefined;
+  }
+
   /** Radio name of a station ("Stuttgart Ground"); the primary station's name if the airport has none. */
   stationName(type: StationType): string {
     return this.airport.station(type)?.name ?? this.station.name;
@@ -646,9 +696,11 @@ export class Simulation {
       }
       if (a.assignedStand === id && a.phase !== 'arrived') return true;
       if (a.stand === id && (a.phase === 'parked' || a.phase === 'arrived' || (a.phase === 'pushback' && a.s < 30))) return true;
+      // A departure taxiing out of a drive-through stand is still on it for a while.
+      if (a.stand === id && a.phase === 'taxi' && !!stand && distance(a.pos, stand.pos) < 60) return true;
       if (a.phase === 'taxi' && a.routeDestination?.kind === 'stand' && a.routeDestination.stand === id) return true;
       // physically on the stand
-      return !!stand && a.onGround && distance(a.pos, stand.pos) < 15 && a.phase !== 'taxi';
+      return !!stand && a.onGround && distance(a.pos, stand.pos) < 15;
     });
   }
 

@@ -28,6 +28,13 @@ const LINEUP_SPEED = 9 * KT_TO_MS;
 const RRSM_DISTANCE = 2400;
 /** Short final: from here on the arrival goes around if the runway is not clear. */
 const GO_AROUND_CHECK_NM = 0.5;
+/** Without a landing clearance (you staff Tower) the crew goes around only just before the threshold (NM, about 280 m). */
+const NO_CLEARANCE_GO_AROUND_NM = 0.15;
+/** Approach (simulator) hands arrivals to Tower between these distances from the threshold (NM). */
+const APP_HANDOFF_MIN_NM = 7;
+const APP_HANDOFF_MAX_NM = 9;
+/** Departures leave the scope this far from the airport (metres, 10 NM - about the size of the Stuttgart control zone). */
+const CTR_RADIUS_M = 10 * M_PER_NM;
 
 interface DepartureRecord {
   airborneAt: number;
@@ -180,7 +187,9 @@ export class TowerAI {
     ac.altitudeFt = end.elevationFt + 50 + (d * GLIDE_SLOPE) / M_PER_FT;
     ac.onGround = false;
     ac.phase = 'approach';
-    ac.frequency = this.sim.stationFor('tower');
+    // Far out the arrival is still with Approach; it is handed to Tower at 7-9 NM.
+    ac.approachHandoffNm = APP_HANDOFF_MIN_NM + (APP_HANDOFF_MAX_NM - APP_HANDOFF_MIN_NM) * this.sim.variation(`${ac.callsign}:app`);
+    ac.frequency = distanceNm > ac.approachHandoffNm && this.sim.airport.station('APP') ? 'APP' : this.sim.stationFor('tower');
   }
 
   private flyApproach(ac: Aircraft, dt: number): void {
@@ -192,17 +201,25 @@ export class TowerAI {
     const accel = 0.6 * dt; // about 1 kt per second
     ac.speed = ac.speed < target ? Math.min(target, ac.speed + accel) : Math.max(target, ac.speed - accel);
     moveFree(ac, dt);
+    if (ac.frequency === 'APP' && this.sim.distanceToThresholdNm(ac) <= (ac.approachHandoffNm ?? APP_HANDOFF_MAX_NM)) ac.frequency = this.sim.stationFor('tower');
     const c = this.sim.airport.runwayCoordinates(end, ac.pos);
     const toThreshold = this.sim.airport.runwayCoordinates(end, end.threshold).along - c.along;
     ac.altitudeFt = end.elevationFt + Math.max(0, 50 + (toThreshold * GLIDE_SLOPE) / M_PER_FT);
     ac.verticalSpeedFpm = -(ac.speed * GLIDE_SLOPE * 60) / M_PER_FT;
 
-    // Short final: no landing clearance (you staff Tower) or the runway not clear: go around.
+    // Still no landing clearance at one mile: the crew asks once more (also if it is waiting for an answer).
+    const towerFreq = ac.frequency === this.sim.stationFor('tower');
+    if (this.sim.userTower && towerFreq && !ac.landingCleared && !ac.landingAsked && toThreshold < M_PER_NM && !this.sim.frequency.hasQueued(ac.callsign)) {
+      ac.landingAsked = true;
+      call(this.sim, ac, 'landing', `${this.sim.tel(ac)}, one mile final, request landing clearance`);
+    }
+    // No landing clearance (you staff Tower): the crew goes around only just before the threshold.
+    if (toThreshold < NO_CLEARANCE_GO_AROUND_NM * M_PER_NM && toThreshold > 0 && this.sim.userTower && !ac.landingCleared && ac.frequency !== 'APP') {
+      this.goAround(ac);
+      return;
+    }
+    // Short final with the runway not clear: go around.
     if (toThreshold < GO_AROUND_CHECK_NM * M_PER_NM && toThreshold > 0) {
-      if (this.sim.userTower && !ac.landingCleared && ac.frequency === this.sim.stationFor('tower')) {
-        this.goAround(ac);
-        return;
-      }
       const blocker = this.landingBlocker(ac, end);
       if (blocker) {
         this.goAround(ac, blocker);
@@ -272,14 +289,16 @@ export class TowerAI {
     ac.onGround = true;
     ac.altitudeFt = end.elevationFt;
     ac.verticalSpeedFpm = 0;
-    this.planRollout(ac, end, ROLLOUT_DECEL, this.sim.rng.chance(0.15));
+    // Every crew brakes a little differently: 1.2-2.0 m/s^2, and now and then rolls on to the next exit.
+    const v = (k: string) => this.sim.variation(`${ac.callsign}:${k}:${Math.round(this.sim.time)}`);
+    this.planRollout(ac, end, ROLLOUT_DECEL * (0.75 + 0.5 * v('decel')), this.sim.rng.chance(0.15), v('long') < 0.2);
   }
 
   /**
    * Plans the roll-out to the first exit that can be reached at the given
    * deceleration and puts the aircraft into phase 'landing'.
    */
-  private planRollout(ac: Aircraft, end: RunwayEnd, decel: number, preferSouth: boolean): void {
+  private planRollout(ac: Aircraft, end: RunwayEnd, decel: number, preferSouth: boolean, longRoll = false): void {
     const sim = this.sim;
     ac.phase = 'landing';
     const here = sim.airport.runwayCoordinates(end, ac.pos).along;
@@ -289,7 +308,8 @@ export class TowerAI {
       .map((ex) => {
         const node = sim.airport.node(ex.path[0]);
         const along = sim.airport.runwayCoordinates(end, node.pos).along;
-        const vExit = (ex.rapid ? 25 : 14) * KT_TO_MS;
+        const vary = sim.variation(`${ac.callsign}:${ex.name}:${Math.round(sim.time)}`);
+        const vExit = (ex.rapid ? 20 + 8 * vary : 11 + 5 * vary) * KT_TO_MS;
         const needed = (v0 * v0 - vExit * vExit) / (2 * decel);
         return { ex, node, along, vExit, ok: along - here >= needed, south: ex.path[1].endsWith('2') };
       })
@@ -300,7 +320,9 @@ export class TowerAI {
         return !sim.aircraft.some((o) => o !== ac && o.onGround && distance(o.pos, stop) < 70);
       })
       .sort((a, b) => a.along - b.along);
-    const usable = candidates.filter((c) => c.ok);
+    let usable = candidates.filter((c) => c.ok);
+    // A long landing roll: the first exit that could be made is passed.
+    if (longRoll && usable.length > 1) usable = usable.slice(1);
     const pool = usable.length ? usable : candidates.slice(-1);
     // Tower: "vacate via E" - taken if it can still be reached.
     const requested = ac.requestedExit ? usable.find((c) => c.ex.name.toUpperCase() === ac.requestedExit) : undefined;
@@ -603,13 +625,18 @@ export class TowerAI {
     ac.speed = Math.min(ac.speed + 1.2 * dt, 200 * KT_TO_MS);
     if (ac.phase === 'goAround') ac.speed = Math.max(ac.speed, ac.type.approachSpeedKt * KT_TO_MS);
     moveFree(ac, dt);
-    if (ac.altitudeFt - sim.airport.data.elevationFt > 4000 || length(ac.pos) > 15000) {
-      if (ac.phase === 'climb') sim.stats.departuresAirborne++;
+    // Passing 4000 ft (or 8 NM) still on Tower frequency: a missed hand-off. The aircraft stays on the
+    // scope until it leaves the control zone.
+    if (!ac.leftTowerAirspace && (ac.altitudeFt - sim.airport.data.elevationFt > 4000 || length(ac.pos) > 15000)) {
+      ac.leftTowerAirspace = true;
       if (ac.phase === 'climb' && sim.userTower && ac.frequency === sim.stationFor('tower')) {
         sim.stats.handoffsMissed++;
         sim.updateScore();
         sim.system(`${ac.callsign} left the control zone without a frequency change to Radar.`, 'warning', ac.callsign);
       }
+    }
+    if (length(ac.pos) > CTR_RADIUS_M) {
+      if (ac.phase === 'climb') sim.stats.departuresAirborne++;
       ac.phase = 'gone';
     }
   }

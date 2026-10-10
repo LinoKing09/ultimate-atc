@@ -60,6 +60,8 @@ export function call(sim: Simulation, ac: Aircraft, request: PilotRequest, text:
         ac.requestSince = sim.time;
         ac.callCount = 0;
       }
+      // Every call (also a reminder) wants an answer again.
+      ac.requestAck = false;
       ac.callCount++;
       ac.lastCallAt = sim.time;
       ac.lastTransmission = text;
@@ -221,10 +223,13 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return { readback: formatCommand(c) };
     }
     case 'standby':
-      ac.standbyUntil = sim.time + 120;
+    case 'roger':
+      // Acknowledged: the pilot waits (2 minutes after "standby", 4 after "roger") and stops flashing.
+      ac.standbyUntil = sim.time + (c.type === 'roger' ? 240 : 120);
       if (ac.request) {
         sim.recordAnswer(ac);
         ac.requestSince = sim.time;
+        ac.requestAck = true;
       }
       return {};
     case 'expedite':

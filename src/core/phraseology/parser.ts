@@ -1081,6 +1081,8 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     if (!FILLER.has(w)) result.unparsed.push(w);
   }
 
+  // "roger" on its own acknowledges the pilot's call (otherwise it is a filler word).
+  if (!result.commands.length && !result.unparsed.length && tokens.includes('roger')) result.commands.push({ type: 'roger' });
   for (const t of pendingHoldShort) result.commands.push({ type: 'holdShort', target: t });
   for (const r of pendingCross) result.commands.push({ type: 'cross', runway: r });
   return result;

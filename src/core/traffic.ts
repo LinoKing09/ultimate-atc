@@ -13,7 +13,7 @@ const RATES: Record<Density, { departures: number; arrivals: number }> = {
   heavy: { departures: 22, arrivals: 18 },
 };
 
-const SPAWN_DISTANCE_NM = 9;
+const SPAWN_DISTANCE_NM = 11;
 /** Chance that a generated arrival declares a medical emergency (with special events on). */
 const ARRIVAL_MEDICAL_CHANCE = 0.02;
 /** Chance that a departure declares a medical emergency while taxiing (with special events on). */
@@ -261,6 +261,7 @@ export class TrafficGenerator {
     ac.readyAt = sim.time + readyIn;
     ac.plannedMedical = sim.config.events !== false && sim.rng.chance(DEPARTURE_MEDICAL_CHANCE);
     prepareDeparture(sim, ac);
+    ac.taxiPace = 0.85 + 0.3 * sim.variation(`${ac.callsign}:pace`);
     sim.aircraft.push(ac);
     return ac;
   }
@@ -301,6 +302,7 @@ export class TrafficGenerator {
       sim.system(`Approach: ${callsign} has declared PAN PAN (medical emergency) and will land with priority.`, 'warning', callsign);
     }
     sim.tower.setupApproach(ac, distanceNm);
+    ac.taxiPace = 0.85 + 0.3 * sim.variation(`${ac.callsign}:pace`);
     sim.aircraft.push(ac);
     return ac;
   }

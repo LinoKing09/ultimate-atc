@@ -1,7 +1,7 @@
 import { createAircraft, type Aircraft } from './aircraft';
 import type { TaxiNode } from './airport/airport';
 import { findRoute, isRouteError } from './airport/routing';
-import { add, distance, headingVector, projectOnSegment, scale, type Vec2 } from './geo';
+import { add, distance, headingVector, projectOnSegment, scale, sub, type Vec2 } from './geo';
 import { Path } from './path';
 import type { ParsedTransmission } from './phraseology/commands';
 import { capitalize, formatCommand } from './phraseology/format';
@@ -31,8 +31,9 @@ export interface Vehicle {
   speed: number;
   path: Path | null;
   s: number;
-  /** Leading: distance along the aircraft's path where the car is. */
+  /** Leading: distance along the aircraft's path where the car is (on `leadPath`). */
   leadS?: number;
+  leadPath?: Path;
   /**
    * idle: at the base. assigned: waits for "proceed" to drive to the aircraft. toAircraft: driving
    * there. leading: in front of the aircraft. done: job finished, waits for "return to base".
@@ -345,7 +346,8 @@ export function updateVehicles(sim: Simulation, dt: number): void {
         ac.followMe.leading = !v.holding;
         // Where on the aircraft's path the car waits: the meeting point (it waits there until the aircraft is close).
         const meet = meetingNode(ac);
-        v.leadS = (meet && ac.path.marker(meet.id)?.s) ?? ac.s + leadDistance(ac);
+        v.leadS = nearestS(ac.path, v.pos, (meet && ac.path.marker(meet.id)?.s) ?? ac.s + leadDistance(ac));
+        v.leadPath = ac.path;
       }
       continue;
     }
@@ -358,12 +360,33 @@ export function updateVehicles(sim: Simulation, dt: number): void {
     }
     // The car drives along the aircraft's path towards its lead position - smoothly, never backwards.
     const ahead = Math.min(ac.s + lead, ac.path.length);
+    // The aircraft got a new path (new route): continue from where the car is now.
+    if (v.leadS !== undefined && v.leadPath !== ac.path) v.leadS = nearestS(ac.path, v.pos, Math.min(ac.path.length, ac.s + distance(v.pos, ac.pos)));
+    v.leadPath = ac.path;
     const at = v.leadS ?? ahead;
     v.speed = approachSpeed(v, v.holding ? 0 : Math.max(ac.speed + 2, 3), v.holding ? 0 : Math.max(0, ahead - at), dt);
     v.leadS = Math.min(ac.path.length, at + v.speed * dt);
-    v.pos = ac.path.pointAt(v.leadS);
+    // Glide onto the aircraft's path (it may cut a corner differently than the car's own route did).
+    const target = ac.path.pointAt(v.leadS);
+    const gap = distance(v.pos, target);
+    const maxStep = v.speed * dt + 0.5;
+    v.pos = gap <= maxStep ? target : add(v.pos, scale(sub(target, v.pos), maxStep / gap));
     steer(v, ac.path.headingAt(v.leadS), dt);
   }
+}
+
+/** The distance along `path` (searched 40 m around `guess`) closest to `p`: the car joins the path where it is. */
+function nearestS(path: Path, p: Vec2, guess: number): number {
+  let best = guess;
+  let bestD = Infinity;
+  for (let s = Math.max(0, guess - 40); s <= Math.min(path.length, guess + 40); s += 1) {
+    const d = distance(path.pointAt(s), p);
+    if (d < bestD) {
+      bestD = d;
+      best = s;
+    }
+  }
+  return best;
 }
 
 /** "Report position": where the car is and what it is doing. */

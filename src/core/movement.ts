@@ -19,6 +19,11 @@ function turnSpeedLimit(turnDeg: number): number {
   return Infinity;
 }
 
+/** The crew's own pace while taxiing (line-up and roll-out follow Tower's timing). */
+function paceOf(ac: Aircraft): number {
+  return ac.phase === 'taxi' ? ac.taxiPace ?? 1 : 1;
+}
+
 /** Advances an aircraft along its path, respecting stops, turns and traffic. */
 export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void {
   if (!ac.onGround || !ac.path || !PATH_PHASES.has(ac.phase)) return;
@@ -40,7 +45,9 @@ export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void 
   if (ac.phase === 'pushback') {
     vTarget = PUSH_SPEED;
   } else {
-    vTarget = (ac.type.taxiSpeedKt + (ac.expedite ? 5 : 0)) * KT_TO_MS;
+    // Crews taxi at their own pace (taxiPace, ±15 %), which drifts a little along the way.
+    const pace = paceOf(ac) * (1 + 0.05 * Math.sin(ac.s / 180 + paceOf(ac) * 40));
+    vTarget = (ac.type.taxiSpeedKt * pace + (ac.expedite ? 5 : 0)) * KT_TO_MS;
     if (ac.speedLimit) vTarget = ac.speedLimit(ac.s);
     if (ac.category === 'tow') vTarget = Math.min(vTarget, TOW_SPEED_KT * KT_TO_MS);
     vTarget = Math.min(vTarget, turnSpeedLimit(path.maxTurnAhead(ac.s, 25 + ac.speed * 3)));
@@ -50,7 +57,8 @@ export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void 
   const stop = nextStop(ac);
   const stopS = Math.min(stop ? stop.s : path.length, path.length);
   const toStop = stopS - ac.s;
-  vTarget = Math.min(vTarget, Math.sqrt(2 * BRAKE * Math.max(0, toStop - 0.2)));
+  const brake = BRAKE * paceOf(ac);
+  vTarget = Math.min(vTarget, Math.sqrt(2 * brake * Math.max(0, toStop - 0.2)));
 
   // Opposite traffic ahead: stop short of the junction between us.
   if (ac.oppositeStop?.path === path) vTarget = Math.min(vTarget, Math.sqrt(2 * BRAKE * Math.max(0, ac.oppositeStop.s - ac.s - 0.2)));
@@ -66,7 +74,7 @@ export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void 
   }
 
   // Integrate speed
-  if (ac.speed < vTarget) ac.speed = Math.min(vTarget, ac.speed + ACCEL * dt);
+  if (ac.speed < vTarget) ac.speed = Math.min(vTarget, ac.speed + ACCEL * paceOf(ac) * dt);
   else ac.speed = Math.max(vTarget, ac.speed - MAX_DECEL * dt);
   if (ac.speed < 0.05 && vTarget === 0) ac.speed = 0;
 

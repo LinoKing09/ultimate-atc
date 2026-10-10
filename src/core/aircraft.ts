@@ -140,6 +140,16 @@ export interface Aircraft {
   lastCallAt: number;
   callCount: number;
   standbyUntil: number;
+  /** The crew's own taxi pace: factor on taxi speed, acceleration and braking (0.85-1.15). */
+  taxiPace?: number;
+  /** Asked for the landing clearance again at one mile. */
+  landingAsked?: boolean;
+  /** Distance from the threshold at which Approach hands the arrival to Tower (NM). */
+  approachHandoffNm?: number;
+  /** Passed 4000 ft / 8 NM after take-off: the Tower hand-off check is done. */
+  leftTowerAirspace?: boolean;
+  /** The controller acknowledged the current request ("roger" / "standby"): no flashing until the pilot calls again. */
+  requestAck?: boolean;
   /** Time the pilot will make the next spontaneous call (e.g. departure ready to push). */
   readyAt: number;
   /** Time the crew asks Delivery for its IFR clearance (default: 10 minutes before `readyAt`). */

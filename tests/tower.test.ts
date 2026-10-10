@@ -98,6 +98,34 @@ describe('tower position', () => {
     expect(runUntil(sim, () => ac.phase === 'goAround', 400)).toBe(true);
     expect(sim.stats.goArounds).toBe(1);
     expect(sim.messages.some((m) => /(short|\d miles) final runway 25/.test(m.text))).toBe(true);
+    // The crew asked again at one mile and went around only just before the threshold.
+    expect(sim.messages.some((m) => /one mile final, request landing clearance/.test(m.text))).toBe(true);
+    expect(sim.distanceToThresholdNm(ac)).toBeLessThan(0.3);
+  });
+
+  it('arrivals far out are with Approach; you can request the hand-off', () => {
+    const sim = towerSim();
+    const ac = sim.traffic.spawnArrival(11, { callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    expect(ac.frequency).toBe('APP');
+    expect(sim.handoffTarget(ac)).toBe('TWR');
+    expect(sim.requestHandoff(ac)).toBeUndefined();
+    expect(ac.frequency).toBe('TWR');
+    expect(runUntil(sim, () => ac.request === 'landing', 30)).toBe(true);
+    // Without the request Approach hands it over at 7-9 NM.
+    const b = sim.traffic.spawnArrival(11, { callsign: 'DLH4CD', type: 'A320' }) as Aircraft;
+    expect(runUntil(sim, () => b.frequency === 'TWR', 300)).toBe(true);
+    expect(sim.distanceToThresholdNm(b)).toBeGreaterThan(6.5);
+  });
+
+  it('"roger" acknowledges a call: no reply, no flashing until the pilot calls again', () => {
+    const sim = towerSim();
+    const ac = sim.traffic.spawnArrival(6, { callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    expect(runUntil(sim, () => ac.request === 'landing', 30)).toBe(true);
+    const n = sim.messages.length;
+    sim.transmit('EWG7TK roger');
+    for (let t = 0; t < 8; t++) sim.tick(1);
+    expect(ac.requestAck).toBe(true);
+    expect(sim.messages.slice(n).filter((m) => m.kind === 'pilot').length).toBe(0);
   });
 
   it('flags a take-off with too little spacing behind a heavy', () => {

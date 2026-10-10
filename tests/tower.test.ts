@@ -151,3 +151,41 @@ describe('tower position', () => {
     expect(sim.stats.goArounds).toBeLessThanOrEqual(2);
   }, 60000);
 });
+
+describe('combined positions with Tower', () => {
+  it('Ground + Tower: a scripted controller works a busy hour on both frequencies', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'TWR', positions: ['GND', 'TWR'], runway: '25', density: 'medium', seed: 2, events: false });
+    const said = new Map<string, number>();
+    for (let t = 0; t < 3600; t++) {
+      sim.tick(1);
+      for (const ac of sim.aircraft) {
+        if (!sim.isOnMyFrequency(ac)) continue;
+        const eta = sim.tower.nextArrivalEta();
+        const busy = sim.tower.runwayBusy(ac) || sim.aircraft.some((o) => o !== ac && o.clearedToCross.size > 0 && o.crossingWithTower);
+        if (ac.frequency === 'TWR' && ac.phase === 'approach' && !ac.landingCleared && sim.distanceToThresholdNm(ac) < 4 && !sim.aircraft.some((o) => o.phase === 'lineup')) sim.transmit(`${ac.callsign} cleared to land`);
+        if (!ac.request || sim.time - ac.lastCallAt < 3 || sim.time - (said.get(ac.callsign) ?? -99) < 8) continue;
+        const n0 = sim.messages.length;
+        const r = ac.request;
+        const clear = !sim.aircraft.some((o) => o !== ac && o.phase === 'taxi' && Math.hypot(o.pos.x - ac.pos.x, o.pos.y - ac.pos.y) < 250);
+        if (r === 'pushback' && clear) sim.transmit(`${ac.callsign} push and start approved`);
+        if (r === 'taxi') sim.transmit(`${ac.callsign} taxi to runway 25`);
+        if (r === 'taxiIn' || (r === 'route' && ac.category === 'arrival')) sim.transmit(`${ac.callsign} taxi to stand ${ac.assignedStand ?? sim.freeStands(ac.type.wingspanM)[0]?.id}`);
+        if (r === 'handoff') sim.transmit(`${ac.callsign} contact tower`);
+        if (r === 'tow' && clear) sim.transmit(`${ac.callsign} tow approved`);
+        const slotOk = ac.ctot === undefined || sim.time >= ac.ctot - 300;
+        if (r === 'departure' && ac.phase === 'holding' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) sim.transmit(`${ac.callsign} cleared for take-off`);
+        if (r === 'radar') sim.transmit(`${ac.callsign} contact radar`);
+        if (r === 'vacated') sim.transmit(`${ac.callsign} contact ground`);
+        if (r === 'crossing' && !busy && eta > 90) sim.transmit(`${ac.callsign} cross runway 25`);
+        if (sim.messages.length > n0) said.set(ac.callsign, sim.time);
+      }
+    }
+    expect(sim.stats.collisions).toBe(0);
+    expect(sim.stats.incursions).toBe(0);
+    expect(sim.stats.departuresAirborne).toBeGreaterThan(6);
+    expect(sim.stats.arrivalsParked).toBeGreaterThan(4);
+    // Every pilot calls the station of the frequency it is on.
+    expect(sim.messages.some((m) => m.kind === 'pilot' && /^Stuttgart Ground, .*vacated runway/.test(m.text))).toBe(true);
+    expect(sim.messages.some((m) => m.kind === 'pilot' && /^Stuttgart Tower, .*request (pushback|taxi)/.test(m.text))).toBe(false);
+  }, 60000);
+});

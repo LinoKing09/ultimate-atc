@@ -26,7 +26,7 @@ Further airports follow in the 1.x releases (the airport data format, the data c
 | **0.5** | **done** - Foundations: role-based station model (combined positions possible), per-airport traffic with the real Stuttgart operator mix, airport data checks, soak test in CI |
 | **0.6** | **done** - **Delivery** at EDDS: IFR clearances, squawks, start-up, CTOT, A-CDM, DCL; combined positions in the login; systems window (A-SMGCS, A-CDM, DCL); head-on conflict resolution; AI Ground |
 | **0.7** | **done** - **Tower** at EDDS: line-up / take-off / landing clearances, runway crossings, arrival sequence |
-| 0.8 | Combined positions with Tower, AI pilots that resolve simple conflicts, debriefing |
+| 0.8 | *in progress* - Combined positions with Tower (**done**), AI pilots that resolve simple conflicts, debriefing |
 | 0.9 | Tutorials, polish, beta testing |
 | 1.0 | Release after the criteria above are met and agreed |
 | 1.x | Further airports |
@@ -107,7 +107,6 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 
 - planned - **Approach / Departure**: radar scope, vectoring, altitude and speed instructions, ILS clearances, handoffs
 - planned - **Radar / Center**: en-route sector, coordination, handoffs between sectors
-- planned - Combined positions (e.g. Tower + Ground when the user is alone)
 
 ### Airports
 

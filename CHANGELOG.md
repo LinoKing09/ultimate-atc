@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Combined positions with Tower** (0.8): staff Ground + Tower, Delivery + Tower or all three. Aircraft change frequency as on split positions; after `contact ground` a vacated arrival calls you on Ground for its taxi.
 - **Extended runway centrelines** on the scope (as on a EuroScope map): 15 NM from each threshold with NM ticks, the runway in use brighter; marked `LOC U/S` with the localizer off.
 - **Tower speed control** on final: `maintain 160 knots until 4 miles`, `reduce speed to 150 knots`, `reduce to final approach speed`; and **immediate take-off**: `cleared for immediate take-off` / `cleared for take-off, no delay`. Both in the Tower menu.
 - **All stations** broadcasts: `all stations, information B is now current`, `... runway 25 in use`, `... standby` (holds every open request), `... expect delays` - no read-back. ALL STN in the sidebar (a menu; in mobile mode phrase buttons in the quick-action bar).
@@ -31,6 +32,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- Pilots and vehicles always call the station of the frequency they are on (with combined positions they used to address the primary station, e.g. "Stuttgart Tower" on Ground frequency).
 - Speech recognition: after sending or clearing a command the spoken text no longer reappears in the command line (Safari re-sends earlier results; they are now ignored), and SEND switches the microphone off.
 - iPad: pilot voices (TTS) were not heard - Safari needs speech to be started from a tap (the first tap now unlocks it), and pausing speech while you transmit left it paused for good; pilot messages now wait and are spoken afterwards.
 - iPad: list rows sometimes needed two taps - the lists were rebuilt every 250 ms and a tap during a rebuild was lost. Rows are now updated in place.

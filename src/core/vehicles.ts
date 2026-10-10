@@ -260,7 +260,7 @@ function assign(sim: Simulation, ac: Aircraft, v: Vehicle): void {
     startToAircraft(sim, v);
     return;
   }
-  vehicleCall(sim, v, 'proceed', `${sim.station.name}, ${vehicleTel(v)}, request proceed to ${sim.tel(ac)} at ${locationOf(sim, ac)}`);
+  vehicleCall(sim, v, 'proceed', `${sim.stationName(sim.stationFor('ground'))}, ${vehicleTel(v)}, request proceed to ${sim.tel(ac)} at ${locationOf(sim, ac)}`);
 }
 
 /** Job done (the aircraft is at its stand entry): the driver asks to return to base. */
@@ -273,7 +273,7 @@ function finish(sim: Simulation, v: Vehicle): void {
     startReturn(sim, v);
     return;
   }
-  vehicleCall(sim, v, 'return', `${sim.station.name}, ${vehicleTel(v)}, ${ac ? `${sim.tel(ac)} is at the stand, ` : ''}request return to base`);
+  vehicleCall(sim, v, 'return', `${sim.stationName(sim.stationFor('ground'))}, ${vehicleTel(v)}, ${ac ? `${sim.tel(ac)} is at the stand, ` : ''}request return to base`);
 }
 
 /** Speed towards `target` (m/s), braking in time for a stop `toGo` metres ahead. */
@@ -394,8 +394,8 @@ function remind(sim: Simulation, v: Vehicle): void {
   const ac = sim.find(v.aircraft);
   const text =
     v.request === 'proceed' && ac
-      ? `${sim.station.name}, ${vehicleTel(v)}, request proceed to ${sim.tel(ac)}`
-      : `${sim.station.name}, ${vehicleTel(v)}, request return to base`;
+      ? `${sim.stationName(sim.stationFor('ground'))}, ${vehicleTel(v)}, request proceed to ${sim.tel(ac)}`
+      : `${sim.stationName(sim.stationFor('ground'))}, ${vehicleTel(v)}, request return to base`;
   vehicleCall(sim, v, v.request, text);
 }
 

@@ -343,8 +343,17 @@ export class TowerAI {
       return;
     }
     ac.frequency = sim.stationFor('ground');
+    this.callGround(ac);
+  }
+
+  /**
+   * The first call of an aircraft that has vacated the runway on Ground frequency (when you
+   * staff Ground): request taxi to the stand (or back, or for another departure).
+   */
+  callGround(ac: Aircraft): void {
+    const sim = this.sim;
     if (!sim.isOnMyFrequency(ac)) return;
-    const head = `${sim.station.name}, ${sim.tel(ac)}`;
+    const head = `${sim.stationName(ac.frequency)}, ${sim.tel(ac)}`;
     const via = `vacated runway ${ac.runway ?? this.end.name} via ${ac.exitName ?? ''}`;
     if (ac.rejectedTakeoff) {
       if (sim.rng.chance(0.6)) {
@@ -490,7 +499,7 @@ export class TowerAI {
       // Wrong end of the runway: send the aircraft back to Ground.
       ac.frequency = sim.stationFor('ground');
       ac.holdingSince = sim.time + 1e9;
-      call(sim, ac, 'route', `${sim.station.name}, ${sim.tel(ac)}, tower sent us back, not enough runway at ${hp.holdingPoint?.name ?? ''} for departure ${end.name}, request taxi`);
+      call(sim, ac, 'route', `${sim.stationName(sim.stationFor('ground'))}, ${sim.tel(ac)}, tower sent us back, not enough runway at ${hp.holdingPoint?.name ?? ''} for departure ${end.name}, request taxi`);
       return undefined;
     }
     const entry = sim.airport.runwayOps(end.name)?.departureEntries.find((e) => e.holdingPoint === hp.holdingPoint?.name);

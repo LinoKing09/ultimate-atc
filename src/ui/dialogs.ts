@@ -52,19 +52,11 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
         type: 'button',
         text: p.label,
         disabled: !p.available,
-        title: !p.available
-          ? 'Planned for a later version'
-          : p.type === 'TWR'
-            ? 'Tower is staffed on its own for now (combined positions with Tower come in 0.8)'
-            : 'Click to staff this position; select several for combined positions',
+        title: !p.available ? 'Planned for a later version' : 'Click to staff this position; select several for combined positions',
       });
       b.addEventListener('click', () => {
         if (positions.has(p.type) && positions.size > 1) positions.delete(p.type);
-        else if (p.type === 'TWR' || positions.has('TWR')) {
-          // Combined positions with Tower come with 0.8: Tower is staffed on its own.
-          positions.clear();
-          positions.add(p.type);
-        } else positions.add(p.type);
+        else positions.add(p.type);
         posButtons.forEach((x, i) => x.classList.toggle('active', positions.has(POSITIONS[i].type)));
         update();
       });

@@ -1095,6 +1095,9 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
         if (type === sim.stationFor('ground') && ac.category === 'arrival') sim.stats.arrivalsToGround++;
         ac.crossingWithTower = undefined;
         sim.updateScore();
+        // Combined Tower + Ground: a vacated aircraft without a route calls you on Ground frequency.
+        const vacated = ac.onGround && ac.phase === 'taxi' && !ac.route && (ac.category === 'arrival' || ac.rejectedTakeoff);
+        if (type === sim.stationFor('ground') && vacated) sim.tower.callGround(ac);
       }
       if (fromDelivery) {
         // Leaving Delivery with a wrong readback still uncorrected: it stays wrong.
@@ -1254,13 +1257,13 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     ac.assignedStand = sim.traffic.allocateStand(ac)?.id;
     ac.request = null;
     sim.frequency.cancel(ac.callsign);
-    call(sim, ac, 'taxiIn', `${sim.station.name}, ${sim.tel(ac)}, PAN PAN, PAN PAN, PAN PAN, medical emergency on board, request immediate return to the stand, ambulance required`);
+    call(sim, ac, 'taxiIn', `${sim.stationName(ac.frequency)}, ${sim.tel(ac)}, PAN PAN, PAN PAN, PAN PAN, medical emergency on board, request immediate return to the stand, ambulance required`);
     return;
   }
 
   const tel = sim.tel(ac);
   // The station the pilot is calling (with combined positions it may not be the primary one).
-  const stationName = sim.airport.station(ac.frequency)?.name ?? sim.station.name;
+  const stationName = sim.stationName(ac.frequency);
   const onDelivery = ac.frequency === sim.stationFor('delivery') && ac.frequency !== sim.stationFor('ground');
 
   // Spontaneous first calls (not while told to wait: standby / number / expect)
@@ -1436,7 +1439,7 @@ function towerResolveStuck(sim: Simulation, ac: Aircraft): void {
   ac.frequency = sim.stationFor('ground');
   ac.request = null;
   sim.stats.departuresHandedOff = Math.max(0, sim.stats.departuresHandedOff - 1);
-  call(sim, ac, 'route', `${sim.station.name}, ${sim.tel(ac)}, Tower sent us back to you, we are short of the holding point, request taxi`);
+  call(sim, ac, 'route', `${sim.stationName(sim.stationFor('ground'))}, ${sim.tel(ac)}, Tower sent us back to you, we are short of the holding point, request taxi`);
 }
 
 /** Distance before the stand at which the crew can see whether it is free (metres along the route). */
@@ -1472,7 +1475,7 @@ function checkStandAhead(sim: Simulation, ac: Aircraft): void {
   const why = occ
     ? `stand ${dest.stand} is occupied`
     : `stand ${dest.stand} is blocked, not enough wingtip clearance to the ${neighbour!.aircraft.type.icao} on stand ${neighbour!.stand.id}`;
-  call(sim, ac, 'route', `${sim.station.name}, ${sim.tel(ac)}, ${why}, request another stand`);
+  call(sim, ac, 'route', `${sim.stationName(ac.frequency)}, ${sim.tel(ac)}, ${why}, request another stand`);
 }
 
 /**

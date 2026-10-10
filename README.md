@@ -2,14 +2,14 @@
 
 **Ultimate ATC** is an air traffic control simulator that runs in your browser. It aims to come as close as possible to [EuroScope](https://www.euroscope.hu/), the radar client used on the [VATSIM](https://vatsim.net/) network. You log in to a controller position at a real airport, and AI pilots respond to your instructions in ICAO phraseology, whether you type them or speak them.
 
-> **Status: early development (v0.7).** Three positions are playable at **Stuttgart (EDDS)**: **Delivery** and **Ground** (alone or combined) and **Tower**. The code is built so that more positions (Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
+> **Status: early development (v0.7).** Three positions are playable at **Stuttgart (EDDS)**: **Delivery**, **Ground** and **Tower**, each alone or combined. The code is built so that more positions (Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
 
 ![Ultimate ATC - EDDS Ground overview](docs/images/screenshot-overview.png)
 
 ## Features
 
 - **EuroScope-style ground radar:** a dark scope with runways, taxiways, holding points, stands and buildings. Each aircraft has a symbol at real size and a data tag you can drag. **Tag items are clickable**, and the scope can be shown **runway-aligned like the aerodrome chart** (default) or north-up: callsign (flight plan and radiotelephony callsign such as `SPEEDBIRD 947`), cleared-to (taxi menu) and status (aircraft menu). Zoom, pan, and the **departure and arrival lists** work as in EuroScope.
-- **Logging in like on VATSIM:** choose the airport, position(s) and traffic density. You then work as `EDDS_GND` on 118.605 "Stuttgart Ground", `EDDS_DEL` on 121.915 "Stuttgart Delivery", or both (**combined positions**). Positions you don't staff are run by the simulator.
+- **Logging in like on VATSIM:** choose the airport, position(s) and traffic density. You then work as `EDDS_GND` on 118.605 "Stuttgart Ground", `EDDS_DEL` on 121.915 "Stuttgart Delivery", `EDDS_TWR` "Stuttgart Tower", or several at once (**combined positions**). Positions you don't staff are run by the simulator.
 - **Tower:** line-up, take-off and landing clearances (`behind landing EWG7TK, line up and wait behind`, `wind 250 degrees 8 knots, runway 25, cleared for take-off`), go-arounds, exits, runway crossings, hand-offs to Radar and Ground, an arrival sequence and departure-spacing hints; arrivals without a landing clearance go around, take-offs with too little spacing count as separation losses.
 - **Clearance Delivery:** IFR clearances (`cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312`) with readbacks to check (crews sometimes read back a wrong squawk), start-up at the **A-CDM TSAT**, **CTOT** slots, and **datalink clearances (DCL)** sent from the list.
 - **Systems window** (`SYSTEMS` / F3): status of the airport's systems with on/off switches - **A-SMGCS** (surveillance, runway monitoring RMCA, conflicting-clearance alerts CATC, routing service), **A-CDM**, **DCL** and the **ILS** (localizer, glide path). Switch one off to train working without it. See [docs/systems.md](docs/systems.md).

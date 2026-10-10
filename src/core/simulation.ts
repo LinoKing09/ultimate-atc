@@ -598,6 +598,11 @@ export class Simulation {
     return undefined;
   }
 
+  /** Radio name of a station ("Stuttgart Ground"); the primary station's name if the airport has none. */
+  stationName(type: StationType): string {
+    return this.airport.station(type)?.name ?? this.station.name;
+  }
+
   /** True if the user staffs this station (otherwise the AI runs it). */
   userControls(type: StationType): boolean {
     return this.userStations.has(type);

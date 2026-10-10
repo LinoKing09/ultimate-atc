@@ -1,6 +1,6 @@
 # User guide
 
-This guide explains the controller client screen by screen. It covers the **Delivery**, **Ground** (since v0.6 alone or combined) and **Tower** (since v0.7, on its own) positions at **EDDS**.
+This guide explains the controller client screen by screen. It covers the **Delivery**, **Ground** (since v0.6) and **Tower** (since v0.7) positions at **EDDS** - each alone or combined (since v0.8 also with Tower).
 
 - [1. Connecting](#1-connecting)
 - [2. Screen layout](#2-screen-layout)
@@ -26,7 +26,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | Field             | Meaning                                                                                              |
 | ----------------- | ---------------------------------------------------------------------------------------------------- |
 | **Airport**       | Airport to control. Only EDDS has data so far; planned airports are listed but disabled.             |
-| **Position**      | Controller position: **Delivery**, **Ground** and **Tower** are available; Approach/Departure and Center are planned. A selected position is coloured (Delivery dark blue, Ground green, Tower red). Tower is staffed on its own for now (combined positions with Tower come with 0.8). Click several to staff them together (**combined positions**, for example Delivery + Ground, as one controller does at night): the label below the buttons changes from *Single Position* to a purple **Combined Position**, and the toolbar shows all your stations in their colours with `COMBINED`. Positions you don't staff are run by the simulator. |
+| **Position**      | Controller position: **Delivery**, **Ground** and **Tower** are available; Approach/Departure and Center are planned. A selected position is coloured (Delivery dark blue, Ground green, Tower red). Click several to staff them together (**combined positions**, for example Delivery + Ground, Ground + Tower or all three, as one controller does at night): the label below the buttons changes from *Single Position* to a purple **Combined Position**, and the toolbar shows all your stations in their colours with `COMBINED`. Positions you don't staff are run by the simulator. |
 | **Callsign**      | Shows the resulting station callsigns, frequencies and radio names, for example `EDDS_DEL 121.915 "Stuttgart Delivery" + EDDS_GND 118.605 "Stuttgart Ground"`. |
 | **Traffic**       | `light`, `medium` or `heavy` (see [simulation model](simulation.md#traffic-generation)).          |
 | **Special events** | Rare special situations: medical emergencies (arrivals and departures) and rejected take-offs. On by default. See [simulation model](simulation.md#special-events). |
@@ -461,7 +461,7 @@ Clearance Delivery (EDDS: `Stuttgart Delivery` 121.915) gives departures their I
 5. **Start-up**: with A-CDM the crew calls at its TSAT (`ready for start-up, TSAT 1452`): `start-up approved`. Without A-CDM it calls when ready. Start-up needs the clearance first.
 6. **Hand-off**: the crew asks for the frequency for pushback: `contact ground 118.605`.
 
-With **combined positions** (Delivery + Ground) you do both jobs; the aircraft still changes frequency from Delivery to Ground as on a split position.
+With **combined positions** (Delivery + Ground, Ground + Tower, or all three) you do all the jobs; the aircraft still change frequency as on split positions: Delivery -> Ground (`contact ground`), Ground -> Tower at the holding point (`contact tower`), Tower -> Ground after vacating (`contact ground`; the crew then calls you on Ground for the taxi to the stand). Runway crossings you may clear on either frequency - you are Tower too, so no coordination is needed.
 
 ## 12. Your job as Tower
 

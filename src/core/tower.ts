@@ -55,6 +55,14 @@ export class TowerAI {
     return this.endFor(this.sim.runway);
   }
 
+  /**
+   * The runway end a departure takes off from: when you staff Tower, the one in its clearance
+   * (its assigned runway, even if the ATIS has changed since); otherwise the runway in use.
+   */
+  departureEnd(ac: Aircraft): RunwayEnd {
+    return this.sim.userTower ? this.endFor(ac.runway) : this.end;
+  }
+
   endFor(name: string | undefined): RunwayEnd {
     return this.sim.airport.runwayEnd(name ?? this.sim.runway) ?? this.sim.airport.runwayEnd(this.sim.runway)!;
   }
@@ -509,7 +517,7 @@ export class TowerAI {
   /** Lines a departure up from its holding point. Returns why not, if it cannot. */
   private lineUp(ac: Aircraft): string | undefined {
     const sim = this.sim;
-    const end = this.end;
+    const end = this.departureEnd(ac);
     const hp = ac.stoppedAt?.nodeId ? sim.airport.node(ac.stoppedAt.nodeId) : undefined;
     const strip = hp?.edges.find((e) => e.kind === 'runwayStrip');
     if (!hp || !strip) return 'we are not at a runway holding point';
@@ -548,12 +556,12 @@ export class TowerAI {
     ac.rejectedTakeoff = true;
     ac.takeoffCleared = false;
     this.sim.system(`Tower: ${ac.callsign} stopped its take-off on your instruction - runway blocked until vacated.`, 'warning', ac.callsign);
-    this.planRollout(ac, this.end, REJECT_DECEL, false);
+    this.planRollout(ac, this.departureEnd(ac), REJECT_DECEL, false);
   }
 
   private startTakeoff(ac: Aircraft): void {
     const sim = this.sim;
-    const end = this.end;
+    const end = this.departureEnd(ac);
     const remaining = end.length - sim.airport.runwayCoordinates(end, ac.pos).along;
     const far = add(ac.pos, scale(headingVector(end.heading), remaining + 5000));
     ac.path = new Path([ac.pos, far]);
@@ -616,8 +624,8 @@ export class TowerAI {
     ac.rejectAtSpeed = undefined;
     ac.rejectedTakeoff = true;
     sim.stats.rejectedTakeoffs++;
-    sim.system(`Tower: ${ac.callsign} rejected the take-off on runway ${this.end.name} - runway blocked until vacated.`, 'warning', ac.callsign);
-    this.planRollout(ac, this.end, REJECT_DECEL, false);
+    sim.system(`Tower: ${ac.callsign} rejected the take-off on runway ${this.departureEnd(ac).name} - runway blocked until vacated.`, 'warning', ac.callsign);
+    this.planRollout(ac, this.departureEnd(ac), REJECT_DECEL, false);
   }
 
   private climbOut(ac: Aircraft, dt: number): void {

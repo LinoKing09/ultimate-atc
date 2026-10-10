@@ -21,6 +21,8 @@ export const SCORE_TABLE: { key: keyof Stats; label: string; points: number }[] 
   { key: 'slotsMissed', label: 'CTOT slots missed or violated', points: -10 },
   { key: 'sayAgains', label: 'Instructions not understood ("say again")', points: -2 },
   { key: 'delayPenalty', label: 'Slow answers (1 point per 15 s beyond 30 s)', points: -1 },
+  { key: 'arrivalStopMinutes', label: 'Minutes Approach held all arrivals for you', points: -2 },
+  { key: 'departureStopMinutes', label: 'Minutes Ground held all departures for you', points: -2 },
   { key: 'incursions', label: 'Runway incursions', points: -50 },
   { key: 'collisions', label: 'Collisions', points: -100 },
   { key: 'goArounds', label: 'Go-arounds without your instruction', points: -15 },

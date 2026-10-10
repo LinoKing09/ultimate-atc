@@ -98,6 +98,10 @@ export interface Stats {
   separationLosses: number;
   /** Tower: go-arounds you instructed. */
   goAroundsInstructed: number;
+  /** Minutes Approach held all arrivals on your request. */
+  arrivalStopMinutes: number;
+  /** Minutes Ground held all departures on your request. */
+  departureStopMinutes: number;
   score: number;
 }
 
@@ -181,6 +185,11 @@ export class Simulation {
   readonly catcAcknowledged = new Set<string>();
   private nextConflictCheck = 0;
   private nextOppositeCheck = 0;
+  /**
+   * Coordination with the neighbouring positions the simulator runs: you asked Approach to send
+   * no more arrivals, or Ground to hold all departures (to make room). Each costs points per minute.
+   */
+  readonly flow = { arrivalsStopped: false, departuresStopped: false, arrivalSeconds: 0, departureSeconds: 0 };
   /** The longest waits for an answer this session (debriefing). */
   readonly longestWaits: { callsign: string; seconds: number }[] = [];
   /** Follow-me cars (tugs are drawn with the aircraft they move). */
@@ -214,6 +223,8 @@ export class Simulation {
     arrivalsToGround: 0,
     handoffsMissed: 0,
     separationLosses: 0,
+    arrivalStopMinutes: 0,
+    departureStopMinutes: 0,
     goAroundsInstructed: 0,
     slotsMissed: 0,
     score: 0,
@@ -337,6 +348,7 @@ export class Simulation {
     this.updateScenario();
     if (this.config.generateTraffic !== false) this.traffic.update();
     this.tower.update(dt);
+    this.updateFlow(dt);
     updateSeparation(this);
     if (this.time >= this.nextOppositeCheck) {
       this.nextOppositeCheck = this.time + 2;
@@ -554,7 +566,9 @@ export class Simulation {
       }
       // Approach re-sequences arrivals that are not yet on short final onto the new runway.
       if (ac.phase === 'approach' && this.distanceToThresholdNm(ac) > 3.5) {
+        const freq = ac.frequency;
         this.tower.setupApproach(ac, Math.max(6, this.distanceToThresholdNm(ac)), newEnd);
+        if (freq !== 'APP') ac.frequency = freq; // already talking to Tower: it stays there
       }
     }
     this.system(`Runway in use is now ${newEnd}. Taxiing departures keep their clearance - re-route them if needed.`);
@@ -655,6 +669,47 @@ export class Simulation {
     // A vacated arrival calls Ground at once; the others call when they are ready (holding point, final, pushback).
     if (to === this.stationFor('ground') && ac.category === 'arrival' && ac.phase === 'taxi' && !ac.route) this.tower.callGround(ac);
     return undefined;
+  }
+
+  /** True if you can ask Ground (run by the simulator) to hold departures. */
+  get canHoldDepartures(): boolean {
+    return !this.userControls(this.stationFor('ground'));
+  }
+
+  /**
+   * Asks Approach to stop (or resume) sending arrivals, or Ground to hold (or release) departures.
+   * Returns an error text if not possible.
+   */
+  setFlow(kind: 'arrivals' | 'departures', stop: boolean): string | undefined {
+    if (kind === 'departures' && !this.canHoldDepartures) return 'You staff Ground yourself.';
+    const key = kind === 'arrivals' ? 'arrivalsStopped' : 'departuresStopped';
+    if (this.flow[key] === stop) return undefined;
+    this.flow[key] = stop;
+    const who = kind === 'arrivals' ? this.stationName('APP') : this.stationName(this.stationFor('ground'));
+    const text =
+      kind === 'arrivals'
+        ? stop
+          ? 'roger, no further arrivals until you call - aircraft already on final continue'
+          : 'roger, arrivals resume'
+        : stop
+          ? 'roger, holding all departures on the ground - aircraft already taxiing continue'
+          : 'roger, departures resume';
+    this.system(`${who} (landline): ${text}.`, stop ? 'warning' : 'system');
+    return undefined;
+  }
+
+  private updateFlow(dt: number): void {
+    const f = this.flow;
+    if (f.arrivalsStopped && (f.arrivalSeconds += dt) >= 60) {
+      f.arrivalSeconds -= 60;
+      this.stats.arrivalStopMinutes++;
+      this.updateScore();
+    }
+    if (f.departuresStopped && (f.departureSeconds += dt) >= 60) {
+      f.departureSeconds -= 60;
+      this.stats.departureStopMinutes++;
+      this.updateScore();
+    }
   }
 
   /** Radio name of a station ("Stuttgart Ground"); the primary station's name if the airport has none. */

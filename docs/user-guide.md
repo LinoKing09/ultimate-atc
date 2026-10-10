@@ -72,11 +72,12 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `ROT`                 | Rotates the scope: **runway horizontal** like the aerodrome chart (default, runway 07 on the left) or north-up. |
 | `BRIEFING`            | Opens the [airport briefing](#airport-briefing).                                               |
 | `SYSTEMS`             | Opens the [systems window](#systems-window) (also **F3**). Reads `SYSTEMS (n OFF)` in orange while systems are off. |
+| `COORD`               | **Coordination** by landline with the positions the simulator runs: *Langen Radar: no more arrivals* (Approach releases no new arrivals onto the final; those already on final continue) and *Stuttgart Ground: hold all departures* (no more pushbacks; aircraft already taxiing continue; only while the simulator runs Ground). Use it to make room, e.g. to clear a queue or a blocked runway. Each costs **2 points per minute** while it is on; the button reads `COORD (ARR+DEP HOLD)` in orange. Click again to resume. |
 | `SETTINGS`            | Opens the [settings menu](#settings) (also **F2**).                                             |
 | `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#13-score). |
 | `HELP`                | Help window with the tabs *Airport briefing*, *Phraseology* and *Controls* (also **F1**; it opens on the tab you used last). |
 | `DOCS`                | Opens this documentation on GitHub.                                                             |
-| `DISCONNECT`          | Opens the **debriefing** (the simulation pauses): *Continue session* goes back, *End session* returns to the Connect dialog. See [Debriefing](#debriefing). |
+| `DISCONNECT`          | Ends the session properly - reloading or closing the page asks first, because the debriefing is not saved. Opens the **debriefing** (the simulation pauses): *Continue session* goes back, *End session* returns to the Connect dialog. See [Debriefing](#debriefing). |
 
 ### ATIS editor
 
@@ -378,7 +379,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 
 **Follow-me cars** (right-click the car or its row in the VEHICLES list) have their own menu: *Proceed to DCEEO*, *Return to base*, *Hold position*, *Continue*, *Standby* - see the [vehicle phraseology](phraseology.md#vehicles). In mobile mode the quick-action bar shows `PROCEED`, `BASE`, `HOLD`, `CONT`. **Tab** also selects vehicles with a pending request.
 
-**On Tower frequency** (you staff Tower) the menu offers the Tower clearances: *Taxi to* (another holding point, for example the intersection B, while the departure is still taxiing), *Line up and wait runway 25*, *Behind ... line up and wait* (behind a landing aircraft), *Cleared for take-off* (with the wind; the hint shows whether the runway is occupied, how long the departure spacing still needs, or when the next arrival comes), *Cleared for immediate take-off*, *Speed* (maintain 150-180 kt until 4 NM, reduce to final approach speed), *Cancel take-off* / *Stop immediately*, *Cleared to land*, *Continue approach*, *Continue, expect late landing clearance*, *Go around*, *Vacate via*, *Cross runway 25*, *Contact Ground* and *Contact Langen Radar* (for every aircraft in the air: departures and go-arounds). In mobile mode the quick-action bar shows `LUP`, `T/O`, `LAND`, `CONT`, `G/A`, `CROSS`, `GND`, `RDR`, `STOP`, `HOLD`, `TAXI` and `ROGER` while a call is open.
+**On Tower frequency** (you staff Tower) the menu offers the Tower clearances: *Taxi to* (another holding point, for example the intersection B, while the departure is still taxiing), *Taxi to stand* (a vacated arrival you keep on your frequency), *Line up and wait runway 25*, *Behind ... line up and wait* (behind a landing aircraft), *Cleared for take-off* (with the wind; the hint shows - updated live while the menu is open - whether the runway is occupied, how long the departure spacing still needs, or when the next arrival comes), *Cleared for immediate take-off*, *Speed* (maintain 150-180 kt until 4 NM, reduce to final approach speed), *Cancel take-off* / *Stop immediately*, *Cleared to land*, *Continue approach*, *Continue, expect late landing clearance*, *Go around*, *Vacate via*, *Cross runway 25*, *Contact Ground* and *Contact Langen Radar* (for every aircraft in the air: departures and go-arounds). In mobile mode the quick-action bar shows `LUP`, `T/O`, `LAND`, `CONT`, `G/A`, `CROSS`, `GND`, `RDR`, `STOP`, `HOLD`, `TAXI` and `ROGER` while a call is open.
 
 **Request hand-off**: for an aircraft that is still with a position the simulator runs (shown as *On GND frequency*), the menu (and `REQ H/O` in the quick-action bar) offers *Request hand-off to TWR* (or GND) when it would come to you next: a departure taxiing on Ground (to you as Tower), an arrival on final still with Approach, a vacated arrival still with Tower (to you as Ground), a cleared departure still with Delivery. The position hands it over at once and the crew calls you.
 
@@ -493,6 +494,7 @@ The A-SMGCS runway monitoring (RMCA) warns when you give a take-off or landing c
 | Tower: departure left the control zone on your frequency    |     -5 |
 | Tower: take-off with too little departure spacing           |    -10 |
 | Tower: go-around you instructed                             |     -5 |
+| Per minute Approach holds all arrivals / Ground holds all departures for you (`COORD`) | -2 |
 | Wrong readback caught and corrected                         |     +5 |
 | Wrong readback not caught                                   |    -10 |
 | CTOT missed or violated (no take-off inside -5 / +10 minutes) |    -10 |

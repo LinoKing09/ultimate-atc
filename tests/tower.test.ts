@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Aircraft } from '../src/core/aircraft';
+import { debrief } from '../src/core/debrief';
 import { parseTransmission } from '../src/core/phraseology/parser';
 import { Simulation } from '../src/core/simulation';
 import { EDDS } from '../src/data/airports/edds';
@@ -128,6 +129,16 @@ describe('tower position', () => {
     expect(sim.messages.slice(n).filter((m) => m.kind === 'pilot').length).toBe(0);
   });
 
+  it('takes off from the runway in its clearance after the ATIS changed the runway in use', () => {
+    const sim = towerSim();
+    const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'EWG8LM', type: 'A320' }) as Aircraft;
+    ac.ctot = undefined;
+    expect(runUntil(sim, () => ac.phase === 'holding', 2100)).toBe(true);
+    sim.updateAtis({ runway: '07' });
+    sim.transmit('EWG8LM runway 25, cleared for take-off');
+    expect(runUntil(sim, () => ac.phase === 'takeoff', 120)).toBe(true);
+  });
+
   it('flags a take-off with too little spacing behind a heavy', () => {
     const sim = towerSim();
     const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'EWG8LM', type: 'A320' }) as Aircraft;
@@ -216,4 +227,29 @@ describe('combined positions with Tower', () => {
     expect(sim.messages.some((m) => m.kind === 'pilot' && /^Stuttgart Ground, .*vacated runway/.test(m.text))).toBe(true);
     expect(sim.messages.some((m) => m.kind === 'pilot' && /^Stuttgart Tower, .*request (pushback|taxi)/.test(m.text))).toBe(false);
   }, 60000);
+});
+
+describe('coordination with Approach and Ground', () => {
+  it('holds arrivals and departures on request and costs 2 points per minute each', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'TWR', runway: '25', density: 'heavy', seed: 5, events: false });
+    for (let t = 0; t < 60; t++) sim.tick(1);
+    expect(sim.setFlow('arrivals', true)).toBeUndefined();
+    expect(sim.setFlow('departures', true)).toBeUndefined();
+    const arrivals = new Set(sim.aircraft.filter((a) => a.category === 'arrival').map((a) => a.callsign));
+    const moving = new Set(sim.aircraft.filter((a) => a.category === 'departure' && a.phase !== 'parked').map((a) => a.callsign));
+    for (let t = 0; t < 600; t++) sim.tick(1);
+    expect(sim.aircraft.filter((a) => a.category === 'arrival' && !arrivals.has(a.callsign)).length).toBe(0);
+    expect(sim.aircraft.filter((a) => a.category === 'departure' && a.phase === 'pushback' && !moving.has(a.callsign)).length).toBe(0);
+    expect(sim.stats.arrivalStopMinutes).toBe(10);
+    expect(sim.stats.departureStopMinutes).toBe(10);
+    expect(debrief(sim).costs.find((c) => c.label.startsWith('Minutes Approach held'))?.points).toBe(-20);
+    expect(sim.messages.some((m) => /Langen Radar \(landline\): roger, no further arrivals/.test(m.text))).toBe(true);
+    sim.setFlow('arrivals', false);
+    expect(runUntil(sim, () => sim.aircraft.some((a) => a.category === 'arrival' && !arrivals.has(a.callsign)), 900)).toBe(true);
+  });
+
+  it('you cannot hold departures when you staff Ground yourself', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'TWR', positions: ['GND', 'TWR'], runway: '25', density: 'medium', seed: 5, events: false });
+    expect(sim.setFlow('departures', true)).toBe('You staff Ground yourself.');
+  });
 });

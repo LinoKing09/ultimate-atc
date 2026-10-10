@@ -229,6 +229,8 @@ When you don't staff Ground (for example when you work Delivery alone), the AI G
 
 | Situation | Behaviour |
 | --------- | --------- |
+| Take-off runway | A departure takes off from the runway in its clearance (its assigned runway), even if the ATIS has changed the runway in use since |
+| Coordination (`COORD`) | *No more arrivals*: Approach releases no new arrivals onto the final (checked every 10 s), those already on final continue. *Hold all departures* (only while the simulator runs Ground): the AI Ground approves no pushbacks or taxi-out from stands; aircraft already moving continue. Each costs 2 points per full minute it is on |
 | Departure on the way to the holding point | Handed over by the AI Ground on the last 600 m before the holding point once there is nothing left to coordinate on the ground (no runway crossing or hold-short ahead, no conflict, no other ground traffic within 200 m except departures queuing for the same holding point), at the latest at the holding point; calls `approaching holding point A, ready for departure` |
 | Line-up | Not while another aircraft is lined up, or on the runway within 400 m of the entry (except one rolling away) |
 | Speed on final | Instructed speed (approach speed to 210 kt) until the given distance (default 4 NM), then the approach speed; speed changes at about 1 kt/s |

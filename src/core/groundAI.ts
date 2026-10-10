@@ -41,6 +41,8 @@ function busyNearby(sim: Simulation, ac: Aircraft, radius: number): boolean {
 }
 
 function departure(sim: Simulation, ac: Aircraft): void {
+  // Tower asked to hold all departures: no pushbacks (aircraft already moving continue).
+  if (ac.phase === 'parked' && sim.flow.departuresStopped) return;
   if (ac.phase === 'parked' && sim.time >= ac.readyAt && ac.cleared) {
     if (busyNearby(sim, ac, 250)) return; // the simplest pushback sequencing: wait for passing traffic
     const stand = sim.airport.stand(ac.stand ?? '');

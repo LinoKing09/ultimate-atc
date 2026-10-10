@@ -255,6 +255,7 @@ const KEYS: [string, string][] = [
   ['x (command line)', 'Clear the command line'],
   ['ROGER (sidebar) / roger', 'Acknowledge the call of the selected aircraft (or the last caller): no read-back, it stops flashing and waits 4 minutes before calling again.'],
   ['Aircraft menu: Request hand-off to TWR / GND', 'Ask the position the simulator runs for an aircraft now (e.g. a departure still with Ground, an arrival still with Approach).'],
+  ['COORD (toolbar)', 'Landline to Approach / Ground: no more arrivals, or hold all departures, to make room. -2 points per minute each while it is on.'],
   ['DISCONNECT (toolbar)', 'Debriefing of the session (what earned and what cost points, answer times, incidents, advice), then continue or end the session'],
   ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL and the ILS (localizer, glide path); switch them on or off'],
   ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, traffic density, special events'],

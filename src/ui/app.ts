@@ -53,6 +53,7 @@ export class App {
   private readonly routesBtn: HTMLButtonElement;
   private readonly rotBtn: HTMLButtonElement;
   private readonly sysBtn: HTMLButtonElement;
+  private readonly coordBtn: HTMLButtonElement;
   /** Mobile mode: actions for the selected aircraft. */
   private readonly quickbar: HTMLElement;
   private quickbarKey = '';
@@ -62,6 +63,8 @@ export class App {
   private capture: string[] | null = null;
   /** Mobile mode: the quick-action bar shows the ALL STATIONS broadcasts. */
   private allStationsMode = false;
+  /** Set when the session is ended with DISCONNECT: reloading then needs no warning. */
+  private leaving = false;
   /** Density / events last chosen in the settings; the session keeps a scenario's values until they change. */
   private densitySetting: Settings['density'];
   private eventsSetting: boolean;
@@ -110,6 +113,11 @@ export class App {
     });
     const sysBtn = (this.sysBtn = h('button', { text: 'SYSTEMS', title: 'ATC and airport systems: A-SMGCS, A-CDM, datalink, ILS (F3)' }));
     sysBtn.addEventListener('click', () => this.openSystems());
+    const coordBtn = (this.coordBtn = h('button', { text: 'COORD', title: 'Coordination with Approach and Ground: stop arrivals or hold departures to make room' }));
+    coordBtn.addEventListener('click', () => {
+      const r = coordBtn.getBoundingClientRect();
+      this.menu.open('COORDINATION', this.coordItems(), r.left, r.bottom + 2);
+    });
     const settingsBtn = h('button.settings-btn', { html: '&#9881; SETTINGS', title: 'Settings: device layout, sizes, voice, traffic' });
     settingsBtn.addEventListener('click', () => this.openSettings());
     const helpBtn = h('button', { text: 'HELP', title: 'Phraseology and controls (F1)' });
@@ -126,7 +134,10 @@ export class App {
         onContinue: () => {
           if (!wasPaused && this.paused) this.togglePause();
         },
-        onEnd: () => location.reload(),
+        onEnd: () => {
+          this.leaving = true;
+          location.reload();
+        },
       });
     });
 
@@ -150,6 +161,7 @@ export class App {
       h('span.spacer'),
       briefBtn,
       sysBtn,
+      coordBtn,
       settingsBtn,
       field('score', 'Score: +10 per departure handed off / arrival parked, penalties for incidents, delays and "say again"'),
       helpBtn,
@@ -321,7 +333,13 @@ export class App {
 
     this.setSpeed(1);
     const staffed = sim.config.airport.stations.filter((st) => sim.userControls(st.type)).map((st) => `${st.callsign} (${st.name}, ${st.frequency})`);
-    this.hint(`Connected as ${staffed.join(' + ')}. Runway ${sim.runway} in use. BRIEFING shows the airport briefing, F1 the help.`);
+    this.hint(`Connected as ${staffed.join(' + ')}. Runway ${sim.runway} in use. BRIEFING shows the airport briefing, F1 the help. End the session with DISCONNECT - it shows your debriefing, which is not saved.`);
+    // Reloading or closing the page ends the session without the debriefing: the browser asks first.
+    window.addEventListener('beforeunload', (e) => {
+      if (this.leaving) return;
+      e.preventDefault();
+      e.returnValue = 'Please end the session with DISCONNECT - it shows your debriefing, which is not saved.';
+    });
     requestAnimationFrame((t) => this.frame(t));
   }
 
@@ -389,6 +407,9 @@ export class App {
     this.updateQuickbar();
     const off = Object.values(this.sim.systems).filter((v) => !v).length;
     this.sysBtn.classList.toggle('sys-warn', off > 0);
+    const holds = [this.sim.flow.arrivalsStopped ? 'ARR' : '', this.sim.flow.departuresStopped ? 'DEP' : ''].filter(Boolean);
+    this.coordBtn.classList.toggle('sys-warn', holds.length > 0);
+    this.coordBtn.textContent = holds.length ? `COORD (${holds.join('+')} HOLD)` : 'COORD';
     this.sysBtn.textContent = off ? `SYSTEMS (${off} OFF)` : 'SYSTEMS';
   }
 
@@ -553,8 +574,9 @@ export class App {
         const p = this.phraseOf(i.action);
         items.push(p ? phrase(s[1], p) : btn(s[1], () => i.action!()));
       }
-      if (ac.category === 'departure' && ac.onGround && (ac.phase === 'taxi' || ac.phase === 'holding')) {
-        items.push(btn('TAXI', (b) => this.menu.open(`${ac.callsign} - taxi to`, this.taxiDestinations(ac), ...at(b))));
+      if (ac.onGround && (ac.phase === 'taxi' || ac.phase === 'holding')) {
+        const toStand = ac.category !== 'departure' || ac.returnToStand;
+        items.push(btn('TAXI', (b) => this.menu.open(`${ac.callsign} - taxi to${toStand ? ' stand' : ''}`, toStand ? this.standDestinations(ac) : this.taxiDestinations(ac), ...at(b))));
       }
     } else if (mine && ac.frequency === this.sim.stationFor('delivery') && this.sim.stationFor('delivery') !== this.sim.stationFor('ground')) {
       const del = this.deliveryItems(ac);
@@ -901,6 +923,27 @@ export class App {
     );
   }
 
+  /** Coordination with the simulator-run neighbours: hold arrivals (Approach) or departures (Ground). */
+  private coordItems(): MenuItem[] {
+    const sim = this.sim;
+    const f = sim.flow;
+    const app = sim.stationName('APP');
+    const gnd = sim.stationName(sim.stationFor('ground'));
+    const set = (kind: 'arrivals' | 'departures', stop: boolean) => () => {
+      const err = sim.setFlow(kind, stop);
+      if (err) this.hint(err);
+      this.slowUpdate();
+    };
+    return [
+      f.arrivalsStopped
+        ? { label: `${app}: resume arrivals`, hint: `held ${sim.stats.arrivalStopMinutes} min`, action: set('arrivals', false) }
+        : { label: `${app}: no more arrivals`, hint: '-2/min', action: set('arrivals', true) },
+      f.departuresStopped
+        ? { label: `${gnd}: release departures`, hint: `held ${sim.stats.departureStopMinutes} min`, action: set('departures', false) }
+        : { label: `${gnd}: hold all departures`, hint: sim.canHoldDepartures ? '-2 points per minute' : 'you staff Ground', disabled: !sim.canHoldDepartures, action: set('departures', true) },
+    ];
+  }
+
   private requestHandoff(ac: Aircraft): void {
     const err = this.sim.requestHandoff(ac);
     if (err) this.hint(err);
@@ -1141,8 +1184,11 @@ export class App {
     const radar = sim.airport.station('APP');
     const eta = sim.tower.nextArrivalEta();
     const arrival = Number.isFinite(eta) ? `next arrival ${Math.round(eta)} s` : 'no arrival';
+    // Tower may give taxi instructions too: a vacated arrival to its stand, a crossing aircraft on.
+    if (ac.onGround && ac.phase === 'taxi' && (ac.category !== 'departure' || ac.returnToStand)) {
+      items.push({ label: 'Taxi to stand', submenu: () => this.standDestinations(ac) });
+    }
     if (ac.category === 'departure' && ac.onGround && ['holding', 'lineup', 'taxi'].includes(ac.phase)) {
-      const spacing = Math.max(0, Math.round(sim.tower.spacingRemaining(ac)));
       const busy = sim.tower.runwayBusy(ac);
       const slotOpens = ac.ctot !== undefined && sim.time < ac.ctot - CTOT_EARLY_S ? ac.ctot - CTOT_EARLY_S : undefined;
       // Tower may send a departure to another holding point (e.g. an intersection) before it gets there.
@@ -1156,7 +1202,15 @@ export class App {
       });
       items.push({
         label: `Cleared for take-off runway ${rwy}`,
-        hint: busy ? 'runway occupied!' : slotOpens !== undefined ? `CTOT: not before ${hhmm(sim, slotOpens)}!` : spacing ? `spacing: wait ${spacing} s` : arrival,
+        // Live while the menu is open: runway, CTOT, the spacing countdown, the next arrival.
+        hint: () => {
+          const wait = Math.max(0, Math.round(sim.tower.spacingRemaining(ac)));
+          const eta = sim.tower.nextArrivalEta();
+          if (sim.tower.runwayBusy(ac)) return 'runway occupied!';
+          if (slotOpens !== undefined && sim.time < slotOpens) return `CTOT: not before ${hhmm(sim, slotOpens)}!`;
+          if (wait) return `spacing: wait ${wait} s`;
+          return Number.isFinite(eta) ? `next arrival ${Math.round(eta)} s` : 'no arrival';
+        },
         disabled: ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint',
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for take-off`),
       });

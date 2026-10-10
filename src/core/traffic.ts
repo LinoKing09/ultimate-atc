@@ -92,6 +92,8 @@ export class TrafficGenerator {
       this.spawnDeparture(sim.rng.range(4 * 60, 15 * 60));
       this.nextDepartureAt = sim.time + sim.rng.exponential(3600 / r.departures);
     }
+    // Approach holds arrivals on your request.
+    if (sim.flow.arrivalsStopped && sim.time >= this.nextArrivalAt) this.nextArrivalAt = sim.time + 10;
     if (sim.time >= this.nextArrivalAt) {
       // Pick the next arrival first: the required gap depends on its wake category.
       this.pendingArrival ??= this.pickArrivalSpec();

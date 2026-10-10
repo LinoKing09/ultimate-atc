@@ -2,7 +2,8 @@ import { h } from './dom';
 
 export interface MenuItem {
   label: string;
-  hint?: string;
+  /** Text on the right; a function is re-evaluated twice a second while the menu is open (e.g. a countdown). */
+  hint?: string | (() => string | undefined);
   disabled?: boolean;
   action?: () => void;
   submenu?: () => MenuItem[];
@@ -16,6 +17,9 @@ export interface MenuItem {
  */
 export class PopupMenu {
   private stack: HTMLElement[] = [];
+  /** Live hints of the open menu levels. */
+  private live: { el: HTMLElement; fn: () => string | undefined }[] = [];
+  private timer?: ReturnType<typeof setInterval>;
   private readonly onDocDown = (e: PointerEvent) => {
     if (!this.stack.some((el) => el.contains(e.target as Node))) this.close();
   };
@@ -39,6 +43,9 @@ export class PopupMenu {
   close(): void {
     for (const el of this.stack) el.remove();
     this.stack = [];
+    this.live = [];
+    if (this.timer) clearInterval(this.timer);
+    this.timer = undefined;
     document.removeEventListener('pointerdown', this.onDocDown, true);
     document.removeEventListener('keydown', this.onKey, true);
   }
@@ -56,7 +63,10 @@ export class PopupMenu {
         el.append(h('div.divider'));
         continue;
       }
-      const row = h(`div.item${it.submenu ? '.sub' : ''}${it.disabled ? '.disabled' : ''}`, {}, it.label, it.hint ? h('span.hint', { text: it.hint }) : null);
+      const hintText = typeof it.hint === 'function' ? it.hint() : it.hint;
+      const hintEl = hintText !== undefined || typeof it.hint === 'function' ? h('span.hint', { text: hintText ?? '' }) : null;
+      if (hintEl && typeof it.hint === 'function') this.live.push({ el: hintEl, fn: it.hint });
+      const row = h(`div.item${it.submenu ? '.sub' : ''}${it.disabled ? '.disabled' : ''}`, {}, it.label, hintEl);
       const enter = () => {
         el.querySelectorAll('.item.open').forEach((n) => n.classList.remove('open'));
         it.onHover?.(true);
@@ -88,5 +98,11 @@ export class PopupMenu {
     el.style.left = `${Math.max(2, px)}px`;
     el.style.top = `${Math.max(2, py)}px`;
     this.stack.push(el);
+    if (this.live.length && !this.timer) {
+      this.timer = setInterval(() => {
+        this.live = this.live.filter((l) => l.el.isConnected);
+        for (const l of this.live) l.el.textContent = l.fn() ?? '';
+      }, 500);
+    }
   }
 }

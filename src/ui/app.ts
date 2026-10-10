@@ -90,7 +90,7 @@ export class App {
       this.speedButtons.push(b);
     }
     this.ttsButton = h('button', { text: 'TTS', title: 'Read pilot transmissions aloud (text-to-speech)' });
-    this.ttsButton.addEventListener('click', () => this.setTts(!this.voices.enabled));
+    this.ttsButton.addEventListener('click', () => this.setTts(!this.voices.enabled, true));
     const routesBtn = (this.routesBtn = h('button', { text: 'ROUTES', title: 'Show the cleared routes of all aircraft on your frequency' }));
     routesBtn.addEventListener('click', () => {
       this.settings.showRoutes = !this.settings.showRoutes;
@@ -386,9 +386,12 @@ export class App {
     this.speedButtons.forEach((b, i) => b.classList.toggle('active', SPEEDS[i] === s));
   }
 
-  private setTts(on: boolean): void {
+  /** `announce`: called from a click - a short test phrase confirms (and on iOS unlocks) the voices. */
+  private setTts(on: boolean, announce = false): void {
+    const was = this.voices.enabled;
     this.voices.enabled = on;
     if (!on) this.voices.cancel();
+    else if (announce && !was) this.voices.test();
     this.ttsButton.classList.toggle('active', on);
     this.settings.tts = on;
     saveSettings(this.settings);
@@ -401,7 +404,7 @@ export class App {
 
   private openSettings(): void {
     this.menu.close();
-    showSettings(this.sim, this.settings, () => this.applySettings(), { tts: this.voices.supported, mic: this.voiceIn.supported });
+    showSettings(this.sim, this.settings, () => this.applySettings(), { tts: this.voices.supported, mic: this.voiceIn.supported, test: () => this.voices.test('Stuttgart Ground, radio check, readability five') });
   }
 
   /** Applies the (possibly changed) settings to the running session. */
@@ -420,7 +423,7 @@ export class App {
     this.routesBtn.classList.toggle('active', s.showRoutes);
     if (s.runwayAligned !== this.scope.runwayAligned) this.scope.setRotation(s.runwayAligned);
     this.rotBtn.classList.toggle('active', s.runwayAligned);
-    if (this.voices.enabled !== (s.tts && this.voices.supported)) this.setTts(s.tts && this.voices.supported);
+    if (this.voices.enabled !== (s.tts && this.voices.supported)) this.setTts(s.tts && this.voices.supported, true);
     this.voices.volume = s.ttsVolume;
     this.voices.rate = s.ttsRate;
     this.voiceIn.lang = s.voiceLang;

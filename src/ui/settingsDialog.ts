@@ -20,7 +20,7 @@ const VOICE_LANGS: [string, string][] = [
  * In-game settings menu. Every change is applied immediately (via `apply`)
  * and stored in the browser.
  */
-export function showSettings(sim: Simulation, settings: Settings, apply: () => void, voice: { tts: boolean; mic: boolean }): void {
+export function showSettings(sim: Simulation, settings: Settings, apply: () => void, voice: { tts: boolean; mic: boolean; test?: () => void }): void {
   if (document.querySelector('.overlay')) return;
   const changed = () => {
     saveSettings(settings);
@@ -36,6 +36,11 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
       changed();
     });
     return el;
+  };
+  const ttsRow = () => {
+    const test = h('button', { type: 'button', text: 'Test', disabled: !voice.tts, title: 'Speak a test phrase' });
+    test.addEventListener('click', () => voice.test?.());
+    return h('span', {}, check('tts', !voice.tts), ' ', test);
   };
   const range = (key: 'uiScale' | 'tagScale' | 'ttsRate' | 'ttsVolume', min: number, max: number, step: number, fmt: (v: number) => string) => {
     const el = h('input', { type: 'range', min: String(min), max: String(max), step: String(step) });
@@ -117,7 +122,7 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
       ),
       section(
         'Voice',
-        ['Pilot voices (TTS)', check('tts', !voice.tts)],
+        ['Pilot voices (TTS)', ttsRow()],
         ['Voice volume', range('ttsVolume', 0, 1, 0.05, pct)],
         ['Voice speed', range('ttsRate', 0.7, 1.5, 0.05, pct)],
         ['Send voice automatically', check('voiceAutoSend', !voice.mic), 'Transmit the recognised instruction as soon as you release push-to-talk'],

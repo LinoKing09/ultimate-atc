@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- iPad / iPhone: pilot voices (TTS) still silent. The unlock now runs on a real tap (click / end of touch - Safari ignores touchstart), switching TTS on speaks a confirmation, only voices installed on the device are used (no effect voices), stuck speech queues are cleared, utterances are kept until they have been spoken, and the speech engine is reset after the microphone. New *Test* button in the settings.
+
 ## [0.8.0] - 2026-10-10
 
 Combined positions with Tower, pilots who resolve simple conflicts, and a debriefing after each session.

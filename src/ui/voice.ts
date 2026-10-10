@@ -15,6 +15,12 @@ function hash(s: string): number {
   return x >>> 0;
 }
 
+/** Apple's novelty voices (and other effect voices) - unsuitable for pilots, some are silent on iOS. */
+const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|deranged|hysterical|pipe organ/i;
+
+/** iPhone, iPad (also iPadOS that reports itself as a Mac). */
+const IOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
+
 export class PilotVoices {
   enabled = false;
   volume = 1;
@@ -23,34 +29,76 @@ export class PilotVoices {
   private voices: SpeechSynthesisVoice[] = [];
   /** While the controller transmits, pilot messages wait here (instead of pause(), which iOS never resumes). */
   private held: { callsign: string; text: string; rate: number }[] | null = null;
+  private heldSince = 0;
+  /** Utterances being spoken: Safari stops speaking an utterance that was garbage-collected. */
+  private live = new Set<SpeechSynthesisUtterance>();
+  private lastStart = 0;
   private unlocked = false;
 
   constructor() {
     if (!('speechSynthesis' in window)) return;
-    // iOS / iPadOS only lets a page speak after speech was started from a tap: start a silent
-    // utterance on the first tap or key press, after that the pilots can speak at any time.
+    // iOS / iPadOS only lets a page speak once speech was started from a tap (a click or the end
+    // of a touch - a touchstart or pointerdown does not count): the first tap starts a silent
+    // utterance, after that the pilots can speak at any time.
     const unlock = () => {
       if (this.unlocked) return;
       this.unlocked = true;
-      const u = new SpeechSynthesisUtterance(' ');
+      const u = new SpeechSynthesisUtterance('ok');
       u.volume = 0;
-      window.speechSynthesis.speak(u);
-      document.removeEventListener('pointerdown', unlock, true);
-      document.removeEventListener('keydown', unlock, true);
+      u.lang = 'en-US';
+      this.say(u);
+      for (const ev of ['click', 'touchend', 'keydown']) document.removeEventListener(ev, unlock, true);
     };
-    document.addEventListener('pointerdown', unlock, true);
-    document.addEventListener('keydown', unlock, true);
+    for (const ev of ['click', 'touchend', 'keydown']) document.addEventListener(ev, unlock, true);
     const load = () => {
-      const all = window.speechSynthesis.getVoices();
-      const en = all.filter((v) => v.lang.toLowerCase().startsWith('en'));
+      const all = window.speechSynthesis.getVoices().filter((v) => !NOVELTY.test(v.name));
+      let en = all.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith('en'));
+      // On iOS only voices installed on the device speak reliably.
+      if (IOS) {
+        const local = en.filter((v) => v.localService);
+        if (local.length) en = local;
+      }
       this.voices = en.length ? en : all;
     };
     load();
     window.speechSynthesis.addEventListener?.('voiceschanged', load);
+    // Safari sometimes gets stuck with utterances that never start: clear the queue then.
+    setInterval(() => {
+      const synth = window.speechSynthesis;
+      if (synth.pending && !synth.speaking && performance.now() - this.lastStart > 8000) synth.cancel();
+      // A transmission whose end was never reported must not keep the pilots silent.
+      if (this.held && performance.now() - this.heldSince > 20000) this.release();
+    }, 2000);
   }
 
   get supported(): boolean {
     return 'speechSynthesis' in window;
+  }
+
+  private say(u: SpeechSynthesisUtterance): void {
+    const synth = window.speechSynthesis;
+    // Safari can be left paused (e.g. after an interrupted utterance): nothing would be heard.
+    if (synth.paused) synth.resume();
+    this.live.add(u);
+    const done = () => this.live.delete(u);
+    u.onend = done;
+    u.onerror = done;
+    this.lastStart = performance.now();
+    synth.speak(u);
+  }
+
+  /** Speaks a short test phrase; call it from a click so that iOS allows it. */
+  test(text = 'Stuttgart Ground, pilot voices on'): void {
+    if (!this.supported) return;
+    this.unlocked = true;
+    window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    if (this.voices.length) {
+      u.voice = this.voices[0];
+      u.lang = u.voice.lang;
+    } else u.lang = 'en-US';
+    u.volume = this.volume;
+    this.say(u);
   }
 
   speak(callsign: string, text: string, rate = 1): void {
@@ -59,9 +107,6 @@ export class PilotVoices {
       this.held.push({ callsign, text, rate });
       return;
     }
-    const synth = window.speechSynthesis;
-    // Safari can be left paused (e.g. after an interrupted utterance): nothing would be heard.
-    if (synth.paused) synth.resume();
     const u = new SpeechSynthesisUtterance(text);
     const hv = hash(callsign);
     if (this.voices.length) {
@@ -71,7 +116,7 @@ export class PilotVoices {
     u.pitch = 0.8 + ((hv >> 8) % 40) / 100;
     u.rate = Math.min(2, (1.05 + ((hv >> 16) % 25) / 100) * rate * this.rate);
     u.volume = this.volume;
-    window.speechSynthesis.speak(u);
+    this.say(u);
   }
 
   cancel(): void {
@@ -86,6 +131,7 @@ export class PilotVoices {
   hold(): void {
     if (!this.supported || this.held) return;
     this.held = [];
+    this.heldSince = performance.now();
     window.speechSynthesis.cancel();
   }
 
@@ -93,6 +139,8 @@ export class PilotVoices {
   release(): void {
     const queued = this.held ?? [];
     this.held = null;
+    // After the microphone iOS may leave the speech engine in a bad state: start clean.
+    if (this.supported) window.speechSynthesis.cancel();
     for (const m of queued.slice(-3)) this.speak(m.callsign, m.text, m.rate);
   }
 }

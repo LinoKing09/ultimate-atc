@@ -419,7 +419,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 
 Press **TTS** in the toolbar. Every pilot transmission is read aloud with the browser's speech synthesis. Each callsign always gets the same voice, pitch and speaking rate, so you can tell pilots apart. Designators are spelled phonetically: "Lufthansa five Alpha Bravo, taxi to holding point Golf one".
 
-On the **iPad** (and iPhone) TTS is off until you switch it on (in mobile mode the toolbar scrolls sideways - `TTS` is in it, or use the settings). Safari only lets a page speak after a tap, so the first tap anywhere unlocks the pilot voices. Speech synthesis follows the iPad's volume; if you hear nothing, check the volume and that the device is not muted.
+On the **iPad** (and iPhone) TTS is off until you switch it on (in mobile mode the toolbar scrolls sideways - `TTS` is in it, or use the settings). Safari only lets a page speak after a tap: switching `TTS` on speaks a short confirmation (`Stuttgart Ground, pilot voices on`), and the first tap anywhere unlocks the voices too. **Settings -> Pilot voices -> Test** speaks a radio check. Only voices installed on the device are used (Apple's effect voices are left out). Speech follows the media volume and is muted while the iPad is in silent mode (Control Centre bell icon, or the side switch on older iPads) - if the test phrase stays silent, check those first.
 
 ### You speaking (speech recognition)
 

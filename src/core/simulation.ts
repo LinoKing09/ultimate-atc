@@ -17,6 +17,9 @@ import { SYSTEMS, approachType, defaultSystemStates, type ApproachType, type Sys
 import { SCENARIO_EVENT_TEXT, type ScenarioEvent, type ScenarioSetup } from './scenario';
 import { TowerAI } from './tower';
 import { TrafficGenerator } from './traffic';
+import { updateNight } from './night';
+import { utcOffsetMinutes } from './time';
+import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
 
 export type Density = 'light' | 'medium' | 'heavy';
 
@@ -42,7 +45,7 @@ export interface SimConfig {
   runway?: string;
   density: Density;
   seed?: number;
-  /** UTC start time of the session; defaults to the current time. */
+  /** UTC start time of the session; defaults to the current time (a scenario start time sets it, see time.ts). */
   startTime?: Date;
   /** Set to false to start with an empty airport (used by tests). */
   generateTraffic?: boolean;
@@ -102,6 +105,10 @@ export interface Stats {
   arrivalStopMinutes: number;
   /** Minutes Ground held all departures on your request. */
   departureStopMinutes: number;
+  /** Night rules: jets ready in time that were still on the ground when the curfew started. */
+  curfewMissed: number;
+  /** Thunderstorm: go-arounds in windshear or tailwind (not counted against you). */
+  weatherGoArounds: number;
   score: number;
 }
 
@@ -109,7 +116,7 @@ export interface Stats {
 export interface AtisInfo {
   letter: string;
   runway: string;
-  wind: { direction: number; speedKt: number };
+  wind: Wind;
   qnh: number;
   /** Simulation time of the last update. */
   updatedAt: number;
@@ -118,7 +125,7 @@ export interface AtisInfo {
 export interface AtisChange {
   letter?: string;
   runway?: string;
-  wind?: { direction: number; speedKt: number };
+  wind?: Wind;
   qnh?: number;
 }
 
@@ -227,12 +234,18 @@ export class Simulation {
     departureStopMinutes: 0,
     goAroundsInstructed: 0,
     slotsMissed: 0,
+    curfewMissed: 0,
+    weatherGoArounds: 0,
     score: 0,
   };
 
   readonly atis: AtisInfo;
-  /** Actual surface wind. Changes with a scenario wind shift; broadcasting an ATIS wind sets it too. */
-  observedWind: { direction: number; speedKt: number };
+  /** Actual surface wind. Changes with a scenario wind shift or thunderstorm; broadcasting an ATIS wind sets it too. */
+  observedWind: Wind;
+  /** Active thunderstorm (scenario event), see weather.ts. */
+  storm?: StormState;
+  /** Offset of the airport's local time from UTC at the session start (minutes). */
+  readonly utcOffsetMin: number;
   /** Scheduled scenario events not yet due, earliest first. */
   private scenarioPending: ScenarioEvent[];
   /** Set by a scenario event: the next arrival declares a medical emergency. */
@@ -260,6 +273,10 @@ export class Simulation {
     this.systems = defaultSystemStates(config.airport.systems);
     this.vehicles = createVehicles(this);
     this.startEpochMs = (config.startTime ?? new Date()).getTime();
+    this.utcOffsetMin = config.airport.timeZone ? utcOffsetMinutes(new Date(this.startEpochMs), config.airport.timeZone) : 0;
+    for (const t of config.scenario?.closedTaxiways ?? []) {
+      if (this.airport.taxiwayNames.has(t.toUpperCase())) this.airport.closedTaxiways.add(t.toUpperCase());
+    }
     this.frequency = new Frequency(station.frequency, (m) => this.pushMessage(m));
     this.tower = new TowerAI(this);
     this.traffic = new TrafficGenerator(this);
@@ -329,6 +346,15 @@ export class Simulation {
     return new Date(this.startEpochMs + this.time * 1000);
   }
 
+  /**
+   * Local airport time at simulation time `t` as minutes after midnight (0-1439). The UTC offset
+   * of the session start is used for the whole session (no daylight saving change mid-session).
+   */
+  localMinutes(t = this.time): number {
+    const utcMin = (this.startEpochMs + t * 1000) / 60000;
+    return ((Math.floor(utcMin + this.utcOffsetMin) % 1440) + 1440) % 1440;
+  }
+
   /** Advances the simulation by `dt` seconds (already multiplied by the sim rate). */
   /** How far the next simulation step is (0-1): the scope interpolates vehicle positions with it. */
   get stepFraction(): number {
@@ -347,6 +373,8 @@ export class Simulation {
     this.time += dt;
     Simulation.simulatedSeconds += dt;
     this.updateScenario();
+    updateWeather(this);
+    updateNight(this);
     if (this.config.generateTraffic !== false) this.traffic.update();
     this.tower.update(dt);
     this.updateFlow(dt);
@@ -444,8 +472,17 @@ export class Simulation {
 
   // ------------------------------------------------------------------ scenario
 
+  private scenarioNoticePosted = false;
+
   /** Fires scheduled scenario events that are due. */
   private updateScenario(): void {
+    if (!this.scenarioNoticePosted) {
+      this.scenarioNoticePosted = true;
+      const closed = [...this.airport.closedTaxiways].sort();
+      if (closed.length) {
+        this.system(`NOTAM: taxiway${closed.length > 1 ? 's' : ''} ${closed.join(', ')} closed (construction works), including runway entries and exits there. Crews refuse routes over closed taxiways.`, 'warning');
+      }
+    }
     const next = this.scenarioPending[0];
     if (!next || this.time < next.atMin * 60) return;
     if (this.fireScenarioEvent(next)) this.scenarioPending.shift();
@@ -454,6 +491,8 @@ export class Simulation {
 
   private fireScenarioEvent(e: ScenarioEvent): boolean {
     switch (e.kind) {
+      case 'thunderstorm':
+        return startThunderstorm(this);
       case 'medicalArrival':
         this.forceMedicalArrival = true;
         return true;
@@ -550,9 +589,11 @@ export class Simulation {
   atisText(): string {
     const a = this.atis;
     const hhmm = this.utc().toISOString().slice(11, 16).replace(':', '');
-    const w = a.wind.speedKt === 0 ? 'calm' : `${String(a.wind.direction).padStart(3, '0')} degrees ${a.wind.speedKt} knots`;
     const navaids = !this.systems.loc ? `, ILS runway ${a.runway} out of service` : !this.systems.gp ? `, glide path runway ${a.runway} out of service` : '';
-    return `${this.station.name.split(' ')[0]} information ${a.letter}, time ${hhmm}, ${this.approachName(a.runway)}${navaids}, runway in use ${a.runway}, wind ${w}, QNH ${a.qnh}, transition level 70.`;
+    const closed = [...this.airport.closedTaxiways].sort();
+    const taxiways = closed.length ? `, taxiway${closed.length > 1 ? 's' : ''} ${closed.join(' and ')} closed` : '';
+    const storm = this.storm ? (this.storm.phase === 'overhead' ? ', thunderstorm over the airport, windshear reported on final' : ', thunderstorm in the vicinity') : '';
+    return `${this.station.name.split(' ')[0]} information ${a.letter}, time ${hhmm}, ${this.approachName(a.runway)}${navaids}, runway in use ${a.runway}${taxiways}, wind ${windWords(a.wind)}${storm}, QNH ${a.qnh}, transition level 70.`;
   }
 
   private changeRunway(newEnd: string): void {

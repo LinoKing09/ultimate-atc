@@ -10,6 +10,9 @@ import { CLEARANCE_LEAD_S, execClearance, execCtot, execReadbackCorrect, execSqu
 import { destinationName } from '../data/destinations';
 import type { Simulation, TransmitResult } from './simulation';
 import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, locationOf, maybeStartTow } from './vehicles';
+import { curfewCall, departureAllowed, needsCurfewRoute, nightRules } from './night';
+import { minutesToHhmm } from './time';
+import { apronClosed, takeoffsSuspended } from './weather';
 
 /**
  * AI pilots: execute controller instructions, read them back, and make their
@@ -460,6 +463,7 @@ function execPushback(sim: Simulation, ac: Aircraft, facing: Compass | undefined
   }
   const stand = sim.airport.stand(ac.stand ?? '');
   if (stand && !stand.pushback) return { unable: 'no pushback required, we can taxi out from this stand' };
+  if (apronClosed(sim)) return { unable: LIGHTNING_UNABLE };
   if (ac.request !== 'pushback' && ac.readyAt - sim.time > 90) {
     return { unable: 'negative, we are still boarding, we will call you when ready' };
   }
@@ -504,6 +508,16 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       if (ac.phase === 'takeoff' || ac.phase === 'climb') return { unable: 'we are already departing' };
       const atOrToHp = ac.phase === 'holding' || ac.phase === 'lineup' || (ac.phase === 'taxi' && ac.routeDestination?.kind === 'holdingPoint');
       if (!atOrToHp) return { unable: 'negative, we are not at the holding point' };
+      // Night curfew: jets may not depart (the crew knows the airport rules).
+      if (!departureAllowed(sim, ac)) {
+        const r = nightRules(sim);
+        return { unable: `unable, night curfew, jet departures are not permitted until ${r ? minutesToHhmm(r.jetDepartures.until) : '0600'} local` };
+      }
+      // Thunderstorm overhead: no take-off into windshear; the crew waits until it has passed.
+      if (c.type === 'takeoff' && takeoffsSuspended(sim)) {
+        ac.standbyUntil = Math.max(ac.standbyUntil, sim.storm?.until ?? sim.time);
+        return { unable: 'unable, thunderstorm overhead with windshear, we will wait until it has passed' };
+      }
       ac.lineUpCleared = true;
       ac.holdPosition = false;
       const rwy = ac.runway ?? sim.runway;
@@ -553,6 +567,7 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       if (ac.category !== 'arrival' || !['approach', 'landing'].includes(ac.phase)) return { unable: 'say again' };
       const ok = sim.airport.exits(ac.runway ?? sim.runway).some((e) => e.name.toUpperCase() === c.exit);
       if (!ok) return { unable: `unable to vacate via ${c.exit}` };
+      if (sim.airport.closedTaxiways.has(c.exit.toUpperCase())) return { unable: `unable, taxiway ${c.exit.toUpperCase()} closed` };
       ac.requestedExit = c.exit;
       return rb(`vacate via ${c.exit}`, false);
     }
@@ -703,6 +718,9 @@ function resolveDestination(
   holdShort: HoldShortTarget[] = [],
   forceUTurn = false,
 ): { route: TaxiRoute; dest: TaxiDestination } | { error: string } {
+  // A closed taxiway in the instruction: the crew knows it from the ATIS / NOTAM.
+  const closedVia = via.find((v) => sim.airport.closedTaxiways.has(v.toUpperCase()));
+  if (closedVia) return { error: `unable, taxiway ${closedVia.toUpperCase()} closed` };
   if (!forceUTurn && !routeOptions(sim, ac).allowUTurn) {
     const res = resolveDestination(sim, ac, dest, start, via, holdShort, true);
     if ('error' in res || !res.route.requiresUTurn) return res;
@@ -736,6 +754,10 @@ function resolveDestination(
     case 'holdingPoint': {
       const hp = sim.airport.holdingPoint(dest.name);
       if (!hp) return { error: `confirm holding point ${dest.name}, we can't find it` };
+      const closedAt = hp.edges.find((e) => e.kind !== 'stand' && sim.airport.closedTaxiways.has(e.name.toUpperCase()));
+      if (closedAt && hp.edges.every((e) => e.kind === 'runwayStrip' || sim.airport.closedTaxiways.has(e.name.toUpperCase()))) {
+        return { error: `unable, taxiway ${closedAt.name.toUpperCase()} closed` };
+      }
       if (dest.runway && hp.holdingPoint && sim.airport.runwayNameFor(dest.runway) !== hp.holdingPoint.runway) {
         return { error: `holding point ${dest.name} is not for runway ${dest.runway}` };
       }
@@ -855,6 +877,7 @@ function isStuck(sim: Simulation, ac: Aircraft): boolean {
 
 function routeErrorText(err: string, via: string[]): string {
   if (err.startsWith('unknown taxiway')) return `confirm taxiway ${err.slice(16)}, we can't find it`;
+  if (/^taxiway \S+ closed$/.test(err)) return `unable, ${err}`;
   if (via.length) return `unable to follow route via ${via.join(', ')}, say again route`;
   return 'unable, say again route';
 }
@@ -877,11 +900,15 @@ function toRouteStart(sim: Simulation, s: { position: Vec2; heading: number; nod
   return s.node ? { node: sim.airport.node(s.node), heading: s.heading } : { position: s.position, heading: s.heading };
 }
 
+/** A crew's answer while lightning has stopped the ground handling. */
+const LIGHTNING_UNABLE = 'unable, ground handling has stopped, lightning alert';
+
 function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
   if (!ac.onGround || ['lineup', 'takeoff', 'climb', 'landing'].includes(ac.phase)) return { unable: 'say again' };
   if (ac.phase === 'parked') {
     const stand = sim.airport.stand(ac.stand ?? '');
     if (stand?.pushback) return { unable: 'negative, we need pushback first' };
+    if (apronClosed(sim)) return { unable: LIGHTNING_UNABLE };
     if (ac.request !== 'taxi' && ac.readyAt - sim.time > 90) return { unable: 'negative, we are not ready yet' };
   }
   if (ac.phase === 'arrived') return { unable: 'we are already parked' };
@@ -1292,6 +1319,11 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
   // Spontaneous first calls (not while told to wait: standby / number / expect)
   if (ac.request === null) {
     if (now <= ac.standbyUntil) return;
+    // Night curfew missed on the way out: the crew asks to taxi back to the stand.
+    if (needsCurfewRoute(ac) && ac.phase !== 'startup') {
+      curfewCall(sim, ac);
+      return;
+    }
     if (onDelivery && ac.category === 'departure' && ac.phase === 'parked') {
       deliveryCall(sim, ac, stationName, tel);
       return;
@@ -1304,7 +1336,8 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     }
     // Ground: the crew calls for pushback when start-up is approved (TSAT with A-CDM) or it is ready.
     const pushDue = ac.startupApproved ? ac.readyAt : startupDue(sim, ac);
-    if (ac.phase === 'parked' && ac.category === 'departure' && now >= pushDue) {
+    // Lightning alert (thunderstorm overhead): no ground handling, nobody calls for pushback.
+    if (ac.phase === 'parked' && ac.category === 'departure' && now >= pushDue && !apronClosed(sim)) {
       const stand = sim.airport.stand(ac.stand ?? '');
       if (stand && !stand.pushback) {
         call(sim, ac, 'taxi', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetter}, request taxi`);

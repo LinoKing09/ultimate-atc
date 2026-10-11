@@ -1,4 +1,6 @@
 import type { AirportData } from '../core/airport/types';
+import { closureProblems } from '../core/airport/validate';
+import { minutesToHhmm } from '../core/time';
 import {
   EVENT_LABEL,
   MAX_EVENT_MINUTE,
@@ -59,6 +61,14 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
     const randomBox = h('input', { type: 'checkbox' });
     const seedInput = h('input', { type: 'text', spellcheck: 'false', autocomplete: 'off' });
     const dice = h('button', { type: 'button', text: 'New seed', title: 'Same scenario, different traffic' });
+    const startInput = h('input', { type: 'time', class: 'start' });
+    const nightBox = h('input', { type: 'checkbox' });
+    const night = airport.nightRestrictions;
+    // Taxiways that can be closed (not taxilanes on the aprons, not runway strips).
+    const taxiways = [...new Set(airport.taxiEdges.filter((e) => e.kind === 'taxiway').map((e) => e.name.toUpperCase()))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+    const closedBoxes = new Map(taxiways.map((t) => [t, h('input', { type: 'checkbox', value: t })]));
+    const closedEl = h('div.taxiways', {}, ...taxiways.map((t) => h('label', {}, closedBoxes.get(t)!, ` ${t}`)));
+    const closedStatus = h('div.sub');
     const eventsEl = h('div.events');
     const addEvent = h('button', { type: 'button', text: '+ Add event' });
 
@@ -73,6 +83,9 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
       heavyBox.checked = s.heavies;
       randomBox.checked = s.randomEvents;
       seedInput.value = s.seed.toString(36).toUpperCase();
+      startInput.value = s.startLocal ? `${s.startLocal.slice(0, 2)}:${s.startLocal.slice(2)}` : '';
+      nightBox.checked = !!s.nightRules;
+      for (const [t, box] of closedBoxes) box.checked = !!s.closedTaxiways?.includes(t);
       eventsEl.replaceChildren(
         ...s.events.map((ev, i) => {
           const kind = h('select');
@@ -98,17 +111,44 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
       if (!s.events.length) eventsEl.append(h('div.sub', { text: 'No scheduled events.' }));
       output();
     };
+    let closureCache: { key: string; problems: string[] } = { key: '', problems: [] };
     const output = () => {
       const code = formatScenarioCode(s);
       codeOut.value = code;
       descOut.textContent = describeScenario(s);
       status.textContent = '';
+      // A closure that cuts stands off from the runway cannot be used.
+      const key = (s.closedTaxiways ?? []).join(',');
+      if (key !== closureCache.key) closureCache = { key, problems: key ? closureProblems(airport, s.closedTaxiways!) : [] };
+      const problems = closureCache.problems;
+      closedStatus.textContent = problems.length
+        ? `Not possible: ${problems.slice(0, 2).join('; ')}${problems.length > 2 ? ` (+${problems.length - 2} more)` : ''}.`
+        : s.closedTaxiways?.length
+          ? 'Every stand still reaches the runways. Routes over a closed taxiway are refused by the crews.'
+          : 'No taxiway closed.';
+      closedStatus.style.color = problems.length ? 'var(--danger)' : '';
+      use.disabled = copyCode.disabled = copyLink.disabled = problems.length > 0;
     };
 
     runwaySel.addEventListener('change', () => ((s.runway = runwaySel.value || undefined), output()));
     densitySel.addEventListener('change', () => ((s.density = densitySel.value as Density), output()));
     mixSel.addEventListener('change', () => ((s.mix = mixSel.value as Scenario['mix']), output()));
     heavyBox.addEventListener('change', () => ((s.heavies = heavyBox.checked), output()));
+    startInput.addEventListener('change', () => {
+      const v = startInput.value.replace(':', '');
+      s.startLocal = /^\d{4}$/.test(v) ? v : undefined;
+      output();
+    });
+    nightBox.addEventListener('change', () => ((s.nightRules = nightBox.checked || undefined), output()));
+    for (const [t, box] of closedBoxes) {
+      box.addEventListener('change', () => {
+        const set = new Set(s.closedTaxiways ?? []);
+        if (box.checked) set.add(t);
+        else set.delete(t);
+        s.closedTaxiways = set.size ? [...set].sort() : undefined;
+        output();
+      });
+    }
     randomBox.addEventListener('change', () => ((s.randomEvents = randomBox.checked), output()));
     seedInput.addEventListener('input', () => {
       const v = parseInt(seedInput.value.trim(), 36);
@@ -130,7 +170,8 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
     const presets = SCENARIO_PRESETS.map((p) => {
       const b = h('button', { type: 'button', text: p.name, title: p.description });
       b.addEventListener('click', () => {
-        Object.assign(s, structuredClone(p.scenario), { seed: randomSeed() });
+        // Options a preset does not set are cleared.
+        Object.assign(s, { startLocal: undefined, nightRules: undefined, closedTaxiways: undefined }, structuredClone(p.scenario), { seed: randomSeed() });
         render();
         descOut.textContent = `${p.description} ${describeScenario(s)}`;
       });
@@ -182,6 +223,22 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
           h('label', { text: 'Seed' }),
           h('div.rangerow', {}, seedInput, dice),
         ),
+        h('h2', { text: 'Conditions' }),
+        h(
+          'div.grid',
+          {},
+          h('label', { text: 'Start time (local)' }),
+          h('div.rangerow', {}, startInput, h('span.sub', { text: 'empty = now' })),
+          ...(night
+            ? [
+                h('label', { text: 'Night restrictions' }),
+                h('label', {}, nightBox, ` no jet departures ${minutesToHhmm(night.jetDepartures.from)}-${minutesToHhmm(night.jetDepartures.until)}, no landings ${minutesToHhmm(night.landings.from)}-${minutesToHhmm(night.landings.until)} local${night.delayedLandingsUntil !== undefined ? ` (delayed flights until ${minutesToHhmm(night.delayedLandingsUntil)})` : ''}`),
+              ]
+            : []),
+        ),
+        h('div.sub.closed-head', { text: 'Closed taxiways (construction works):' }),
+        closedEl,
+        closedStatus,
         h('h2', { text: 'Scheduled events' }),
         eventsEl,
         h('div', {}, addEvent),

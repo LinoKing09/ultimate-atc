@@ -17,11 +17,14 @@ ultimate-atc/
 │   │   ├── path.ts            # smoothed polylines that aircraft move along
 │   │   ├── random.ts          # seeded PRNG
 │   │   ├── scenario.ts        # scenario codes (format/parse), presets
+│   │   ├── night.ts           # night flying restrictions (curfew planning, jets that miss it)
+│   │   ├── weather.ts         # wind type and formatting, thunderstorm event
+│   │   ├── time.ts            # local airport time (Intl, no DOM)
 │   │   ├── airport/
 │   │   │   ├── types.ts       # serialisable AirportData format
 │   │   │   ├── airport.ts     # runtime Airport: local coordinates, taxi graph, lookups
 │   │   │   ├── routing.ts     # taxi route finding with "via" constraints, turn and wingspan limits
-│   │   │   └── validate.ts    # airport data checks (run for every airport by the tests)
+│   │   │   └── validate.ts    # airport data checks (run for every airport by the tests), closure checks
 │   │   ├── aircraft.ts        # Aircraft state, flight plan, phases
 │   │   ├── movement.ts        # path following, speed control, see-and-avoid, collisions
 │   │   ├── pilot.ts           # AI pilots: executing instructions, read-backs, own calls
@@ -139,6 +142,8 @@ Runway holding positions are **nodes** with a `holdingPoint` attribute. Moving f
 The goal is any state at `(destination, len(via))`. With an empty `via` list, the router returns the overall shortest route and adds a large penalty to runway strips, so it avoids crossing runways whenever possible. Routes can start at a node (a stand) or at an arbitrary position and heading. The start then snaps to the nearest edge; both edge ends are candidates. The first turn is checked against the aircraft's direction of travel, so it can't immediately reverse. A start node *behind* the aircraft means turning around on the spot and costs 5000 m, so it is only used as a last resort.
 
 **Standard taxi flows**: `findRoute(..., { flows })` takes the preferred direction per taxiway (`Airport.flowVectors(runway)`, built from `runwayOps[].flows`). With `strictFlows` edges against a flow are not used at all; the pilot logic tries strict first and falls back to the soft rule (4x the distance) only if the strict route is impossible or needs a 180 degree turn. Routes with a `via` list are not affected.
+
+**Closed taxiways** (scenario option): `Airport.closedTaxiways` holds the closed designators; `findRoute` skips every edge of them (taxiway and runway strip, so also their holding points) and fails a `via` list naming one with `taxiway X closed`. Because every caller uses the same `Airport`, AI routes, previews, conflict resolution and follow-me cars all respect it. `closureProblems()` (validate.ts) checks a closure with the same reachability rules as the airport data validation.
 
 `resolveClearanceLimit` (pilot.ts) handles incomplete instructions like `taxi via N, hold short of F`. It tries every junction of the last via taxiway with F (or every holding point of the runway) as destination and keeps the shortest valid route.
 

@@ -753,6 +753,22 @@ body.mobile .sidebar {
 .dialog .scenario-info {
   margin-top: 6px;
 }
+.dialog .taxiways {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  margin: 4px 0;
+}
+.dialog .taxiways label {
+  white-space: nowrap;
+  min-width: 44px;
+}
+.dialog .closed-head {
+  margin-top: 10px;
+}
+.dialog input.start {
+  width: 110px;
+}
 
 /* ------------------------------------------------------------------ help tabs / briefing */
 .dialog .tabs {

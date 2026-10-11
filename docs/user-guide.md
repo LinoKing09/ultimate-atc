@@ -30,7 +30,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | **Callsign**      | Shows the resulting station callsigns, frequencies and radio names, for example `EDDS_DEL 121.915 "Stuttgart Delivery" + EDDS_GND 118.605 "Stuttgart Ground"`. |
 | **Traffic**       | `light`, `medium` or `heavy` (see [simulation model](simulation.md#traffic-generation)).          |
 | **Special events** | Rare special situations: medical emergencies (arrivals and departures) and rejected take-offs. On by default. See [simulation model](simulation.md#special-events). |
-| **Scenario**      | Optional. A **number** is a seed: the same seed with the same settings gives the same traffic. A **scenario code** (for example `EDDS-25-MB0-M10-K7Q2M`) also fixes the runway, traffic mix and scheduled events. **Scenario builder...** creates one from presets or your own choices. Leave it empty for a random session. See [Scenarios and seeds](scenarios.md). |
+| **Scenario**      | Optional. A **number** is a seed: the same seed with the same settings gives the same traffic. A **scenario code** (for example `EDDS-25-MB0-M10-K7Q2M`) also fixes the runway, traffic mix and scheduled events, and optionally the start time, night flying restrictions and closed taxiways. **Scenario builder...** creates one from presets or your own choices. Leave it empty for a random session. See [Scenarios and seeds](scenarios.md). |
 
 There is no runway selection: the session starts with a random wind, and the **runway in use is the one with the most headwind** (runway 25 at EDDS unless the tailwind on it is above 3 kt). You change the runway, wind, QNH and ATIS letter during the session in the [ATIS editor](#atis-editor).
 
@@ -62,9 +62,9 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `EDDS_GND 118.605`    | Your station(s) and frequency, in the position colour (several plus `COMBINED` with combined positions). **Click a frequency to switch it off**: the simulator takes the position over (pilots waiting on it are answered by the AI) and it is shown dashed with `OFF`; click again to take it back. At least one frequency stays on. |
 | `RWY 25`              | Runway in use. Click to open the [ATIS editor](#atis-editor).                                   |
 | `ATIS E`              | Current ATIS letter. Pilots report it on first contact. Click to open the ATIS editor.          |
-| `250/08KT`            | Surface wind (magnetic). Shown in red if the tailwind on the runway in use is above 5 kt. Click to edit. |
+| `250/08KT`            | Surface wind (magnetic), with gusts `070/18G32KT`. Shown in red if the tailwind on the runway in use is above 5 kt, and with `TS` while a [thunderstorm](scenarios.md#thunderstorm) is active. Click to edit. |
 | `Q1013`               | QNH in hPa. Click to edit.                                                                      |
-| `14:32:10Z`           | Simulation time in UTC. The session starts at the current real time.                            |
+| `14:32:10Z`           | Simulation time in UTC. The session starts at the current real time, or at a scenario's start time. With [night flying restrictions](scenarios.md#start-time-and-night-flying-restrictions) the local time follows (`2215L`). |
 | `II` / `>`            | Pause / resume. **Space** does the same when the command line is empty.                         |
 | `1x 2x 4x 8x`         | Simulation rate. Pilots and Tower run faster too; text-to-speech gets slightly faster.          |
 | `TTS`                 | Pilots read their transmissions aloud (text-to-speech). *Hidden in this version, see [Voice](#9-voice).* |
@@ -88,6 +88,7 @@ Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS:
 | Information     | The new ATIS letter (pre-set to the next letter)                                           |
 | Runway in use   | Runway for departures and arrivals                                                         |
 | Wind direction / speed | Surface wind; the dialog shows the head-/tailwind and crosswind for the selected runway. Direction and speed turn red when the tailwind on the selected runway is above 5 kt |
+| Gusts           | Peak gusts in knots (empty = none); broadcast as `gusting 32 knots`                        |
 | QNH             | Pressure setting                                                                           |
 
 **Broadcast ATIS** publishes the new information. It appears in the message window, and pilots quote the new letter on first contact. The ATIS does not change on its own.
@@ -99,7 +100,7 @@ Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS:
 `BRIEFING` in the toolbar opens the help window on the **Airport briefing** tab. You can open it at any time; it always shows the current state:
 
 - **At a glance**: airport, your position and frequency, elevation, runways, transition altitude.
-- **Now**: runway in use, ATIS letter, wind and QNH, the full-length and intersection holding points, the arrival exits and the taxi flows of the runway in use.
+- **Now**: runway in use, ATIS letter, wind and QNH, the full-length and intersection holding points, the arrival exits and the taxi flows of the runway in use; with a scenario also closed taxiways, the night flying restrictions (with the local time) and an active thunderstorm.
 - **Local procedures** for your position: your job, standard taxi flows, departures (entries, push directions, typical routes), arrivals (exits, vacating, typical routes), stands, hot spots and pitfalls.
 - **Frequencies** of all stations, and the data accuracy notice.
 
@@ -152,6 +153,7 @@ The scope is a ground radar showing the aerodrome chart. By default it is rotate
 | Runway                                 | Black strip with a dashed centre line, threshold bars and designators          |
 | Taxiways and taxilanes                 | Grey bands with a thin yellow centre line                                      |
 | Taxiway designators                    | Yellow letters in dark boxes (`N`, `S`, `R`, `D` ...). Long taxiways (N, S, M) repeat their designator about every 600 m when you zoom in |
+| Closed taxiways                        | Red, hatched, designator in red (scenario option, see [closed taxiways](scenarios.md#closed-taxiways)) |
 | Runway holding positions               | Thick yellow bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
 | Stands                                 | Thin yellow lead-in line plus the stand number                                 |
 | Aprons                                 | Slightly lighter areas                                                         |
@@ -498,6 +500,7 @@ The A-SMGCS runway monitoring (RMCA) warns when you give a take-off or landing c
 | Wrong readback caught and corrected                         |     +5 |
 | Wrong readback not caught                                   |    -10 |
 | CTOT missed or violated (no take-off inside -5 / +10 minutes) |    -10 |
+| Night rules: jet ready in time that missed the curfew        |    -10 |
 | Medical emergency on a stand within 6 minutes of the call   |    +15 |
 | "Say again" (pilot did not understand)                      |     -2 |
 | Slow answer: per 15 s of waiting beyond the first 30 s      |     -1 |

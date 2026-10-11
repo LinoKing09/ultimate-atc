@@ -1,5 +1,5 @@
 import { dot, headingVector, normalize, projectOnSegment, sub, type Vec2 } from '../geo';
-import { otherEnd, type Airport, type TaxiEdge, type TaxiNode } from './airport';
+import { isClosedEdge, otherEnd, type Airport, type TaxiEdge, type TaxiNode } from './airport';
 
 /**
  * Taxi route finding.
@@ -20,6 +20,9 @@ import { otherEnd, type Airport, type TaxiEdge, type TaxiNode } from './airport'
  * With an empty `via` list the router returns the shortest overall route
  * (used by the UI's "auto route" and by AI traffic) and avoids crossing
  * runways if any alternative exists.
+ *
+ * Closed taxiways (`airport.closedTaxiways`, a scenario option) are never
+ * used; a `via` list naming one fails with "taxiway X closed".
  */
 
 export interface RouteStart {
@@ -85,6 +88,7 @@ export function findRoute(
   const viaU = via.map((v) => v.toUpperCase());
   for (const v of viaU) {
     if (!airport.taxiwayNames.has(v)) return { error: `unknown taxiway ${v}` };
+    if (airport.closedTaxiways.has(v)) return { error: `taxiway ${v} closed` };
   }
   const m = viaU.length;
   const auto = m === 0;
@@ -166,6 +170,7 @@ export function findRoute(
     for (const e of cur.node.edges) {
       if (e.kind === 'runway') continue;
       if (e.oneWay && e.from !== cur.node) continue;
+      if (isClosedEdge(airport, e)) continue;
       if (options.wingspanM !== undefined && options.wingspanM > e.maxWingspanM) continue;
       if (options.avoid && segmentNear(e.from.pos, e.to.pos, options.avoid)) continue;
       const nxt = otherEnd(e, cur.node);

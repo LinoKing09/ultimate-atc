@@ -60,6 +60,7 @@ Notation: `[optional]`, `a | b` = alternatives, `X` = taxiway, `HP` = holding po
 | `pushback approved facing east` (`face west`, `nose north`)  | Pushback so the nose points in that direction afterwards                                     |
 | `pushback approved tail east`                                | Same with the tail direction (tail east = facing west)                                       |
 | `push and start approved [facing ...]`                       | Pushback with engine start during the push. The aircraft is ready for taxi sooner.           |
+|                                                              | While a thunderstorm is overhead, ground handling has stopped: `unable, ground handling has stopped, lightning alert` (also for taxi from a drive-through stand). |
 | `start-up approved` / `startup approved`                     | Engine start on the stand. Combine with a later pushback; it shortens the start-up after the push. |
 | `cancel pushback` / `pushback cancelled`                     | Before the tug moves: the pushback is cancelled, the aircraft stays on the stand. Already moving: the tug **tows the aircraft back onto the stand**. Either way it calls again in 1-2.5 minutes. |
 | `stop pushback` / `stop the push`                            | The push stops immediately (read-back `stopping pushback`)                                   |
@@ -95,7 +96,7 @@ taxi via|along X [,] X ..., hold short of TAXIWAY|runway RWY        (incomplete 
 
 So after a pushback from stand 14 facing east, `taxi to holding point A via L2, S` is accepted and gives the route M -> L2 -> S -> A. Without any `via`, the pilot takes the **shortest route**, avoiding runway crossings where possible. This is convenient, but not proper phraseology.
 
-If the route is impossible, the pilot replies `unable to follow route via S, say again route`. An unknown taxiway gives `confirm taxiway Q, we can't find it`. The live preview in the command line shows these problems **before** you transmit.
+If the route is impossible, the pilot replies `unable to follow route via S, say again route`. An unknown taxiway gives `confirm taxiway Q, we can't find it`. A taxiway closed by the scenario (shown red and hatched, in the ATIS) gives `unable, taxiway S closed` - also for a holding point or `vacate via` on it; see [closed taxiways](scenarios.md#closed-taxiways). The live preview in the command line shows these problems **before** you transmit.
 
 **Incomplete taxi instructions** (clearance limit): `taxi via S, hold short of E` or `taxi along R, D, N, hold short of runway 25`. There is no destination; the aircraft taxis along the via taxiways and stops at the hold-short point, which is the clearance limit: about 40 m before the junction with E, or at the runway holding point. The read-back is `Taxi via S, hold short of taxiway E, ...`. Then give the rest of the route with a normal taxi instruction. `continue taxi` at a clearance limit gets `confirm where to taxi`.
 
@@ -206,7 +207,7 @@ A follow-me only drives onto the taxiways after your `proceed`; the aircraft wai
 | ------- | ------ |
 | `line up and wait [runway 25]` | Departure at (or taxiing to) the holding point lines up and waits. It is not a take-off clearance. |
 | `behind landing EWG7TK, line up and wait behind` / `behind the landing A320, line up and wait behind` | Conditional line-up: the departure enters the runway once the landing aircraft has passed. |
-| `[wind 250 degrees 8 knots,] [runway 25,] cleared for take-off` | Take-off clearance. From the holding point the aircraft lines up and rolls without stopping. The wind is information only. |
+| `[wind 250 degrees 8 knots [gusting 25 knots],] [runway 25,] cleared for take-off` | Take-off clearance. From the holding point the aircraft lines up and rolls without stopping. The wind is information only. In a thunderstorm overhead the crew refuses (`unable, thunderstorm overhead with windshear, we will wait until it has passed`); a jet in the night curfew refuses take-off and line-up (`unable, night curfew, jet departures are not permitted until 0600 local`). |
 | `hold position, cancel take-off [, I say again, cancel take-off]` / `stop immediately` | Cancels a take-off clearance; during the roll the crew stops below 80 kt (`unable, we are taking off` above). |
 | `[wind ...,] [runway 25,] cleared to land` | Landing clearance (required, otherwise the crew goes around at 0.5 NM) |
 | `continue approach` (also just `continue` to an aircraft on final) | The landing clearance comes later |
@@ -345,6 +346,8 @@ Pilots on your frequency call on their own:
 | Tower refused the departure (too little runway left)    | `Stuttgart Ground, Lufthansa 5AB, tower sent us back, not enough runway at K for departure 25, request taxi` |
 | Medical emergency, arrival (after vacating)             | `Stuttgart Ground, Eurowings 7TK, PAN PAN, medical emergency on board, vacated runway 25 via E, request expedited taxi to the stand, ambulance requested` |
 | Medical emergency, departure (while taxiing)            | `Stuttgart Ground, Lufthansa 5AB, PAN PAN, PAN PAN, PAN PAN, medical emergency on board, request immediate return to the stand, ambulance required` |
+| Night curfew missed (jet still taxiing at 2300 local)   | `Stuttgart Ground, Eurowings 1AB, we have missed the night curfew, request taxi back to stand 12` |
+| Thunderstorm, go-around on final                        | `Lufthansa 5AB, going around, windshear` (or `..., tailwind out of limits`) |
 | Rejected take-off (after vacating)                      | `Stuttgart Ground, Lufthansa 5AB, we rejected take-off due to a technical problem, vacated runway 25 via D, request taxi back to the stand` (or `..., problem solved, ..., request taxi for another departure`) |
 
 If you don't answer, pilots **call again** after 60-90 seconds, up to five times. Reminders are shorter: `Stuttgart Ground, Lufthansa 5AB, stand 14, request pushback`. `standby` stops the reminders for two minutes.

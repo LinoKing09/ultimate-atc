@@ -6,6 +6,8 @@ import { KT_TO_MS, M_PER_FT, M_PER_NM, add, distance, headingVector, length, sca
 import { Path } from './path';
 import { call } from './pilot';
 import type { Simulation } from './simulation';
+import { departureAllowed } from './night';
+import { WEATHER_DECISION_NM, takeoffsSuspended, weatherGoAround } from './weather';
 
 /**
  * AI tower controller. Owns the runway: flies arrivals down the final
@@ -226,6 +228,15 @@ export class TowerAI {
       this.goAround(ac);
       return;
     }
+    // Thunderstorm overhead: windshear or too much tailwind - the crew goes around (once per approach).
+    if (!ac.weatherChecked && toThreshold < WEATHER_DECISION_NM * M_PER_NM && toThreshold > 0) {
+      ac.weatherChecked = true;
+      const reason = weatherGoAround(this.sim, ac.callsign, end.name);
+      if (reason) {
+        this.weatherGoAround(ac, reason);
+        return;
+      }
+    }
     // Short final with the runway not clear: go around.
     if (toThreshold < GO_AROUND_CHECK_NM * M_PER_NM && toThreshold > 0) {
       const blocker = this.landingBlocker(ac, end);
@@ -263,6 +274,19 @@ export class TowerAI {
     else this.sim.incident('goAround', `${ac.callsign} went around - no landing clearance.`, [ac.callsign]);
     if (this.sim.isOnMyFrequency(ac)) call(this.sim, ac, 'radar', `${this.sim.tel(ac)}, going around${culprit ? '' : ', no landing clearance received'}`);
     ac.assignedStand = undefined;
+  }
+
+  /** Go-around in a thunderstorm (windshear, tailwind): the weather's fault, not the controller's. */
+  private weatherGoAround(ac: Aircraft, reason: 'windshear' | 'tailwind'): void {
+    const sim = this.sim;
+    ac.phase = 'goAround';
+    ac.verticalSpeedFpm = 2000;
+    ac.landingCleared = false;
+    ac.assignedStand = undefined;
+    sim.stats.weatherGoArounds++;
+    const why = reason === 'windshear' ? 'windshear' : `tailwind out of limits on runway ${ac.runway ?? this.end.name}`;
+    sim.system(`${ac.callsign} went around - ${why} (weather, no penalty).`, 'warning', ac.callsign);
+    if (sim.isOnMyFrequency(ac)) call(sim, ac, 'radar', `${sim.tel(ac)}, going around, ${reason === 'windshear' ? 'windshear' : 'tailwind out of limits'}`);
   }
 
   /** "Go around" from Tower: costs less than a go-around the crew has to make on its own. */
@@ -313,6 +337,8 @@ export class TowerAI {
     const v0 = ac.speed;
     const candidates = sim.airport
       .exits(end.name)
+      // Closed taxiways (construction works) cannot be used to vacate.
+      .filter((ex) => !sim.airport.closedTaxiways.has(ex.name.toUpperCase()))
       .map((ex) => {
         const node = sim.airport.node(ex.path[0]);
         const along = sim.airport.runwayCoordinates(end, node.pos).along;
@@ -466,10 +492,14 @@ export class TowerAI {
     this.checkSlots();
     if (sim.userTower) return;
     if (sim.aircraft.some((a) => a.phase === 'lineup')) return;
+    // Thunderstorm overhead: nobody takes off.
+    if (takeoffsSuspended(sim)) return;
     // A departure with a CTOT is only lined up when it can be airborne inside its window; others go first.
     const queue = sim.aircraft
       .filter((a) => a.frequency === sim.stationFor('tower') && a.phase === 'holding')
       .filter((a) => a.ctot === undefined || sim.time + 35 + this.rollTime(a) >= a.ctot - CTOT_EARLY_S)
+      // Night curfew: no jet departure that would be airborne after it starts.
+      .filter((a) => departureAllowed(sim, a, sim.time + 35 + this.rollTime(a)))
       .sort((a, b) => (a.holdingSince ?? 0) - (b.holdingSince ?? 0));
     const next = queue[0];
     if (!next || !this.canLineUp(next)) return;

@@ -393,6 +393,16 @@ export const EDDS: AirportData = {
   arp: ARP,
   elevationFt: 1276,
   magneticVariation: 3.5,
+  timeZone: 'Europe/Berlin',
+  // Night flying restrictions of Stuttgart Airport (Flughafen Stuttgart, "Nachtflugbeschraenkung"): no jet
+  // departures 23:00-06:00 local, no landings 23:30-06:00; delayed landings scheduled before 23:30 until 24:00.
+  // Exceptions (emergencies, mail flights, permits) are not modelled - see docs/airports/EDDS.md.
+  nightRestrictions: {
+    jetDepartures: { from: 23 * 60, until: 6 * 60 },
+    landings: { from: 23 * 60 + 30, until: 6 * 60 },
+    delayedLandingsUntil: 24 * 60,
+    source: 'Flughafen Stuttgart, night flying restrictions',
+  },
   transitionAltitudeFt: 5000,
   // Initial climb used in clearances (simulator value, equal to the transition altitude).
   initialClimbFt: 5000,

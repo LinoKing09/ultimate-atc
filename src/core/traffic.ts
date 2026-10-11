@@ -5,6 +5,9 @@ import { createAircraft, type Aircraft, type FlightPlan } from './aircraft';
 import { CLEARANCE_LEAD_S, prepareDeparture } from './delivery';
 import type { Density, Simulation } from './simulation';
 import { NON_PRECISION_SPACING_NM } from './systems';
+import { DELAYED_ARRIVAL_SHARE, NIGHT_APPROACH_ESTIMATE_S, landingStatus, nightRules, plannedReadyIn } from './night';
+import { minutesToHhmm } from './time';
+import { STORM_ARRIVAL_RATE, STORM_ARRIVAL_SPACING_NM } from './weather';
 
 /** Movements per hour for each traffic density. */
 const RATES: Record<Density, { departures: number; arrivals: number }> = {
@@ -41,13 +44,17 @@ export class TrafficGenerator {
 
   constructor(private readonly sim: Simulation) {}
 
-  /** Movements per hour, adjusted by the scenario's traffic mix. */
+  /** Movements per hour, adjusted by the scenario's traffic mix (and a thunderstorm: fewer arrivals). */
   get rates(): { departures: number; arrivals: number } {
-    const r = RATES[this.sim.config.density];
+    const base = RATES[this.sim.config.density];
     const mix = this.sim.config.scenario?.mix;
-    if (mix === 'departures') return { departures: r.departures * 1.6, arrivals: r.arrivals * 0.5 };
-    if (mix === 'arrivals') return { departures: r.departures * 0.5, arrivals: r.arrivals * 1.6 };
-    return r;
+    const r =
+      mix === 'departures'
+        ? { departures: base.departures * 1.6, arrivals: base.arrivals * 0.5 }
+        : mix === 'arrivals'
+          ? { departures: base.departures * 0.5, arrivals: base.arrivals * 1.6 }
+          : base;
+    return this.sim.storm ? { departures: r.departures, arrivals: r.arrivals * STORM_ARRIVAL_RATE } : r;
   }
 
   /**
@@ -79,8 +86,9 @@ export class TrafficGenerator {
       if (ac) initial.push(ac);
     }
     staggerInitialCalls(sim, initial);
-    // A couple of arrivals already inbound.
-    this.spawnArrival(sim.rng.range(4, 6));
+    // A couple of arrivals already inbound (none in the landing curfew).
+    const firstArrival = sim.rng.range(4, 6);
+    if (landingStatus(sim, sim.time + 120) === 'open') this.spawnArrival(firstArrival);
     this.nextArrivalAt = sim.time + sim.rng.range(60, 180);
     this.nextDepartureAt = sim.time + sim.rng.exponential(3600 / r.departures);
   }
@@ -94,11 +102,21 @@ export class TrafficGenerator {
     }
     // Approach holds arrivals on your request.
     if (sim.flow.arrivalsStopped && sim.time >= this.nextArrivalAt) this.nextArrivalAt = sim.time + 10;
+    // Night rules: no arrivals in the landing curfew, only some delayed ones until it is fully closed.
+    if (sim.time >= this.nextArrivalAt && !this.pendingArrival && nightRules(sim)) {
+      const status = landingStatus(sim, sim.time + NIGHT_APPROACH_ESTIMATE_S);
+      const slot = Math.floor(this.nextArrivalAt);
+      if (status === 'closed' || (status === 'delayed' && sim.variation(`night-arrival:${slot}`) >= DELAYED_ARRIVAL_SHARE)) {
+        this.nextArrivalAt = status === 'closed' ? sim.time + 60 : sim.time + sim.rng.exponential(3600 / r.arrivals);
+        return;
+      }
+    }
     if (sim.time >= this.nextArrivalAt) {
       // Pick the next arrival first: the required gap depends on its wake category.
       this.pendingArrival ??= this.pickArrivalSpec();
       if (this.arrivalGapAvailable(this.pendingArrival.type.wake)) {
-        this.spawnArrival(SPAWN_DISTANCE_NM, { airline: this.pendingArrival.airline, type: this.pendingArrival.type.icao });
+        const ac = this.spawnArrival(SPAWN_DISTANCE_NM, { airline: this.pendingArrival.airline, type: this.pendingArrival.type.icao });
+        if (ac && landingStatus(sim, sim.time + NIGHT_APPROACH_ESTIMATE_S) === 'delayed') this.announceDelayed(ac);
         this.pendingArrival = undefined;
         this.nextArrivalAt = sim.time + sim.rng.exponential(3600 / r.arrivals);
       } else {
@@ -121,7 +139,17 @@ export class TrafficGenerator {
     const gap = demand >= 4 ? 8 : demand >= 1 ? 6 : 4;
     // Non-precision approaches (localizer only, RNP) get more room on final.
     const approach = sim.approachType === 'ILS' ? 0 : NON_PRECISION_SPACING_NM;
-    return Math.max(wake, gap, approach);
+    // Thunderstorm: Approach spaces the arrivals out.
+    const storm = sim.storm ? STORM_ARRIVAL_SPACING_NM : 0;
+    return Math.max(wake, gap, approach, storm);
+  }
+
+  /** Night rules: a delayed arrival after the landing curfew (its schedule was before it). */
+  private announceDelayed(ac: Aircraft): void {
+    const r = nightRules(this.sim);
+    if (!r) return;
+    const scheduled = minutesToHhmm(r.landings.from - 5 - Math.round(40 * this.sim.variation(`${ac.callsign}:sta`)));
+    this.sim.system(`Approach: ${ac.callsign} is a delayed flight (scheduled arrival ${scheduled} local) - landing permitted until ${minutesToHhmm(r.delayedLandingsUntil ?? r.landings.from)} local.`, 'system', ac.callsign);
   }
 
   private lastArrivalOnFinal(): Aircraft | undefined {
@@ -230,6 +258,10 @@ export class TrafficGenerator {
     } else {
       ({ airline, type } = this.pickSpec());
     }
+    // Night rules: no jet that could not be airborne before the curfew; the morning wave is ready for its end.
+    const planned = plannedReadyIn(sim, type, readyIn, `dep${Math.round(sim.time)}:${this.usedCallsigns.size}`);
+    if (planned === undefined) return undefined;
+    readyIn = planned;
     const stand = opts.stand ? sim.airport.stand(opts.stand) : this.pickStand(type, airline);
     if (!stand) return undefined;
     const callsign = opts.callsign ?? this.makeCallsign(airline);

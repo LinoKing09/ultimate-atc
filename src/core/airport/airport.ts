@@ -84,6 +84,11 @@ export class Airport {
   readonly buildings: { name: string; polygon: Vec2[] }[];
   /** All taxiway designators known at this airport (upper case). */
   readonly taxiwayNames = new Set<string>();
+  /**
+   * Taxiways closed for this session (upper case, e.g. construction works). The router never
+   * uses them (also not their runway entries / exits), see routing.ts.
+   */
+  readonly closedTaxiways = new Set<string>();
 
   constructor(readonly data: AirportData) {
     this.proj = new LocalProjection(data.arp);
@@ -271,4 +276,9 @@ export class Airport {
 
 export function otherEnd(edge: TaxiEdge, node: TaxiNode): TaxiNode {
   return edge.from === node ? edge.to : edge.from;
+}
+
+/** True if the edge belongs to a closed taxiway (stand lead-in lines never count as closed). */
+export function isClosedEdge(airport: Airport, e: TaxiEdge): boolean {
+  return e.kind !== 'stand' && airport.closedTaxiways.size > 0 && airport.closedTaxiways.has(e.name.toUpperCase());
 }

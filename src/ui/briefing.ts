@@ -1,6 +1,9 @@
 import type { BriefingSection } from '../core/airport/types';
 import type { Simulation } from '../core/simulation';
 import { h } from './dom';
+import { nightRules } from '../core/night';
+import { minutesToHhmm } from '../core/time';
+import { formatWind } from '../core/weather';
 
 /** Renders text with `instructions` in backticks as code. */
 function rich(text: string): (Node | string)[] {
@@ -52,8 +55,20 @@ export function renderBriefing(sim: Simulation): HTMLElement {
   const ops = sim.airport.runwayOps(sim.runway);
   const w = sim.observedWind;
   const now: [string, string][] = [
-    ['Runway / ATIS', `Runway ${sim.runway}, information ${sim.atisLetter}, wind ${String(w.direction).padStart(3, '0')}/${String(w.speedKt).padStart(2, '0')} kt, QNH ${sim.atis.qnh}`],
+    ['Runway / ATIS', `Runway ${sim.runway}, information ${sim.atisLetter}, wind ${formatWind(w, true)}, QNH ${sim.atis.qnh}`],
   ];
+  // Scenario conditions: closed taxiways, night rules, thunderstorm.
+  const closed = [...sim.airport.closedTaxiways].sort();
+  if (closed.length) now.push(['Closed taxiways', `${closed.join(', ')} - also their runway entries and exits. Crews refuse routes over them ("unable, taxiway ${closed[0]} closed"); automatic routes go around them.`]);
+  const night = nightRules(sim);
+  if (night) {
+    now.push([
+      'Night rules',
+      `Local time ${minutesToHhmm(sim.localMinutes())}. No jet departures ${minutesToHhmm(night.jetDepartures.from)}-${minutesToHhmm(night.jetDepartures.until)} local, no landings ${minutesToHhmm(night.landings.from)}-${minutesToHhmm(night.landings.until)}` +
+        `${night.delayedLandingsUntil !== undefined ? ` (delayed flights until ${minutesToHhmm(night.delayedLandingsUntil)})` : ''}. A jet still on the ground at the curfew goes back to its stand.`,
+    ]);
+  }
+  if (sim.storm) now.push(['Weather', sim.storm.phase === 'overhead' ? 'Thunderstorm overhead: no pushbacks, no take-offs, windshear on final.' : 'Thunderstorm approaching.']);
   if (ops) {
     const full = ops.departureEntries.filter((e) => e.fullLength).map((e) => e.holdingPoint);
     const inter = ops.departureEntries.filter((e) => !e.fullLength).map((e) => e.holdingPoint);

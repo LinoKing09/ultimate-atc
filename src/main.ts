@@ -1,5 +1,7 @@
 import './style.css';
+import { scenarioSetup } from './core/scenario';
 import { Simulation } from './core/simulation';
+import { zonedTime } from './core/time';
 import { AIRPORTS } from './data/airports';
 import { App } from './ui/app';
 import { showLogin } from './ui/dialogs';
@@ -27,7 +29,9 @@ async function start(): Promise<void> {
     events: login.events,
     seed: login.seed,
     runway: login.scenario?.runway,
-    scenario: login.scenario && { mix: login.scenario.mix, heavies: login.scenario.heavies, events: login.scenario.events },
+    // A scenario start time is local airport time, today.
+    startTime: login.scenario?.startLocal ? zonedTime(login.scenario.startLocal, login.airport.timeZone ?? 'UTC') : undefined,
+    scenario: login.scenario && scenarioSetup(login.scenario),
   });
   const app = new App(document.getElementById('app')!, sim, settings);
   // Exposed for debugging from the browser console.

@@ -1,9 +1,12 @@
 import type { Aircraft } from './aircraft';
 import { blockCycle, headOnPartner, resolveOptions } from './conflicts';
 import { CTOT_EARLY_S } from './delivery';
+import type { TaxiDestination } from './phraseology/commands';
 import { parseTransmission } from './phraseology/parser';
 import { aiInstruct } from './pilot';
 import type { Simulation } from './simulation';
+import { apronClosed } from './weather';
+import { needsCurfewRoute, sendBackToStand } from './night';
 
 /**
  * AI Ground controller, active when the user does not staff Ground (for
@@ -41,8 +44,8 @@ function busyNearby(sim: Simulation, ac: Aircraft, radius: number): boolean {
 }
 
 function departure(sim: Simulation, ac: Aircraft): void {
-  // Tower asked to hold all departures: no pushbacks (aircraft already moving continue).
-  if (ac.phase === 'parked' && sim.flow.departuresStopped) return;
+  // Tower asked to hold all departures, or lightning stopped the ground handling: no pushbacks (aircraft already moving continue).
+  if (ac.phase === 'parked' && (sim.flow.departuresStopped || apronClosed(sim))) return;
   if (ac.phase === 'parked' && sim.time >= ac.readyAt && ac.cleared) {
     if (busyNearby(sim, ac, 250)) return; // the simplest pushback sequencing: wait for passing traffic
     const stand = sim.airport.stand(ac.stand ?? '');
@@ -51,7 +54,14 @@ function departure(sim: Simulation, ac: Aircraft): void {
     return;
   }
   if (ac.phase === 'startup' && sim.time >= ac.timerUntil && !ac.pendingTaxi) {
-    aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.runway }, via: [], holdShort: [], cross: [] });
+    // Night curfew missed during the pushback: back onto a stand instead of to the runway.
+    const destination: TaxiDestination = ac.returnToStand && ac.assignedStand ? { kind: 'stand', stand: ac.assignedStand } : { kind: 'runway', runway: sim.runway };
+    aiInstruct(sim, ac, { type: 'taxi', destination, via: [], holdShort: [], cross: [] });
+    return;
+  }
+  // Night curfew missed: back to a stand, not on to the runway.
+  if (needsCurfewRoute(ac)) {
+    sendBackToStand(sim, ac);
     return;
   }
   if (ac.phase === 'holding' || readyForTower(sim, ac)) {
@@ -70,7 +80,7 @@ function departure(sim: Simulation, ac: Aircraft): void {
 
 /** Tows: approved when no other traffic moves nearby. */
 function tow(sim: Simulation, ac: Aircraft): void {
-  if (ac.phase !== 'parked' || !ac.tow || sim.time < ac.readyAt || busyNearby(sim, ac, 250)) return;
+  if (ac.phase !== 'parked' || !ac.tow || sim.time < ac.readyAt || busyNearby(sim, ac, 250) || apronClosed(sim)) return;
   aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand: ac.tow.to }, via: [], holdShort: [], cross: [], tow: true });
 }
 

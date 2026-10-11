@@ -47,6 +47,25 @@ export interface AirportData {
   traffic?: AirportTraffic;
   /** ATC and airport systems available at this airport (see core/systems.ts). Omitted = all. */
   systems?: SystemId[];
+  /** IANA time zone of the airport (local time for airport rules), e.g. "Europe/Berlin". Default: UTC. */
+  timeZone?: string;
+  /** Night flying restrictions (applied in scenarios with night rules, see core/night.ts). */
+  nightRestrictions?: NightRestrictions;
+}
+
+/**
+ * Night flying restrictions of an airport, in local time as minutes after midnight
+ * (23:00 = 1380, 24:00 = 1440, 06:00 = 360).
+ */
+export interface NightRestrictions {
+  /** No jet departures from ... until ... (local). */
+  jetDepartures: { from: number; until: number };
+  /** No landings from ... until ... (local). */
+  landings: { from: number; until: number };
+  /** Delayed landings (scheduled before `landings.from`) are allowed until this time (local). */
+  delayedLandingsUntil?: number;
+  /** Where the rules come from. */
+  source: string;
 }
 
 /** Who flies to and from an airport, and how often. */

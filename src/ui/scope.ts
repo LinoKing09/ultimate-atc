@@ -1,3 +1,4 @@
+import { isClosedEdge } from '../core/airport/airport';
 import type { Aircraft } from '../core/aircraft';
 import { catcAlert } from '../core/conflicts';
 import { KT_TO_MS, M_PER_NM, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
@@ -445,6 +446,46 @@ export class Scope {
     ctx.restore();
   }
 
+  /** Closed taxiways (scenario option): red, hatched, with the designator crossed out. */
+  private drawClosedTaxiways(): void {
+    const ap = this.sim.airport;
+    if (!ap.closedTaxiways.size) return;
+    const ctx = this.ctx;
+    const z = this.zoom;
+    ctx.save();
+    ctx.lineCap = 'butt';
+    for (const e of ap.edges) {
+      if (!isClosedEdge(ap, e)) continue;
+      const a = this.toScreen(e.from.pos);
+      const b = this.toScreen(e.to.pos);
+      const w = Math.max(3, e.widthM * z + 2);
+      ctx.strokeStyle = 'rgba(220, 60, 60, 0.45)';
+      ctx.lineWidth = w;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      // Diagonal hatching across the taxiway.
+      const len = Math.hypot(b.x - a.x, b.y - a.y);
+      if (len < 1) continue;
+      const ux = (b.x - a.x) / len;
+      const uy = (b.y - a.y) / len;
+      const half = w / 2;
+      const step = Math.max(6, w * 1.2);
+      ctx.strokeStyle = 'rgba(255, 90, 90, 0.95)';
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      for (let d = step / 2; d < len; d += step) {
+        const cx = a.x + ux * d;
+        const cy = a.y + uy * d;
+        ctx.moveTo(cx - uy * half - ux * half, cy + ux * half - uy * half);
+        ctx.lineTo(cx + uy * half + ux * half, cy - ux * half + uy * half);
+      }
+      ctx.stroke();
+    }
+    ctx.restore();
+  }
+
   private drawChart(): void {
     const ctx = this.ctx;
     const ap = this.sim.airport;
@@ -498,6 +539,7 @@ export class Scope {
         ctx.stroke();
       }
     }
+    this.drawClosedTaxiways();
     // Centre lines and stand lead-in lines
     if (z > 0.25) {
       ctx.lineWidth = 1;
@@ -607,7 +649,8 @@ export class Scope {
       for (const l of this.taxiwayLabels) {
         if (l.repeat && z < 0.35) continue; // repeats only when zoomed in
         const p = this.toScreen(l.pos);
-        this.labelBox(l.name, p.x, p.y, C.label);
+        // Closed taxiways: designator in red.
+        this.labelBox(l.name, p.x, p.y, ap.closedTaxiways.has(l.name.toUpperCase()) ? '#ff6b6b' : C.label);
       }
     }
 

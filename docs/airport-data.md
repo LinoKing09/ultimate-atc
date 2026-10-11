@@ -26,6 +26,8 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 | `traffic`              | `AirportTraffic`  | Optional operator mix of the airport (see [Traffic](#traffic))           |
 | `initialClimbFt`       | number            | Optional initial climb of the SIDs, used in IFR clearances (default 5000 ft) |
 | `systems`              | `SystemId[]`      | Optional: the [systems](systems.md) the airport has (`surveillance`, `rmca`, `catc`, `routing`, `acdm`, `dcl`, `loc`, `gp`). Omitted = all. Missing systems are off and cannot be switched on |
+| `timeZone`             | string            | Optional IANA time zone (`"Europe/Berlin"`) for local-time rules and scenario start times. Default UTC |
+| `nightRestrictions`    | `NightRestrictions` | Optional night flying restrictions, local minutes after midnight: `jetDepartures: {from, until}`, `landings: {from, until}`, `delayedLandingsUntil`, `source`. EDDS: jets 1380-360, landings 1410-360, delayed until 1440. Applied only in scenarios with night rules (see [scenarios](scenarios.md#start-time-and-night-flying-restrictions)) |
 
 ## Runways
 

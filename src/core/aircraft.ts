@@ -187,8 +187,12 @@ export interface Aircraft {
   rejectedTakeoff?: boolean;
   /** Speed (m/s) at which a planned take-off rejection happens. */
   rejectAtSpeed?: number;
-  /** Departure that wants to return to a stand (technical problem or medical emergency). */
+  /** Departure that wants to return to a stand (technical problem, medical emergency, night curfew). */
   returnToStand?: boolean;
+  /** Night rules: the jet was still on the ground when the departure curfew started. */
+  missedCurfew?: boolean;
+  /** Thunderstorm: the arrival has passed the windshear / tailwind check on final. */
+  weatherChecked?: boolean;
   /** Being towed back onto the stand after "cancel pushback" during the push. */
   towingIn?: boolean;
   /** Waiting for a tug to turn the aircraft around (until this simulation time). */

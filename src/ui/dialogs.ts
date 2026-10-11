@@ -1,5 +1,6 @@
 import type { AirportData, StationType } from '../core/airport/types';
 import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
+import { closureProblems } from '../core/airport/validate';
 import type { Density, Simulation } from '../core/simulation';
 import { h } from './dom';
 import { renderBriefing } from './briefing';
@@ -87,12 +88,20 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       const sc = parseScenarioCode(v);
       if ('error' in sc) return { error: sc.error };
       if (sc.airport !== airport().icao) return { error: `This scenario is for ${sc.airport}` };
+      if (sc.closedTaxiways?.length) {
+        const problems = closureProblems(airport(), sc.closedTaxiways);
+        if (problems.length) return { error: `Taxiway closure not possible: ${problems[0]}` };
+      }
       return { seed: sc.seed, scenario: sc };
     };
     const updateScenario = () => {
       const r = readSeedField();
       densitySel.disabled = eventsBox.disabled = !!r.scenario;
-      scenarioInfo.textContent = r.error ? r.error : r.scenario ? `Scenario: ${describeScenario(r.scenario)}` : 'A number (seed) repeats the same traffic; a scenario code also sets runway, traffic and events.';
+      scenarioInfo.textContent = r.error
+        ? r.error
+        : r.scenario
+          ? `Scenario: ${describeScenario(r.scenario)}`
+          : 'A number (seed) repeats the same traffic; a scenario code also sets runway, traffic, events, start time, night rules and closed taxiways.';
       scenarioInfo.style.color = r.error ? 'var(--danger)' : '';
       connect.disabled = !!r.error;
     };
@@ -178,14 +187,14 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
 const TOWER_REFERENCE: [string, string][] = [
   ['line up and wait runway 25', 'Departure at (or taxiing to) the holding point: enter the runway and wait. Not a take-off clearance.'],
   ['behind landing EWG7TK, line up and wait behind', 'Conditional line-up: the departure enters the runway once the landing aircraft has passed.'],
-  ['wind 250 degrees 8 knots, runway 25, cleared for take-off', 'Take-off clearance (from the holding point it lines up and rolls). Mind the spacing: 2 min behind a heavy or on the same SID, 1 min on diverging SIDs. CTOT flights not before CTOT -5 min (an earlier take-off is a slot violation).'],
+  ['wind 250 degrees 8 knots, runway 25, cleared for take-off', 'Take-off clearance (from the holding point it lines up and rolls). Mind the spacing: 2 min behind a heavy or on the same SID, 1 min on diverging SIDs. CTOT flights not before CTOT -5 min (an earlier take-off is a slot violation). Refused while a thunderstorm is overhead, and for jets in the night curfew.'],
   ['hold position, cancel take-off / stop immediately', 'Cancel a take-off clearance; during the roll below 80 kt the crew stops.'],
   ['wind 250 degrees 8 knots, runway 25, cleared to land', 'Landing clearance. Without one the arrival goes around at 0.5 NM.'],
   ['continue approach, expect late landing clearance', 'The landing clearance will come late (runway not free yet). Not a landing clearance: clear it to land before the threshold.'],
   ['continue approach / go around', 'Landing clearance later ("continue" alone works too on final) / the arrival climbs away (costs less than a go-around the crew has to make).'],
   ['maintain 160 knots until 4 miles / reduce to final approach speed', 'Speed control on final to fine-tune the gaps between arrivals.'],
   ['cleared for immediate take-off / cleared for take-off, no delay', 'Brisk line-up and roll without waiting - for tight gaps.'],
-  ['vacate via E', 'The exit the arrival should take after landing (if it can still reach it).'],
+  ['vacate via E', 'The exit the arrival should take after landing (if it can still reach it; not over a closed taxiway).'],
   ['contact radar 119.200 / contact ground 118.605', 'Departures to Langen Radar after take-off, arrivals to Ground once they have vacated.'],
   ['cross runway 25', 'Runway crossing for an aircraft Ground handed over at the runway holding point; it reports the runway vacated.'],
 ];
@@ -218,6 +227,7 @@ const REFERENCE: [string, string][] = [
   ['taxi to runway 25 via L2, S', 'Taxi to the runway; the pilot picks the full-length holding point.'],
   ['taxi to stand 14 via N, L2', 'Taxi an arrival to its stand.'],
   ['taxi via S, hold short of E', 'Incomplete taxi instruction: the clearance limit is the hold-short point.'],
+  ['(closed taxiway in the route)', 'Taxiways closed by the scenario are red and hatched on the scope and in the ATIS: the crew answers "unable, taxiway S closed". Give a route around them.'],
   ['advise able for departure from intersection D', 'Ask whether the crew can depart from an intersection ("are you able intersection D" works too). Answer: "affirm, able" or "negative, we require full length".'],
   ['... hold short of taxiway D | runway 25', 'Add a hold-short point to a route (or send it on its own).'],
   ['cross runway 25', 'Clear an aircraft holding short of the runway to cross (also as part of a taxi instruction).'],
@@ -247,7 +257,8 @@ const KEYS: [string, string][] = [
   ['Right click', 'Aircraft menu (pushback, taxi, handoff, ...)'],
   ['Double click on list row', 'Centre the scope on the aircraft'],
   ['Click a tag item', 'Callsign: flight plan + telephony; cleared-to: taxi menu; status: aircraft menu'],
-  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use, wind, QNH, information letter)'],
+  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use, wind and gusts, QNH, information letter). "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
+  ['2215L after the UTC time', 'Local time, shown with night flying restrictions: jets must be airborne by 2300 local, landings until 2330 (delayed flights until 2400)'],
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
   ['ROT (toolbar)', 'Rotate the scope: runway horizontal like the aerodrome chart / north-up'],
@@ -362,6 +373,12 @@ export function showAtisEditor(sim: Simulation): void {
   // Pre-filled with the actual surface wind (it may have changed since the last broadcast).
   const dir = h('input', { type: 'number', min: '0', max: '360', step: '10', value: String(sim.observedWind.direction) });
   const spd = h('input', { type: 'number', min: '0', max: '60', value: String(sim.observedWind.speedKt) });
+  const gust = h('input', { type: 'number', min: '0', max: '80', value: sim.observedWind.gustKt ? String(sim.observedWind.gustKt) : '', placeholder: 'none' });
+  const windOf = () => {
+    const g = Number(gust.value) || 0;
+    const speedKt = Number(spd.value) || 0;
+    return { direction: Number(dir.value) || 0, speedKt, ...(g > speedKt ? { gustKt: g } : {}) };
+  };
   const qnh = h('input', { type: 'number', min: '950', max: '1060', value: String(a.qnh) });
   const comps = h('div.sub');
   const update = () => {
@@ -397,6 +414,8 @@ export function showAtisEditor(sim: Simulation): void {
         dir,
         h('label', { text: 'Wind speed (kt)' }),
         spd,
+        h('label', { text: 'Gusts (kt)' }),
+        gust,
         h('label', { text: 'QNH (hPa)' }),
         qnh,
       ),
@@ -414,7 +433,7 @@ export function showAtisEditor(sim: Simulation): void {
     sim.updateAtis({
       letter: letterSel.value,
       runway: rwySel.value,
-      wind: { direction: Number(dir.value) || 0, speedKt: Number(spd.value) || 0 },
+      wind: windOf(),
       qnh: Number(qnh.value) || a.qnh,
     });
     overlay.remove();

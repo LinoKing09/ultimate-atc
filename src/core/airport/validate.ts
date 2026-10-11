@@ -62,30 +62,7 @@ export function validateAirport(data: AirportData): string[] {
   if (!data.stations.some((s) => s.type === 'GND') && !data.stations.some((s) => s.type === 'TWR')) add('has neither a Ground nor a Tower station');
 
   // ---------------------------------------------------------------- reachability
-  // Every stand must reach a full-length entry of every runway (with an aircraft of the stand's size),
-  // and every exit must lead to at least one stand.
-  for (const s of airport.stands.values()) {
-    const wingspanM = Math.min(s.maxWingspanM, 65);
-    for (const ops of data.runwayOps) {
-      const reachable = ops.departureEntries
-        .filter((e) => e.fullLength)
-        .some((e) => {
-          const hp = airport.holdingPoint(e.holdingPoint);
-          if (!hp) return false;
-          const heading = s.pushback ? (s.heading + 180) % 360 : s.heading;
-          return !isRouteError(findRoute(airport, { node: s.node, heading }, hp, [], { wingspanM }));
-        });
-      if (!reachable) add(`stand ${s.id} cannot reach a full-length entry of runway ${ops.runway} (wingspan ${wingspanM} m)`);
-    }
-  }
-  for (const ops of data.runwayOps) {
-    for (const x of ops.exits) {
-      const end = airport.nodes.get(x.path[x.path.length - 1]);
-      if (!end) continue;
-      const ok = [...airport.stands.values()].some((s) => !isRouteError(findRoute(airport, { node: end }, s.node)));
-      if (!ok) add(`exit ${x.name} of runway ${ops.runway} does not lead to any stand`);
-    }
-  }
+  for (const p of reachabilityProblems(airport)) add(p);
 
   // ---------------------------------------------------------------- traffic
   for (const o of data.traffic?.operators ?? []) {
@@ -113,4 +90,58 @@ export function validateAirport(data: AirportData): string[] {
     if (!airport.stand(m[1])) add(`briefing mentions unknown stand ${m[1]}`);
   }
   return problems;
+}
+
+/**
+ * Network checks: every stand must reach a full-length entry of every runway (with an aircraft
+ * of the stand's size), and every exit must lead to at least one stand. With `allStands`, every
+ * stand must also be reachable from at least one exit of every runway (used for closed taxiways).
+ * Respects `airport.closedTaxiways`.
+ */
+export function reachabilityProblems(airport: Airport, allStands = false): string[] {
+  const problems: string[] = [];
+  const data = airport.data;
+  for (const s of airport.stands.values()) {
+    const wingspanM = Math.min(s.maxWingspanM, 65);
+    for (const ops of data.runwayOps) {
+      const reachable = ops.departureEntries
+        .filter((e) => e.fullLength)
+        .some((e) => {
+          const hp = airport.holdingPoint(e.holdingPoint);
+          if (!hp) return false;
+          const heading = s.pushback ? (s.heading + 180) % 360 : s.heading;
+          return !isRouteError(findRoute(airport, { node: s.node, heading }, hp, [], { wingspanM }));
+        });
+      if (!reachable) problems.push(`stand ${s.id} cannot reach a full-length entry of runway ${ops.runway} (wingspan ${wingspanM} m)`);
+    }
+  }
+  for (const ops of data.runwayOps) {
+    const exits = ops.exits.filter((x) => !airport.closedTaxiways.has(x.name.toUpperCase()));
+    if (!exits.length) problems.push(`runway ${ops.runway} has no open exit`);
+    const ends = exits.map((x) => airport.nodes.get(x.path[x.path.length - 1])).filter((n) => !!n);
+    for (const [i, end] of ends.entries()) {
+      const ok = [...airport.stands.values()].some((s) => !isRouteError(findRoute(airport, { node: end }, s.node)));
+      if (!ok) problems.push(`exit ${exits[i].name} of runway ${ops.runway} does not lead to any stand`);
+    }
+    if (!allStands) continue;
+    for (const s of airport.stands.values()) {
+      if (!ends.some((end) => !isRouteError(findRoute(airport, { node: end }, s.node, [], { wingspanM: Math.min(s.maxWingspanM, 65) })))) {
+        problems.push(`stand ${s.id} cannot be reached from an exit of runway ${ops.runway}`);
+      }
+    }
+  }
+  return problems;
+}
+
+/**
+ * What breaks when these taxiways are closed (scenario option): stands that can no longer reach
+ * a runway or be reached from one, unusable runways. Empty if the closure works.
+ */
+export function closureProblems(data: AirportData, closed: string[]): string[] {
+  const airport = new Airport(data);
+  for (const t of closed) {
+    if (!airport.taxiwayNames.has(t.toUpperCase())) return [`unknown taxiway ${t}`];
+    airport.closedTaxiways.add(t.toUpperCase());
+  }
+  return reachabilityProblems(airport, true);
 }

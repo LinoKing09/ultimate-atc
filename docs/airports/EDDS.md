@@ -19,6 +19,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 | -------------------------------------------- | ----------------------------------------------------------------------- |
 | Runway end coordinates                       | [OurAirports](https://ourairports.com/) (public domain)                 |
 | ARP, elevations, frequencies, taxiway designators, holding points, stand numbers, layout | AIP Germany, **AD 2 EDDS 2-5 Aerodrome Chart** and **AD 2 EDDS 2-7 Aerodrome Ground Movement Chart** (AMDT 10/26) |
+| Night flying restrictions, time zone          | Flughafen Stuttgart (published night flying restrictions); applied only in scenarios with night rules, see [scenarios](../scenarios.md#start-time-and-night-flying-restrictions) |
 | Stand sizes, wide-body positions, pushback / taxi-out stands | AD 2 EDDS 2-7 (AMDT 10/26, code letter markings), the older **Aircraft Parking/Docking Chart** (AMDT 09/13), [VATSIM Germany knowledge base](https://knowledgebase.vatsim-germany.org/books/airports-langen-fir-edgg/page/general-4ph) (secondary) - see [Stands](#stands) |
 
 The geometry was **digitised by hand**. Positions were measured on the charts, using the 3345 m runway as scale and the 300 m displaced threshold as a check, and converted into the simulator's runway-aligned frame. The accuracy is roughly ±10 m. Only facts are used (topology, designators, approximate positions); no chart graphics are reproduced or distributed.
@@ -59,7 +60,7 @@ Facts collected from public sources to bring the simulation closer to reality. C
 | Capacity | max. 48 movements/h (40 departures without arrivals; 40 arrivals with max. 8 departures), 14 in LVP | likely (VATGER) | traffic densities below that |
 | Traffic 2025 | 95 765 movements, 9.6 million passengers | certain (aerotelegraph) | - |
 | Runway direction | 2025: 55 % of departures to the west; long-term average 60/40 west/east | certain (RP Stuttgart noise report) | session wind 60 % westerly |
-| Night restrictions | no jet departures 23:00-06:00, no landings 23:30-06:00 (delayed landings until 24:00) | certain (Flughafen Stuttgart) | not modelled (traffic at any hour) |
+| Night restrictions | no jet departures 23:00-06:00, no landings 23:30-06:00 (delayed landings until 24:00) | certain (Flughafen Stuttgart) | adopted as the scenario option *night flying restrictions* (`nightRestrictions`, time zone Europe/Berlin); exemptions not modelled |
 | A-CDM | TOBT from 90 min before EOBT, TSAT published 40 min before TOBT; start-up within TSAT ±5 min; push / taxi at the latest 5 min after start-up approval; TOBT changeable 3 times after the TSAT | certain (STR A-CDM flight crew briefing) | start-up at TSAT ±5 min |
 | IFR clearance (Germany) | `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 1000` | likely (VATGER Delivery SOP) | used since 2026-10-11 (the older short form is still understood) |
 | Conditional clearance | `SAS941, behind DC9 on short final, line up behind` (ICAO Doc 4444 12.2.7) | certain | understood; menu: `behind landing X, line up and wait behind` |
@@ -128,6 +129,8 @@ The layout uses a runway-aligned frame, the same orientation as the aerodrome ch
 | **Z / R / V** | South: Z runs from L3/O around the 07 end to R; R to Y; V along Apron South to W            |
 
 Holding points carry the name of their taxiway (`holding point A`, `holding point K`, ...). The 07 end has K (north) and Y (south); H and W share one runway entry.
+
+**Closing taxiways** (scenario option, e.g. for construction works): every taxiway can be closed except **N**, **O**, **V** and **A** - they are the only way to or from some stands (N: stands 50-56 and 71-75; O: 40-48; V: Apron South) or the only full-length entry of runway 25 (A). Closing several at once is checked in the scenario builder. The preset *Construction works* closes E and S: departures and arrivals then share N.
 
 ### Standard taxi flows
 

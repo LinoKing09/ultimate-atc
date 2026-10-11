@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Scenario conditions** in the scenario builder (*Conditions*) and the scenario code: an optional sixth part with tokens such as `T2215.N.CE.CS` (codes without it stay valid):
+  - **Start time** in local airport time (`T2215`; Stuttgart: Europe/Berlin).
+  - **Night flying restrictions** (`N`, Stuttgart: no jet departures 23:00-06:00, no landings 23:30-06:00, delayed landings until 24:00): traffic plans around the curfew (morning wave from 06:00, delayed arrivals only), messages before and at each boundary, jets still on the ground at 23:00 are postponed to the morning or ask to taxi back to the stand (-10 if they were ready in time), crews refuse take-off in the curfew; local time in the toolbar.
+  - **Closed taxiways** (`CE`, `CS` ...): red and hatched on the scope, in the ATIS, the briefing and a NOTAM message; routes and AI avoid them, their holding points and exits are closed, crews answer `unable, taxiway S closed`; the builder (and the Connect dialog) refuse closures that cut stands off.
+- **Thunderstorm** scheduled event (`S`): 5 minutes warning (gusts, 8 NM arrival spacing, half the arrivals), 15 minutes overhead (tailwind gust front, no pushbacks or take-offs - lightning and windshear -, go-arounds at 1 NM with more than 10 kt tailwind or in windshear, no penalty), then the wind settles from the new direction.
+- Presets *Night shift*, *Construction works* and *Thunderstorm*.
+- Gusts in the wind (toolbar `070/18G32KT`, ATIS editor, ATIS text, clearances `gusting 32 knots`).
+
 - Stuttgart reference data (research with sources and confidence) in the airport page; values adopted from it are listed below.
 - COORD: Ground can ask every departure for the **earliest intersection** it accepts - shown as `INT D` in the tag and the `INT` column of the departure list.
 - Tower can ask departures `advise able for departure from intersection B` (*Able intersection?* in the Tower menu), like Ground.

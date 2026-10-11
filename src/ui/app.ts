@@ -12,6 +12,8 @@ import type { RadioMessage } from '../core/radio';
 import type { Simulation } from '../core/simulation';
 import { REPO_URL, showAtisEditor, showHelp } from './dialogs';
 import { formatTime, h } from './dom';
+import { minutesToHhmm } from '../core/time';
+import { windWords } from '../core/weather';
 import { arrivalList, departureList, VehicleList } from './lists';
 import { vehicleTel, type Vehicle } from '../core/vehicles';
 import { PopupMenu, type MenuItem } from './menu';
@@ -395,10 +397,16 @@ export class App {
     this.fields.atis.innerHTML = `ATIS <b>${sim.atisLetter}</b>`;
     const wind = sim.observedWind;
     const tail = sim.windComponents(sim.runway, wind).headwind < -5;
-    this.fields.wind.innerHTML = `<b${tail ? ' class="bad"' : ''}>${String(wind.direction).padStart(3, '0')}/${String(wind.speedKt).padStart(2, '0')}</b>KT`;
-    this.fields.wind.title = tail ? 'Tailwind above 5 kt on the runway in use - consider a runway change (click to edit the ATIS)' : 'Surface wind (click to edit the ATIS)';
+    const gust = wind.gustKt ? `G${wind.gustKt}` : '';
+    this.fields.wind.innerHTML = `<b${tail || sim.storm ? ' class="bad"' : ''}>${String(wind.direction).padStart(3, '0')}/${String(wind.speedKt).padStart(2, '0')}${gust}</b>KT${sim.storm ? ' TS' : ''}`;
+    this.fields.wind.title = sim.storm
+      ? `Thunderstorm ${sim.storm.phase === 'overhead' ? 'overhead: no pushbacks, no take-offs, windshear on final' : 'approaching'} (click to edit the ATIS)`
+      : tail
+        ? 'Tailwind above 5 kt on the runway in use - consider a runway change (click to edit the ATIS)'
+        : 'Surface wind (click to edit the ATIS)';
     this.fields.qnh.innerHTML = `Q<b>${sim.atis.qnh}</b>`;
-    this.fields.utc.innerHTML = `<b>${formatTime(sim.utc())}</b>Z`;
+    // With night rules, the local time is shown too (the curfew is in local time).
+    this.fields.utc.innerHTML = `<b>${formatTime(sim.utc())}</b>Z${sim.config.scenario?.nightRules ? ` <b>${minutesToHhmm(sim.localMinutes())}</b>L` : ''}`;
     const s = sim.stats;
     const bad = s.collisions + s.incursions + s.goArounds;
     this.fields.score.className = 'field score';
@@ -1184,8 +1192,7 @@ export class App {
 
   /** "wind 250 degrees 8 knots" - the wind is given with take-off and landing clearances. */
   private windPhrase(): string {
-    const w = this.sim.observedWind;
-    return w.speedKt === 0 ? 'wind calm' : `wind ${String(w.direction).padStart(3, '0')} degrees ${w.speedKt} knots`;
+    return `wind ${windWords(this.sim.observedWind)}`;
   }
 
   /** Tower: line-up, take-off and landing clearances, go-around, exits, crossings, hand-offs. */

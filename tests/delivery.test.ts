@@ -22,14 +22,14 @@ describe('delivery phraseology', () => {
   const ctx = { callsigns: ['DLH5AB'], taxiways: new Set(['A', 'N']), sids: SIDS };
   it('parses an IFR clearance in typed and spoken form', () => {
     for (const text of [
-      'DLH5AB cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312',
-      'Lufthansa five alpha bravo cleared to EDDF kilo romeo hotel two whiskey departure climb five thousand feet squawk two three one two',
+      'DLH5AB cleared to Frankfurt via KRH4B departure, climb 5000 feet, squawk 2312',
+      'Lufthansa five alpha bravo cleared to EDDF kilo romeo hotel four bravo departure climb five thousand feet squawk two three one two',
     ]) {
       const p = parseTransmission(text, ctx);
-      expect(p.commands).toEqual([{ type: 'clearance', destination: text.includes('EDDF') ? 'eddf' : 'frankfurt', sid: 'KRH2W', climb: { feet: 5000 }, squawk: '2312' }]);
+      expect(p.commands).toEqual([{ type: 'clearance', destination: text.includes('EDDF') ? 'eddf' : 'frankfurt', sid: 'KRH4B', climb: { feet: 5000 }, squawk: '2312' }]);
     }
-    expect(parseTransmission('DLH5AB cleared to Palma via SUL2W departure, runway 25, climb flight level 70, squawk 2301, CTOT 1435', ctx).commands[0]).toMatchObject({
-      sid: 'SUL2W', runway: '25', climb: { fl: 70 }, squawk: '2301', ctot: '1435',
+    expect(parseTransmission('DLH5AB cleared to Palma via SUL4B departure, runway 25, climb flight level 70, squawk 2301, CTOT 1435', ctx).commands[0]).toMatchObject({
+      sid: 'SUL4B', runway: '25', climb: { fl: 70 }, squawk: '2301', ctot: '1435',
     });
     expect(parseTransmission('DLH5AB readback correct', ctx).commands).toEqual([{ type: 'readbackCorrect' }]);
     expect(parseTransmission('DLH5AB negative, squawk 2 3 1 2', ctx).commands).toEqual([{ type: 'squawk', code: '2312' }]);
@@ -52,7 +52,7 @@ describe('delivery position', () => {
     sim.transmit('DLH5AB start-up approved');
     expect(runUntil(sim, () => /no clearance yet/.test(last(sim, 'DLH5AB')), 20)).toBe(true);
     sim.transmit(`DLH5AB cleared to ${ac.flightPlan.destination} via ${sid} departure, climb 5000 feet, squawk ${sq}`);
-    expect(runUntil(sim, () => /^Cleared to .*departure, climb 5000 feet, squawk \d{4}/.test(last(sim, 'DLH5AB')), 20)).toBe(true);
+    expect(runUntil(sim, () => /^Cleared to .*departure, flight planned route, climb via SID to altitude 5000 feet, squawk \d{4}/.test(last(sim, 'DLH5AB')), 20)).toBe(true);
     expect(ac.cleared).toBe(true);
     if (ac.readbackError) sim.transmit(`DLH5AB negative, squawk ${sq}`);
     else sim.transmit('DLH5AB readback correct');

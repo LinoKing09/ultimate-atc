@@ -535,24 +535,26 @@ export const EDDS: AirportData = {
         exit('B', ['RWY_B', 'B', 'B_CLR'], true),
         exit('A', ['RWY_A', 'A', 'A_CLR']),
       ],
-      // Same rule as for 25: N eastbound, S westbound. Departures to K use S (or M / L2 / the circle),
-      // arrivals from the eastern exits taxi west on S.
+      // N is used against the runway direction, S the other way (VATSIM Germany EDDS SOP): with 07
+      // N westbound (arrivals from the eastern exits to the aprons, departures to K), S eastbound.
       flows: [
-        { taxiway: 'N', direction: 'east' },
-        { taxiway: 'S', direction: 'west' },
+        { taxiway: 'N', direction: 'west' },
+        { taxiway: 'S', direction: 'east' },
       ],
     },
   ],
-  // Sample SIDs (placeholders, not the published procedures).
+  // SIDs: the first fixes and the designator letters (B = runway 25, H = runway 07) follow the VATSIM
+  // Germany EDDS SOP (modelled on the real procedures); the numbers change with every AIRAC cycle and
+  // are approximations here. North: KRH, ETASA; south: SUL, ROTWE.
   sids: [
-    { name: 'LBU2W', runway: '25', fix: 'LBU' },
-    { name: 'SUL2W', runway: '25', fix: 'SUL' },
-    { name: 'RIXED2W', runway: '25', fix: 'RIXED' },
-    { name: 'KRH2W', runway: '25', fix: 'KRH' },
-    { name: 'LBU2E', runway: '07', fix: 'LBU' },
-    { name: 'SUL2E', runway: '07', fix: 'SUL' },
-    { name: 'RIXED2E', runway: '07', fix: 'RIXED' },
-    { name: 'KRH2E', runway: '07', fix: 'KRH' },
+    { name: 'KRH4B', runway: '25', fix: 'KRH' },
+    { name: 'ETASA4B', runway: '25', fix: 'ETASA' },
+    { name: 'SUL4B', runway: '25', fix: 'SUL' },
+    { name: 'ROTWE4B', runway: '25', fix: 'ROTWE' },
+    { name: 'KRH2H', runway: '07', fix: 'KRH' },
+    { name: 'ETASA2H', runway: '07', fix: 'ETASA' },
+    { name: 'SUL2H', runway: '07', fix: 'SUL' },
+    { name: 'ROTWE2H', runway: '07', fix: 'ROTWE' },
   ],
   // Traffic mix: shares of the operators at Stuttgart (passengers in scheduled and charter traffic, airport annual
   // report 2024 as quoted in the press; Eurowings about 40 % in 2025 as well) and the busiest destinations of 2025.
@@ -612,31 +614,31 @@ export const EDDS: AirportData = {
       title: 'Your job as Stuttgart Delivery',
       positions: ['DEL'],
       items: [
-        'Every departure calls you about 10 minutes before off-block for its IFR clearance (about 4 in 10 crews request it by datalink instead - DCL in the request column). Phraseology: `cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312`.',
-        'Clearance limit is the destination; the SID is the one of the runway in use that leads to the first fix of the flight plan (the aircraft menu lists it first). Initial climb 5000 ft (simulator value). Squawk: the next free code (the menu picks one).',
+        'Every departure calls you about 10 minutes before off-block for its IFR clearance (about 4 in 10 crews request it by datalink instead - DCL in the request column). Phraseology: `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312`.',
+        'Clearance limit is the destination; the SID is the one of the runway in use that leads to the first fix of the flight plan (the aircraft menu lists it first). Initial climb 5000 ft (climb via SID; VATSIM Germany SOP). Squawk: the next free code (the menu picks one).',
         'Listen to the readback: now and then a crew reads back a wrong squawk. Correct it (`negative, squawk 2312`) - a missed error costs points; otherwise `readback correct`.',
         'Start-up: with A-CDM (Stuttgart has been a full A-CDM airport since 2014) the crew calls at its TSAT. `start-up approved`, then `contact ground 118.605` when it asks for the pushback frequency.',
         'CTOT: flights with an ATFM slot show it in the CTOT column; include it in the clearance (`..., CTOT 1435`). Take-off must be between CTOT -5 and +10 minutes; the TSAT already accounts for the taxi time.',
       ],
       table: {
-        head: ['Runway / first fix', 'SID (simulator placeholders, not the published procedures)'],
+        head: ['Runway / first fix', 'SID (fixes and letters as in the VATSIM Germany SOP, numbers approximate)'],
         rows: [
-          ['25: LBU / SUL / RIXED / KRH', 'LBU2W / SUL2W / RIXED2W / KRH2W'],
-          ['07: LBU / SUL / RIXED / KRH', 'LBU2E / SUL2E / RIXED2E / KRH2E'],
+          ['25: KRH / ETASA (north), SUL / ROTWE (south)', 'KRH4B / ETASA4B / SUL4B / ROTWE4B'],
+          ['07: KRH / ETASA (north), SUL / ROTWE (south)', 'KRH2H / ETASA2H / SUL2H / ROTWE2H'],
         ],
       },
     },
     {
       title: 'Standard taxi flows',
       items: [
-        'The two parallel taxiways are used one-way, so traffic does not meet head-on: **N (outer) eastbound, S (inner) westbound**, whichever runway is in use. Departures from the aprons reach N first and never cross S; arrivals vacating the runway reach S first and never cross N.',
+        'The two parallel taxiways are used one-way, so traffic does not meet head-on: **N (outer) against the runway direction, S (inner) the other way** (as in the VATSIM Germany SOP) - runway 25: N eastbound (departures to A), S westbound (arrivals); runway 07: N westbound (arrivals to the aprons), S eastbound.',
         'Automatic routes (the pilot\'s choice and the suggestions in the Taxi to menu and the quick-action bar) follow the flows; they only go against a flow when there is no other way without turning around. Your own `via` lists are always followed as given.',
       ],
       table: {
         head: ['Runway in use', 'Flows'],
         rows: [
           ['25', 'N eastbound (departures to A), S westbound (arrivals from F, G, E, H to the aprons)'],
-          ['07', 'N eastbound, S westbound (departures to K via the circle or S, arrivals from D, B, C, A west on S)'],
+          ['07', 'N westbound (arrivals from E, D, C, A to the aprons; departures from 50-56 to K), S eastbound; most departures reach K via M, L2']
         ],
       },
     },
@@ -658,7 +660,7 @@ export const EDDS: AirportData = {
           ['Stands 40-48 / 50-56', '`taxi to holding point A via O, N` / `via N`'],
           ['Apron South, pushed facing east', '`taxi to holding point A via V, W, H, N, cross runway 25`'],
           ['Stands 9-19 (runway 07)', '`taxi to holding point K via M, L2` (facing east) / `via M, L3, O` (facing west)'],
-          ['Stands 24-29 (runway 07), pushed facing east', '`taxi to holding point K via M, H, S`'],
+          ['Stands 24-29 (runway 07), pushed facing west', '`taxi to holding point K via M, L2`'],
         ],
       },
     },

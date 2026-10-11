@@ -237,8 +237,8 @@ function readRunway(c: Cursor): string | undefined {
 const CLEARANCE_STOP = new Set(['via', 'climb', 'maintain', 'squawk', 'runway', 'departure', 'then', 'and', 'ctot', 'slot', 'initially', 'initial', 'flight', 'expect', 'contact', 'sid']);
 
 /**
- * Matches a SID designator at the cursor: typed ("krh2w") or spelled
- * ("k r h 2 w", from "kilo romeo hotel two whiskey"). Consumes it if `consume`.
+ * Matches a SID designator at the cursor: typed ("krh4b") or spelled
+ * ("k r h 4 b", from "kilo romeo hotel four bravo"). Consumes it if `consume`.
  */
 function matchSid(c: Cursor, sids: string[] | undefined, consume: boolean): string | undefined {
   if (!sids?.length) return undefined;
@@ -971,6 +971,18 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       if (dest.length) clr.destination = dest.join(' ');
       while (!c.done()) {
         if (c.accept('via', 'and', 'then', 'departure', 'sid', 'initially', 'initial')) continue;
+        // German style: "..., flight planned route, climb via SID to altitude 5000 feet, ...".
+        if (c.peek() === 'flight' && c.peek(1) === 'planned' && c.peek(2) === 'route') {
+          c.i += 3;
+          continue;
+        }
+        if (c.peek() === 'climb' && c.peek(1) === 'via' && c.peek(2) === 'sid') {
+          c.i += 3;
+          c.accept('to');
+          c.accept('altitude');
+          clr.climb = readAltitude(c);
+          continue;
+        }
         const sid = matchSid(c, ctx.sids, true);
         if (sid) {
           clr.sid = sid;

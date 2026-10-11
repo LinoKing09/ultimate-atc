@@ -265,7 +265,8 @@ export class Simulation {
     this.traffic = new TrafficGenerator(this);
 
     // Wind first; the active runway is the one with the most headwind unless given.
-    const westerly = this.rng.chance(0.7);
+    // Stuttgart: about 60 % of the operations on runway 25 (long-term average, RP Stuttgart noise report).
+    const westerly = this.rng.chance(0.6);
     const wind = {
       direction: Math.round((westerly ? this.rng.range(220, 290) : this.rng.range(40, 110)) / 10) * 10,
       speedKt: this.rng.int(3, 14),

@@ -335,7 +335,7 @@ describe('ATIS and runway change', () => {
     expect(sim.runway).toBe(other);
     expect(sim.atis.letter).not.toBe(before);
     expect(dep.flightPlan.runway).toBe(other);
-    expect(dep.flightPlan.sid?.endsWith(other === '25' ? 'W' : 'E')).toBe(true);
+    expect(dep.flightPlan.sid?.endsWith(other === '25' ? 'B' : 'H')).toBe(true);
   });
 });
 

@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- Stuttgart reference data (research with sources and confidence) in the airport page; values adopted from it are listed below.
 - COORD: Ground can ask every departure for the **earliest intersection** it accepts - shown as `INT D` in the tag and the `INT` column of the departure list.
 - Tower can ask departures `advise able for departure from intersection B` (*Able intersection?* in the Tower menu), like Ground.
 - **Coordination** (`COORD` in the toolbar): ask Approach for no more arrivals or Ground (when run by the simulator) to hold all departures, to make room - 2 points per minute each while it is on.
@@ -15,11 +16,15 @@ All notable changes to this project are documented in this file. The format is b
 - **ROGER**: `roger` (sidebar button, quick-action bar) acknowledges a call without a read-back - the aircraft stops flashing and the pilot waits 4 minutes before calling again (2 minutes after `standby`, which also stops the flashing now).
 - **Request hand-off** for aircraft still with a simulator-run position (aircraft menu, `REQ H/O`): a departure taxiing on Ground, an arrival on final with Approach, a vacated arrival with Tower, a cleared departure with Delivery.
 - Tower: *Taxi to* another holding point for departures still taxiing (e.g. to the intersection B); *Contact Radar* for every aircraft in the air, also after a go-around (it was missing in the quick-action bar).
-- Arrivals appear 11 NM out on Approach frequency and are handed to Tower at 7-9 NM; departures stay on the scope until 10 NM (about the size of the Stuttgart control zone).
+- Arrivals appear 12 NM out on Approach frequency and are handed to Tower at 8-10 NM; departures stay on the scope until 10 NM (about the size of the Stuttgart control zone).
 - More natural movement: every crew taxis at its own pace (±15 %, drifting a little), brakes differently after landing (1.2-2.0 m/s²) and now and then rolls on to the next exit.
 
 ### Changed
 
+- Runway 07 taxi flows as in the VATSIM Germany SOP: N westbound (arrivals to the aprons), S eastbound (N is always used against the runway direction).
+- SIDs with the real first fixes and letters (KRH, ETASA, SUL, ROTWE; B = runway 25, H = runway 07), e.g. `ETASA4B` (numbers approximate).
+- IFR clearances in the German form: `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312` (the short form is still understood).
+- Approach hands arrivals to Tower at 8-10 NM (they appear at 12 NM); the session wind is westerly 60 % of the time (Stuttgart's long-term average).
 - The AI Ground hands departures to Tower earlier and not always at the same spot: 700-1400 m before the holding point (each flight differently); far out the crew calls `taxiing to holding point A`.
 - A requested hand-off takes 4-10 s of coordination before the crew changes frequency.
 - **Pilot voices (TTS) and speech recognition (MIC) are switched off** for now (hidden; the code stays).

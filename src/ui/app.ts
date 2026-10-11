@@ -480,7 +480,7 @@ export class App {
         ? 'Type an instruction, e.g. "DLH5AB line up and wait runway 25" - F1 for help'
         : this.sim.userControls('GND')
         ? 'Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help'
-        : 'Type an instruction, e.g. "DLH5AB cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312" - F1 for help';
+        : 'Type an instruction, e.g. "DLH5AB cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312" - F1 for help';
     this.quickbarKey = '';
     this.updateQuickbar();
     requestAnimationFrame(() => this.scope.resize());
@@ -1318,7 +1318,7 @@ export class App {
         sids.map((sd) => ({
           label: sd.name,
           hint: sidHint(sd.name, sd.fix),
-          action: () => this.say(ac, `cleared to ${dest} via ${sd.name} departure, climb ${climb}, squawk ${squawk}${ctot}`),
+          action: () => this.say(ac, `cleared to ${dest}, ${sd.name} departure, flight planned route, climb via SID to altitude ${climb}, squawk ${squawk}${ctot}`),
         })),
     });
     items.push({ label: 'Readback correct', disabled: !ac.cleared, action: () => this.say(ac, 'readback correct') });

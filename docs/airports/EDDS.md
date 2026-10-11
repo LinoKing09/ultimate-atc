@@ -30,12 +30,43 @@ The geometry was **digitised by hand**. Positions were measured on the charts, u
 - the "A" stands that overlap others (9A, 24A, 26A, 28A; 71A and 74A are modelled) and stands 206, 207, 300-303,
 - the intersection geometry inside the "circle" (the hot spot west of N/S, chart note 1), reduced to one junction node,
 - building outlines, which are rough rectangles,
-- the SIDs used in flight plans and clearances, which are placeholders and not the published procedures,
-- the initial climb in IFR clearances (5000 ft, `initialClimbFt`), a simulator value - check the published SIDs for the real one,
+- the SIDs: first fixes (KRH, ETASA north; SUL, ROTWE south) and designator letters (B = runway 25, H = runway 07) as in the VATSIM Germany SOP, the numbers are approximations (they change with the AIRAC cycle); only four SIDs per runway are used,
+- the initial climb in IFR clearances (5000 ft, `initialClimbFt`), as in the VATSIM Germany SOP (also the German transition altitude),
 - the squawk codes (a simulator range, not the real code allocation).
 
 
 **Never use this simulator for real-world navigation.**
+
+### Reference data (research 2026-10-11)
+
+Facts collected from public sources to bring the simulation closer to reality. Confidence: **certain** = official body or the airport operator; **likely** = VATSIM Germany SOP or another secondary source (modelled on the real operation, but not the real procedures); **estimate** = derived. Values marked open were not found. The official source for most of them is the AIP Germany AD 2 EDDS (sections 2.13, 2.20, 2.22), which still has to be checked.
+
+| Topic | Value | Confidence / source | In the simulator |
+| ----- | ----- | ------------------- | ---------------- |
+| Control zone | class D, GND - 3500 ft AMSL; extent roughly 15 NM east-west, 10 NM north-south along the runway axis | likely (VATGER Tower SOP); extent estimate | departures leave the scope at 10 NM |
+| Approach / Director | Langen Radar 119.200 and 125.050, Stuttgart Director 119.850 | likely (SkyVector) | Langen Radar 119.200 |
+| Approach -> Tower hand-off | no fixed value; typically when established on the ILS, about 8-10 NM | estimate | 8-10 NM |
+| Departure hand-off | VATSIM: auto hand-off (crews call Langen Radar when airborne); north SIDs to sector Stuttgart, south SIDs to sector Reutlingen | likely (VATGER) | you hand departures to Radar (`contact radar`) |
+| Frequencies | ATIS 126.130, Delivery 121.915, Ground 118.605 (one Ground frequency, no Apron), Tower 118.805 | likely (several sources agree) | as listed |
+| Runway | 3345 m, threshold 07 displaced 300 m (LDA 07 3045 m) | likely (BAV briefing) | modelled |
+| Intersection departures | crews are asked for every intersection; smaller aircraft usually C (25) or G (07) | likely (VATGER) | `advise able for departure from intersection ...`; take-off run per type and flight |
+| Taxi flows | N against the runway direction, S the other way: runway 25 N eastbound / S westbound, runway 07 N westbound / S eastbound | likely (VATGER Ground SOP) | modelled (07 changed on 2026-10-11) |
+| Holding bays / de-icing | bypass P1/P2 (max B739/A321); de-icing only on DP1-DP4 (in from N, out via S) | DP1-DP4 certain (A-CDM briefing), rest likely | not modelled yet |
+| Runway crossings | only between K and Y | likely (VATGER) | crossings where the routes need them |
+| Taxi-out stands | 40-56 taxi out; 61-64 only with the opposite stand free; jet bridges only at 9-16 | likely (VATGER) | 40-48, 50-56 taxi out |
+| Simultaneous pushbacks | at least two stands between them | likely (VATGER) | AI Ground: nothing taxiing within 250 m |
+| Initial climb / transition | climb via SID to 5000 ft; transition altitude 5000 ft, transition level in the ATIS | likely (VATGER) | 5000 ft, TL 70 |
+| Capacity | max. 48 movements/h (40 departures without arrivals; 40 arrivals with max. 8 departures), 14 in LVP | likely (VATGER) | traffic densities below that |
+| Traffic 2025 | 95 765 movements, 9.6 million passengers | certain (aerotelegraph) | - |
+| Runway direction | 2025: 55 % of departures to the west; long-term average 60/40 west/east | certain (RP Stuttgart noise report) | session wind 60 % westerly |
+| Night restrictions | no jet departures 23:00-06:00, no landings 23:30-06:00 (delayed landings until 24:00) | certain (Flughafen Stuttgart) | not modelled (traffic at any hour) |
+| A-CDM | TOBT from 90 min before EOBT, TSAT published 40 min before TOBT; start-up within TSAT ±5 min; push / taxi at the latest 5 min after start-up approval; TOBT changeable 3 times after the TSAT | certain (STR A-CDM flight crew briefing) | start-up at TSAT ±5 min |
+| IFR clearance (Germany) | `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 1000` | likely (VATGER Delivery SOP) | used since 2026-10-11 (the older short form is still understood) |
+| Conditional clearance | `SAS941, behind DC9 on short final, line up behind` (ICAO Doc 4444 12.2.7) | certain | understood; menu: `behind landing X, line up and wait behind` |
+| "Expect late landing clearance" | not a DFS / ICAO standard phrase; German practice is to not withhold the landing clearance when the runway will be clear at the threshold | open / likely | kept as an extra phrase |
+| LVP | values for EDDS open (general: RVR < 550 m or ceiling < 200 ft) | estimate | not modelled yet |
+
+Sources: [VATSIM Germany EDDS SOPs](https://knowledgebase.vatsim-germany.org/books/sops-fir-langen/page/overview-SL5) (Tower, Ground, Delivery, Arrival), [STR A-CDM Flight Crew Briefing](https://www.munich-airport.de/_b/0000000000000007901533bb5dd3f2ee/str-flightcrew-brief-en.pdf), [SkyVector EDDS](https://skyvector.com/airport/EDDS/Stuttgart-Airport), [BAV EDDS briefing](https://files.bavirtual.co.uk/bavirtual-docstore/om-c/aerodrome-briefings/europe/EDDS.pdf), [RP Stuttgart noise report 2025](https://rps.baden-wuerttemberg.de/fileadmin/RP-Internet/Themenportal/Verkehr/Luftverkehr/_DocumentLibraries/Documents/Jahresberichte_Laermschutzbeauftragter/46_lsb2025.pdf), Flughafen Stuttgart noise reports, aerotelegraph, SKYbrary (LVP), ICAO Doc 4444.
 
 ## Stations
 
@@ -100,14 +131,14 @@ Holding points carry the name of their taxiway (`holding point A`, `holding poin
 
 ### Standard taxi flows
 
-To keep traffic on the two parallel taxiways from meeting head-on, they are used one-way: **N eastbound, S westbound** for both runway directions. Departures from the aprons reach N first and never cross S; arrivals vacating the runway reach S first and never cross N. Automatic routes (pilots without a `via` list, the *Taxi to* menu and the quick-action bar) follow these directions strictly; only if that is impossible without a 180 degree turn they use a taxiway against the flow:
+To keep traffic on the two parallel taxiways from meeting head-on, they are used one-way: **N against the runway direction, S the other way** (as in the VATSIM Germany SOP). Automatic routes (pilots without a `via` list, the *Taxi to* menu and the quick-action bar) follow these directions strictly; only if that is impossible without a 180 degree turn they use a taxiway against the flow:
 
 | Runway in use | N         | S         | Idea                                                        |
 | ------------- | --------- | --------- | ----------------------------------------------------------- |
 | 25            | eastbound | westbound | departures on N to A, arrivals from F/G/E/H on S to the aprons |
-| 07            | eastbound | westbound | departures to K via the circle (or west on S), arrivals from D/B/C/A west on S to the aprons |
+| 07            | westbound | eastbound | arrivals from E/D/C/A west on N to the aprons, departures to K via M, L2 (or west on N from 50-56) |
 
-These are a simulator convention for the dual parallel layout, not a published procedure. Your own `via` instructions are always followed as given.
+The directions follow the VATSIM Germany SOP (modelled on the real operation, not a published procedure). Your own `via` instructions are always followed as given.
 
 ### Runway entries and exits
 
@@ -187,9 +218,9 @@ The busiest destinations in 2025 were Palma (639,000 passengers), Antalya (571,0
 | Stands 9-19, pushed facing east       | `taxi to holding point K via M, L2`                            |
 | Stands 9-19, pushed facing west       | `taxi to holding point K via M, L3, O`                         |
 | Stands 30-36, pushed facing west      | `taxi to holding point K via M, L2`                            |
-| Stands 24-29, pushed facing east      | `taxi to holding point K via M, H, S` (westbound on S)         |
+| Stands 24-29, pushed facing west      | `taxi to holding point K via M, L2`                            |
 | Apron South, pushed facing west       | `taxi to holding point Y via V`                                |
-| Arrival vacated via D, B or C         | `taxi to stand 30 via S, H, M` / `taxi to stand 14 via S, H, M` |
+| Arrival vacated via D, C or E         | `taxi to stand 30 via N, H, M` / `taxi to stand 14 via N, H, M` |
 
 ### Ground planning tips
 

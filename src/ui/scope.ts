@@ -897,7 +897,7 @@ export class Scope {
 
     this.tagRects = [];
     this.symbolHits = [];
-    const list = [...this.sim.aircraft].filter((a) => a.phase !== 'gone' && (a.onGround || this.sim.distanceToThresholdNm(a) < 12 || a.altitudeFt < this.sim.airport.data.elevationFt + 5000));
+    const list = [...this.sim.aircraft].filter((a) => a.phase !== 'gone' && (a.onGround || this.sim.distanceToThresholdNm(a) < 13 || a.altitudeFt < this.sim.airport.data.elevationFt + 5000));
     // selected last so its tag is on top
     list.sort((a, b) => (a.callsign === this.selected ? 1 : 0) - (b.callsign === this.selected ? 1 : 0));
     for (const ac of list) this.drawAircraft(ac, this.colorFor(ac, now));

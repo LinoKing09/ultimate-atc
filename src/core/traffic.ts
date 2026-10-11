@@ -13,7 +13,7 @@ const RATES: Record<Density, { departures: number; arrivals: number }> = {
   heavy: { departures: 22, arrivals: 18 },
 };
 
-const SPAWN_DISTANCE_NM = 11;
+const SPAWN_DISTANCE_NM = 12;
 /** Chance that a generated arrival declares a medical emergency (with special events on). */
 const ARRIVAL_MEDICAL_CHANCE = 0.02;
 /** Chance that a departure declares a medical emergency while taxiing (with special events on). */

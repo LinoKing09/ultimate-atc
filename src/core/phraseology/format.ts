@@ -130,12 +130,21 @@ export function formatAltitude(a: Altitude): string {
   return 'fl' in a ? `flight level ${a.fl}` : `${a.feet} feet`;
 }
 
-/** An IFR clearance in standard order: limit, route (SID), runway, climb, squawk, slot. */
+/** "climb via SID to altitude 5000 feet" (German practice for the initial climb of a SID). */
+export function formatSidClimb(a: { feet: number } | { fl: number }): string {
+  return `climb via SID to ${'fl' in a ? '' : 'altitude '}${formatAltitude(a)}`;
+}
+
+/**
+ * An IFR clearance in standard order (as given in Germany): limit, SID, "flight planned route",
+ * runway, climb via SID, squawk, slot.
+ */
 export function formatClearance(c: Extract<Command, { type: 'clearance' }>): string {
   const dest = c.destination ? (resolveDestination(c.destination) ? destinationName(resolveDestination(c.destination)!) : c.destination) : '';
-  const parts = [`cleared to ${dest || '...'}${c.sid ? ` via ${c.sid} departure` : ''}`];
+  const parts = [`cleared to ${dest || '...'}`];
+  if (c.sid) parts.push(`${c.sid} departure`, 'flight planned route');
   if (c.runway) parts.push(`runway ${c.runway}`);
-  if (c.climb) parts.push(`climb ${formatAltitude(c.climb)}`);
+  if (c.climb) parts.push(c.sid ? formatSidClimb(c.climb) : `climb ${formatAltitude(c.climb)}`);
   if (c.squawk) parts.push(`squawk ${c.squawk}`);
   if (c.ctot) parts.push(`CTOT ${c.ctot}`);
   return parts.join(', ');

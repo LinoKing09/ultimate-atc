@@ -63,7 +63,7 @@ taxi --(reaches stand)--> arrived --(150-300 s)--> gone
 
 | Step                | Timing / behaviour                                                                          |
 | ------------------- | ------------------------------------------------------------------------------------------- |
-| Final approach      | Appears 11 NM from the threshold (initial traffic: 4-6 NM), at its approach speed on a 3° glide path, on **Approach** frequency (Langen Radar); Approach hands it to Tower at 7-9 NM. |
+| Final approach      | Appears 12 NM from the threshold (initial traffic: 4-6 NM), at its approach speed on a 3° glide path, on **Approach** frequency (Langen Radar); Approach hands it to Tower at 8-10 NM (typical hand-off once established on the ILS; no published value). |
 | Touchdown           | 350 m past the landing threshold.                                                           |
 | Roll-out            | Brakes at 1.2-2.0 m/s² (every crew differently) to reach the chosen exit at 20-28 kt (rapid exit) or 11-16 kt (normal exit); one in five passes the first exit it could make and rolls on to the next. |
 | Exit choice         | The first exit that can be reached at that deceleration. 85% prefer the north side, 15% the south side. Exits whose vacate point is blocked by a waiting aircraft (within 70 m) are skipped. |
@@ -239,7 +239,7 @@ When you don't staff Ground (for example when you work Delivery alone), the AI G
 | Line-up / take-off clearance | Lines up when the clearance (and any condition, `behind ...`) allows; lined up with a take-off clearance it rolls after 2-5 s - not while another aircraft is on the runway or landing / taking off |
 | Departure spacing | At the start of the roll, the required spacing (2 min behind a heavy, 3 from an intersection, 2 min same SID fix, 1 min diverging) is checked; too early counts as a separation loss |
 | Climb-out | Asks for a frequency change above 1500 ft above the airport; leaving (4000 ft) on Tower frequency counts as a missed hand-off |
-| Arrival | First call when Approach hands it over (7-9 NM; or right away if it appears closer), reminder at 2 NM, `one mile final, request landing clearance` at 1 NM; without a landing clearance it goes around only at **0.15 NM** (just before the threshold, incident); with a clearance it goes around at 0.5 NM if the runway is not clear |
+| Arrival | First call when Approach hands it over (8-10 NM; or right away if it appears closer), reminder at 2 NM, `one mile final, request landing clearance` at 1 NM; without a landing clearance it goes around only at **0.15 NM** (just before the threshold, incident); with a clearance it goes around at 0.5 NM if the runway is not clear |
 | Landing | Takes the exit given with `vacate via` if it can still reach it at normal braking, otherwise the usual one; reports vacated and waits for `contact ground` (calls again every 20 s if the call got lost) |
 | Runway crossing | The AI Ground hands an aircraft stopped at a runway holding point to Tower; after `cross runway 25` and crossing it reports vacated |
 | CTOT | A take-off you clear before CTOT -5 min is flown and counts as a slot violation (-10, like a missed slot); missed slots as usual |
@@ -293,7 +293,7 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 
 - **Initial situation**: about 55% of an hour's departures are already parked at stands, with ready times spread over the first 25 minutes, **denser towards the end** (`30 s + sqrt(u) x 24.5 min`), so the workload builds up gradually. Their first calls are **staggered**: the first after 15 s, each next one at least **90 s** later, in the order of their ready times. On Delivery that is the clearance request (a crew then needs at least 4 minutes until it is ready); on Ground the pushback call. One arrival is on a 4-6 NM final.
 - **New departures** appear at exponentially distributed intervals (a Poisson process) with the mean given by the rate.
-- **New arrivals** follow the same kind of process. A new arrival is only released onto the final (at 11 NM) when the distance to the previous arrival is at least the **required spacing**, which is the larger of:
+- **New arrivals** follow the same kind of process. A new arrival is only released onto the final (at 12 NM) when the distance to the previous arrival is at least the **required spacing**, which is the larger of:
   - the **wake turbulence minimum**: 3 NM normally; 4 NM heavy behind heavy, 5 NM medium behind heavy, 6 NM light behind heavy, 5 NM light behind medium (larger values behind an A380, category J),
   - the **runway spacing**: 4 NM when no departures are waiting, **6 NM** when at least one departure is holding or taxiing to a holding point, **8 NM** with four or more. These are the "departure gaps" Approach gives on request,
   - **5 NM** for non-precision approaches (localizer only or RNP, when the ILS glide path or localizer is switched off in the [systems window](systems.md); simulator value).
@@ -315,7 +315,7 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 
 ## Weather and ATIS
 
-- **Wind** is drawn at session start: 70% westerly (220-290°), 30% easterly (040-110°), 3-14 kt.
+- **Wind** is drawn at session start: 60% westerly (220-290°), 40% easterly (040-110°), 3-14 kt - Stuttgart's long-term average is about 60 % of the operations to the west (RP Stuttgart noise report).
 - **Runway in use** at session start: the first runway of the airport (25 at EDDS), unless it has more than 3 kt tailwind; then the runway with the most headwind.
 - **QNH** 1003-1028 hPa.
 - **Observed wind** (the toolbar): the actual surface wind. It equals the ATIS wind until a scenario **wind shift** turns it to the opposite direction (9-15 kt); broadcasting an ATIS with a wind sets it as well. The ATIS editor is pre-filled with it.

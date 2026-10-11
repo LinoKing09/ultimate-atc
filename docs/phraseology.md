@@ -226,7 +226,7 @@ A wrong runway is queried: `confirm runway 07, we are departing runway 25`. A de
 
 | You say | Effect |
 | ------- | ------ |
-| `cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312` | IFR clearance. Clearance limit: destination name (`Frankfurt`, `Paris Charles de Gaulle`) or ICAO code (`EDDF`). SID: designator, also spelled (`kilo romeo hotel two whiskey`). Optional: `runway 25`, `CTOT 1435`. Altitude: `5000 feet`, `five thousand feet`, `flight level 70`, also after `maintain`. Also `..., KRH2W departure, ...` without `via`. |
+| `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312` | IFR clearance (German form; the short form `cleared to Frankfurt via KRH4B departure, climb 5000 feet, squawk 2312` works too). Clearance limit: destination name (`Frankfurt`, `Paris Charles de Gaulle`) or ICAO code (`EDDF`). SID: designator, also spelled (`kilo romeo hotel four bravo`). Optional: `runway 25`, `CTOT 1435`. Altitude: `5000 feet`, `five thousand feet`, `flight level 70`, also after `maintain`. Also `..., KRH4B departure, ...` without `via`. |
 | `readback correct` / `read back correct` | Confirms a readback |
 | `squawk 2312` / `negative, squawk 2312` | Assigns (or corrects) a squawk code (octal digits 0-7) |
 | `CTOT 1435` / `slot 1435` | Tells the crew its calculated take-off time |
@@ -301,8 +301,8 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | `contact radar 119.200`                             | `Radar 119.200, goodbye, Lufthansa 5AB`                             |
 | `tow approved` (to a tug)                           | `Tow approved to stand 45, Tug 5`                                   |
 | `follow the follow-me` (just vacated)               | `Follow the follow-me to stand 14, DCEEO`                           |
-| `cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312` | `Cleared to Frankfurt, KRH2W departure, climb 5000 feet, squawk 2312[, CTOT 1435], Lufthansa 5AB` - now and then with a **wrong squawk**: correct it |
-| IFR clearance with a missing or wrong part          | `Confirm KRH2E departure, information R says runway 25 in use, ...` / `Confirm clearance limit, our destination is Frankfurt` / `Request squawk` / `Confirm initial climb` |
+| `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312` | `Cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312[, CTOT 1435], Lufthansa 5AB` - now and then with a **wrong squawk**: correct it |
+| IFR clearance with a missing or wrong part          | `Confirm KRH2H departure, information R says runway 25 in use, ...` / `Confirm clearance limit, our destination is Frankfurt` / `Request squawk` / `Confirm initial climb` |
 | `squawk 2312`                                       | `Squawk 2312, Lufthansa 5AB`                                        |
 | `readback correct`                                  | *(no read-back)*                                                    |
 | `start-up approved` without a clearance             | `Negative, we have no clearance yet, Lufthansa 5AB`                 |

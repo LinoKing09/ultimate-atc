@@ -200,7 +200,7 @@ const VEHICLE_REFERENCE: [string, string][] = [
 ];
 
 const DELIVERY_REFERENCE: [string, string][] = [
-  ['cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312', 'IFR clearance: clearance limit (destination), SID of the runway in use, initial climb, squawk. Add "CTOT 1435" if the flight has a slot. The crew reads it back - check the squawk.'],
+  ['cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312', 'IFR clearance: clearance limit (destination), SID of the runway in use, initial climb, squawk. Add "CTOT 1435" if the flight has a slot. The crew reads it back - check the squawk.'],
   ['readback correct', 'Confirm a correct readback.'],
   ['negative, squawk 2312', 'Correct a wrong readback (or assign a new code).'],
   ['start-up approved', 'Approve engine start; with A-CDM at the TSAT (-5/+5 min), the crew calls when it is due.'],

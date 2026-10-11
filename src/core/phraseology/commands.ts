@@ -47,7 +47,7 @@ export type Command =
   | { type: 'sayAgain' }
   /** "Are you able intersection D?" - ask whether the aircraft can depart from an intersection. */
   | { type: 'askIntersection'; name: string }
-  /** IFR (en-route) clearance: "cleared to Frankfurt via KRH2W departure, climb 5000 feet, squawk 2312". */
+  /** IFR (en-route) clearance: "cleared to Frankfurt via KRH4B departure, climb 5000 feet, squawk 2312". */
   | { type: 'clearance'; destination?: string; sid?: string; runway?: string; climb?: Altitude; squawk?: string; ctot?: string }
   /** Transponder code: "squawk 2312". */
   | { type: 'squawk'; code: string }

@@ -31,8 +31,8 @@ const GO_AROUND_CHECK_NM = 0.5;
 /** Without a landing clearance (you staff Tower) the crew goes around only just before the threshold (NM, about 280 m). */
 const NO_CLEARANCE_GO_AROUND_NM = 0.15;
 /** Approach (simulator) hands arrivals to Tower between these distances from the threshold (NM). */
-const APP_HANDOFF_MIN_NM = 7;
-const APP_HANDOFF_MAX_NM = 9;
+const APP_HANDOFF_MIN_NM = 8;
+const APP_HANDOFF_MAX_NM = 10;
 /** Departures leave the scope this far from the airport (metres, 10 NM - about the size of the Stuttgart control zone). */
 const CTR_RADIUS_M = 10 * M_PER_NM;
 

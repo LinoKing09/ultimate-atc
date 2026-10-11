@@ -1,7 +1,7 @@
 import type { Aircraft } from './aircraft';
 import { destinationName, resolveDestination } from '../data/destinations';
 import type { Command } from './phraseology/commands';
-import { formatAltitude } from './phraseology/format';
+import { formatAltitude, formatSidClimb } from './phraseology/format';
 import type { Simulation } from './simulation';
 
 /**
@@ -144,7 +144,7 @@ export function execClearance(sim: Simulation, ac: Aircraft, c: Extract<Command,
     const t = fromHhmm(sim, c.ctot);
     if (t !== undefined) ac.ctot = t;
   }
-  const parts = [`cleared to ${destinationName(fp.destination)}, ${sid!.name} departure`, `climb ${formatAltitude(c.climb!)}`, `squawk ${said}`];
+  const parts = [`cleared to ${destinationName(fp.destination)}, ${sid!.name} departure, flight planned route`, formatSidClimb(c.climb!), `squawk ${said}`];
   if (ac.ctot) parts.push(`CTOT ${hhmm(sim, ac.ctot)}`);
   return { readback: parts.join(', '), answers: ac.request === 'clearance' };
 }
@@ -201,7 +201,7 @@ export function sendDcl(sim: Simulation, ac: Aircraft, sidName: string, squawk: 
     ac.request = null;
   }
   sim.system(
-    `DCL to ${ac.callsign}: cleared to ${destinationName(ac.flightPlan.destination)} via ${sid.name} departure, climb ${initialClimbFt(sim)} feet, squawk ${squawk}${ac.ctot ? `, CTOT ${hhmm(sim, ac.ctot)}` : ''} - WILCO.`,
+    `DCL to ${ac.callsign}: cleared to ${destinationName(ac.flightPlan.destination)}, ${sid.name} departure, flight planned route, climb via SID to altitude ${initialClimbFt(sim)} feet, squawk ${squawk}${ac.ctot ? `, CTOT ${hhmm(sim, ac.ctot)}` : ''} - WILCO.`,
     'system',
     ac.callsign,
   );

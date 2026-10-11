@@ -5,7 +5,7 @@ import { M_PER_NM, distance } from './geo';
 import { detectCollisions, updateMovement, updateSeparation } from './movement';
 import { createVehicles, executeVehicleTransmission, updateVehicles, type Vehicle } from './vehicles';
 import { parseTransmission } from './phraseology/parser';
-import { executeTransmission, updatePilot } from './pilot';
+import { earliestIntersection, executeTransmission, updatePilot } from './pilot';
 import { Frequency, type MessageKind, type RadioMessage } from './radio';
 import { updateConflictAlerts, updateRunwayAlerts } from './conflicts';
 import { updateOppositeTraffic } from './opposite';
@@ -189,7 +189,7 @@ export class Simulation {
    * Coordination with the neighbouring positions the simulator runs: you asked Approach to send
    * no more arrivals, or Ground to hold all departures (to make room). Each costs points per minute.
    */
-  readonly flow = { arrivalsStopped: false, departuresStopped: false, arrivalSeconds: 0, departureSeconds: 0 };
+  readonly flow = { arrivalsStopped: false, departuresStopped: false, askIntersections: false, arrivalSeconds: 0, departureSeconds: 0 };
   /** The longest waits for an answer this session (debriefing). */
   readonly longestWaits: { callsign: string; seconds: number }[] = [];
   /** Follow-me cars (tugs are drawn with the aircraft they move). */
@@ -349,6 +349,7 @@ export class Simulation {
     if (this.config.generateTraffic !== false) this.traffic.update();
     this.tower.update(dt);
     this.updateFlow(dt);
+    this.updateHandoffs();
     updateSeparation(this);
     if (this.time >= this.nextOppositeCheck) {
       this.nextOppositeCheck = this.time + 2;
@@ -557,6 +558,9 @@ export class Simulation {
     this.config.runway = newEnd;
     const sids = this.config.airport.sids;
     for (const ac of this.aircraft) {
+      // Intersection answers were for the old runway.
+      ac.earliestIntersection = undefined;
+      ac.ableIntersection = undefined;
       if (ac.category === 'departure' && ['parked', 'pushback', 'startup'].includes(ac.phase) && !ac.pendingTaxi) {
         ac.runway = newEnd;
         ac.flightPlan.runway = newEnd;
@@ -656,10 +660,39 @@ export class Simulation {
     return undefined;
   }
 
-  /** Asks the simulator-run position to hand an aircraft over to you now. Returns an error text if not possible. */
+  /** Hand-offs you asked for, carried out after a short coordination delay. */
+  private readonly pendingHandoffs: { callsign: string; at: number }[] = [];
+
+  /**
+   * Asks the simulator-run position to hand an aircraft over to you. The position needs a few
+   * seconds (4-10 s) before it tells the crew. Returns an error text if not possible.
+   */
   requestHandoff(ac: Aircraft): string | undefined {
     const to = this.handoffTarget(ac);
     if (!to) return `${ac.callsign} cannot be handed over to you now.`;
+    if (this.pendingHandoffs.some((p) => p.callsign === ac.callsign)) return undefined;
+    this.pendingHandoffs.push({ callsign: ac.callsign, at: this.time + 4 + 6 * this.variation(`${ac.callsign}:ho:${Math.round(this.time)}`) });
+    return undefined;
+  }
+
+  /** True while a hand-off you asked for is still being coordinated. */
+  handoffPending(ac: Aircraft): boolean {
+    return this.pendingHandoffs.some((p) => p.callsign === ac.callsign);
+  }
+
+  private updateHandoffs(): void {
+    for (let i = this.pendingHandoffs.length - 1; i >= 0; i--) {
+      const p = this.pendingHandoffs[i];
+      if (this.time < p.at) continue;
+      this.pendingHandoffs.splice(i, 1);
+      const ac = this.find(p.callsign);
+      if (ac) this.handOverNow(ac);
+    }
+  }
+
+  private handOverNow(ac: Aircraft): void {
+    const to = this.handoffTarget(ac);
+    if (!to) return;
     const from = this.airport.station(ac.frequency);
     this.frequency.release(ac.callsign);
     ac.frequency = to;
@@ -698,8 +731,25 @@ export class Simulation {
     return undefined;
   }
 
+  /** Asks Ground (run by the simulator) to ask every departure for the earliest intersection it accepts (or stops it). */
+  setAskIntersections(on: boolean): string | undefined {
+    if (on && !this.canHoldDepartures) return 'You staff Ground yourself - ask the crews ("advise able for departure from intersection B").';
+    if (this.flow.askIntersections === on) return undefined;
+    this.flow.askIntersections = on;
+    this.system(`${this.stationName(this.stationFor('ground'))} (landline): roger, ${on ? 'we ask all departures for the earliest intersection they accept' : 'no more intersection checks'}.`);
+    return undefined;
+  }
+
   private updateFlow(dt: number): void {
     const f = this.flow;
+    // Ground asks each departure once (it shows in the list and the tag).
+    if (f.askIntersections && Math.floor(this.time) % 5 === 0 && Math.floor(this.time - dt) % 5 !== 0) {
+      for (const a of this.aircraft) {
+        if (a.category === 'departure' && a.onGround && a.cleared && a.earliestIntersection === undefined && !['lineup', 'takeoff'].includes(a.phase)) {
+          a.earliestIntersection = earliestIntersection(this, a);
+        }
+      }
+    }
     if (f.arrivalsStopped && (f.arrivalSeconds += dt) >= 60) {
       f.arrivalSeconds -= 60;
       this.stats.arrivalStopMinutes++;

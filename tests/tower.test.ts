@@ -44,7 +44,7 @@ describe('tower position', () => {
     const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     // The AI Ground pushes, taxis and hands the departure over at the holding point.
     expect(runUntil(sim, () => ac.request === 'departure', 1500)).toBe(true);
-    expect(last(sim, 'DLH5AB')).toMatch(/^Stuttgart Tower, Lufthansa 5AB, (approaching )?holding point [A-Z0-9]+, ready for departure$/);
+    expect(last(sim, 'DLH5AB')).toMatch(/^Stuttgart Tower, Lufthansa 5AB, ((approaching|taxiing to) )?holding point [A-Z0-9]+, ready for departure$/);
     sim.transmit('DLH5AB line up and wait runway 25');
     runUntil(sim, () => last(sim, 'DLH5AB').startsWith('Line up and wait'), 20);
     expect(last(sim, 'DLH5AB')).toBe('Line up and wait runway 25, Lufthansa 5AB');
@@ -110,7 +110,10 @@ describe('tower position', () => {
     expect(ac.frequency).toBe('APP');
     expect(sim.handoffTarget(ac)).toBe('TWR');
     expect(sim.requestHandoff(ac)).toBeUndefined();
-    expect(ac.frequency).toBe('TWR');
+    // Approach needs a few seconds before it tells the crew.
+    expect(ac.frequency).toBe('APP');
+    expect(sim.handoffPending(ac)).toBe(true);
+    expect(runUntil(sim, () => ac.frequency === 'TWR', 12)).toBe(true);
     expect(runUntil(sim, () => ac.request === 'landing', 30)).toBe(true);
     // Without the request Approach hands it over at 7-9 NM.
     const b = sim.traffic.spawnArrival(11, { callsign: 'DLH4CD', type: 'A320' }) as Aircraft;
@@ -246,6 +249,15 @@ describe('coordination with Approach and Ground', () => {
     expect(sim.messages.some((m) => /Langen Radar \(landline\): roger, no further arrivals/.test(m.text))).toBe(true);
     sim.setFlow('arrivals', false);
     expect(runUntil(sim, () => sim.aircraft.some((a) => a.category === 'arrival' && !arrivals.has(a.callsign)), 900)).toBe(true);
+  });
+
+  it('Ground asks every departure for the earliest intersection it accepts', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'TWR', runway: '25', density: 'heavy', seed: 5, events: false });
+    expect(sim.setAskIntersections(true)).toBeUndefined();
+    for (let t = 0; t < 120; t++) sim.tick(1);
+    const deps = sim.aircraft.filter((a) => a.category === 'departure' && a.onGround && a.cleared);
+    expect(deps.length).toBeGreaterThan(0);
+    for (const a of deps) expect(a.earliestIntersection).toMatch(/^(FULL|[A-Z][0-9]?)$/);
   });
 
   it('you cannot hold departures when you staff Ground yourself', () => {

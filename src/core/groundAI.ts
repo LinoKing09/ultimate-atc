@@ -74,8 +74,9 @@ function tow(sim: Simulation, ac: Aircraft): void {
   aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand: ac.tow.to }, via: [], holdShort: [], cross: [], tow: true });
 }
 
-/** Distance before the holding point from which Ground hands a departure to Tower (metres along the route). */
-const HANDOFF_BEFORE_HP_M = 600;
+/** Distance before the holding point from which Ground hands a departure to Tower (metres along the route; each flight differently). */
+const HANDOFF_MIN_M = 700;
+const HANDOFF_MAX_M = 1400;
 /** A departure is only handed over early when its CTOT window opens within this time (seconds). */
 const HANDOFF_SLOT_MARGIN_S = 120;
 
@@ -89,7 +90,8 @@ const HANDOFF_SLOT_MARGIN_S = 120;
 function readyForTower(sim: Simulation, ac: Aircraft): boolean {
   const dest = ac.routeDestination;
   if (ac.phase !== 'taxi' || dest?.kind !== 'holdingPoint' || !ac.path) return false;
-  if (ac.path.length - ac.s > HANDOFF_BEFORE_HP_M) return false;
+  const from = HANDOFF_MIN_M + (HANDOFF_MAX_M - HANDOFF_MIN_M) * sim.variation(`${ac.callsign}:handoff`);
+  if (ac.path.length - ac.s > from) return false;
   // Only on the last two taxiways of the route (EDDS runway 07: from L2 on, not yet on M).
   const twys = ac.route?.taxiways.filter((t) => sim.airport.taxiwayNames.has(t.toUpperCase())) ?? [];
   const here = sim.airport.nearestEdge(ac.pos)?.edge.name ?? '';

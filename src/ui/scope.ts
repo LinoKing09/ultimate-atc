@@ -835,7 +835,8 @@ export class Scope {
         const target = clearedTo(ac) || (ac.assignedStand ? `>${ac.assignedStand}` : ac.stand ?? '');
         lines.push([{ text: ac.type.icao, item: 'type' }, { text: ' ' }, { text: target || '---', item: 'target' }]);
         const seq = ac.sequence ? ` #${ac.sequence.number}` : '';
-        lines.push([{ text: statusCode(ac), item: 'status' }, { text: ` ${Math.round(ac.speed / KT_TO_MS)}${seq}` }]);
+        const int = ac.category === 'departure' && ac.earliestIntersection ? ` INT ${ac.earliestIntersection}` : '';
+        lines.push([{ text: statusCode(ac), item: 'status' }, { text: ` ${Math.round(ac.speed / KT_TO_MS)}${seq}${int}` }]);
       } else {
         lines.push([{ text: ac.type.icao, item: 'type' }, { text: ` ${ac.category === 'arrival' ? 'ARR' : ac.flightPlan.destination}` }]);
         lines.push([{ text: `A${String(Math.round(ac.altitudeFt / 100)).padStart(3, '0')} ${Math.round(ac.speed / KT_TO_MS)}` }]);

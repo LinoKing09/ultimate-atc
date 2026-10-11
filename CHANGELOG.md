@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- COORD: Ground can ask every departure for the **earliest intersection** it accepts - shown as `INT D` in the tag and the `INT` column of the departure list.
+- Tower can ask departures `advise able for departure from intersection B` (*Able intersection?* in the Tower menu), like Ground.
 - **Coordination** (`COORD` in the toolbar): ask Approach for no more arrivals or Ground (when run by the simulator) to hold all departures, to make room - 2 points per minute each while it is on.
 - Tower can give taxi instructions to vacated arrivals (*Taxi to stand*, `TAXI` in the quick-action bar), not only to departures.
 - The take-off menu updates its hint (runway occupied, spacing countdown, next arrival) live while it is open.
@@ -18,6 +20,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- The AI Ground hands departures to Tower earlier and not always at the same spot: 700-1400 m before the holding point (each flight differently); far out the crew calls `taxiing to holding point A`.
+- A requested hand-off takes 4-10 s of coordination before the crew changes frequency.
 - **Pilot voices (TTS) and speech recognition (MIC) are switched off** for now (hidden; the code stays).
 - Without a landing clearance an arrival asks again at one mile (`one mile final, request landing clearance`) and goes around only just before the threshold (0.15 NM) instead of at 0.5 NM.
 - The AI Ground hands a departure to Tower early only once it is on one of the last two taxiways of its route (runway 07 via M, L2, K: from L2 on, no longer already on M).

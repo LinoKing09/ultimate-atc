@@ -155,6 +155,8 @@ export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]):
       { key: 'tsat', label: 'TSAT', get: (a, sim) => (a.tsat !== undefined && sim.systemOn('acdm') ? hhmm(sim, a.tsat) : '') },
       { key: 'ctot', label: 'CTOT', cls: 'ctot', get: (a, sim) => (a.ctot !== undefined ? hhmm(sim, a.ctot) : '') },
       { key: 'clr', label: 'TAXI', get: (a) => clearedTo(a) },
+      // Earliest intersection the crew accepts (COORD: Ground asks every departure).
+      { key: 'int', label: 'INT', get: (a) => a.earliestIntersection ?? '' },
       { key: 'sts', label: 'STS', get: (a) => statusCode(a) },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
       { key: 'req', label: 'REQ', cls: 'req', get: reqCell },

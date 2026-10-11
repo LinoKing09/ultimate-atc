@@ -234,6 +234,8 @@ export interface Aircraft {
   requiredRunwayM?: number;
   /** Answers given to "are you able intersection X?" (intersection name -> able). */
   ableIntersection?: Record<string, boolean>;
+  /** Earliest intersection the crew accepts ("FULL" = full length only), asked by Ground on your request (COORD). */
+  earliestIntersection?: string;
   /** Tag offset on screen in pixels (UI state kept with the aircraft for convenience). */
   tagOffset?: { x: number; y: number };
 }

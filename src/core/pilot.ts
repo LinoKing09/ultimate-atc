@@ -292,6 +292,23 @@ function isIntersection(sim: Simulation, holdingPoint: string): boolean {
 }
 
 /**
+ * The intersection with the least take-off run this crew still accepts on the runway in use (the
+ * one reached first from the aprons), "FULL" if it needs the full length. Records the answers.
+ */
+export function earliestIntersection(sim: Simulation, ac: Aircraft): string {
+  const entries = sim.airport.runwayOps(sim.runway)?.departureEntries.filter((e) => !e.fullLength) ?? [];
+  let best: { name: string; tora: number } | undefined;
+  for (const e of entries) {
+    const tora = takeoffRunAvailable(sim, e.holdingPoint);
+    if (tora === undefined) continue;
+    const able = tora >= requiredRunway(sim, ac);
+    ac.ableIntersection = { ...ac.ableIntersection, [e.holdingPoint.toUpperCase()]: able };
+    if (able && (!best || tora < best.tora)) best = { name: e.holdingPoint.toUpperCase(), tora };
+  }
+  return best?.name ?? 'FULL';
+}
+
+/**
  * "Advise able for departure from intersection D": the crew checks the
  * take-off run available from that intersection against what they need.
  */
@@ -567,7 +584,8 @@ function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: stri
   // Handed over while still taxiing: first call on the way to the holding point.
   if (ac.phase === 'taxi' && ac.category === 'departure' && ac.routeDestination?.kind === 'holdingPoint' && !ac.towerContact && !ac.lineUpCleared) {
     ac.towerContact = true;
-    call(sim, ac, 'departure', `${stationName}, ${tel}, approaching holding point ${ac.routeDestination.name}, ready for departure`);
+    const far = !!ac.path && ac.path.length - ac.s > 400;
+    call(sim, ac, 'departure', `${stationName}, ${tel}, ${far ? 'taxiing to' : 'approaching'} holding point ${ac.routeDestination.name}, ready for departure`);
     return true;
   }
   if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && !ac.towerContact && now - (ac.holdingSince ?? now) > 4) {

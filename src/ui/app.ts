@@ -536,7 +536,7 @@ export class App {
       return;
     }
     const mine = this.sim.isOnMyFrequency(ac);
-    const key = `${ac.callsign}|${ac.phase}|${ac.onGround}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}|${catcAlert(this.sim, ac)?.key ?? ''}|${ac.requestAck}`;
+    const key = `${ac.callsign}|${ac.phase}|${ac.onGround}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}|${catcAlert(this.sim, ac)?.key ?? ''}|${ac.requestAck}|${this.sim.handoffPending(ac)}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
     if (this.quickSel && this.quickSel.cs !== ac.callsign) this.clearQuickSel();
@@ -551,7 +551,11 @@ export class App {
       return [r.left, r.top];
     };
     const items: HTMLElement[] = [h('span.qcs', { text: ac.callsign })];
-    if (!mine && this.sim.handoffTarget(ac)) items.push(btn('REQ H/O', () => this.requestHandoff(ac)));
+    if (!mine && this.sim.handoffTarget(ac)) {
+      const b = btn(this.sim.handoffPending(ac) ? 'H/O REQ...' : 'REQ H/O', () => this.requestHandoff(ac));
+      b.disabled = this.sim.handoffPending(ac);
+      items.push(b);
+    }
     if (mine && ac.request && !ac.requestAck) items.push(phrase('ROGER', 'roger'));
     if (catcAlert(this.sim, ac)) items.push(btn('ACK', () => this.acknowledgeCatc(ac)));
     if (mine && this.sim.userTower && ac.frequency === this.sim.stationFor('tower')) {
@@ -940,7 +944,16 @@ export class App {
         : { label: `${app}: no more arrivals`, hint: '-2/min', action: set('arrivals', true) },
       f.departuresStopped
         ? { label: `${gnd}: release departures`, hint: `held ${sim.stats.departureStopMinutes} min`, action: set('departures', false) }
-        : { label: `${gnd}: hold all departures`, hint: sim.canHoldDepartures ? '-2 points per minute' : 'you staff Ground', disabled: !sim.canHoldDepartures, action: set('departures', true) },
+        : { label: `${gnd}: hold all departures`, hint: sim.canHoldDepartures ? '-2/min' : 'you staff Ground', disabled: !sim.canHoldDepartures, action: set('departures', true) },
+      {
+        label: `${f.askIntersections ? '\u2611' : '\u2610'} ${gnd}: ask departures for the earliest intersection`,
+        hint: sim.canHoldDepartures ? undefined : 'you staff Ground',
+        disabled: !sim.canHoldDepartures,
+        action: () => {
+          const err = sim.setAskIntersections(!f.askIntersections);
+          if (err) this.hint(err);
+        },
+      },
     ];
   }
 
@@ -1066,7 +1079,7 @@ export class App {
       items.push({ label: `On ${ac.frequency} frequency`, disabled: true });
       // Ask the (simulator-run) position for the aircraft now, e.g. a departure from Ground before the holding point.
       const to = sim.handoffTarget(ac);
-      if (to) items.push({ label: `Request hand-off to ${to}`, action: () => this.requestHandoff(ac) });
+      if (to) items.push(sim.handoffPending(ac) ? { label: `Hand-off to ${to} requested`, disabled: true } : { label: `Request hand-off to ${to}`, action: () => this.requestHandoff(ac) });
       items.push({ divider: true, label: '' }, center, resetTag);
       return items;
     }
@@ -1192,7 +1205,10 @@ export class App {
       const busy = sim.tower.runwayBusy(ac);
       const slotOpens = ac.ctot !== undefined && sim.time < ac.ctot - CTOT_EARLY_S ? ac.ctot - CTOT_EARLY_S : undefined;
       // Tower may send a departure to another holding point (e.g. an intersection) before it gets there.
-      if (ac.phase === 'taxi' || ac.phase === 'holding') items.push({ label: 'Taxi to', submenu: () => this.taxiDestinations(ac) });
+      if (ac.phase === 'taxi' || ac.phase === 'holding') {
+        items.push({ label: 'Taxi to', submenu: () => this.taxiDestinations(ac) });
+        items.push(this.ableItem(ac));
+      }
       items.push({ label: `Line up and wait runway ${rwy}`, disabled: ac.phase === 'lineup' || !!ac.lineUpCleared, hint: busy ? 'runway occupied' : undefined, action: () => this.say(ac, `line up and wait runway ${rwy}`) });
       const landing = sim.aircraft.filter((o) => (o.phase === 'approach' && sim.distanceToThresholdNm(o) < 5) || o.phase === 'landing');
       items.push({

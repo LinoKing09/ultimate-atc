@@ -1,3 +1,5 @@
+import { DEFAULT_EVENT_LEVEL, clampLevel, type Density } from '../core/levels';
+
 /**
  * Per-browser user preferences. Stored in localStorage when available; every
  * access is guarded because storage can be unavailable (private mode, blocked
@@ -8,8 +10,9 @@ export interface Settings {
   position: string;
   /** Positions staffed together (combined positions). */
   positions?: string[];
-  density: 'light' | 'medium' | 'heavy';
-  events: boolean;
+  density: Density;
+  /** Random special events: step 0-4 (never ... often), see core/levels.ts. */
+  eventLevel: number;
   tts: boolean;
   ttsVolume: number;
   voiceAutoSend: boolean;
@@ -34,7 +37,7 @@ const DEFAULTS: Settings = {
   airport: 'EDDS',
   position: 'GND',
   density: 'medium',
-  events: true,
+  eventLevel: DEFAULT_EVENT_LEVEL,
   tts: false,
   ttsVolume: 1,
   voiceAutoSend: true,
@@ -63,7 +66,15 @@ export function defaultSettings(): Settings {
 export function loadSettings(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...defaultSettings(), ...(JSON.parse(raw) as Partial<Settings>) };
+    if (raw) {
+      const stored = JSON.parse(raw) as Partial<Settings> & { events?: boolean };
+      // Before 0.9 special events were on/off.
+      if (stored.eventLevel === undefined && typeof stored.events === 'boolean') stored.eventLevel = stored.events ? DEFAULT_EVENT_LEVEL : 0;
+      delete stored.events;
+      const s = { ...defaultSettings(), ...stored };
+      s.eventLevel = clampLevel(s.eventLevel);
+      return s;
+    }
   } catch {
     /* storage unavailable */
   }

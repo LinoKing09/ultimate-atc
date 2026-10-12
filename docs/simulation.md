@@ -289,7 +289,9 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 | Density  | Departures / hour | Arrivals / hour |
 | -------- | ----------------: | --------------: |
 | light    | 8                 | 7               |
+| light to medium | 11         | 10              |
 | medium   | 14                | 12              |
+| medium to heavy | 18         | 15              |
 | heavy    | 22                | 18              |
 
 - **Initial situation**: about 55% of an hour's departures are already parked at stands, with ready times spread over the first 25 minutes, **denser towards the end** (`30 s + sqrt(u) x 24.5 min`), so the workload builds up gradually. Their first calls are **staggered**: the first after 15 s, each next one at least **90 s** later, in the order of their ready times. On Delivery that is the clearance request (a crew then needs at least 4 minutes until it is ready); on Ground the pushback call. One arrival is on a 4-6 NM final.
@@ -333,9 +335,9 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 
 ## Special events
 
-Enabled with **Special events** in the Connect dialog or the in-game settings (default on). All of them are rare:
+Set with the **Special events** slider in the Connect dialog or the in-game settings: *never*, *very rare*, *rare* (default), *occasional*, *often* multiply the chances below by 0, 0.5, 1, 2 and 4. At the default they are rare:
 
-| Event                          | Chance                          | What happens                                                                 |
+| Event                          | Chance (at "rare")              | What happens                                                                 |
 | ------------------------------ | ------------------------------- | ---------------------------------------------------------------------------- |
 | Medical emergency, arrival     | 2% of arrivals                  | Declared on final (system message). Lands with priority: no line-ups while it is within 8 NM. After vacating, the pilot calls `PAN PAN, medical emergency ..., request expedited taxi to the stand`. |
 | Medical emergency, departure   | 1% of departures                | 40 s after starting to taxi, the pilot calls `PAN PAN ... request immediate return to the stand`. A stand is suggested; give it a route back (`taxi to stand ...`). |
@@ -343,6 +345,6 @@ Enabled with **Special events** in the Connect dialog or the in-game settings (d
 
 **Scheduled events** from a scenario code happen at fixed minutes, whether random events are on or not: the next arrival declares a medical emergency, the earliest-ready departure on your frequency gets one 40 s after it starts taxiing (retry every 30 s if there is none), the next take-off is rejected, the wind shifts, or a thunderstorm crosses the airport. See [scenarios.md](scenarios.md#scheduled-events).
 
-**Traffic mix** of a scenario: a departure push multiplies the departure rate by 1.6 and the arrival rate by 0.5, an arrival rush the other way round. With **more heavies**, each new flight is a wide-body with a 35% chance.
+**Traffic mix** of a scenario: a departure rush multiplies the departure rate by 1.6 and the arrival rate by 0.5, *more departures* by 1.3 and 0.75, and the arrival steps the other way round. With a **share of heavies** of 10, 20, 35 or 50 %, each new flight is a wide-body with that chance (on top of the operators' own fleets). See [scenarios](scenarios.md#scenario-codes).
 
 A medical emergency counts as handled when the aircraft reaches a stand. Within **6 minutes** of the emergency call, that earns a **+15 point bonus**. Emergency aircraft are shown with `PAN` and a flashing magenta symbol and tag.

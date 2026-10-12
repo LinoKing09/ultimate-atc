@@ -17,11 +17,12 @@ import { SYSTEMS, approachType, defaultSystemStates, type ApproachType, type Sys
 import { SCENARIO_EVENT_TEXT, type ScenarioEvent, type ScenarioSetup } from './scenario';
 import { TowerAI } from './tower';
 import { TrafficGenerator } from './traffic';
+import { EVENT_LEVELS, clampLevel, type Density } from './levels';
 import { updateNight } from './night';
 import { utcOffsetMinutes } from './time';
 import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
 
-export type Density = 'light' | 'medium' | 'heavy';
+export type { Density } from './levels';
 
 /** What a station does for an aircraft (independent of which station type does it at a given airport). */
 export type StationRole = 'delivery' | 'ground' | 'tower';
@@ -51,6 +52,8 @@ export interface SimConfig {
   generateTraffic?: boolean;
   /** Random special events (medical emergencies, rejected take-offs). Default: true. */
   events?: boolean;
+  /** How often random special events happen: step 0-4 of EVENT_LEVELS (overrides `events`). */
+  eventLevel?: number;
   /** Training scenario: traffic mix, more heavies, scheduled events (see scenario.ts). */
   scenario?: ScenarioSetup;
 }
@@ -202,6 +205,13 @@ export class Simulation {
   /** Follow-me cars (tugs are drawn with the aircraft they move). */
   readonly vehicles: Vehicle[];
   readonly startEpochMs: number;
+
+  /** Factor on the chances of random special events (0 = never, 1 = the standard "rare" rates). */
+  get eventFactor(): number {
+    const c = this.config;
+    if (c.eventLevel !== undefined) return EVENT_LEVELS[clampLevel(c.eventLevel)].factor;
+    return c.events === false ? 0 : 1;
+  }
 
   /** Simulation time in seconds since session start. */
   time = 0;

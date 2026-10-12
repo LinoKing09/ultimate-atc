@@ -28,8 +28,8 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | **Airport**       | Airport to control. Only EDDS has data so far; planned airports are listed but disabled.             |
 | **Position**      | Controller position: **Delivery**, **Ground** and **Tower** are available; Approach/Departure and Center are planned. A selected position is coloured (Delivery dark blue, Ground green, Tower red). Click several to staff them together (**combined positions**, for example Delivery + Ground, Ground + Tower or all three, as one controller does at night): the label below the buttons changes from *Single Position* to a purple **Combined Position**, and the toolbar shows all your stations in their colours with `COMBINED`. Positions you don't staff are run by the simulator. |
 | **Callsign**      | Shows the resulting station callsigns, frequencies and radio names, for example `EDDS_DEL 121.915 "Stuttgart Delivery" + EDDS_GND 118.605 "Stuttgart Ground"`. |
-| **Traffic**       | `light`, `medium` or `heavy` (see [simulation model](simulation.md#traffic-generation)).          |
-| **Special events** | Rare special situations: medical emergencies (arrivals and departures) and rejected take-offs. On by default. See [simulation model](simulation.md#special-events). |
+| **Traffic**       | Slider in five steps: light, light to medium, medium, medium to heavy, heavy (see [simulation model](simulation.md#traffic-generation)). |
+| **Special events** | Slider: how often medical emergencies (arrivals and departures) and rejected take-offs happen - *never*, *very rare*, *rare* (default), *occasional*, *often*. See [simulation model](simulation.md#special-events). |
 | **Scenario**      | Optional. A **number** is a seed: the same seed with the same settings gives the same traffic. A **scenario code** (for example `EDDS-25-MB0-M10-K7Q2M`) also fixes the runway, traffic mix and scheduled events, and optionally the start time, night flying restrictions and closed taxiways. **Scenario builder...** creates one from presets or your own choices. Leave it empty for a random session. See [Scenarios and seeds](scenarios.md). |
 | **Tutorial**      | *Delivery*, *Ground*, *Tower*: starts a guided first session for that position right away (fixed traffic, a panel explains each step and shows the instruction). See [Tutorials](tutorials.md). |
 
@@ -122,8 +122,8 @@ Every airport added in the future comes with its own briefing.
 | Voice volume / speed     | Volume and speaking rate of the pilot voices                                               |
 | Send voice automatically | Transmit the recognised instruction when you release push-to-talk; off = check and press Enter |
 | Recognition accent       | English accent the speech recogniser expects (US, UK, Australia, India, Ireland)           |
-| Traffic density          | Light / medium / heavy; applies to traffic generated from now on                           |
-| Special events           | Medical emergencies and rejected take-offs                                                 |
+| Traffic density          | Slider in five steps from light to heavy; applies to traffic generated from now on         |
+| Special events           | Slider: never, very rare, rare, occasional, often                                          |
 
 **Reset to defaults** restores everything except the airport and position.
 

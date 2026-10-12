@@ -3,18 +3,12 @@ import { AIRLINES, type Airline } from '../data/airlines';
 import type { Stand } from './airport/airport';
 import { createAircraft, type Aircraft, type FlightPlan } from './aircraft';
 import { CLEARANCE_LEAD_S, prepareDeparture } from './delivery';
-import type { Density, Simulation } from './simulation';
+import type { Simulation } from './simulation';
+import { DENSITIES, HEAVY_SHARES, MIXES, clampLevel, densityIndex, mixIndex } from './levels';
 import { NON_PRECISION_SPACING_NM } from './systems';
 import { DELAYED_ARRIVAL_SHARE, NIGHT_APPROACH_ESTIMATE_S, landingStatus, nightRules, plannedReadyIn } from './night';
 import { minutesToHhmm } from './time';
 import { STORM_ARRIVAL_RATE, STORM_ARRIVAL_SPACING_NM } from './weather';
-
-/** Movements per hour for each traffic density. */
-const RATES: Record<Density, { departures: number; arrivals: number }> = {
-  light: { departures: 8, arrivals: 7 },
-  medium: { departures: 14, arrivals: 12 },
-  heavy: { departures: 22, arrivals: 18 },
-};
 
 const SPAWN_DISTANCE_NM = 12;
 /** Chance that a generated arrival declares a medical emergency (with special events on). */
@@ -46,25 +40,21 @@ export class TrafficGenerator {
 
   /** Movements per hour, adjusted by the scenario's traffic mix (and a thunderstorm: fewer arrivals). */
   get rates(): { departures: number; arrivals: number } {
-    const base = RATES[this.sim.config.density];
-    const mix = this.sim.config.scenario?.mix;
-    const r =
-      mix === 'departures'
-        ? { departures: base.departures * 1.6, arrivals: base.arrivals * 0.5 }
-        : mix === 'arrivals'
-          ? { departures: base.departures * 0.5, arrivals: base.arrivals * 1.6 }
-          : base;
+    const base = DENSITIES[densityIndex(this.sim.config.density)];
+    const mix = MIXES[mixIndex(this.sim.config.scenario?.mix ?? 'balanced')];
+    const r = { departures: base.departures * mix.departures, arrivals: base.arrivals * mix.arrivals };
     return this.sim.storm ? { departures: r.departures, arrivals: r.arrivals * STORM_ARRIVAL_RATE } : r;
   }
 
   /**
-   * Picks operator and type. With the scenario option "more heavies", about
-   * one in three flights is a wide-body. (The extra random draw only happens
+   * Picks operator and type. With a scenario share of heavies (10-50 %),
+   * that share of the flights is a wide-body. (The extra random draw only happens
    * with that option, so plain seeds keep giving the same traffic.)
    */
   private pickSpec(): { airline: Airline; type: AircraftType } {
     const rng = this.sim.rng;
-    if (this.sim.config.scenario?.heavies && rng.chance(0.35)) {
+    const share = HEAVY_SHARES[clampLevel(this.sim.config.scenario?.heavyLevel ?? 0)].share;
+    if (share > 0 && rng.chance(share)) {
       const airline = this.pickAirline((a) => a.types.some((t) => aircraftType(t).wake === 'H'));
       return { airline, type: aircraftType(rng.pick(airline.types.filter((t) => aircraftType(t).wake === 'H'))) };
     }
@@ -293,7 +283,7 @@ export class TrafficGenerator {
     ac.stand = stand.id;
     ac.runway = rwy;
     ac.readyAt = sim.time + readyIn;
-    ac.plannedMedical = sim.config.events !== false && sim.rng.chance(DEPARTURE_MEDICAL_CHANCE);
+    ac.plannedMedical = sim.eventFactor > 0 && sim.rng.chance(DEPARTURE_MEDICAL_CHANCE * sim.eventFactor);
     prepareDeparture(sim, ac);
     ac.taxiPace = 0.85 + 0.3 * sim.variation(`${ac.callsign}:pace`);
     sim.aircraft.push(ac);
@@ -330,7 +320,7 @@ export class TrafficGenerator {
     ac.assignedStand = stand?.id;
     const forced = sim.forceMedicalArrival && opts.medical === undefined;
     if (forced) sim.forceMedicalArrival = false;
-    if (forced || (opts.medical ?? (sim.config.events !== false && sim.rng.chance(ARRIVAL_MEDICAL_CHANCE)))) {
+    if (forced || (opts.medical ?? (sim.eventFactor > 0 && sim.rng.chance(ARRIVAL_MEDICAL_CHANCE * sim.eventFactor)))) {
       ac.emergency = 'medical';
       ac.emergencySince = sim.time;
       sim.system(`Approach: ${callsign} has declared PAN PAN (medical emergency) and will land with priority.`, 'warning', callsign);

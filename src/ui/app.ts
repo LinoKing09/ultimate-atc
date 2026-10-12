@@ -71,7 +71,7 @@ export class App {
   private leaving = false;
   /** Density / events last chosen in the settings; the session keeps a scenario's values until they change. */
   private densitySetting: Settings['density'];
-  private eventsSetting: boolean;
+  private eventsSetting: number;
   private readonly voices = new PilotVoices();
   private readonly voiceIn: VoiceInput;
 
@@ -92,7 +92,7 @@ export class App {
     tutorial?: TutorialRunner,
   ) {
     this.densitySetting = settings.density;
-    this.eventsSetting = settings.events;
+    this.eventsSetting = settings.eventLevel;
 
     // ---------------------------------------------------------------- toolbar
     const field = (key: string, title: string) => (this.fields[key] = h('span.field', { title }));
@@ -510,7 +510,7 @@ export class App {
     this.voices.rate = s.ttsRate;
     this.voiceIn.lang = s.voiceLang;
     if (s.density !== this.densitySetting) this.sim.config.density = this.densitySetting = s.density;
-    if (s.events !== this.eventsSetting) this.sim.config.events = this.eventsSetting = s.events;
+    if (s.eventLevel !== this.eventsSetting) this.sim.config.eventLevel = this.eventsSetting = s.eventLevel;
     this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : this.sim.userTower
         ? 'Type an instruction, e.g. "DLH5AB line up and wait runway 25" - F1 for help'
         : this.sim.userControls('GND')

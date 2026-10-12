@@ -10,11 +10,11 @@ function simFor(code: string, generateTraffic = true): Simulation {
     airport: EDDS,
     position: 'GND',
     density: sc.density,
-    events: sc.randomEvents,
+    eventLevel: sc.eventLevel,
     seed: sc.seed,
     runway: sc.runway,
     generateTraffic,
-    scenario: { mix: sc.mix, heavies: sc.heavies, events: sc.events },
+    scenario: { mix: sc.mix, heavyLevel: sc.heavyLevel, events: sc.events },
   });
 }
 
@@ -25,8 +25,8 @@ describe('scenario codes', () => {
       runway: '25',
       density: 'heavy',
       mix: 'departures',
-      heavies: true,
-      randomEvents: false,
+      heavyLevel: 3,
+      eventLevel: 0,
       events: [
         { kind: 'windShift', atMin: 30 },
         { kind: 'medicalArrival', atMin: 10 },
@@ -36,7 +36,18 @@ describe('scenario codes', () => {
     const code = formatScenarioCode(s);
     expect(code).toBe('EDDS-25-HD1-M10W30-21I3V9');
     expect(parseScenarioCode(code)).toEqual({ ...s, events: [s.events[1], s.events[0]] });
-    expect(parseScenarioCode('edds-auto-lb2-x-1')).toMatchObject({ runway: undefined, density: 'light', mix: 'balanced', heavies: false, randomEvents: true, events: [], seed: 1 });
+    expect(parseScenarioCode('edds-auto-lb2-x-1')).toMatchObject({ runway: undefined, density: 'light', mix: 'balanced', heavyLevel: 0, eventLevel: 2, events: [], seed: 1 });
+  });
+
+  it('stores the five-step sliders as digits when the letters cannot express them', () => {
+    const s: Scenario = { airport: 'EDDS', runway: '25', density: 'medium-heavy', mix: 'more-arrivals', heavyLevel: 1, eventLevel: 4, events: [], seed: 42 };
+    const code = formatScenarioCode(s);
+    expect(code).toBe('EDDS-25-4414-X-16');
+    expect(parseScenarioCode(code)).toEqual(s);
+    // Letter form whenever possible, so codes from before 0.9 stay the same.
+    expect(formatScenarioCode({ ...s, density: 'heavy', mix: 'departures', heavyLevel: 3, eventLevel: 2 })).toBe('EDDS-25-HD3-X-16');
+    expect(formatScenarioCode({ ...s, density: 'light', mix: 'balanced', heavyLevel: 0, eventLevel: 1 })).toBe('EDDS-25-1301-X-16');
+    for (const bad of ['EDDS-25-6300-X-1', 'EDDS-25-3305-X-1', 'EDDS-25-330-X-1']) expect(parseScenarioCode(bad)).toHaveProperty('error');
   });
 
   it('rejects invalid codes', () => {
@@ -50,6 +61,37 @@ describe('scenario codes', () => {
       const code = formatScenarioCode({ ...p.scenario, airport: 'EDDS', seed: 42 });
       expect(parseScenarioCode(code)).not.toHaveProperty('error');
     }
+  });
+});
+
+describe('traffic sliders', () => {
+  it('intermediate density and mix steps set the rates', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', density: 'light-medium', seed: 1, generateTraffic: false, scenario: { mix: 'more-departures' } });
+    expect(sim.traffic.rates).toEqual({ departures: 11 * 1.3, arrivals: 10 * 0.75 });
+  });
+
+  it('special event steps scale the chances (never, standard, often)', () => {
+    const factor = (cfg: { events?: boolean; eventLevel?: number }) => new Simulation({ airport: EDDS, position: 'GND', density: 'light', seed: 1, generateTraffic: false, ...cfg }).eventFactor;
+    expect(factor({ eventLevel: 0 })).toBe(0);
+    expect(factor({ eventLevel: 2 })).toBe(1);
+    expect(factor({ eventLevel: 4 })).toBe(4);
+    expect(factor({ events: false })).toBe(0);
+    expect(factor({})).toBe(1);
+  });
+
+  it('a larger share of heavies gives more wide-bodies', () => {
+    // Share of wide-bodies among 1000 picked flights (operator and type, before a stand is looked for).
+    const share = (heavyLevel: number) => {
+      const sim = new Simulation({ airport: EDDS, position: 'GND', density: 'light', seed: 5, generateTraffic: false, scenario: { heavyLevel } });
+      const pick = (sim.traffic as unknown as { pickSpec(): { type: { wake: string } } }).pickSpec.bind(sim.traffic);
+      let n = 0;
+      for (let i = 0; i < 1000; i++) if (pick().type.wake === 'H') n++;
+      return n / 1000;
+    };
+    const normal = share(0);
+    expect(share(1)).toBeGreaterThan(normal + 0.05);
+    expect(share(4)).toBeGreaterThan(0.45);
+    expect(share(4)).toBeLessThan(0.6);
   });
 });
 

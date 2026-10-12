@@ -1,5 +1,7 @@
 import type { Simulation } from '../core/simulation';
 import { h } from './dom';
+import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
+import { levelSlider } from './levelSlider';
 import { defaultSettings, saveSettings, type Settings } from './settings';
 
 const PHONE_ICON =
@@ -28,7 +30,7 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
   };
 
   // ---------------------------------------------------------------- controls
-  const check = (key: 'events' | 'tts' | 'voiceAutoSend' | 'showRoutes', disabled = false) => {
+  const check = (key: 'tts' | 'voiceAutoSend' | 'showRoutes', disabled = false) => {
     const el = h('input', { type: 'checkbox', disabled });
     el.checked = settings[key];
     el.addEventListener('change', () => {
@@ -136,14 +138,20 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
         'Traffic',
         [
           'Traffic density',
-          select(settings.density, [
-            ['light', 'Light'],
-            ['medium', 'Medium'],
-            ['heavy', 'Heavy'],
-          ], (v) => (settings.density = v)),
+          levelSlider(DENSITIES.map((d) => d.label), densityIndex(settings.density), (i) => {
+            settings.density = DENSITIES[i].value;
+            changed();
+          }).el,
           'Applies to new traffic from now on',
         ],
-        ['Special events', check('events'), 'Medical emergencies and rejected take-offs (low probability)'],
+        [
+          'Special events',
+          levelSlider(EVENT_LEVELS.map((e) => e.label), settings.eventLevel, (i) => {
+            settings.eventLevel = i;
+            changed();
+          }).el,
+          'Medical emergencies and rejected take-offs: never, very rare ... often',
+        ],
       ),
       h('div.actions', {}, reset, close),
     ),

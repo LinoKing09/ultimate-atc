@@ -1,6 +1,8 @@
 import type { AirportData, StationType } from '../core/airport/types';
 import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
 import { closureProblems } from '../core/airport/validate';
+import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
+import { levelSlider } from './levelSlider';
 import { TUTORIALS, type TutorialId } from '../core/tutorial';
 import type { Density, Simulation } from '../core/simulation';
 import { h } from './dom';
@@ -32,7 +34,8 @@ export interface LoginResult {
   /** All staffed positions (combined positions). */
   positions: StationType[];
   density: Density;
-  events: boolean;
+  /** Random special events, step 0-4 (never ... often). */
+  eventLevel: number;
   seed?: number;
   /** Training scenario from a scenario code (overrides density and events). */
   scenario?: Scenario;
@@ -70,11 +73,10 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     /** Staffed positions in their natural order; the primary one is the highest (Ground before Delivery). */
     const selectedPositions = (): StationType[] => POSITIONS.filter((p) => positions.has(p.type)).map((p) => p.type);
 
-    const eventsBox = h('input', { type: 'checkbox' });
-    eventsBox.checked = settings.events;
-    const densitySel = h('select');
-    for (const d of ['light', 'medium', 'heavy']) densitySel.append(h('option', { value: d, text: d }));
-    densitySel.value = settings.density;
+    let density: Density = settings.density;
+    let eventLevel = settings.eventLevel;
+    const densitySlider = levelSlider(DENSITIES.map((d) => d.label), densityIndex(density), (i) => (density = DENSITIES[i].value));
+    const eventsSlider = levelSlider(EVENT_LEVELS.map((e) => e.label), eventLevel, (i) => (eventLevel = i));
     const seedInput = h('input', { type: 'text', placeholder: 'random', spellcheck: 'false', autocomplete: 'off', value: initialScenario ?? '' });
     const builderBtn = h('button', { type: 'button', text: 'Scenario builder...', title: 'Choose what to train and get a scenario code' });
     const scenarioInfo = h('div.sub.scenario-info');
@@ -99,7 +101,10 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     };
     const updateScenario = () => {
       const r = readSeedField();
-      densitySel.disabled = eventsBox.disabled = !!r.scenario;
+      densitySlider.input.disabled = eventsSlider.input.disabled = !!r.scenario;
+      // A scenario code brings its own density and events: show them.
+      densitySlider.set(densityIndex(r.scenario?.density ?? density));
+      eventsSlider.set(r.scenario?.eventLevel ?? eventLevel);
       scenarioInfo.textContent = r.error
         ? r.error
         : r.scenario
@@ -137,7 +142,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       b.addEventListener('click', () => {
         const ap = airport();
         overlay.remove();
-        resolve({ airport: ap, position: t.position, positions: [t.position], density: 'light', events: false, tutorial: t.id });
+        resolve({ airport: ap, position: t.position, positions: [t.position], density: 'light', eventLevel: 0, tutorial: t.id });
       });
       return b;
     });
@@ -162,9 +167,9 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
           h('label', { text: 'Callsign' }),
           callsign,
           h('label', { text: 'Traffic' }),
-          densitySel,
+          densitySlider.el,
           h('label', { text: 'Special events' }),
-          h('label', {}, eventsBox, ' emergencies, rejected take-offs (rare)'),
+          eventsSlider.el,
           h('label', { text: 'Scenario' }),
           h('div.rangerow', {}, seedInput, builderBtn),
           h('label', { text: 'Tutorial' }),
@@ -188,8 +193,8 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
         // The primary position is the highest one staffed (Ground before Delivery).
         position: selectedPositions().at(-1)!,
         positions: selectedPositions(),
-        density: r.scenario?.density ?? (densitySel.value as Density),
-        events: r.scenario?.randomEvents ?? eventsBox.checked,
+        density: r.scenario?.density ?? density,
+        eventLevel: r.scenario?.eventLevel ?? eventLevel,
         seed: r.seed,
         scenario: r.scenario,
       });

@@ -17,7 +17,7 @@ describe.skipIf(!RUN)('soak', () => {
     const totals = { airborne: 0, parked: 0, goArounds: 0, incursions: 0, deadlocks: 0, ms: 0, runs: 0 };
     for (const runway of ['25', '07']) {
       for (let seed = 1; seed <= 10; seed++) {
-        const sim = new Simulation({ airport: EDDS, position: 'GND', runway, density: 'medium', seed, events: true, scenario: { heavies: seed % 3 === 0 } });
+        const sim = new Simulation({ airport: EDDS, position: 'GND', runway, density: 'medium', seed, events: true, scenario: { heavyLevel: seed % 3 === 0 ? 3 : 0 } });
         let deadlockCalls = 0;
         const t0 = performance.now();
         sim.on('message', (m) => {

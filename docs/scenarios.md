@@ -40,28 +40,30 @@ EDDS-25-MB0-S20-T2215.N.CE.CS-K7Q2M      (with the optional options part)
 | -------- | ----------- | --------------------------------------------------------------------------------------------- |
 | Airport  | `EDDS`      | Airport ICAO code                                                                              |
 | Runway   | `25`        | Runway in use at the start. `AUTO` = from the random wind                                      |
-| Traffic  | `HD1`       | Density (`L` light, `M` medium, `H` heavy), traffic mix (`B` balanced, `D` departure push, `A` arrival rush), flags (`0` none, `1` more heavies, `2` random special events, `3` both) |
+| Traffic  | `HD1` or `4213` | **Letter form**: density (`L` light, `M` medium, `H` heavy), traffic mix (`B` balanced, `D` departure rush, `A` arrival rush), flags (`0` none, `1` heavies 35 %, `2` random special events "rare", `3` both). **Digit form** for the other slider steps: density 1-5, mix 1-5 (1 departure rush ... 3 balanced ... 5 arrival rush), heavies 0-4, random events 0-4 (see the tables below). The letter form is used whenever it fits, so older codes stay the same |
 | Events   | `M10R20W30` | Scheduled events: a letter and the minute after the start. `M` medical emergency (arrival), `D` medical emergency (departure), `R` rejected take-off, `W` wind shift, `S` thunderstorm. `X` = none |
 | Options  | `T2215.N.CE` | *Optional* (codes without options have five parts and are still valid). Tokens separated by `.`: `T2215` start at 22:15 local airport time, `N` night flying restrictions, `C` + taxiway (`CE`, `CL2`) taxiway closed - one token per closed taxiway |
 | Seed     | `K7Q2M`     | The random seed, in base 36 (digits and letters)                                               |
 
-Codes are not case-sensitive. Type or paste one into the **Scenario** field of the Connect dialog; the dialog shows what it means (or why it is invalid). With a code, the density and special-events controls of the dialog are ignored.
+Codes are not case-sensitive. Type or paste one into the **Scenario** field of the Connect dialog; the dialog shows what it means (or why it is invalid). With a code, the density and special-events sliders of the dialog show the code's values and are locked.
 
-**Traffic mix** (movements per hour, see [simulation model](simulation.md#traffic-generation)):
+The four traffic **sliders** have five steps each (digit in the code in brackets):
 
-| Mix            | Departures      | Arrivals        |
-| -------------- | --------------- | --------------- |
-| Balanced       | as the density  | as the density  |
-| Departure push | x 1.6           | x 0.5           |
-| Arrival rush   | x 0.5           | x 1.6           |
+| Step | Density (dep / arr per hour) | Traffic mix (dep x / arr x) | Heavies | Random events (chance x) |
+| ---- | ---------------------------- | --------------------------- | ------- | ------------------------ |
+| 1st  | Light 8 / 7 (`1`, `L`)       | Departure rush 1.6 / 0.5 (`1`, `D`) | Normal: the operators' fleets (`0`) | Never 0 (`0`) |
+| 2nd  | Light to medium 11 / 10 (`2`) | More departures 1.3 / 0.75 (`2`) | 10 % wide-bodies (`1`) | Very rare 0.5 (`1`) |
+| 3rd  | Medium 14 / 12 (`3`, `M`)    | Balanced 1 / 1 (`3`, `B`)   | 20 % (`2`) | Rare 1 - the standard rates (`2`) |
+| 4th  | Medium to heavy 18 / 15 (`4`) | More arrivals 0.75 / 1.3 (`4`) | 35 % (`3`) | Occasional 2 (`3`) |
+| 5th  | Heavy 22 / 18 (`5`, `H`)     | Arrival rush 0.5 / 1.6 (`5`, `A`) | 50 % (`4`) | Often 4 (`4`) |
 
-**More heavies**: about one in three flights is a wide-body (A330, B767, B787), picked from operators that fly them. Wide-bodies cannot turn around on taxiways, need the full runway length and only fit some stands.
+**Heavies**: with a share above *normal*, that share of the new flights is a wide-body (A330, B767, B787), picked from operators that fly them. Wide-bodies cannot turn around on taxiways, need the full runway length and only fit a few stands - with a large share some wait for a stand or are not generated. **Random events** multiply the chances of the random special events (see [simulation model](simulation.md#special-events)); scheduled events happen at any step.
 
 ## The scenario builder
 
 Click **Scenario builder...** next to the Scenario field in the Connect dialog:
 
-1. Pick a **preset**, or set the runway, density, traffic mix, heavies and random events yourself.
+1. Pick a **preset**, or set the runway and the sliders for density, traffic mix, heavies and random events yourself.
 2. Under **Conditions**, set a **start time** (local airport time; empty = now), the **night flying restrictions** and **closed taxiways**. A closure that would cut stands off from a runway is shown in red and cannot be used.
 3. Add **scheduled events** with the minute when they should happen.
 4. **New seed** keeps the scenario but gives different traffic.

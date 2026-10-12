@@ -17,7 +17,7 @@ function simFor(code: string, opts: { generateTraffic?: boolean; day?: Date; pos
     airport: EDDS,
     position: opts.position ?? 'GND',
     density: sc.density,
-    events: sc.randomEvents,
+    eventLevel: sc.eventLevel,
     seed: sc.seed,
     runway: sc.runway,
     generateTraffic: opts.generateTraffic,
@@ -57,7 +57,7 @@ function lastPilotMessage(sim: Simulation, callsign: string): string {
 }
 
 describe('scenario code options', () => {
-  const base: Scenario = { airport: 'EDDS', runway: '25', density: 'medium', mix: 'balanced', heavies: false, randomEvents: true, events: [], seed: 42 };
+  const base: Scenario = { airport: 'EDDS', runway: '25', density: 'medium', mix: 'balanced', heavyLevel: 0, eventLevel: 2, events: [], seed: 42 };
 
   it('keeps codes without options at five parts', () => {
     expect(formatScenarioCode(base)).toBe('EDDS-25-MB2-X-16');

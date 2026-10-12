@@ -11,7 +11,8 @@ import {
   type Scenario,
   type ScenarioEventKind,
 } from '../core/scenario';
-import type { Density } from '../core/simulation';
+import { DEFAULT_EVENT_LEVEL, DENSITIES, EVENT_LEVELS, HEAVY_SHARES, MIXES, densityIndex, mixIndex } from '../core/levels';
+import { levelSlider } from './levelSlider';
 import { h } from './dom';
 
 /** A random seed for a new scenario (UI only - the simulation itself uses its seeded generator). */
@@ -39,26 +40,16 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
     const s: Scenario =
       parsed && !('error' in parsed) && parsed.airport === airport.icao
         ? parsed
-        : { airport: airport.icao, runway: undefined, density: 'medium', mix: 'balanced', heavies: false, randomEvents: true, events: [], seed: randomSeed() };
+        : { airport: airport.icao, runway: undefined, density: 'medium', mix: 'balanced', heavyLevel: 0, eventLevel: DEFAULT_EVENT_LEVEL, events: [], seed: randomSeed() };
 
     // ---------------------------------------------------------------- controls
     const runwaySel = h('select');
     runwaySel.append(h('option', { value: '', text: 'From the wind (random)' }));
     for (const o of airport.runwayOps) runwaySel.append(h('option', { value: o.runway, text: `Runway ${o.runway}` }));
-    const densitySel = h('select');
-    for (const [v, t] of [
-      ['light', 'Light'],
-      ['medium', 'Medium'],
-      ['heavy', 'Heavy'],
-    ]) densitySel.append(h('option', { value: v, text: t }));
-    const mixSel = h('select');
-    for (const [v, t] of [
-      ['balanced', 'Balanced'],
-      ['departures', 'Departure push (more departures)'],
-      ['arrivals', 'Arrival rush (more arrivals)'],
-    ]) mixSel.append(h('option', { value: v, text: t }));
-    const heavyBox = h('input', { type: 'checkbox' });
-    const randomBox = h('input', { type: 'checkbox' });
+    const densitySlider = levelSlider(DENSITIES.map((d) => d.label), densityIndex(s.density), (i) => ((s.density = DENSITIES[i].value), output()));
+    const mixSlider = levelSlider(MIXES.map((m) => m.label), mixIndex(s.mix), (i) => ((s.mix = MIXES[i].value), output()));
+    const heavySlider = levelSlider(HEAVY_SHARES.map((x) => x.label), s.heavyLevel, (i) => ((s.heavyLevel = i), output()));
+    const eventSlider = levelSlider(EVENT_LEVELS.map((x) => x.label), s.eventLevel, (i) => ((s.eventLevel = i), output()));
     const seedInput = h('input', { type: 'text', spellcheck: 'false', autocomplete: 'off' });
     const dice = h('button', { type: 'button', text: 'New seed', title: 'Same scenario, different traffic' });
     const startInput = h('input', { type: 'time', class: 'start' });
@@ -78,10 +69,10 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
 
     const render = () => {
       runwaySel.value = s.runway ?? '';
-      densitySel.value = s.density;
-      mixSel.value = s.mix;
-      heavyBox.checked = s.heavies;
-      randomBox.checked = s.randomEvents;
+      densitySlider.set(densityIndex(s.density));
+      mixSlider.set(mixIndex(s.mix));
+      heavySlider.set(s.heavyLevel);
+      eventSlider.set(s.eventLevel);
       seedInput.value = s.seed.toString(36).toUpperCase();
       startInput.value = s.startLocal ? `${s.startLocal.slice(0, 2)}:${s.startLocal.slice(2)}` : '';
       nightBox.checked = !!s.nightRules;
@@ -131,9 +122,6 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
     };
 
     runwaySel.addEventListener('change', () => ((s.runway = runwaySel.value || undefined), output()));
-    densitySel.addEventListener('change', () => ((s.density = densitySel.value as Density), output()));
-    mixSel.addEventListener('change', () => ((s.mix = mixSel.value as Scenario['mix']), output()));
-    heavyBox.addEventListener('change', () => ((s.heavies = heavyBox.checked), output()));
     startInput.addEventListener('change', () => {
       const v = startInput.value.replace(':', '');
       s.startLocal = /^\d{4}$/.test(v) ? v : undefined;
@@ -149,7 +137,6 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
         output();
       });
     }
-    randomBox.addEventListener('change', () => ((s.randomEvents = randomBox.checked), output()));
     seedInput.addEventListener('input', () => {
       const v = parseInt(seedInput.value.trim(), 36);
       if (Number.isFinite(v) && v >= 0 && v <= 0xffffffff) {
@@ -213,13 +200,13 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
           h('label', { text: 'Runway in use' }),
           runwaySel,
           h('label', { text: 'Density' }),
-          densitySel,
+          densitySlider.el,
           h('label', { text: 'Traffic mix' }),
-          mixSel,
-          h('label', { text: 'More heavies' }),
-          h('label', {}, heavyBox, ' about one in three flights is a wide-body'),
+          mixSlider.el,
+          h('label', { text: 'Heavies' }),
+          heavySlider.el,
           h('label', { text: 'Random events' }),
-          h('label', {}, randomBox, ' rare emergencies and rejected take-offs at random'),
+          eventSlider.el,
           h('label', { text: 'Seed' }),
           h('div.rangerow', {}, seedInput, dice),
         ),

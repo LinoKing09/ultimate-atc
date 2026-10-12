@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Sliders** with five steps: traffic density (light ... heavy, also in the settings), special events (never, very rare, rare, occasional, often - also in the settings), and in the scenario builder the traffic mix (departure rush ... balanced ... arrival rush) and the share of heavies (normal, 10, 20, 35, 50 %). Scenario codes store the in-between steps as four digits (`EDDS-25-4214-X-...`); the letter form (`MB2`) is kept whenever it fits, so older codes stay valid and unchanged.
+
 - **Tutorials** for Delivery, Ground and Tower (Connect dialog, *Tutorial*): a guided first session with a fixed traffic situation; a panel on the scope explains each step in a few words, *Show me* puts the example instruction into the command line, steps continue on their own when done; *Back* shows the previous step again, *Next* goes on, *Skip tutorial* ends it; the panel disappears when the tutorial is finished; *Live traffic* afterwards. The Delivery lesson includes a readback error to catch and a datalink clearance. Every lesson is played automatically by a test.
 
 - **Scenario conditions** in the scenario builder (*Conditions*) and the scenario code: an optional sixth part with tokens such as `T2215.N.CE.CS` (codes without it stay valid):

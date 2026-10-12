@@ -1,4 +1,4 @@
-import type { Density } from './simulation';
+import { DENSITIES, MIXES, HEAVY_SHARES, EVENT_LEVELS, clampLevel, densityIndex, mixIndex, type Density, type TrafficMix } from './levels';
 import { hhmmToMinutes } from './time';
 
 /**
@@ -18,9 +18,12 @@ import { hhmmToMinutes } from './time';
  *  |    |  |||  |                CF taxiway F closed (one C token per taxiway)
  *  |    |  |||  events: letter + minute (M medical arrival, D medical departure,
  *  |    |  |||          R rejected take-off, W wind shift, S thunderstorm), X = none
- *  |    |  ||flags: 1 = more heavies, 2 = random special events, 3 = both, 0 = none
- *  |    |  |traffic mix: B balanced, D departure push, A arrival rush
+ *  |    |  ||flags: 1 = more heavies (35 %), 2 = random special events (rare), 3 = both, 0 = none
+ *  |    |  |traffic mix: B balanced, D departure rush, A arrival rush
  *  |    |  density: L light, M medium, H heavy
+ *  |    |  ...or four digits for the five-step sliders (levels.ts): density 1-5, mix 1-5
+ *  |    |  (1 departure rush, 3 balanced, 5 arrival rush), heavies 0-4, special events 0-4,
+ *  |    |  e.g. 4213. The letter form is used whenever it can express the values.
  *  |    runway in use, AUTO = from the wind
  *  airport
  * ```
@@ -28,7 +31,7 @@ import { hhmmToMinutes } from './time';
  * Codes without options have five parts (the format before 0.9); they stay valid.
  */
 
-export type TrafficMix = 'balanced' | 'departures' | 'arrivals';
+export type { TrafficMix } from './levels';
 export type ScenarioEventKind = 'medicalArrival' | 'medicalDeparture' | 'rejectedTakeoff' | 'windShift' | 'thunderstorm';
 
 export interface ScenarioEvent {
@@ -43,11 +46,12 @@ export interface Scenario {
   runway?: string;
   density: Density;
   mix: TrafficMix;
-  /** More wide-body (heavy) aircraft. */
-  heavies: boolean;
+  /** Share of wide-bodies, step 0-4 of HEAVY_SHARES (0 = the operators' fleets). */
+  heavyLevel: number;
   /** Rare random special events in addition to the scheduled ones. */
-  randomEvents: boolean;
-  /** Scheduled events (they happen whatever `randomEvents` says). */
+  /** Random special events, step 0-4 of EVENT_LEVELS (0 = never, 2 = rare). */
+  eventLevel: number;
+  /** Scheduled events (they happen whatever `eventLevel` says). */
   events: ScenarioEvent[];
   /** Session start in local airport time, "2215"; undefined = now. */
   startLocal?: string;
@@ -61,7 +65,8 @@ export interface Scenario {
 /** The part of a scenario the simulation needs besides seed, runway, density and random events. */
 export interface ScenarioSetup {
   mix?: TrafficMix;
-  heavies?: boolean;
+  /** Step 0-4 of HEAVY_SHARES. */
+  heavyLevel?: number;
   events?: ScenarioEvent[];
   nightRules?: boolean;
   closedTaxiways?: string[];
@@ -69,11 +74,41 @@ export interface ScenarioSetup {
 
 /** The simulation setup of a scenario (the start time is passed separately as `startTime`). */
 export function scenarioSetup(s: Scenario): ScenarioSetup {
-  return { mix: s.mix, heavies: s.heavies, events: s.events, nightRules: s.nightRules, closedTaxiways: s.closedTaxiways };
+  return { mix: s.mix, heavyLevel: s.heavyLevel, events: s.events, nightRules: s.nightRules, closedTaxiways: s.closedTaxiways };
 }
 
-const DENSITY_CODE: Record<Density, string> = { light: 'L', medium: 'M', heavy: 'H' };
-const MIX_CODE: Record<TrafficMix, string> = { balanced: 'B', departures: 'D', arrivals: 'A' };
+/** The letter form of the traffic part (codes before 0.9) covers only these steps. */
+const DENSITY_CODE: Partial<Record<Density, string>> = { light: 'L', medium: 'M', heavy: 'H' };
+const MIX_CODE: Partial<Record<TrafficMix, string>> = { balanced: 'B', departures: 'D', arrivals: 'A' };
+const LEGACY_HEAVY_LEVEL = 3;
+const LEGACY_EVENT_LEVEL = 2;
+
+/** Traffic part: "MB2" when the letter form can express it, else four digits ("4213"). */
+function formatTraffic(s: Scenario): string {
+  const d = DENSITY_CODE[s.density];
+  const m = MIX_CODE[s.mix];
+  const h = clampLevel(s.heavyLevel);
+  const e = clampLevel(s.eventLevel);
+  if (d && m && (h === 0 || h === LEGACY_HEAVY_LEVEL) && (e === 0 || e === LEGACY_EVENT_LEVEL)) return `${d}${m}${(h ? 1 : 0) + (e ? 2 : 0)}`;
+  return `${densityIndex(s.density) + 1}${mixIndex(s.mix) + 1}${h}${e}`;
+}
+
+/** Parses the traffic part (letter or digit form). */
+function parseTraffic(part: string): Pick<Scenario, 'density' | 'mix' | 'heavyLevel' | 'eventLevel'> | undefined {
+  const m = /^([LMH])([BDA])([0-3])$/.exec(part);
+  if (m) {
+    const flags = Number(m[3]);
+    return {
+      density: invert(DENSITY_CODE as Record<Density, string>)[m[1]],
+      mix: invert(MIX_CODE as Record<TrafficMix, string>)[m[2]],
+      heavyLevel: flags & 1 ? LEGACY_HEAVY_LEVEL : 0,
+      eventLevel: flags & 2 ? LEGACY_EVENT_LEVEL : 0,
+    };
+  }
+  const n = /^([1-5])([1-5])([0-4])([0-4])$/.exec(part);
+  if (!n) return undefined;
+  return { density: DENSITIES[Number(n[1]) - 1].value, mix: MIXES[Number(n[2]) - 1].value, heavyLevel: Number(n[3]), eventLevel: Number(n[4]) };
+}
 const EVENT_CODE: Record<ScenarioEventKind, string> = { medicalArrival: 'M', medicalDeparture: 'D', rejectedTakeoff: 'R', windShift: 'W', thunderstorm: 'S' };
 
 /** Longest scenario time an event can be scheduled at (minutes). */
@@ -104,10 +139,9 @@ function formatOptions(s: Scenario): string {
 }
 
 export function formatScenarioCode(s: Scenario): string {
-  const flags = (s.heavies ? 1 : 0) + (s.randomEvents ? 2 : 0);
   const events = [...s.events].sort((a, b) => a.atMin - b.atMin).map((e) => `${EVENT_CODE[e.kind]}${Math.round(e.atMin)}`).join('') || 'X';
   const options = formatOptions(s);
-  return [s.airport.toUpperCase(), s.runway ?? 'AUTO', `${DENSITY_CODE[s.density]}${MIX_CODE[s.mix]}${flags}`, events, ...(options ? [options] : []), (s.seed >>> 0).toString(36).toUpperCase()].join('-');
+  return [s.airport.toUpperCase(), s.runway ?? 'AUTO', formatTraffic(s), events, ...(options ? [options] : []), (s.seed >>> 0).toString(36).toUpperCase()].join('-');
 }
 
 /** Parses the options part ("T2215.N.CF.CE"). */
@@ -135,8 +169,8 @@ export function parseScenarioCode(code: string): Scenario | { error: string } {
   if ('error' in options) return options;
   if (!/^[A-Z]{4}$/.test(airport)) return { error: `Unknown airport "${airport}"` };
   if (!/^(AUTO|\d{2}[LRC]?)$/.test(runway)) return { error: `Invalid runway "${runway}"` };
-  const m = /^([LMH])([BDA])([0-3])$/.exec(traffic);
-  if (!m) return { error: `Invalid traffic part "${traffic}" (density L/M/H, mix B/D/A, flags 0-3)` };
+  const tr = parseTraffic(traffic);
+  if (!tr) return { error: `Invalid traffic part "${traffic}" (e.g. MB2, or four digits like 3302)` };
   const evs: ScenarioEvent[] = [];
   if (events !== 'X') {
     const re = /([MDRWS])(\d{1,3})/gy;
@@ -149,14 +183,10 @@ export function parseScenarioCode(code: string): Scenario | { error: string } {
     if (pos !== events.length || !evs.length) return { error: `Invalid events "${events}" (e.g. M10R20, or X for none)` };
   }
   if (!/^[0-9A-Z]{1,7}$/.test(seed) || parseInt(seed, 36) > 0xffffffff) return { error: `Invalid seed "${seed}"` };
-  const flags = Number(m[3]);
   return {
     airport,
     runway: runway === 'AUTO' ? undefined : runway,
-    density: invert(DENSITY_CODE)[m[1]],
-    mix: invert(MIX_CODE)[m[2]],
-    heavies: (flags & 1) !== 0,
-    randomEvents: (flags & 2) !== 0,
+    ...tr,
     events: evs,
     ...options,
     seed: parseInt(seed, 36),
@@ -165,10 +195,10 @@ export function parseScenarioCode(code: string): Scenario | { error: string } {
 
 /** A short human-readable description of a scenario. */
 export function describeScenario(s: Scenario): string {
-  const mix = { balanced: 'balanced traffic', departures: 'departure push', arrivals: 'arrival rush' }[s.mix];
-  const parts = [`${s.airport} runway ${s.runway ?? 'from the wind'}`, `${s.density} density`, mix];
-  if (s.heavies) parts.push('more heavies');
-  parts.push(s.randomEvents ? 'random events on' : 'random events off');
+  const mix = MIXES[mixIndex(s.mix)].label.toLowerCase();
+  const parts = [`${s.airport} runway ${s.runway ?? 'from the wind'}`, `${DENSITIES[densityIndex(s.density)].label.toLowerCase()} traffic`, s.mix === 'balanced' ? 'balanced mix' : mix];
+  if (s.heavyLevel > 0) parts.push(HEAVY_SHARES[clampLevel(s.heavyLevel)].label);
+  parts.push(`random events: ${EVENT_LEVELS[clampLevel(s.eventLevel)].label.toLowerCase()}`);
   if (s.startLocal) parts.push(`start ${s.startLocal} local`);
   if (s.nightRules) parts.push('night flying restrictions');
   if (s.closedTaxiways?.length) parts.push(`taxiway${s.closedTaxiways.length > 1 ? 's' : ''} ${s.closedTaxiways.join(', ')} closed`);
@@ -181,22 +211,22 @@ export const SCENARIO_PRESETS: { name: string; description: string; scenario: Om
   {
     name: 'First steps',
     description: 'Light, balanced traffic without surprises.',
-    scenario: { runway: undefined, density: 'light', mix: 'balanced', heavies: false, randomEvents: false, events: [] },
+    scenario: { runway: undefined, density: 'light', mix: 'balanced', heavyLevel: 0, eventLevel: 0, events: [] },
   },
   {
     name: 'Departure push',
     description: 'Many departures calling for pushback and taxi at once: sequencing, queue numbers, conditional clearances.',
-    scenario: { runway: undefined, density: 'heavy', mix: 'departures', heavies: false, randomEvents: false, events: [] },
+    scenario: { runway: undefined, density: 'heavy', mix: 'departures', heavyLevel: 0, eventLevel: 0, events: [] },
   },
   {
     name: 'Arrival rush',
     description: 'A stream of landing aircraft: quick taxi-in instructions, keeping the exits and vacate points free.',
-    scenario: { runway: undefined, density: 'heavy', mix: 'arrivals', heavies: false, randomEvents: false, events: [] },
+    scenario: { runway: undefined, density: 'heavy', mix: 'arrivals', heavyLevel: 0, eventLevel: 0, events: [] },
   },
   {
     name: 'Heavy metal',
     description: 'More wide-bodies: no turning around, full-length departures, stand sizes.',
-    scenario: { runway: undefined, density: 'medium', mix: 'balanced', heavies: true, randomEvents: false, events: [] },
+    scenario: { runway: undefined, density: 'medium', mix: 'balanced', heavyLevel: 3, eventLevel: 0, events: [] },
   },
   {
     name: 'Emergencies',
@@ -205,8 +235,8 @@ export const SCENARIO_PRESETS: { name: string; description: string; scenario: Om
       runway: undefined,
       density: 'medium',
       mix: 'balanced',
-      heavies: false,
-      randomEvents: false,
+      heavyLevel: 0,
+      eventLevel: 0,
       events: [
         { kind: 'medicalArrival', atMin: 6 },
         { kind: 'rejectedTakeoff', atMin: 15 },
@@ -217,22 +247,22 @@ export const SCENARIO_PRESETS: { name: string; description: string; scenario: Om
   {
     name: 'Runway change',
     description: 'The wind turns after 15 minutes: update the ATIS and change the runway with traffic on the move.',
-    scenario: { runway: '25', density: 'medium', mix: 'balanced', heavies: false, randomEvents: false, events: [{ kind: 'windShift', atMin: 15 }] },
+    scenario: { runway: '25', density: 'medium', mix: 'balanced', heavyLevel: 0, eventLevel: 0, events: [{ kind: 'windShift', atMin: 15 }] },
   },
   {
     name: 'Night shift',
     description: 'The evening wave before the curfew: jets must be airborne by 2300 local, landings end at 2330 (delayed ones until 2400).',
-    scenario: { runway: undefined, density: 'medium', mix: 'balanced', heavies: false, randomEvents: false, events: [], startLocal: '2215', nightRules: true },
+    scenario: { runway: undefined, density: 'medium', mix: 'balanced', heavyLevel: 0, eventLevel: 0, events: [], startLocal: '2215', nightRules: true },
   },
   {
     name: 'Construction works',
     description: 'Taxiways S and E are closed for resurfacing: plan routes around them; crews refuse routes over a closed taxiway.',
-    scenario: { runway: '25', density: 'medium', mix: 'balanced', heavies: false, randomEvents: false, events: [], closedTaxiways: ['E', 'S'] },
+    scenario: { runway: '25', density: 'medium', mix: 'balanced', heavyLevel: 0, eventLevel: 0, events: [], closedTaxiways: ['E', 'S'] },
   },
   {
     name: 'Thunderstorm',
     description: 'A thunderstorm crosses the airport: gusts, a tailwind shift, windshear go-arounds and a departure stop while it is overhead.',
-    scenario: { runway: undefined, density: 'medium', mix: 'balanced', heavies: false, randomEvents: false, events: [{ kind: 'thunderstorm', atMin: 12 }] },
+    scenario: { runway: undefined, density: 'medium', mix: 'balanced', heavyLevel: 0, eventLevel: 0, events: [{ kind: 'thunderstorm', atMin: 12 }] },
   },
   {
     name: 'Full shift',
@@ -241,8 +271,8 @@ export const SCENARIO_PRESETS: { name: string; description: string; scenario: Om
       runway: undefined,
       density: 'heavy',
       mix: 'balanced',
-      heavies: true,
-      randomEvents: true,
+      heavyLevel: 3,
+      eventLevel: 2,
       events: [
         { kind: 'medicalArrival', atMin: 12 },
         { kind: 'windShift', atMin: 35 },

@@ -17,6 +17,7 @@ ultimate-atc/
 │   │   ├── path.ts            # smoothed polylines that aircraft move along
 │   │   ├── random.ts          # seeded PRNG
 │   │   ├── scenario.ts        # scenario codes (format/parse), presets
+│   │   ├── levels.ts          # five-step sliders: density, traffic mix, heavies, special events
 │   │   ├── night.ts           # night flying restrictions (curfew planning, jets that miss it)
 │   │   ├── weather.ts         # wind type and formatting, thunderstorm event
 │   │   ├── time.ts            # local airport time (Intl, no DOM)
@@ -62,6 +63,7 @@ ultimate-atc/
 │       ├── briefing.ts        # airport briefing (data facts + the airport's briefing sections)
 │       ├── scenarioBuilder.ts # scenario builder dialog (presets, events, code and link)
 │       ├── tutorialPanel.ts   # tutorial step panel on the scope
+│       ├── levelSlider.ts     # slider over named steps (dialogs)
 │       ├── labels.ts          # status codes for tags and lists
 │       ├── voice.ts           # text-to-speech and speech recognition
 │       ├── settings.ts        # localStorage-backed preferences

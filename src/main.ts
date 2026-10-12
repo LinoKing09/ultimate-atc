@@ -27,7 +27,7 @@ async function start(): Promise<void> {
   settings.positions = login.positions;
   if (!login.scenario) {
     settings.density = login.density;
-    settings.events = login.events;
+    settings.eventLevel = login.eventLevel;
   }
   saveSettings(settings);
 
@@ -36,7 +36,7 @@ async function start(): Promise<void> {
     position: login.position,
     positions: login.positions,
     density: login.density,
-    events: login.events,
+    eventLevel: login.eventLevel,
     seed: login.seed,
     runway: login.scenario?.runway,
     // A scenario start time is local airport time, today.

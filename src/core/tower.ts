@@ -25,6 +25,8 @@ const REJECT_DECEL = 3.0; // m/s^2 rejected take-off
 const TOUCHDOWN_DISTANCE = 350; // metres past the threshold
 const LINEUP_DISTANCE = 50; // metres along the runway from the entry point
 const TAKEOFF_ACCEL = 2.0; // m/s^2
+/** Chance of a random rejected take-off at the standard ("rare") event level. */
+const REJECTED_TAKEOFF_CHANCE = 0.015;
 const LINEUP_SPEED = 9 * KT_TO_MS;
 /** A landing aircraft may cross the threshold when a preceding departure is airborne and this far down the runway (RRSM). */
 const RRSM_DISTANCE = 2400;
@@ -622,7 +624,7 @@ export class TowerAI {
     // Special event: rejected take-off.
     const forced = sim.forceRejectedTakeoff && !ac.rejectedTakeoff;
     if (forced) sim.forceRejectedTakeoff = false;
-    if (forced || (sim.config.events !== false && !ac.rejectedTakeoff && sim.rng.chance(0.015))) {
+    if (forced || (sim.eventFactor > 0 && !ac.rejectedTakeoff && sim.rng.chance(REJECTED_TAKEOFF_CHANCE * sim.eventFactor))) {
       ac.rejectAtSpeed = sim.rng.range(60, Math.min(110, ac.type.vrKt - 15)) * KT_TO_MS;
     }
   }

@@ -446,7 +446,7 @@ describe('stand allocation', () => {
 
   it('never parks aircraft with overlapping wings', () => {
     for (const seed of [1, 2, 3, 4]) {
-      const sim = new Simulation({ airport: EDDS, position: 'GND', density: 'heavy', seed, scenario: { heavies: true } });
+      const sim = new Simulation({ airport: EDDS, position: 'GND', density: 'heavy', seed, scenario: { heavyLevel: 3 } });
       for (let t = 0; t < 900; t++) {
         sim.tick(1);
         const parked = sim.aircraft.filter((a) => (a.phase === 'parked' || a.phase === 'arrived') && a.stand);

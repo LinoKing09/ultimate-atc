@@ -64,6 +64,30 @@ describe('tutorials', () => {
     expect(sim.stats.readbackErrorsMissed).toBe(0);
   }, 60000);
 
+  it('Back shows an earlier step without starting it again; Next returns to the current one', () => {
+    const t = TUTORIALS.find((x) => x.id === 'ground')!;
+    const sim = new Simulation(tutorialConfig(t, EDDS));
+    const runner = new TutorialRunner(t, sim);
+    runner.update();
+    runner.next(); // welcome -> "A departure calls"
+    runner.update(); // spawns DLH5AB
+    runner.update('DLH5AB'); // selected: done -> "Pushback"
+    expect(runner.index).toBe(2);
+    runner.update(); // enters "Pushback"
+    runner.back();
+    expect(runner.reviewing).toBe(true);
+    // An earlier step whose task is done does not jump forward by itself, and spawns nothing.
+    for (let i = 0; i < 5; i++) expect(runner.update('DLH5AB')).toBe(false);
+    expect(runner.index).toBe(1);
+    expect(sim.aircraft.filter((a) => a.callsign === 'DLH5AB').length).toBe(1);
+    runner.next();
+    expect(runner.index).toBe(2);
+    expect(runner.reviewing).toBe(false);
+    runner.skipAll();
+    expect(runner.finished).toBe(true);
+    expect(runner.update()).toBe(false);
+  });
+
   it('live traffic after the tutorial', () => {
     const t = TUTORIALS[1];
     const sim = new Simulation(tutorialConfig(t, EDDS));

@@ -973,6 +973,9 @@ button.mic {
   gap: 8px;
   flex-wrap: wrap;
 }
+.tutorial .tactions button:last-child {
+  margin-left: auto;
+}
 .tutorial.flash {
   animation: tutorial-flash 1s ease-out;
 }

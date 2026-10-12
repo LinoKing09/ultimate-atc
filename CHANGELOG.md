@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
-- **Tutorials** for Delivery, Ground and Tower (Connect dialog, *Tutorial*): a guided first session with a fixed traffic situation; a panel on the scope explains each step, *Show me* puts the example instruction into the command line, steps continue on their own when done; *Live traffic* afterwards. The Delivery lesson includes a readback error to catch and a datalink clearance. Every lesson is played automatically by a test.
+- **Tutorials** for Delivery, Ground and Tower (Connect dialog, *Tutorial*): a guided first session with a fixed traffic situation; a panel on the scope explains each step, *Show me* puts the example instruction into the command line, steps continue on their own when done; *Back* shows the previous step again, *Next* goes on, *Skip tutorial* ends it; the panel disappears when the tutorial is finished; *Live traffic* afterwards. The Delivery lesson includes a readback error to catch and a datalink clearance. Every lesson is played automatically by a test.
 
 - **Scenario conditions** in the scenario builder (*Conditions*) and the scenario code: an optional sixth part with tokens such as `T2215.N.CE.CS` (codes without it stay valid):
   - **Start time** in local airport time (`T2215`; Stuttgart: Europe/Berlin).

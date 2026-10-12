@@ -61,6 +61,8 @@ export function tutorialConfig(t: Tutorial, airport: AirportData): SimConfig {
 /** Runs a tutorial against a simulation: starts the steps and checks when they are done. */
 export class TutorialRunner {
   index = 0;
+  /** The furthest step reached. Steps before it are only shown again (Back): no traffic, no automatic advance. */
+  furthest = 0;
   private entered = false;
 
   constructor(
@@ -92,7 +94,7 @@ export class TutorialRunner {
   /** Starts the current step, or moves on when it is done. Returns true if the step changed. */
   update(selected?: string): boolean {
     const s = this.step;
-    if (!s) return false;
+    if (!s || this.reviewing) return false;
     if (!this.entered) {
       this.entered = true;
       s.enter?.(this.sim);
@@ -105,11 +107,29 @@ export class TutorialRunner {
     return false;
   }
 
-  /** Next step (the "Next" / "Skip" button). */
+  /** True while an earlier step is shown again (after Back). */
+  get reviewing(): boolean {
+    return this.index < this.furthest;
+  }
+
+  /** Next step (the "Next" button; on a step with a task it skips the task). */
   next(): void {
     if (this.finished) return;
+    if (this.index === this.furthest) {
+      this.furthest++;
+      this.entered = false;
+    }
     this.index++;
-    this.entered = false;
+  }
+
+  /** The previous step again (the "Back" button). */
+  back(): void {
+    if (this.index > 0) this.index--;
+  }
+
+  /** Ends the tutorial at once ("Skip tutorial"). */
+  skipAll(): void {
+    this.index = this.furthest = this.tutorial.steps.length;
   }
 
   /** After the last step: normal random traffic from now on. */

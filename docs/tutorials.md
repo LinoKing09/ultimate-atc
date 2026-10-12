@@ -16,8 +16,11 @@ A tutorial is a guided first session for one position: a fixed, calm traffic sit
 - The session is always the same: EDDS, **runway 25**, wind **250/08**, no random traffic, no special events, no random readback errors. The positions you don't staff are run by the simulator, as in a normal session.
 - The **tutorial panel** (bottom left of the scope; in mobile mode above the quick-action bar) shows the current step: what to do and why, and the **example instruction**.
   - **Show me** selects the aircraft of the step, centres the scope on it and puts the example into the command line. Send it with **Enter** or **SEND** - or use the aircraft menu or the quick-action bar instead.
-  - **Next** continues after an explanation; steps with a task continue on their own as soon as it is done (for example when the pushback has started). **Skip** jumps over a step.
+  - Steps with a task continue on their own as soon as it is done (for example when the pushback has started). **Next** continues after an explanation, or skips the task of the current step.
+  - **Back** shows the previous step again (marked *review* in the title bar). A step you go back to is only shown: its traffic is not started again and it does not continue by itself - **Next** brings you forward again, up to the step you were working on.
+  - **Skip tutorial** ends the tutorial at once and starts live traffic (see below).
   - Tap the panel's title bar to fold it away and see the whole airport.
+  - When the tutorial is finished or skipped, the panel disappears.
 - Waiting for an aircraft? **2x** / **4x** in the toolbar speed the simulation up.
 - Score, debriefing (DISCONNECT) and all menus work as usual.
 
@@ -71,7 +74,7 @@ Position: Stuttgart Tower 118.805 (Delivery and Ground by the simulator). About 
 
 ## After the tutorial
 
-The last step offers **Live traffic**: from then on new departures and arrivals are generated as in a normal session (light density), so you can practise right away. Or end with **DISCONNECT** for the debriefing. Next: a [scenario](scenarios.md) such as *First steps*.
+The last step offers **Live traffic**: from then on new departures and arrivals are generated as in a normal session (light density), so you can practise right away; **Close** ends the tutorial without new traffic. Either way the panel disappears. End the session with **DISCONNECT** for the debriefing. Next: a [scenario](scenarios.md) such as *First steps*.
 
 ## For developers
 

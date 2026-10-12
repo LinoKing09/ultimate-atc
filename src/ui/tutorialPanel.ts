@@ -5,14 +5,15 @@ import { h } from './dom';
 export interface TutorialPanelCallbacks {
   /** "Show me": select the aircraft and put the example into the command line. */
   showExample(text: string | undefined, focus: string | undefined): void;
-  /** After the last step: random traffic from now on. */
+  /** After the last step (or when the tutorial is skipped): random traffic from now on. */
   liveTraffic(): void;
 }
 
 /**
  * The tutorial panel on the scope: the current step with its explanation,
- * "Show me" (example instruction into the command line), Next / Skip.
- * Collapsible, so it does not hide the airport on the iPad.
+ * Back / "Show me" (example instruction into the command line) / Next, and
+ * "Skip tutorial". Collapsible, so it does not hide the airport on the iPad;
+ * it disappears when the tutorial is finished or skipped.
  */
 export class TutorialPanel {
   readonly el: HTMLElement;
@@ -38,6 +39,7 @@ export class TutorialPanel {
 
   /** Advances the tutorial and redraws the panel when the step changed. */
   update(selected: string | undefined): void {
+    if (!this.el.isConnected) return;
     if (this.runner.update(selected) || this.shown !== this.runner.index) this.render();
     else if (this.exampleEl) {
       const text = this.runner.step?.example?.(this.runner.sim) ?? '';
@@ -52,13 +54,14 @@ export class TutorialPanel {
     const total = t.steps.length;
     this.head.replaceChildren(
       h('span', { text: `TUTORIAL ${t.title.toUpperCase()}` }),
-      h('span.tprog', { text: r.finished ? 'done' : `${r.index + 1}/${total}` }),
+      h('span.tprog', { text: `${Math.min(r.index + 1, total)}/${total}${r.reviewing ? ' (review)' : ''}` }),
       h('span.tfold', { text: this.collapsed ? '+' : '−', title: 'Show / hide' }),
     );
     const step = r.step;
     this.exampleEl = undefined;
+    // Finished (or skipped): the panel disappears.
     if (!step) {
-      this.body.replaceChildren(h('p', { text: 'Tutorial finished.' }));
+      this.el.remove();
       return;
     }
     const buttons: HTMLElement[] = [];
@@ -69,21 +72,27 @@ export class TutorialPanel {
         fn();
       });
       buttons.push(b);
+      return b;
     };
+    const back = btn('Back', () => (r.back(), this.render()));
+    back.disabled = r.index === 0;
     const example = step.example?.(r.sim);
     if (step.example) btn('Show me', () => this.cb.showExample(step.example?.(r.sim), step.focus), true);
     else if (step.focus) btn(`Select ${step.focus}`, () => this.cb.showExample(undefined, step.focus));
     const last = r.index === total - 1;
-    if (!step.done) {
-      if (last) {
-        btn('Live traffic', () => {
-          this.cb.liveTraffic();
-          r.next();
-          this.render();
-        }, true);
-        btn('Close', () => this.el.remove());
-      } else btn('Next', () => (r.next(), this.render()), true);
-    } else btn('Skip', () => (r.next(), this.render()));
+    if (last) {
+      btn('Live traffic', () => {
+        this.cb.liveTraffic();
+        this.finish();
+      }, true);
+      btn('Close', () => this.finish());
+    } else {
+      btn('Next', () => (r.next(), this.render()), !step.done || r.reviewing);
+      btn('Skip tutorial', () => {
+        this.cb.liveTraffic();
+        this.finish();
+      });
+    }
     const parts: HTMLElement[] = [h('div.tstep', { text: step.title }), h('p', {}, ...rich(r.text()))];
     if (step.example) parts.push(h('div.texample', {}, (this.exampleEl = h('code', { text: example ?? '' }))));
     parts.push(h('div.tactions', {}, ...buttons));
@@ -93,5 +102,11 @@ export class TutorialPanel {
     this.el.classList.remove('collapsed', 'flash');
     void this.el.offsetWidth;
     this.el.classList.add('flash');
+  }
+
+  /** Ends the tutorial and removes the panel. */
+  private finish(): void {
+    this.runner.skipAll();
+    this.el.remove();
   }
 }

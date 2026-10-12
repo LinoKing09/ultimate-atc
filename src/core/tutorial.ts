@@ -166,9 +166,9 @@ function clearance(sim: Simulation, a: Aircraft): string {
 
 const wind = (sim: Simulation) => `wind ${windWords(sim.observedWind)}`;
 
-const SELECT_HINT = 'Select it: click (on the iPad: tap) the aircraft on the scope or its row in the list.';
-const FASTER = 'Waiting? 2x or 4x in the toolbar speeds the simulation up.';
-const MENU_HINT = 'Instead of typing you can use the aircraft menu (right-click; on the iPad tap the selected aircraft again) or the quick-action bar in mobile mode.';
+const SELECT_HINT = 'Select it: tap it on the scope or in the list.';
+const FASTER = 'Tip: 2x / 4x speeds things up.';
+const MENU_HINT = 'Or use the aircraft menu / quick-action bar.';
 
 // ---------------------------------------------------------------------- Ground
 
@@ -181,19 +181,18 @@ const GROUND: Tutorial = {
     {
       title: 'Welcome to Stuttgart Ground',
       text:
-        'You are Stuttgart Ground (118.605): you own the aprons and taxiways, Tower owns the runway. Departures call you for pushback and taxi; you send them to a holding point and hand them to Tower. Arrivals call you after they have vacated the runway; you taxi them to their stand. ' +
-        'Runway 25 is in use. The scope shows the airport like the aerodrome chart, the lists on top show your departures and arrivals. Press Next when you are ready.',
+        'You are Stuttgart Ground (118.605): aprons and taxiways are yours, the runway is Tower\'s. Departures: pushback, taxi, hand-off to Tower. Arrivals: taxi to the stand. Runway 25 is in use.',
     },
     {
       title: 'A departure calls',
-      text: `Lufthansa 5AB (DLH5AB) on stand 14 will call you for pushback in a moment - its row in the departure list starts to flash. ${SELECT_HINT} A selected aircraft does not need its callsign typed in front of an instruction.`,
+      text: `DLH5AB on stand 14 will call you for pushback. ${SELECT_HINT}`,
       focus: 'DLH5AB',
       enter: (sim) => departure(sim, 'DLH5AB', '14', 20),
       done: ({ sim, selected }) => selected === 'DLH5AB' && !!ac(sim, 'DLH5AB'),
     },
     {
       title: 'Pushback',
-      text: `Wait for the call ("request pushback"), then approve it. The tug pushes the aircraft back onto taxilane M; "facing east" says where the nose points afterwards (towards runway 25's full-length entry A). ${MENU_HINT}`,
+      text: `When it calls, approve the pushback. "Facing east" = nose towards runway 25 afterwards. ${MENU_HINT}`,
       focus: 'DLH5AB',
       example: () => 'DLH5AB pushback approved, facing east',
       // The arrival of the later step is already on its way.
@@ -203,8 +202,7 @@ const GROUND: Tutorial = {
     {
       title: 'Taxi to the holding point',
       text:
-        'After the pushback the crew starts the engines and reports "ready for taxi". Give it a route: the clearance limit (holding point A, the full length of runway 25) and the taxiways in order - M along the apron, H down to N, then N eastbound (the standard flow for departures). ' +
-        'The live preview in the command line shows the route in green before you send it; red means the crew would not understand it.',
+        'At "ready for taxi": holding point A (full length) and the taxiways in order. Departures use N eastbound. The preview shows the route in green before you send it.',
       focus: 'DLH5AB',
       example: () => 'DLH5AB taxi to holding point A via M, H, N',
       done: ({ sim }) => {
@@ -214,7 +212,7 @@ const GROUND: Tutorial = {
     },
     {
       title: 'An arrival is landing',
-      text: `While DLH5AB taxis, Eurowings 7TK (EWG7TK) lands on runway 25. Tower hands it to you once it has vacated: it stops behind the holding position of its exit and calls you. Watch it on final (the extended centreline east of the runway) and wait for the call. ${FASTER}`,
+      text: `EWG7TK is landing. After vacating, Tower hands it to you and it calls. ${FASTER}`,
       focus: 'EWG7TK',
       enter: (sim) => arrival(sim, 'EWG7TK', 5),
       done: ({ sim }) => ac(sim, 'EWG7TK')?.request === 'taxiIn',
@@ -222,7 +220,7 @@ const GROUND: Tutorial = {
     {
       title: 'Taxi in',
       text: (sim) =>
-        `EWG7TK has vacated and asks for taxi. Its stand is ${ac(sim, 'EWG7TK')?.assignedStand ?? 'shown in the arrival list (STD)'}. Without "via" the crew takes the standard route itself - S westbound for arrivals, so it never meets the departures on N. Give a route with "via" when you want a different one.`,
+        `Taxi it to stand ${ac(sim, 'EWG7TK')?.assignedStand ?? '(see STD in the list)'}. Without "via" the crew takes the standard route (S westbound).`,
       focus: 'EWG7TK',
       example: (sim) => `EWG7TK taxi to stand ${ac(sim, 'EWG7TK')?.assignedStand ?? ''}`.trim(),
       done: ({ sim }) => {
@@ -232,7 +230,7 @@ const GROUND: Tutorial = {
     },
     {
       title: 'Hand-off to Tower',
-      text: 'DLH5AB reports at (or shortly before) holding point A. The runway is Tower\'s: hand the aircraft over with the Tower frequency. Tower lines it up and clears it for take-off.',
+      text: 'DLH5AB reports at holding point A: hand it to Tower.',
       focus: 'DLH5AB',
       example: (sim) => `DLH5AB contact tower ${freq(sim, 'TWR')}`,
       done: ({ sim }) => {
@@ -243,8 +241,7 @@ const GROUND: Tutorial = {
     {
       title: 'Well done',
       text:
-        'That is the core of the Ground job. More tools for busy traffic (all in the help, F1): `hold short of taxiway N`, `give way to EWG7TK`, conditional clearances (`behind the A320 passing left to right, ...`), `standby` and `number 2 for pushback`, the follow-me car, and the CATC alert for head-on routes. ' +
-        'Continue with live traffic to practise, or end with DISCONNECT for the debriefing.',
+        'More in the help (F1): `hold short of taxiway N`, `give way to EWG7TK`, `standby`, `number 2 for pushback`. Practise with live traffic, or end with DISCONNECT.',
     },
   ],
 };
@@ -260,12 +257,11 @@ const DELIVERY: Tutorial = {
     {
       title: 'Welcome to Stuttgart Delivery',
       text:
-        'You are Stuttgart Delivery (121.915). Departures call you about 10 minutes before off-block for their IFR clearance: destination (clearance limit), departure route (SID), initial climb and squawk. Then they ask for start-up and you send them to Ground for pushback. ' +
-        'Ground and Tower are run by the simulator. Press Next when you are ready.',
+        'You are Stuttgart Delivery (121.915). Departures get their IFR clearance and start-up from you, then you send them to Ground.',
     },
     {
       title: 'A clearance request',
-      text: `Lufthansa 5AB (DLH5AB) on stand 14 asks for its clearance in a moment. ${SELECT_HINT} The departure list shows its destination (ADES) and the SID of its flight plan.`,
+      text: `DLH5AB on stand 14 will ask for its clearance. ${SELECT_HINT}`,
       focus: 'DLH5AB',
       enter: (sim) => departure(sim, 'DLH5AB', '14', 60),
       done: ({ sim, selected }) => selected === 'DLH5AB' && !!ac(sim, 'DLH5AB'),
@@ -274,7 +270,7 @@ const DELIVERY: Tutorial = {
       title: 'IFR clearance',
       text: (sim) => {
         const a = ac(sim, 'DLH5AB');
-        return `Clear it in the German form: clearance limit, SID for runway 25 that starts at the first fix of its route (${a ? suggestedSid(sim, a) : 'see the list'}), flight planned route, the initial climb (${initialClimbFt(sim)} feet) and a free squawk. ${MENU_HINT} (Menu: IFR clearance - it fills in everything.)`;
+        return `Destination, SID (${a ? suggestedSid(sim, a) : 'see the list'}), initial climb and a free squawk. ${MENU_HINT}`;
       },
       focus: 'DLH5AB',
       example: (sim) => {
@@ -285,7 +281,7 @@ const DELIVERY: Tutorial = {
     },
     {
       title: 'Check the readback',
-      text: 'The crew reads the clearance back. Always check the squawk: if it is right, `readback correct` (optional, but good practice). Then the crew reports ready for start-up.',
+      text: 'Check the squawk in the readback. If it is right: `readback correct`.',
       focus: 'DLH5AB',
       example: () => 'DLH5AB readback correct',
       done: ({ sim }) => {
@@ -295,14 +291,14 @@ const DELIVERY: Tutorial = {
     },
     {
       title: 'Start-up',
-      text: 'With A-CDM (on at Stuttgart) the crew asks for start-up at its TSAT (target start-up approval time, column TSAT). Approve it.',
+      text: 'The crew asks for start-up at its TSAT. Approve it.',
       focus: 'DLH5AB',
       example: () => 'DLH5AB start-up approved',
       done: ({ sim }) => !!ac(sim, 'DLH5AB')?.startupApproved,
     },
     {
       title: 'Hand-off to Ground',
-      text: 'The crew asks for the frequency for pushback. Send it to Ground - Ground (the simulator) does the pushback and taxi.',
+      text: 'The crew asks for the frequency: send it to Ground.',
       focus: 'DLH5AB',
       example: (sim) => `DLH5AB contact ground ${freq(sim, 'GND')}`,
       done: ({ sim }) => {
@@ -312,7 +308,7 @@ const DELIVERY: Tutorial = {
     },
     {
       title: 'Catch a readback error',
-      text: 'Eurowings 7TK (EWG7TK) on stand 12 asks for its clearance. Clear it like DLH5AB - and listen carefully to the readback this time.',
+      text: 'EWG7TK on stand 12: clear it the same way - and listen closely to the readback.',
       focus: 'EWG7TK',
       enter: (sim) => {
         departure(sim, 'EWG7TK', '12', 60);
@@ -327,7 +323,7 @@ const DELIVERY: Tutorial = {
     {
       title: 'Correct it',
       text: (sim) =>
-        `The crew read back the wrong squawk (two digits swapped) - a classic. Correct it with "negative" and the right code (${ac(sim, 'EWG7TK')?.clearance?.squawk ?? ''}). "Readback correct" would let it set the wrong code. (Menu: Squawk - Negative, squawk ...)`,
+        `Wrong squawk read back! Correct it with the right code (${ac(sim, 'EWG7TK')?.clearance?.squawk ?? ''}).`,
       focus: 'EWG7TK',
       example: (sim) => `EWG7TK negative, squawk ${ac(sim, 'EWG7TK')?.clearance?.squawk ?? ''}`,
       done: ({ sim }) => {
@@ -337,7 +333,7 @@ const DELIVERY: Tutorial = {
     },
     {
       title: 'Start-up and Ground',
-      text: 'Now finish EWG7TK as before: approve the start-up when it asks, then send it to Ground.',
+      text: 'Finish EWG7TK as before: start-up, then Ground.',
       focus: 'EWG7TK',
       example: (sim) => {
         const a = ac(sim, 'EWG7TK');
@@ -351,7 +347,7 @@ const DELIVERY: Tutorial = {
     },
     {
       title: 'Datalink clearance (DCL)',
-      text: 'Condor 53 (CFG53) on stand 25 requests its clearance by datalink: no radio call, the request shows in the departure list (DCL). Open its aircraft menu and choose Send DCL (datalink), then the SID - the crew confirms with WILCO, there is no readback to check.',
+      text: 'CFG53 asks by datalink (DCL in the list, no radio call). Aircraft menu: Send DCL, then the SID. No readback.',
       focus: 'CFG53',
       enter: (sim) => departure(sim, 'CFG53', '25', 60, { dcl: true }),
       done: ({ sim }) => !!ac(sim, 'CFG53')?.cleared,
@@ -359,8 +355,7 @@ const DELIVERY: Tutorial = {
     {
       title: 'Well done',
       text:
-        'CFG53 calls for start-up by voice like the others - approve it and send it to Ground. Also good to know: some flights have a CTOT (ATFM slot); add it to the clearance (`..., CTOT 1435`) - they must be airborne within -5 / +10 minutes. ' +
-        'Continue with live traffic to practise, or end with DISCONNECT for the debriefing.',
+        'Flights with a CTOT (slot) get it in the clearance: `..., CTOT 1435`. Practise with live traffic, or end with DISCONNECT.',
     },
   ],
 };
@@ -376,12 +371,11 @@ const TOWER: Tutorial = {
     {
       title: 'Welcome to Stuttgart Tower',
       text:
-        'You are Stuttgart Tower (118.805): you own the runway. Arrivals come from Approach on final; you clear them to land and send them to Ground after vacating. Departures come from Ground at the holding point; you line them up, clear them for take-off and send them to Radar. ' +
-        'Nobody enters the runway without your clearance. Delivery and Ground are run by the simulator. Press Next when you are ready.',
+        'You are Stuttgart Tower (118.805): the runway is yours. Arrivals: landing clearance, then Ground. Departures: line-up, take-off, then Radar.',
     },
     {
       title: 'An arrival on final',
-      text: `Eurowings 7TK (EWG7TK) is on final for runway 25 and calls you. ${SELECT_HINT} Airborne aircraft show altitude (hundreds of feet) and speed in the tag.`,
+      text: `EWG7TK is on final and calls you. ${SELECT_HINT}`,
       focus: 'EWG7TK',
       enter: (sim) => {
         arrival(sim, 'EWG7TK', 7);
@@ -392,7 +386,7 @@ const TOWER: Tutorial = {
     },
     {
       title: 'Landing clearance',
-      text: 'The runway is free: clear it to land, with the wind (information only). Without a landing clearance the crew asks again at one mile and goes around just before the threshold.',
+      text: 'The runway is free: clear it to land. Without a clearance it goes around.',
       focus: 'EWG7TK',
       example: (sim) => `EWG7TK ${wind(sim)}, runway 25, cleared to land`,
       done: ({ sim }) => {
@@ -402,7 +396,7 @@ const TOWER: Tutorial = {
     },
     {
       title: 'Vacated: to Ground',
-      text: 'After landing the crew vacates via one of the exits and reports "runway vacated". Send it to Ground, who taxis it to the stand.',
+      text: 'When it reports "runway vacated": send it to Ground.',
       focus: 'EWG7TK',
       example: (sim) => `EWG7TK contact ground ${freq(sim, 'GND')}`,
       done: ({ sim }) => {
@@ -412,7 +406,7 @@ const TOWER: Tutorial = {
     },
     {
       title: 'Line up',
-      text: `Lufthansa 5AB (DLH5AB) taxis to holding point A and reports ready for departure (Ground hands it to you on the way). Nobody is on final: line it up. "Line up and wait" is not a take-off clearance - the aircraft stops on the runway. ${FASTER}`,
+      text: `DLH5AB reports ready for departure: line it up (no take-off clearance yet). ${FASTER}`,
       focus: 'DLH5AB',
       example: () => 'DLH5AB line up and wait runway 25',
       done: ({ sim }) => {
@@ -422,7 +416,7 @@ const TOWER: Tutorial = {
     },
     {
       title: 'Take-off',
-      text: 'Clear it for take-off and watch it roll. Between two departures keep the spacing: 2 minutes behind a heavy or on the same SID, 1 minute on diverging SIDs (the take-off menu counts it down).',
+      text: 'Clear it for take-off. Later: keep 1-2 minutes between departures.',
       focus: 'DLH5AB',
       example: (sim) => `DLH5AB ${wind(sim)}, runway 25, cleared for take-off`,
       // The next step starts once it is airborne.
@@ -433,7 +427,7 @@ const TOWER: Tutorial = {
     },
     {
       title: 'Hand-off to Radar',
-      text: 'Once airborne, send it to Langen Radar. Do it early: at 4000 ft it leaves your airspace, and without a frequency change that costs points.',
+      text: 'Airborne: send it to Radar before 4000 ft.',
       focus: 'DLH5AB',
       example: (sim) => `DLH5AB contact radar ${freq(sim, 'APP')}`,
       done: ({ sim }) => {
@@ -444,8 +438,7 @@ const TOWER: Tutorial = {
     {
       title: 'Well done',
       text:
-        'That is the Tower routine. More tools (help, F1): `behind landing EWG7TK, line up and wait behind`, `cleared for immediate take-off`, `go around`, `vacate via E`, speed control on final, runway crossings (`cross runway 25`) and COORD to ask Approach for gaps. ' +
-        'Continue with live traffic to practise, or end with DISCONNECT for the debriefing.',
+        'More in the help (F1): `go around`, `vacate via E`, `cross runway 25`, conditional line-up. Practise with live traffic, or end with DISCONNECT.',
     },
   ],
 };

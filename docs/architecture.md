@@ -20,6 +20,7 @@ ultimate-atc/
 │   │   ├── night.ts           # night flying restrictions (curfew planning, jets that miss it)
 │   │   ├── weather.ts         # wind type and formatting, thunderstorm event
 │   │   ├── time.ts            # local airport time (Intl, no DOM)
+│   │   ├── tutorial.ts        # tutorials: lessons per position, step runner
 │   │   ├── airport/
 │   │   │   ├── types.ts       # serialisable AirportData format
 │   │   │   ├── airport.ts     # runtime Airport: local coordinates, taxi graph, lookups
@@ -60,6 +61,7 @@ ultimate-atc/
 │       ├── dialogs.ts         # connect dialog, help window (tabs), ATIS editor
 │       ├── briefing.ts        # airport briefing (data facts + the airport's briefing sections)
 │       ├── scenarioBuilder.ts # scenario builder dialog (presets, events, code and link)
+│       ├── tutorialPanel.ts   # tutorial step panel on the scope
 │       ├── labels.ts          # status codes for tags and lists
 │       ├── voice.ts           # text-to-speech and speech recognition
 │       ├── settings.ts        # localStorage-backed preferences

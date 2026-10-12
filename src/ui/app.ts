@@ -14,6 +14,8 @@ import { REPO_URL, showAtisEditor, showHelp } from './dialogs';
 import { formatTime, h } from './dom';
 import { minutesToHhmm } from '../core/time';
 import { windWords } from '../core/weather';
+import type { TutorialRunner } from '../core/tutorial';
+import { TutorialPanel } from './tutorialPanel';
 import { arrivalList, departureList, VehicleList } from './lists';
 import { vehicleTel, type Vehicle } from '../core/vehicles';
 import { PopupMenu, type MenuItem } from './menu';
@@ -81,11 +83,13 @@ export class App {
   private history: string[] = [];
   private historyIdx = -1;
   private menuPreview = false;
+  private tutorialPanel?: TutorialPanel;
 
   constructor(
     root: HTMLElement,
     private readonly sim: Simulation,
     private readonly settings: Settings,
+    tutorial?: TutorialRunner,
   ) {
     this.densitySetting = settings.density;
     this.eventsSetting = settings.events;
@@ -217,6 +221,27 @@ export class App {
     );
     this.quickbar = h('div.quickbar');
     this.main.append(this.quickbar);
+    // Tutorial: the step panel on the scope.
+    if (tutorial) {
+      this.tutorialPanel = new TutorialPanel(tutorial, {
+        showExample: (text, focus) => {
+          if (focus && (this.sim.find(focus) || this.sim.findVehicle(focus))) {
+            this.select(focus);
+            const pos = this.sim.find(focus)?.pos;
+            if (pos) this.scope.centerOn(pos);
+          }
+          if (text) {
+            this.input.value = text;
+            this.updatePreview();
+          }
+        },
+        liveTraffic: () => {
+          tutorial.startLiveTraffic();
+          this.hint('Live traffic: new departures and arrivals from now on. End the session with DISCONNECT.');
+        },
+      });
+      this.main.append(this.tutorialPanel.el);
+    }
 
     // ---------------------------------------------------------------- comms
     this.messagesEl = h('div.messages');
@@ -335,6 +360,7 @@ export class App {
 
     this.setSpeed(1);
     const staffed = sim.config.airport.stations.filter((st) => sim.userControls(st.type)).map((st) => `${st.callsign} (${st.name}, ${st.frequency})`);
+    if (tutorial) this.hint(`Tutorial ${tutorial.tutorial.title}: follow the steps in the tutorial panel. "Show me" puts the example instruction into the command line - send it with Enter or SEND.`);
     this.hint(`Connected as ${staffed.join(' + ')}. Runway ${sim.runway} in use. BRIEFING shows the airport briefing, F1 the help. End the session with DISCONNECT - it shows your debriefing, which is not saved.`);
     // Reloading or closing the page ends the session without the debriefing: the browser asks first.
     window.addEventListener('beforeunload', (e) => {
@@ -382,6 +408,7 @@ export class App {
   private slowUpdate(): void {
     const sim = this.sim;
     for (const l of this.lists) l.update(sim, this.selected);
+    this.tutorialPanel?.update(this.selected);
     // Your frequencies (combined positions: several). Switched-off ones are run by the simulator.
     const logged = sim.config.airport.stations.filter((st) => sim.loggedInStations.includes(st.type));
     const active = logged.filter((st) => sim.userControls(st.type));

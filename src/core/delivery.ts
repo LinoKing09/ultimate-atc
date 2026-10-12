@@ -132,7 +132,10 @@ export function execClearance(sim: Simulation, ac: Aircraft, c: Extract<Command,
   fp.squawk = squawk;
   ac.cleared = true;
   let said = squawk;
-  if (sim.rng.chance(READBACK_ERROR_CHANCE)) {
+  // Tutorials switch the random readback errors off, or force one for the next clearance.
+  const mode = sim.readbackErrors;
+  if (mode === 'next') sim.readbackErrors = 'off';
+  if (mode === 'next' || (mode === 'random' && sim.rng.chance(READBACK_ERROR_CHANCE))) {
     // Two digits swapped - the classic readback error the controller has to catch.
     const d = squawk.split('');
     const i = d[1] !== d[2] ? 1 : d[2] !== d[3] ? 2 : 0;

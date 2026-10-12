@@ -23,6 +23,7 @@ The documentation is part of the product and must always describe the current st
 | UI elements, keyboard shortcuts, colours, lists, tags | `docs/user-guide.md`, the help dialog                        |
 | AI behaviour, timings, traffic, score                | `docs/simulation.md` (numbers must match the code)            |
 | scenario codes, presets, scheduled events            | `docs/scenarios.md`                                           |
+| tutorial lessons (`src/core/tutorial.ts`)            | `docs/tutorials.md`; keep `tests/tutorial.test.ts` passing    |
 | module structure, data flow                          | `docs/architecture.md`                                        |
 | the airport data format                              | `docs/airport-data.md`                                        |
 | an airport's layout                                  | `docs/airports/<ICAO>.md`                                     |

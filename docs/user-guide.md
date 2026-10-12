@@ -31,6 +31,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | **Traffic**       | `light`, `medium` or `heavy` (see [simulation model](simulation.md#traffic-generation)).          |
 | **Special events** | Rare special situations: medical emergencies (arrivals and departures) and rejected take-offs. On by default. See [simulation model](simulation.md#special-events). |
 | **Scenario**      | Optional. A **number** is a seed: the same seed with the same settings gives the same traffic. A **scenario code** (for example `EDDS-25-MB0-M10-K7Q2M`) also fixes the runway, traffic mix and scheduled events, and optionally the start time, night flying restrictions and closed taxiways. **Scenario builder...** creates one from presets or your own choices. Leave it empty for a random session. See [Scenarios and seeds](scenarios.md). |
+| **Tutorial**      | *Delivery*, *Ground*, *Tower*: starts a guided first session for that position right away (fixed traffic, a panel explains each step and shows the instruction). See [Tutorials](tutorials.md). |
 
 There is no runway selection: the session starts with a random wind, and the **runway in use is the one with the most headwind** (runway 25 at EDDS unless the tailwind on it is above 3 kt). You change the runway, wind, QNH and ATIS letter during the session in the [ATIS editor](#atis-editor).
 

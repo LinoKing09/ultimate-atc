@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Tutorials** for Delivery, Ground and Tower (Connect dialog, *Tutorial*): a guided first session with a fixed traffic situation; a panel on the scope explains each step, *Show me* puts the example instruction into the command line, steps continue on their own when done; *Live traffic* afterwards. The Delivery lesson includes a readback error to catch and a datalink clearance. Every lesson is played automatically by a test.
+
 - **Scenario conditions** in the scenario builder (*Conditions*) and the scenario code: an optional sixth part with tokens such as `T2215.N.CE.CS` (codes without it stay valid):
   - **Start time** in local airport time (`T2215`; Stuttgart: Europe/Berlin).
   - **Night flying restrictions** (`N`, Stuttgart: no jet departures 23:00-06:00, no landings 23:30-06:00, delayed landings until 24:00): traffic plans around the curfew (morning wave from 06:00, delayed arrivals only), messages before and at each boundary, jets still on the ground at 23:00 are postponed to the morning or ask to taxi back to the stand (-10 if they were ready in time), crews refuse take-off in the curfew; local time in the toolbar.

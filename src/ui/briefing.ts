@@ -6,7 +6,7 @@ import { minutesToHhmm } from '../core/time';
 import { formatWind } from '../core/weather';
 
 /** Renders text with `instructions` in backticks as code. */
-function rich(text: string): (Node | string)[] {
+export function rich(text: string): (Node | string)[] {
   return text.split(/(`[^`]+`)/).map((part) => (part.startsWith('`') && part.endsWith('`') ? h('code', { text: part.slice(1, -1) }) : part));
 }
 

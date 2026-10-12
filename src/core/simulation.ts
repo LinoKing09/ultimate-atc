@@ -252,6 +252,8 @@ export class Simulation {
   forceMedicalArrival = false;
   /** Set by a scenario event: the next take-off is rejected. */
   forceRejectedTakeoff = false;
+  /** Squawk readback errors in voice clearances: at random (4 %), never, or for the next clearance only (tutorials). */
+  readbackErrors: 'random' | 'off' | 'next' = 'random';
 
   private listeners: { [K in keyof Events]: Listener<Events[K]>[] } = {
     message: [],

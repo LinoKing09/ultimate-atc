@@ -40,6 +40,7 @@
 - **Voice (switched off in this version, see the [user guide](docs/user-guide.md#9-voice)):**
   - Pilots can speak their transmissions (text-to-speech, each pilot with their own voice).
   - You can talk to them with push-to-talk speech recognition (Chrome/Edge). It is built for **voice-only operation**: the best of several recognition alternatives is used, callsigns are matched even when slightly misrecognised, typical recognition errors are corrected, and pilots stay quiet while you transmit.
+- **Tutorials:** a guided first session for each position (Delivery, Ground, Tower): a fixed traffic situation, a panel that explains each step and shows the instruction, *Show me* puts it into the command line. See [Tutorials](docs/tutorials.md).
 - **Training scenarios:** a [scenario builder](docs/scenarios.md) creates shareable scenario codes (and links) for what you want to train: departure push, arrival rush, more heavies, a fixed runway, a start time with Stuttgart's **night flying restrictions**, **closed taxiways** (construction works), and emergencies, rejected take-offs, a wind shift or a **thunderstorm** (gusts, windshear go-arounds, departure stop) at chosen minutes. The same code always gives the same session.
 
 ## Quick start
@@ -84,6 +85,7 @@ Press **F1** in the app for the in-game reference.
 | [User guide](docs/user-guide.md)             | Screen layout, scope, lists, tags, menus, keyboard, voice, scoring          |
 | [Phraseology reference](docs/phraseology.md) | Every instruction the parser understands, pilot read-backs and calls        |
 | [Airport: EDDS Stuttgart](docs/airports/EDDS.md) | Layout, taxiways, holding points, stands, typical routes, frequencies    |
+| [Tutorials](docs/tutorials.md)               | Guided first sessions for Delivery, Ground and Tower                         |
 | [Scenarios and seeds](docs/scenarios.md)     | What the seed does, scenario codes, the scenario builder, presets            |
 | [Simulation model](docs/simulation.md)       | How AI pilots, AI Ground and Tower, Delivery and A-CDM, traffic generation, separation, special events and incidents work |
 | [Airport and ATC systems](docs/systems.md)   | The systems window: A-SMGCS, A-CDM, DCL - what they do in reality and in the simulator |

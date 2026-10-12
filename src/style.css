@@ -908,3 +908,84 @@ button.mic {
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
+
+/* ------------------------------------------------------------------ tutorial panel */
+.tutorial {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  width: min(440px, calc(100% - 20px));
+  max-height: 55%;
+  display: flex;
+  flex-direction: column;
+  background: rgba(30, 38, 42, 0.96);
+  border: 1px solid var(--accent);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  z-index: 25;
+}
+.tutorial .ttitle {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 4px 8px;
+  background: #24424c;
+  color: var(--accent);
+  font-weight: bold;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+}
+.tutorial .tprog {
+  color: var(--text-dim);
+  font-weight: normal;
+}
+.tutorial .tfold {
+  margin-left: auto;
+  font-size: 16px;
+}
+.tutorial .tbody {
+  padding: 6px 10px 10px;
+  overflow-y: auto;
+}
+.tutorial.collapsed .tbody {
+  display: none;
+}
+.tutorial .tstep {
+  color: var(--pilot);
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+.tutorial p {
+  margin: 0 0 8px;
+  line-height: 1.4;
+}
+.tutorial code {
+  color: var(--accent);
+}
+.tutorial .texample {
+  background: #182024;
+  border: 1px solid var(--panel-border);
+  padding: 4px 6px;
+  margin-bottom: 8px;
+}
+.tutorial .tactions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tutorial.flash {
+  animation: tutorial-flash 1s ease-out;
+}
+@keyframes tutorial-flash {
+  from {
+    box-shadow: 0 0 0 3px var(--accent);
+  }
+  to {
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  }
+}
+/* Mobile: above the quick-action bar, left of the zoom buttons. */
+body.mobile .tutorial {
+  bottom: 74px;
+  width: min(440px, calc(100% - 80px));
+}

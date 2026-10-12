@@ -27,7 +27,7 @@ Further airports follow in the 1.x releases (the airport data format, the data c
 | **0.6** | **done** - **Delivery** at EDDS: IFR clearances, squawks, start-up, CTOT, A-CDM, DCL; combined positions in the login; systems window (A-SMGCS, A-CDM, DCL); head-on conflict resolution; AI Ground |
 | **0.7** | **done** - **Tower** at EDDS: line-up / take-off / landing clearances, runway crossings, arrival sequence |
 | **0.8** | **done** - Combined positions with Tower, AI pilots that resolve simple conflicts (opposite traffic, lane priority), debriefing |
-| 0.9 | Scenario conditions (night flying restrictions, closed taxiways, thunderstorm - in progress), tutorials, polish, beta testing |
+| 0.9 | Scenario conditions (night flying restrictions, closed taxiways, thunderstorm), tutorials - in progress; polish, beta testing |
 | 1.0 | Release after the criteria above are met and agreed |
 | 1.x | Further airports |
 
@@ -36,7 +36,7 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 ## v0.9 - Scenario conditions, tutorials, beta
 
 - **done** - Scenario options: start time (local), Stuttgart's night flying restrictions, closed taxiways (construction works), thunderstorm event (gusts, tailwind gust front, windshear go-arounds, departure and pushback stop); extended scenario code with an optional options part
-- planned - Tutorials for each position
+- **done** - Tutorials for each position (Delivery, Ground, Tower): guided lessons with a fixed traffic situation, step panel with *Show me*, live traffic afterwards; tested by playing every lesson
 - planned - Polish and beta testing
 
 ## v0.8 - Combined positions, pilots, debriefing
@@ -114,7 +114,7 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 - planned - More special events (bird strike, a taxiway blocked during the session - closed taxiways for a whole session are done since 0.9; follow-me and tows are done since 0.6.1), de-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short; squawk read-back errors are done since 0.6)
 - planned - Low visibility procedures (CAT II/III holding points, larger spacing)
 - planned - Wind that changes during the session (METAR updates)
-- planned - Scenario files (fixed traffic for training) and a tutorial mode
+- planned - Scenario files (fixed traffic for training); more tutorial lessons (combined positions, conflicts, runway change)
 
 ### Positions
 

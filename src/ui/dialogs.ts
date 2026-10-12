@@ -1,6 +1,7 @@
 import type { AirportData, StationType } from '../core/airport/types';
 import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
 import { closureProblems } from '../core/airport/validate';
+import { TUTORIALS, type TutorialId } from '../core/tutorial';
 import type { Density, Simulation } from '../core/simulation';
 import { h } from './dom';
 import { renderBriefing } from './briefing';
@@ -35,6 +36,8 @@ export interface LoginResult {
   seed?: number;
   /** Training scenario from a scenario code (overrides density and events). */
   scenario?: Scenario;
+  /** Guided tutorial (sets position and traffic itself). */
+  tutorial?: TutorialId;
 }
 
 /** EuroScope-like "connect" dialog: pick airport, position and traffic. The runway follows the wind (ATIS). */
@@ -128,6 +131,16 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     update();
 
     const connect = h('button.primary', { type: 'submit', text: 'Connect' });
+    // Tutorials: a guided first session for each position (fixed traffic, step by step).
+    const tutorialButtons = TUTORIALS.map((t) => {
+      const b = h(`button.pos-${t.position}`, { type: 'button', text: t.title, title: t.summary });
+      b.addEventListener('click', () => {
+        const ap = airport();
+        overlay.remove();
+        resolve({ airport: ap, position: t.position, positions: [t.position], density: 'light', events: false, tutorial: t.id });
+      });
+      return b;
+    });
     const form = h(
       'form.dialog',
       {},
@@ -154,7 +167,10 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
           h('label', {}, eventsBox, ' emergencies, rejected take-offs (rare)'),
           h('label', { text: 'Scenario' }),
           h('div.rangerow', {}, seedInput, builderBtn),
+          h('label', { text: 'Tutorial' }),
+          h('div.positions', {}, ...tutorialButtons),
         ),
+        h('div.sub', { text: 'New here? A tutorial guides you step by step through a first session as Delivery, Ground or Tower (about 5-15 minutes each).' }),
         scenarioInfo,
         h('div.sub', { text: 'The runway in use is chosen from the wind. You can change it at any time in the ATIS (click ATIS in the toolbar).' }),
         notice,
@@ -267,6 +283,7 @@ const KEYS: [string, string][] = [
   ['ROGER (sidebar) / roger', 'Acknowledge the call of the selected aircraft (or the last caller): no read-back, it stops flashing and waits 4 minutes before calling again.'],
   ['Aircraft menu: Request hand-off to TWR / GND', 'Ask the position the simulator runs for an aircraft now (e.g. a departure still with Ground, an arrival still with Approach).'],
   ['COORD (toolbar)', 'Landline to Approach / Ground: no more arrivals, or hold all departures, to make room. -2 points per minute each while it is on.'],
+  ['Tutorial panel (tutorials only)', 'Shows the current step. "Show me" selects the aircraft and puts the example instruction into the command line; Next / Skip; tap the title to fold it away. Start a tutorial in the Connect dialog.'],
   ['DISCONNECT (toolbar)', 'Debriefing of the session (what earned and what cost points, answer times, incidents, advice), then continue or end the session'],
   ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL and the ILS (localizer, glide path); switch them on or off'],
   ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, traffic density, special events'],

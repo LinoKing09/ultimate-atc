@@ -596,6 +596,9 @@ function execCancelTakeoff(sim: Simulation, ac: Aircraft): ExecResult {
  * first contact on final, short final without landing clearance, request
  * frequency change after take-off, runway vacated after a crossing.
  */
+/** A departure waiting at the holding point without an open request calls Tower again after this time (s). */
+const DEPARTURE_RECALL_S = 150;
+
 function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: string): boolean {
   const now = sim.time;
   // Handed over while still taxiing: first call on the way to the holding point.
@@ -607,6 +610,12 @@ function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: stri
   }
   if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && !ac.towerContact && now - (ac.holdingSince ?? now) > 4) {
     ac.towerContact = true;
+    call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`);
+    return true;
+  }
+  // Still waiting at the holding point without an open request (e.g. a take-off refused in a thunderstorm,
+  // or a "roger" that has run out): the crew reminds Tower that it is ready.
+  if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && ac.towerContact && ac.request === null && now > ac.standbyUntil && now - ac.lastCallAt > DEPARTURE_RECALL_S) {
     call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`);
     return true;
   }
@@ -1386,7 +1395,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       pushback: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request pushback`,
       taxi: `${stationName}, ${tel}, ready for taxi`,
       taxiIn: `${stationName}, ${tel}, request taxi to the stand`,
-      handoff: `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`,
+      handoff: `${stationName}, ${tel}, ${hpWords(ac)}, ready for departure`,
       crossing: `${stationName}, ${tel}, holding short runway, request crossing`,
       blocked: `${stationName}, ${tel}, still blocked by traffic, request instructions`,
       route: `${stationName}, ${tel}, request further taxi instructions`,
@@ -1394,7 +1403,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       startup: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, ready for start-up`,
       frequency: `${stationName}, ${tel}, request frequency for pushback`,
       tow: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request tow to stand ${ac.tow?.to ?? ''}`,
-      departure: `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`,
+      departure: `${stationName}, ${tel}, ${hpWords(ac)}, ready for departure`,
       landing: `${stationName}, ${tel}, ${Math.max(1, Math.round(sim.distanceToThresholdNm(ac)))} miles final runway ${ac.runway ?? sim.runway}`,
       vacated: `${stationName}, ${tel}, runway vacated, request taxi`,
       radar: `${stationName}, ${tel}, request frequency change`,
@@ -1404,6 +1413,14 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     const text = reminder[ac.request];
     if (text) call(sim, ac, ac.request, text);
   }
+}
+
+/** "holding point A" at the holding point, "taxiing to holding point A" on the way there. */
+function hpWords(ac: Aircraft): string {
+  const at = ac.stoppedAt?.holdingPoint;
+  if (at) return `holding point ${at}`;
+  const to = ac.routeDestination?.kind === 'holdingPoint' ? ac.routeDestination.name : undefined;
+  return to ? `taxiing to holding point ${to}` : 'holding point';
 }
 
 /**

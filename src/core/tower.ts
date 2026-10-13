@@ -22,6 +22,8 @@ import { WEATHER_DECISION_NM, takeoffsSuspended, weatherGoAround } from './weath
 const GLIDE_SLOPE = Math.tan((3 * Math.PI) / 180);
 const ROLLOUT_DECEL = 1.6; // m/s^2 normal landing roll-out
 const REJECT_DECEL = 3.0; // m/s^2 rejected take-off
+/** Slowing down to taxi speed behind the exit's holding point (m/s^2). */
+const EXIT_DECEL = 1.0;
 /** After a rejected take-off the crew slows to this speed at once and rolls to the next exit (m/s). */
 const REJECT_ROLL_SPEED = 25 * KT_TO_MS;
 const TOUCHDOWN_DISTANCE = 350; // metres past the threshold
@@ -313,9 +315,13 @@ export class TowerAI {
   private entryBlocked(ac: Aircraft): boolean {
     const end = this.end;
     const here = this.sim.airport.runwayCoordinates(end, ac.pos).along;
+    const near = (p: { x: number; y: number }) => Math.abs(this.sim.airport.runwayCoordinates(end, p).along - here) < 400;
+    // Also an aircraft that is just lining up from the other side (K / Y share the same runway point):
+    // it may not have reached the runway yet, but its line-up point is.
+    if (this.sim.aircraft.some((o) => o !== ac && o.phase === 'lineup' && o.path && near(o.path.pointAt(o.path.length)))) return true;
     return this.runwayOccupants(ac).some((o) => {
       if (o.phase === 'takeoff') return false;
-      return Math.abs(this.sim.airport.runwayCoordinates(end, o.pos).along - here) < 400;
+      return near(o.pos);
     });
   }
 
@@ -410,7 +416,16 @@ export class TowerAI {
     // A rejected take-off brakes at once down to runway taxi speed, then rolls on to the exit; a landing
     // brakes as needed for its exit.
     const braking = (s: number) => (brakeNow ? Math.sqrt(Math.max(REJECT_ROLL_SPEED * REJECT_ROLL_SPEED, v0 * v0 - 2 * decel * s)) : Infinity);
-    ac.speedLimit = (s) => (s < sExit ? Math.min(v0, Math.sqrt(vExit * vExit + 2 * decel * (sExit - s)), braking(s)) : 10 * KT_TO_MS);
+    // On the exit the crew keeps its exit speed until it is behind the runway holding point (the runway
+    // is then vacated), then slows down gently to taxi speed.
+    const sHp = path.marker(chosen.ex.path[1])?.s ?? path.length;
+    const taxi = 10 * KT_TO_MS;
+    ac.speedLimit = (s) => {
+      if (s < sExit) return Math.min(v0, Math.sqrt(vExit * vExit + 2 * decel * (sExit - s)), braking(s));
+      const v = Math.min(vExit, braking(s));
+      if (s < sHp) return Math.max(taxi, v);
+      return Math.sqrt(Math.max(taxi * taxi, v * v - 2 * EXIT_DECEL * (s - sHp)));
+    };
   }
 
   private checkVacating(ac: Aircraft): void {

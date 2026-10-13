@@ -27,7 +27,7 @@ Further airports follow in the 1.x releases (the airport data format, the data c
 | **0.6** | **done** - **Delivery** at EDDS: IFR clearances, squawks, start-up, CTOT, A-CDM, DCL; combined positions in the login; systems window (A-SMGCS, A-CDM, DCL); head-on conflict resolution; AI Ground |
 | **0.7** | **done** - **Tower** at EDDS: line-up / take-off / landing clearances, runway crossings, arrival sequence |
 | **0.8** | **done** - Combined positions with Tower, AI pilots that resolve simple conflicts (opposite traffic, lane priority), debriefing |
-| 0.9 | Scenario conditions (night flying restrictions, closed taxiways, thunderstorm), tutorials - in progress; polish, beta testing |
+| 0.9 | **done** - Scenario conditions (night flying restrictions, closed taxiways, thunderstorm), tutorials, traffic sliders, polish; final review in the [release report](release-1.0-report.md) |
 | 1.0 | Release after the criteria above are met and agreed |
 | 1.x | Further airports |
 
@@ -37,7 +37,9 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 
 - **done** - Scenario options: start time (local), Stuttgart's night flying restrictions, closed taxiways (construction works), thunderstorm event (gusts, tailwind gust front, windshear go-arounds, departure and pushback stop); extended scenario code with an optional options part
 - **done** - Tutorials for each position (Delivery, Ground, Tower): guided lessons with a fixed traffic situation, step panel with *Show me*, live traffic afterwards; tested by playing every lesson
-- planned - Polish and beta testing
+- **done** - Polish: five-step traffic sliders, CATC only for closing traffic, intersection line-ups, touch menus, quick-action bar, rejected take-off braking
+- **done** - Final review for 1.0 ([release report](release-1.0-report.md)): diagnostic runs over all positions and conditions, six fixes (exit speed, K/Y line-up, departure re-call, transition level, rejected take-off, touch menus)
+- *in progress* - Beta test on the iPad (performance criterion), then the 1.0 decision
 
 ## v0.8 - Combined positions, pilots, debriefing
 

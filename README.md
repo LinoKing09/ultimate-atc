@@ -93,6 +93,7 @@ Press **F1** in the app for the in-game reference.
 | [Architecture](docs/architecture.md)         | Code structure, data flow, how to add positions and multiplayer             |
 | [Airport data format](docs/airport-data.md)  | How airports are described and how to add a new one                         |
 | [Roadmap](docs/roadmap.md)                   | What is planned next, the proposed criteria for version 1.0                 |
+| [Release report 1.0](docs/release-1.0-report.md) | Final review before 1.0: criteria, checks, fixes, realism review, open points |
 | [Benchmarks](docs/benchmarks.md)             | Release benchmark, results per version, simulated traffic, major release statistics |
 | [Glossary](docs/glossary.md)                 | Terms used in the simulator and the docs (deadlock, gridlock, TSAT, CTOT ...) |
 | [Contributing](docs/contributing.md)         | Development workflow, conventions, tests                                    |

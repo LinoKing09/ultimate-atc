@@ -2,6 +2,7 @@ import type { BriefingSection } from '../core/airport/types';
 import type { Simulation } from '../core/simulation';
 import { h } from './dom';
 import { nightRules } from '../core/night';
+import { DEICING_MAX_S, DEICING_MIN_S, deicingActive } from '../core/deicing';
 import { minutesToHhmm } from '../core/time';
 import { formatWind } from '../core/weather';
 
@@ -66,6 +67,14 @@ export function renderBriefing(sim: Simulation): HTMLElement {
       'Night rules',
       `Local time ${minutesToHhmm(sim.localMinutes())}. No jet departures ${minutesToHhmm(night.jetDepartures.from)}-${minutesToHhmm(night.jetDepartures.until)} local, no landings ${minutesToHhmm(night.landings.from)}-${minutesToHhmm(night.landings.until)}` +
         `${night.delayedLandingsUntil !== undefined ? ` (delayed flights until ${minutesToHhmm(night.delayedLandingsUntil)})` : ''}. A jet still on the ground at the curfew goes back to its stand.`,
+    ]);
+  }
+  if (deicingActive(sim)) {
+    const pads = sim.airport.deicingPads;
+    now.push([
+      'De-icing',
+      `Every departure up to ${Math.max(...pads.map((p) => p.maxWingspanM))} m wingspan is de-iced on ${pads.map((p) => p.name).join(', ')} before take-off (${DEICING_MIN_S / 60}-${DEICING_MAX_S / 60} min, wide-bodies longer; larger aircraft on their stand). ` +
+        `Taxi it to a pad first ("taxi to de-icing pad ${pads[0].name} via ..."); it reports "de-icing complete, ready for taxi". Crews refuse the runway before.`,
     ]);
   }
   if (sim.storm) now.push(['Weather', sim.storm.phase === 'overhead' ? 'Thunderstorm overhead: no pushbacks, no take-offs, windshear on final.' : 'Thunderstorm approaching.']);

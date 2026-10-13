@@ -26,7 +26,7 @@ The geometry was **digitised by hand**. Positions were measured on the charts, u
 
 **Simplified or not modelled:**
 
-- de-icing pads DP1-DP4 on taxiway S, the run-up areas and the holding bays P1/P2 at the 25 end,
+- the **holding bays P1/P2** and the **de-icing pads DP1-DP4** are modelled at **estimated positions** (not measured on the chart, see [Holding bays and de-icing pads](#holding-bays-and-de-icing-pads)); the run-up areas are not modelled,
 - the general aviation apron (EXIT 1-3), the US Army airfield, helicopter routes,
 - the "A" stands that overlap others (9A, 24A, 26A, 28A; 71A and 74A are modelled) and stands 206, 207, 300-303,
 - the intersection geometry inside the "circle" (the hot spot west of N/S, chart note 1), reduced to one junction node,
@@ -52,7 +52,7 @@ Facts collected from public sources to bring the simulation closer to reality. C
 | Runway | 3345 m, threshold 07 displaced 300 m (LDA 07 3045 m) | likely (BAV briefing) | modelled |
 | Intersection departures | crews are asked for every intersection; smaller aircraft usually C (25) or G (07) | likely (VATGER) | `advise able for departure from intersection ...`; take-off run per type and flight |
 | Taxi flows | N against the runway direction, S the other way: runway 25 N eastbound / S westbound, runway 07 N westbound / S eastbound | likely (VATGER Ground SOP) | modelled (07 changed on 2026-10-11) |
-| Holding bays / de-icing | bypass P1/P2 (max B739/A321); de-icing only on DP1-DP4 (in from N, out via S) | DP1-DP4 certain (A-CDM briefing), rest likely | not modelled yet |
+| Holding bays / de-icing | bypass P1/P2 (max B739/A321); de-icing only on DP1-DP4 (in from N, out via S) | DP1-DP4 certain (A-CDM briefing), rest likely | modelled since 1.1 at estimated positions; de-icing as the scenario option `I` |
 | Runway crossings | only between K and Y | likely (VATGER) | crossings where the routes need them |
 | Taxi-out stands | 40-56 taxi out; 61-64 only with the opposite stand free; jet bridges only at 9-16 | likely (VATGER) | 40-48, 50-56 taxi out |
 | Simultaneous pushbacks | at least two stands between them | likely (VATGER) | AI Ground: nothing taxiing within 250 m |
@@ -128,9 +128,19 @@ The layout uses a runway-aligned frame, the same orientation as the aerodrome ch
 | **A**   | At the 25 end, where N and S end (holding point A, full length for 25)                            |
 | **Z / R / V** | South: Z runs from L3/O around the 07 end to R; R to Y; V along Apron South to W            |
 
+| **P1 / P2** | Holding bays at the 25 end: angled links from N down to S just before A (code C, wingspan up to 36 m) |
+| **DP1-DP4** | De-icing pads between N and S (between G and E), see below |
+
 Holding points carry the name of their taxiway (`holding point A`, `holding point K`, ...). The 07 end has K (north) and Y (south); H and W share one runway entry.
 
 **Closing taxiways** (scenario option, e.g. for construction works): every taxiway can be closed except **N**, **O**, **V** and **A** - they are the only way to or from some stands (N: stands 50-56 and 71-75; O: 40-48; V: Apron South) or the only full-length entry of runway 25 (A). Closing several at once is checked in the scenario builder. The preset *Construction works* closes E and S: departures and arrivals then share N.
+
+### Holding bays and de-icing pads
+
+Both are known from the VATSIM Germany Tower SOP and the STR A-CDM flight crew briefing, but their exact positions were not measured; they are **estimates** that fit the published descriptions:
+
+- **P1 / P2** (bypass): two angled links from N to S at the 25 end, 3020-3090 m and 3130-3200 m from the 07 end, limited to code C (36 m wingspan; the SOP says max. B739 / A321). A departure that is not ready can wait on P1 or P2 while the next one passes it via S to A (re-sequencing), or use them as `taxi to holding point A via N, P1, S`.
+- **DP1-DP4** (de-icing pads): four drive-through bays between N and S, centred 1330, 1470, 1610 and 1750 m from the 07 end, each with lead lines to N and S on both sides (55 m before and after the pad). Taking aircraft up to 52 m wingspan (code D - there is no room for wider ones between N and S with traffic on both taxiways); wide-bodies are de-iced on their stand. The lead lines are only used to enter or leave a pad, never as a short cut between N and S. Used in the scenario option [de-icing](../scenarios.md#de-icing).
 
 ### Standard taxi flows
 

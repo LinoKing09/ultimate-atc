@@ -47,10 +47,26 @@ export interface AirportData {
   traffic?: AirportTraffic;
   /** ATC and airport systems available at this airport (see core/systems.ts). Omitted = all. */
   systems?: SystemId[];
+  /**
+   * De-icing pads (winter operations): an aircraft taxis onto the pad node and is de-iced there. The
+   * lead-in and lead-out lines are edges of kind 'stand' named like the pad, so automatic routes never
+   * use a pad as a short cut.
+   */
+  deicingPads?: DeicingPadData[];
   /** IANA time zone of the airport (local time for airport rules), e.g. "Europe/Berlin". Default: UTC. */
   timeZone?: string;
   /** Night flying restrictions (applied in scenarios with night rules, see core/night.ts). */
   nightRestrictions?: NightRestrictions;
+}
+
+/** A de-icing pad. */
+export interface DeicingPadData {
+  /** Designator, e.g. "DP1". */
+  name: string;
+  /** Taxi node of the de-icing position. */
+  node: string;
+  /** Largest wingspan the pad takes (m). */
+  maxWingspanM: number;
 }
 
 /**

@@ -4,6 +4,8 @@ export type TaxiDestination =
   | { kind: 'holdingPoint'; name: string; runway?: string }
   | { kind: 'runway'; runway: string }
   | { kind: 'stand'; stand: string }
+  /** De-icing pad ("DP2"); without `pad` the crew takes a free one (AI Ground). */
+  | { kind: 'deicing'; pad?: string }
   /** Clearance limit "hold short of taxiway X" without another destination. */
   | { kind: 'holdShort'; name: string };
 

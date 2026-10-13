@@ -13,6 +13,7 @@ import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, locationOf, maybeStartTow } from './veh
 import { curfewCall, departureAllowed, needsCurfewRoute, nightRules } from './night';
 import { minutesToHhmm } from './time';
 import { apronClosed, takeoffsSuspended } from './weather';
+import { deicingMinutesLeft, freePads, needsDeicing, onPad, padUser, startDeicing, updateDeicing } from './deicing';
 
 /**
  * AI pilots: execute controller instructions, read them back, and make their
@@ -805,6 +806,33 @@ function resolveDestination(
     }
     case 'holdShort':
       return resolveClearanceLimit(sim, ac, start, via, { kind: 'taxiway', name: dest.name }, forceUTurn);
+    case 'deicing': {
+      if (!sim.airport.deicingPads.length) return { error: 'negative, there are no de-icing pads here' };
+      if (ac.category !== 'departure') return { error: 'negative, we do not need de-icing' };
+      let pads = freePads(sim, ac);
+      if (dest.pad) {
+        const pad = sim.airport.deicingPad(dest.pad);
+        if (!pad) return { error: `confirm de-icing pad ${dest.pad.toUpperCase()}, we can't find it` };
+        if (pad.maxWingspanM < ac.type.wingspanM) return { error: `de-icing pad ${pad.name} is too small for us` };
+        if (padUser(sim, pad, ac)) return { error: `de-icing pad ${pad.name} is occupied, request another pad` };
+        pads = [pad];
+      } else if (!pads.length) {
+        return { error: 'all de-icing pads are occupied, request instructions' };
+      }
+      // Without a named pad: the free pad with the shortest route.
+      let best: { route: TaxiRoute; name: string } | undefined;
+      let lastErr = '';
+      for (const pad of pads) {
+        const r = tryRoute(pad.node);
+        if (isRouteError(r)) {
+          lastErr = r.error;
+          continue;
+        }
+        if (!best || r.length < best.route.length) best = { route: r, name: pad.name };
+      }
+      if (!best) return { error: routeErrorText(lastErr || 'no route', via) };
+      return { route: best.route, dest: { kind: 'deicing', pad: best.name } };
+    }
     case 'stand': {
       const stand = sim.airport.stand(dest.stand);
       if (!stand) return { error: `confirm stand ${dest.stand}, we can't find it` };
@@ -895,6 +923,9 @@ function routeErrorText(err: string, via: string[]): string {
 
 /** Start position/heading for route planning (after pushback if still pushing). */
 function routeStart(sim: Simulation, ac: Aircraft): { position: Vec2; heading: number; node?: string } {
+  // On a de-icing pad: leave it along its lead-out line.
+  const pad = onPad(sim, ac);
+  if (pad) return { position: pad.node.pos, heading: ac.heading, node: pad.node.id };
   if (ac.phase === 'pushback' && ac.path) {
     const end = ac.path.pointAt(ac.path.length);
     return { position: end, heading: (ac.path.headingAt(ac.path.length) + 180) % 360 };
@@ -923,6 +954,8 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
     if (ac.request !== 'taxi' && ac.readyAt - sim.time > 90) return { unable: 'negative, we are not ready yet' };
   }
   if (ac.phase === 'arrived') return { unable: 'we are already parked' };
+  if (ac.deicing === 'inProgress') return { unable: `negative, de-icing in progress, about ${deicingMinutesLeft(sim, ac)} more minutes` };
+  if (c.destination?.kind === 'deicing' && ac.deicing === 'done') return { unable: 'negative, we are already de-iced' };
 
   if (c.destination?.kind === 'holdingPoint' && ac.category === 'departure' && isIntersection(sim, c.destination.name)) {
     const available = takeoffRunAvailable(sim, c.destination.name);
@@ -933,6 +966,8 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
   const start = routeStart(sim, ac);
   const res = resolveDestination(sim, ac, c.destination, toRouteStart(sim, start), c.via, c.holdShort);
   if ('error' in res) return { unable: res.error };
+  // Winter operations: not to the runway before the de-icing.
+  if (res.dest.kind === 'holdingPoint' && needsDeicing(sim, ac)) return { unable: 'negative, we require de-icing first' };
   const atHoldingPoint = ac.phase === 'holding' || !!ac.stoppedAt?.holdingPoint;
 
   const resolved: TaxiCommand = { ...c, destination: res.dest };
@@ -985,6 +1020,9 @@ export function applyRoute(
   ac.reverse = false;
   ac.route = route;
   ac.routeDestination = dest;
+  // The de-icing pad is reserved from the taxi clearance on; a de-iced aircraft keeps it until it has left.
+  if (dest.kind === 'deicing') ac.deicingPad = dest.pad;
+  else if (ac.deicing !== 'done') ac.deicingPad = undefined;
   ac.stoppedAt = undefined;
   ac.holdPosition = false;
   ac.standBlocked = undefined;
@@ -1240,6 +1278,10 @@ export function onStopReached(sim: Simulation, ac: Aircraft, stop: PathStop): vo
       sim.updateScore();
       return;
     }
+    if (dest?.kind === 'deicing' && dest.pad && ac.deicing === undefined) {
+      startDeicing(sim, ac, dest.pad);
+      return;
+    }
     if (stop.holdingPoint) {
       ac.phase = 'holding';
       ac.holdingSince = sim.time;
@@ -1280,7 +1322,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
         applyRoute(sim, ac, res.route, res.dest, c.holdShort, c.cross);
       }
     } else if (ac.request !== 'taxi' && ac.request !== 'route' && sim.isOnMyFrequency(ac)) {
-      call(sim, ac, 'taxi', `${sim.tel(ac)}, ready for taxi`);
+      call(sim, ac, 'taxi', `${sim.tel(ac)}, ready for taxi${deiceWords(sim, ac)}`);
     }
   }
 
@@ -1307,6 +1349,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
 
   towerResolveStuck(sim, ac);
   checkStandAhead(sim, ac);
+  updateDeicing(sim, ac);
   if (!sim.isOnMyFrequency(ac)) return;
 
   // Special event: medical emergency while taxiing out.
@@ -1351,13 +1394,18 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     if (ac.phase === 'parked' && ac.category === 'departure' && now >= pushDue && !apronClosed(sim)) {
       const stand = sim.airport.stand(ac.stand ?? '');
       if (stand && !stand.pushback) {
-        call(sim, ac, 'taxi', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetter}, request taxi`);
+        call(sim, ac, 'taxi', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetter}, request taxi${deiceWords(sim, ac)}`);
       } else {
         call(sim, ac, 'pushback', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetter}, request ${sim.rng.chance(0.2) ? 'push and start' : 'pushback'}`);
       }
       return;
     }
     if (ac.frequency === sim.stationFor('tower') && sim.userTower && towerCall(sim, ac, stationName, tel)) return;
+    // De-iced on the pad: the crew asks to taxi on to the runway.
+    if (ac.deicing === 'done' && ac.routeDestination?.kind === 'deicing' && ac.stoppedAt && ac.phase === 'taxi' && onPad(sim, ac)) {
+      call(sim, ac, 'taxi', `${stationName}, ${tel}, de-icing complete on ${ac.routeDestination.pad ?? 'the pad'}, ready for taxi`);
+      return;
+    }
     if (ac.phase === 'holding' && ac.category === 'departure' && now - (ac.holdingSince ?? now) > 8 && ac.frequency !== sim.stationFor('tower')) {
       call(sim, ac, 'handoff', `${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`);
       return;
@@ -1393,7 +1441,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
   if (now > ac.standbyUntil && now - ac.lastCallAt > interval && ac.callCount < 5 && !sim.frequency.hasQueued(ac.callsign)) {
     const reminder: Partial<Record<PilotRequest, string>> = {
       pushback: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request pushback`,
-      taxi: `${stationName}, ${tel}, ready for taxi`,
+      taxi: `${stationName}, ${tel}, ready for taxi${deiceWords(sim, ac)}`,
       taxiIn: `${stationName}, ${tel}, request taxi to the stand`,
       handoff: `${stationName}, ${tel}, ${hpWords(ac)}, ready for departure`,
       crossing: `${stationName}, ${tel}, holding short runway, request crossing`,
@@ -1413,6 +1461,11 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     const text = reminder[ac.request];
     if (text) call(sim, ac, ac.request, text);
   }
+}
+
+/** ", request de-icing" while the departure still needs it. */
+function deiceWords(sim: Simulation, ac: Aircraft): string {
+  return needsDeicing(sim, ac) ? ', request de-icing' : '';
 }
 
 /** "holding point A" at the holding point, "taxiing to holding point A" on the way there. */

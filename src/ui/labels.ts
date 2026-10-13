@@ -12,6 +12,7 @@ export function statusCode(ac: Aircraft): string {
     case 'startup':
       return 'ST-UP';
     case 'taxi':
+      if (ac.deicing === 'inProgress') return 'DEICE';
       if (ac.stoppedAt?.kind === 'runway') return 'HS-R';
       if (ac.stoppedAt?.kind === 'destination' && ac.category === 'arrival') return 'VACD';
       if (ac.holdPosition || ac.speed < 0.2) return ac.holdPosition ? 'HOLD' : 'TAXI';
@@ -45,6 +46,7 @@ export function clearedTo(ac: Aircraft): string {
     if (d.kind === 'holdingPoint') return d.name;
     if (d.kind === 'runway') return `R${d.runway}`;
     if (d.kind === 'holdShort') return `HS ${d.name}`;
+    if (d.kind === 'deicing') return d.pad ?? 'DEICE';
     return `S${d.stand}`;
   }
   return '';

@@ -61,6 +61,12 @@ export interface Stand extends Omit<StandData, 'pos'> {
   lane: TaxiNode;
 }
 
+export interface DeicingPad {
+  name: string;
+  node: TaxiNode;
+  maxWingspanM: number;
+}
+
 const DEFAULT_WIDTH: Record<TaxiEdgeKind, number> = {
   taxiway: 23,
   taxilane: 20,
@@ -89,6 +95,8 @@ export class Airport {
    * uses them (also not their runway entries / exits), see routing.ts.
    */
   readonly closedTaxiways = new Set<string>();
+  /** De-icing pads (empty if the airport has none). */
+  readonly deicingPads: DeicingPad[];
 
   constructor(readonly data: AirportData) {
     this.proj = new LocalProjection(data.arp);
@@ -156,6 +164,7 @@ export class Airport {
       }
     }
 
+    this.deicingPads = (data.deicingPads ?? []).map((p) => ({ ...p, node: this.node(p.node) }));
     this.areas = data.areas.map((a) => ({ name: a.name, polygon: a.polygon.map((p) => this.proj.toLocal(p)) }));
     this.buildings = data.buildings.map((a) => ({ name: a.name, polygon: a.polygon.map((p) => this.proj.toLocal(p)) }));
   }
@@ -168,6 +177,17 @@ export class Airport {
 
   stand(id: string): Stand | undefined {
     return this.stands.get(id.toUpperCase());
+  }
+
+  /** The edge is a lead line of a de-icing pad. */
+  isDeicingLead(e: TaxiEdge): boolean {
+    return e.kind === 'stand' && this.deicingPads.some((p) => p.name === e.name);
+  }
+
+  /** De-icing pad by designator ("DP2") or number ("2"). */
+  deicingPad(name: string): DeicingPad | undefined {
+    const key = name.toUpperCase();
+    return this.deicingPads.find((p) => p.name.toUpperCase() === key || p.name.toUpperCase() === `DP${key}`);
   }
 
   holdingPoint(name: string): TaxiNode | undefined {

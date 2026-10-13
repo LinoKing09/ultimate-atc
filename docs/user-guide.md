@@ -157,6 +157,7 @@ The scope is a ground radar showing the aerodrome chart. By default it is rotate
 | Taxiways and taxilanes                 | Grey bands with a thin yellow centre line                                      |
 | Taxiway designators                    | Yellow letters in dark boxes (`N`, `S`, `R`, `D` ...). Long taxiways (N, S, M) repeat their designator about every 600 m when you zoom in |
 | Closed taxiways                        | Red, hatched, designator in red (scenario option, see [closed taxiways](scenarios.md#closed-taxiways)) |
+| De-icing pads                          | Outlined squares with the pad name (`DP1` ... `DP4`), with thin lead lines to N and S |
 | Runway holding positions               | Thick yellow bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
 | Stands                                 | Thin yellow lead-in line plus the stand number                                 |
 | Aprons                                 | Slightly lighter areas                                                         |
@@ -217,6 +218,7 @@ From each runway threshold an extended centreline runs 15 NM outwards with a tic
 | `PUSH`  | Pushback in progress                                        |
 | `ST-UP` | Start-up approved, or pushback complete and starting engines |
 | `TAXI`  | Taxiing                                                     |
+| `DEICE` | Being de-iced on a de-icing pad (scenario option [de-icing](scenarios.md#de-icing)) |
 | `HOLD`  | Holding position on your instruction                        |
 | `HS-R`  | Holding short of a runway, waiting for a crossing clearance |
 | `H/P`   | At the runway holding point (destination)                   |
@@ -359,7 +361,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Pushback approved -> facing    | `pushback approved [facing east/west/...]`         | Departure parked on a pushback stand          |
 | Push and start approved -> ... | `push and start approved [facing ...]`            | same                                          |
 | Start-up approved             | `start-up approved`                                | Parked                                        |
-| Taxi to -> holding point       | `taxi to holding point A via ...` (shortest route, following the standard flows) | Departure after pushback, or on a taxi-out stand |
+| Taxi to -> holding point       | `taxi to holding point A via ...` (shortest route, following the standard flows); with de-icing the pads come first (`De-icing DP2`, occupied pads greyed out) while the departure still needs de-icing | Departure after pushback, or on a taxi-out stand |
 | Taxi to stand -> stand         | `taxi to stand 14 via ...` (assigned stand first, then free stands nearby) | Arrival on the ground, or a departure returning to a stand |
 | Stop pushback / Cancel pushback | `stop pushback` / `cancel pushback`              | During pushback                               |
 | Able intersection? -> intersection | `advise able for departure from intersection D` | Departure on the ground; the hint shows the answer once given |

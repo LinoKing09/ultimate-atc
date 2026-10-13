@@ -27,6 +27,7 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 | `initialClimbFt`       | number            | Optional initial climb of the SIDs, used in IFR clearances (default 5000 ft) |
 | `systems`              | `SystemId[]`      | Optional: the [systems](systems.md) the airport has (`surveillance`, `rmca`, `catc`, `routing`, `acdm`, `dcl`, `loc`, `gp`). Omitted = all. Missing systems are off and cannot be switched on |
 | `timeZone`             | string            | Optional IANA time zone (`"Europe/Berlin"`) for local-time rules and scenario start times. Default UTC |
+| `deicingPads`          | `DeicingPadData[]` | Optional de-icing pads: `name` (`"DP1"`), `node` (taxi node of the pad, reached by lead lines of kind `stand`), `maxWingspanM`. Used with the scenario option [de-icing](scenarios.md#de-icing); the data check requires every pad to be reachable from a stand and to reach a full-length entry of every runway. EDDS: DP1-DP4, 52 m |
 | `nightRestrictions`    | `NightRestrictions` | Optional night flying restrictions, local minutes after midnight: `jetDepartures: {from, until}`, `landings: {from, until}`, `delayedLandingsUntil`, `source`. EDDS: jets 1380-360, landings 1410-360, delayed until 1440. Applied only in scenarios with night rules (see [scenarios](scenarios.md#start-time-and-night-flying-restrictions)) |
 
 ## Runways
@@ -169,7 +170,7 @@ traffic: {
 
 ## Data checks
 
-`validateAirport()` (`src/core/airport/validate.ts`) checks an airport for mistakes: duplicate or dangling nodes, stands without nodes, invalid frequencies, runway operations that reference unknown holding points or nodes, flows on unknown taxiways, stands that cannot reach a full-length entry of every runway with an aircraft of their size, exits that lead to no stand, unknown operators or aircraft types in the traffic, types that fit no stand, and unknown holding points or stands named in the briefing. `tests/airports.test.ts` runs it for every airport in `src/data/airports/index.ts`, so a new airport cannot be merged with broken data.
+`validateAirport()` (`src/core/airport/validate.ts`) checks an airport for mistakes: duplicate or dangling nodes, stands without nodes, invalid frequencies, runway operations that reference unknown holding points or nodes, flows on unknown taxiways, stands that cannot reach a full-length entry of every runway with an aircraft of their size, exits that lead to no stand, de-icing pads that no stand reaches or that reach no full-length entry, unknown operators or aircraft types in the traffic, types that fit no stand, and unknown holding points or stands named in the briefing. `tests/airports.test.ts` runs it for every airport in `src/data/airports/index.ts`, so a new airport cannot be merged with broken data.
 
 ## Authoring with `RunwayFrameBuilder`
 

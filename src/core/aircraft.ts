@@ -244,6 +244,14 @@ export interface Aircraft {
   ableIntersection?: Record<string, boolean>;
   /** Earliest intersection the crew accepts ("FULL" = full length only), asked by Ground on your request (COORD). */
   earliestIntersection?: string;
+  /**
+   * De-icing (scenario option): `inProgress` while the de-icing trucks work on a pad (until
+   * `deicingUntil`), `done` afterwards. Undefined = not de-iced yet (see deicing.ts).
+   */
+  deicing?: 'inProgress' | 'done';
+  /** De-icing pad the aircraft is taxiing to, standing on or just leaving. */
+  deicingPad?: string;
+  deicingUntil?: number;
   /** Tag offset on screen in pixels (UI state kept with the aircraft for convenience). */
   tagOffset?: { x: number; y: number };
 }

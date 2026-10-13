@@ -7,6 +7,7 @@ import { parseTransmission } from '../core/phraseology/parser';
 import { acknowledgeCatc, catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
 import { allocateSquawk, CTOT_EARLY_S, hhmm, initialClimbFt, sendDcl, suggestedSid } from '../core/delivery';
 import { previewTaxi } from '../core/pilot';
+import { needsDeicing, padUser } from '../core/deicing';
 import { destinationName } from '../data/destinations';
 import type { RadioMessage } from '../core/radio';
 import type { Simulation } from '../core/simulation';
@@ -1388,6 +1389,13 @@ export class App {
   private taxiDestinations(ac: Aircraft): MenuItem[] {
     const sim = this.sim;
     const items: MenuItem[] = [];
+    // Winter operations: the de-icing pads first while the departure still needs de-icing.
+    if (needsDeicing(sim, ac)) {
+      for (const pad of sim.airport.deicingPads) {
+        const user = padUser(sim, pad, ac);
+        items.push(user ? { label: `De-icing ${pad.name}`, hint: `occupied (${user.callsign})`, disabled: true } : this.routeItem(ac, `De-icing ${pad.name}`, `de-icing pad ${pad.name}`));
+      }
+    }
     for (const ops of sim.config.airport.runwayOps) {
       if (items.length) items.push({ divider: true, label: '' });
       for (const e of ops.departureEntries) {

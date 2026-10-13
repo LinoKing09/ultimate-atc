@@ -15,7 +15,7 @@ import { hhmmToMinutes } from './time';
  *  |    |  |||  |              |               seed (base 36)
  *  |    |  |||  |              options (optional part, tokens separated by "."):
  *  |    |  |||  |                T2215 start at 22:15 local time, N night flying restrictions,
- *  |    |  |||  |                CF taxiway F closed (one C token per taxiway)
+ *  |    |  |||  |                CF taxiway F closed (one C token per taxiway), I de-icing (winter)
  *  |    |  |||  events: letter + minute (M medical arrival, D medical departure,
  *  |    |  |||          R rejected take-off, W wind shift, S thunderstorm), X = none
  *  |    |  ||flags: 1 = more heavies (35 %), 2 = random special events (rare), 3 = both, 0 = none
@@ -59,6 +59,8 @@ export interface Scenario {
   nightRules?: boolean;
   /** Taxiways closed for the whole session (e.g. construction works), upper case. */
   closedTaxiways?: string[];
+  /** Winter operations: departures need de-icing on a de-icing pad before take-off. */
+  deicing?: boolean;
   seed: number;
 }
 
@@ -70,11 +72,12 @@ export interface ScenarioSetup {
   events?: ScenarioEvent[];
   nightRules?: boolean;
   closedTaxiways?: string[];
+  deicing?: boolean;
 }
 
 /** The simulation setup of a scenario (the start time is passed separately as `startTime`). */
 export function scenarioSetup(s: Scenario): ScenarioSetup {
-  return { mix: s.mix, heavyLevel: s.heavyLevel, events: s.events, nightRules: s.nightRules, closedTaxiways: s.closedTaxiways };
+  return { mix: s.mix, heavyLevel: s.heavyLevel, events: s.events, nightRules: s.nightRules, closedTaxiways: s.closedTaxiways, deicing: s.deicing };
 }
 
 /** The letter form of the traffic part (codes before 0.9) covers only these steps. */
@@ -135,6 +138,7 @@ function formatOptions(s: Scenario): string {
   if (s.startLocal) tokens.push(`T${s.startLocal}`);
   if (s.nightRules) tokens.push('N');
   for (const t of [...new Set(s.closedTaxiways ?? [])].sort()) tokens.push(`C${t.toUpperCase()}`);
+  if (s.deicing) tokens.push('I');
   return tokens.join('.');
 }
 
@@ -145,16 +149,17 @@ export function formatScenarioCode(s: Scenario): string {
 }
 
 /** Parses the options part ("T2215.N.CF.CE"). */
-function parseOptions(part: string): Pick<Scenario, 'startLocal' | 'nightRules' | 'closedTaxiways'> | { error: string } {
-  const out: Pick<Scenario, 'startLocal' | 'nightRules' | 'closedTaxiways'> = {};
+function parseOptions(part: string): Pick<Scenario, 'startLocal' | 'nightRules' | 'closedTaxiways' | 'deicing'> | { error: string } {
+  const out: Pick<Scenario, 'startLocal' | 'nightRules' | 'closedTaxiways' | 'deicing'> = {};
   for (const tok of part.split('.')) {
     if (/^T\d{4}$/.test(tok) && hhmmToMinutes(tok.slice(1)) !== undefined) out.startLocal = tok.slice(1);
     else if (tok === 'N') out.nightRules = true;
+    else if (tok === 'I') out.deicing = true;
     else if (/^C[A-Z][A-Z0-9]{0,3}$/.test(tok)) {
       const list = (out.closedTaxiways ??= []);
       if (!list.includes(tok.slice(1))) list.push(tok.slice(1));
     }
-    else return { error: `Invalid option "${tok}" (T2215 start time, N night rules, CF taxiway F closed)` };
+    else return { error: `Invalid option "${tok}" (T2215 start time, N night rules, CF taxiway F closed, I de-icing)` };
   }
   return out;
 }
@@ -202,6 +207,7 @@ export function describeScenario(s: Scenario): string {
   if (s.startLocal) parts.push(`start ${s.startLocal} local`);
   if (s.nightRules) parts.push('night flying restrictions');
   if (s.closedTaxiways?.length) parts.push(`taxiway${s.closedTaxiways.length > 1 ? 's' : ''} ${s.closedTaxiways.join(', ')} closed`);
+  if (s.deicing) parts.push('de-icing');
   const evs = [...s.events].sort((a, b) => a.atMin - b.atMin).map((e) => `${EVENT_LABEL[e.kind].toLowerCase()} at ${e.atMin} min`);
   return `${parts.join(', ')}${evs.length ? `; ${evs.join(', ')}` : ''}.`;
 }
@@ -258,6 +264,11 @@ export const SCENARIO_PRESETS: { name: string; description: string; scenario: Om
     name: 'Construction works',
     description: 'Taxiways S and E are closed for resurfacing: plan routes around them; crews refuse routes over a closed taxiway.',
     scenario: { runway: '25', density: 'medium', mix: 'balanced', heavyLevel: 0, eventLevel: 0, events: [], closedTaxiways: ['E', 'S'] },
+  },
+  {
+    name: 'Winter morning',
+    description: 'Frost on the wings: every departure needs de-icing on one of the de-icing pads before it can taxi to the runway.',
+    scenario: { runway: undefined, density: 'medium', mix: 'departures', heavyLevel: 0, eventLevel: 0, events: [], startLocal: '0630', deicing: true },
   },
   {
     name: 'Thunderstorm',

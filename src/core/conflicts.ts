@@ -189,6 +189,8 @@ function destinationNode(sim: Simulation, dest: TaxiDestination): TaxiNode | und
       return sim.airport.holdingPoint(dest.name);
     case 'stand':
       return sim.airport.stand(dest.stand)?.node;
+    case 'deicing':
+      return dest.pad ? sim.airport.deicingPad(dest.pad)?.node : undefined;
     case 'runway': {
       const entry = sim.airport.runwayOps(dest.runway)?.departureEntries.find((e) => e.fullLength);
       return entry ? sim.airport.holdingPoint(entry.holdingPoint) : undefined;

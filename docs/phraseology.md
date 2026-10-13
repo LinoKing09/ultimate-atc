@@ -87,6 +87,7 @@ taxi via|along X [,] X ..., hold short of TAXIWAY|runway RWY        (incomplete 
 | Runway (the pilot picks the full-length holding point on the shortest route) | `taxi to runway 25 via N` |
 | Runway at an intersection                      | `taxi to runway 25 at D`                         |
 | Stand                                          | `taxi to stand 14 via N, R` (also `gate 14`, `parking position 14`) |
+| De-icing pad (scenario option [de-icing](scenarios.md#de-icing)) | `taxi to de-icing pad DP2 via N` (also `de-icing position 2`, `deicing pad delta papa 2`; `taxi to de-icing via N` = the free pad nearest to the aircraft) |
 
 **The `via` list** must name the taxiways in the order they are used. The router finds the shortest path that follows exactly these taxiways. Taxiways that controllers usually leave out may be omitted:
 
@@ -307,6 +308,10 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | `squawk 2312`                                       | `Squawk 2312, Lufthansa 5AB`                                        |
 | `readback correct`                                  | *(no read-back)*                                                    |
 | `start-up approved` without a clearance             | `Negative, we have no clearance yet, Lufthansa 5AB`                 |
+| `taxi to runway 25` before the de-icing             | `Negative, we require de-icing first, Lufthansa 5AB`                |
+| `taxi to de-icing pad DP1` with DP1 occupied        | `De-icing pad DP1 is occupied, request another pad, Lufthansa 5AB`  |
+| `taxi to de-icing` with every pad taken            | `All de-icing pads are occupied, request instructions, Lufthansa 5AB` |
+| a taxi instruction while being de-iced              | `Negative, de-icing in progress, about 4 more minutes, Lufthansa 5AB` |
 | a route that needs a tug                            | `Taxi to ..., we need a tug to turn around, expect about 7 minutes, Lufthansa 5AB` |
 | `expedite taxi`                                     | `Expediting, Lufthansa 5AB`                                         |
 | `standby`                                           | *(no read-back)*                                                    |
@@ -326,7 +331,8 @@ Pilots on your frequency call on their own:
 | Start-up request (Delivery; with A-CDM at the TSAT)     | `Stuttgart Delivery, Lufthansa 5AB, stand 14, ready for start-up, TSAT 1452`            |
 | After start-up approval (Delivery)                      | `Stuttgart Delivery, Lufthansa 5AB, start-up approved, request frequency for pushback`  |
 | Departure ready (first contact)                         | `Stuttgart Ground, Lufthansa 5AB, stand 14, information E, request pushback` (sometimes `request push and start`) |
-| Pushback and start-up complete                          | `Lufthansa 5AB, ready for taxi`                                                        |
+| Pushback and start-up complete                          | `Lufthansa 5AB, ready for taxi` (with de-icing: `ready for taxi, request de-icing`)    |
+| (De-icing) De-icing on the pad finished                 | `Stuttgart Ground, Lufthansa 5AB, de-icing complete on DP2, ready for taxi`            |
 | Arrival has vacated the runway (first contact)          | `Stuttgart Ground, Eurowings 7TK, vacated runway 25 via E` (crews unfamiliar with the airport add `, request follow-me to the stand`) |
 | (Tower) Departure handed over on the way to the holding point | `Stuttgart Tower, Lufthansa 5AB, approaching holding point A, ready for departure` |
 | (Tower) Departure at the holding point (if not called before) | `Stuttgart Tower, Lufthansa 5AB, holding point A, ready for departure` |

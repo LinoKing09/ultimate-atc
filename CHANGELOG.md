@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **De-icing** (winter operations): scenario option `I` (scenario builder: *Conditions* -> *De-icing*), preset *Winter morning*. Every departure up to 52 m wingspan has to be de-iced on one of the de-icing pads before take-off: the crew asks `ready for taxi, request de-icing`, you taxi it to a pad (`taxi to de-icing pad DP2 via N`, or `taxi to de-icing` for a free one), it is de-iced for 6-10 minutes (status `DEICE`) and reports `de-icing complete on DP2, ready for taxi`. Crews refuse the runway before the de-icing and refuse an occupied pad. ATIS, briefing and the *Taxi to* menu (pads first) show it; the AI Ground de-ices too and meters the departures from the pads. See [scenarios](docs/scenarios.md#de-icing).
+- **Stuttgart: holding bays P1/P2** at the 25 end (bypass from N to S, code C) and the **de-icing pads DP1-DP4** between N and S, at estimated positions ([EDDS](docs/airports/EDDS.md#holding-bays-and-de-icing-pads)). New airport data field `deicingPads`, checked by the data validation.
+
+### Changed
+
+- Roadmap: the wishes for after 1.0 are now a "1.x" section in the [roadmap](docs/roadmap.md).
+- Project rules: minor and patch releases (1.x.y) may be published without asking.
+
 ## [1.0.0] - 2026-10-13
 
 The first full version: Delivery, Ground and Tower at Stuttgart, alone and combined, with tutorials for each position, training scenarios with conditions (night flying restrictions, closed taxiways, thunderstorm), traffic sliders and a final review. Statistics: [benchmarks](docs/benchmarks.md#major-release-statistics) (chart: `docs/images/benchmarks-1.0.svg`), review: [release report](docs/release-1.0-report.md).

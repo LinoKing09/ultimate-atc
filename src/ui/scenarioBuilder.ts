@@ -55,6 +55,8 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
     const startInput = h('input', { type: 'time', class: 'start' });
     const nightBox = h('input', { type: 'checkbox' });
     const night = airport.nightRestrictions;
+    const deiceBox = h('input', { type: 'checkbox' });
+    const pads = (airport.deicingPads ?? []).map((p) => p.name);
     // Taxiways that can be closed (not taxilanes on the aprons, not runway strips).
     const taxiways = [...new Set(airport.taxiEdges.filter((e) => e.kind === 'taxiway').map((e) => e.name.toUpperCase()))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
     const closedBoxes = new Map(taxiways.map((t) => [t, h('input', { type: 'checkbox', value: t })]));
@@ -76,6 +78,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
       seedInput.value = s.seed.toString(36).toUpperCase();
       startInput.value = s.startLocal ? `${s.startLocal.slice(0, 2)}:${s.startLocal.slice(2)}` : '';
       nightBox.checked = !!s.nightRules;
+      deiceBox.checked = !!s.deicing;
       for (const [t, box] of closedBoxes) box.checked = !!s.closedTaxiways?.includes(t);
       eventsEl.replaceChildren(
         ...s.events.map((ev, i) => {
@@ -128,6 +131,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
       output();
     });
     nightBox.addEventListener('change', () => ((s.nightRules = nightBox.checked || undefined), output()));
+    deiceBox.addEventListener('change', () => ((s.deicing = deiceBox.checked || undefined), output()));
     for (const [t, box] of closedBoxes) {
       box.addEventListener('change', () => {
         const set = new Set(s.closedTaxiways ?? []);
@@ -158,7 +162,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
       const b = h('button', { type: 'button', text: p.name, title: p.description });
       b.addEventListener('click', () => {
         // Options a preset does not set are cleared.
-        Object.assign(s, { startLocal: undefined, nightRules: undefined, closedTaxiways: undefined }, structuredClone(p.scenario), { seed: randomSeed() });
+        Object.assign(s, { startLocal: undefined, nightRules: undefined, closedTaxiways: undefined, deicing: undefined }, structuredClone(p.scenario), { seed: randomSeed() });
         render();
         descOut.textContent = `${p.description} ${describeScenario(s)}`;
       });
@@ -220,6 +224,12 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
             ? [
                 h('label', { text: 'Night restrictions' }),
                 h('label', {}, nightBox, ` no jet departures ${minutesToHhmm(night.jetDepartures.from)}-${minutesToHhmm(night.jetDepartures.until)}, no landings ${minutesToHhmm(night.landings.from)}-${minutesToHhmm(night.landings.until)} local${night.delayedLandingsUntil !== undefined ? ` (delayed flights until ${minutesToHhmm(night.delayedLandingsUntil)})` : ''}`),
+              ]
+            : []),
+          ...(pads.length
+            ? [
+                h('label', { text: 'De-icing' }),
+                h('label', {}, deiceBox, ` winter: departures are de-iced on ${pads.length > 1 ? `${pads[0]}-${pads[pads.length - 1]}` : pads[0]} before take-off`),
               ]
             : []),
         ),

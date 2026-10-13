@@ -22,6 +22,8 @@ export function formatDestination(d: TaxiDestination): string {
       return `runway ${d.runway}`;
     case 'stand':
       return `stand ${d.stand}`;
+    case 'deicing':
+      return d.pad ? `de-icing pad ${d.pad}` : 'de-icing';
     case 'holdShort':
       return `holding short of taxiway ${d.name}`;
   }

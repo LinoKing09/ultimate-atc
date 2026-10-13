@@ -19,6 +19,7 @@ import { TowerAI } from './tower';
 import { TrafficGenerator } from './traffic';
 import { EVENT_LEVELS, clampLevel, type Density } from './levels';
 import { updateNight } from './night';
+import { deicingActive } from './deicing';
 import { utcOffsetMinutes } from './time';
 import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
 
@@ -615,8 +616,9 @@ export class Simulation {
     const navaids = !this.systems.loc ? `, ILS runway ${a.runway} out of service` : !this.systems.gp ? `, glide path runway ${a.runway} out of service` : '';
     const closed = [...this.airport.closedTaxiways].sort();
     const taxiways = closed.length ? `, taxiway${closed.length > 1 ? 's' : ''} ${closed.join(' and ')} closed` : '';
+    const deicing = deicingActive(this) ? ', de-icing in progress on the de-icing pads' : '';
     const storm = this.storm ? (this.storm.phase === 'overhead' ? ', thunderstorm over the airport, windshear reported on final' : ', thunderstorm in the vicinity') : '';
-    return `${this.station.name.split(' ')[0]} information ${a.letter}, time ${hhmm}, ${this.approachName(a.runway)}${navaids}, runway in use ${a.runway}${taxiways}, wind ${windWords(a.wind)}${storm}, QNH ${a.qnh}, transition level ${this.transitionLevel(a.qnh)}.`;
+    return `${this.station.name.split(' ')[0]} information ${a.letter}, time ${hhmm}, ${this.approachName(a.runway)}${navaids}, runway in use ${a.runway}${taxiways}${deicing}, wind ${windWords(a.wind)}${storm}, QNH ${a.qnh}, transition level ${this.transitionLevel(a.qnh)}.`;
   }
 
   private changeRunway(newEnd: string): void {

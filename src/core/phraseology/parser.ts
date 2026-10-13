@@ -320,6 +320,27 @@ function readDesignator(c: Cursor): string | undefined {
   return undefined;
 }
 
+/** De-icing pad designator: "dp2", "dp 2", "d p 2" (delta papa two) or just "2". */
+function readDeicingPad(c: Cursor): string | undefined {
+  const t = c.peek();
+  if (!t) return undefined;
+  let m = /^dp(\d)$/.exec(t);
+  if (m) {
+    c.next();
+    return `DP${m[1]}`;
+  }
+  if ((t === 'dp' || (t === 'd' && c.peek(1) === 'p')) && isDigit(c.peek(t === 'dp' ? 1 : 2))) {
+    c.i += t === 'dp' ? 1 : 2;
+    return `DP${c.next()}`;
+  }
+  m = /^(\d)$/.exec(t);
+  if (m) {
+    c.next();
+    return `DP${m[1]}`;
+  }
+  return undefined;
+}
+
 function readFrequency(c: Cursor): string | undefined {
   const t = c.peek();
   if (t && /^1\d\d\.\d{1,3}$/.test(t)) {
@@ -525,6 +546,12 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
         if (c.t[c.i - 1] === 'via') c.i--;
       }
       return { kind: 'runway', runway: r };
+    }
+    // "de-icing [pad|position|area] [DP]2", "deicing pad delta papa 2"
+    if (c.peek() === 'deicing' || (c.peek() === 'de' && c.peek(1) === 'icing')) {
+      c.i += c.peek() === 'de' ? 2 : 1;
+      c.accept('pad', 'position', 'area', 'bay');
+      return { kind: 'deicing', pad: readDeicingPad(c) };
     }
     if (c.accept('stand', 'gate', 'parking', 'position', 'apron')) {
       c.accept('position');
@@ -811,7 +838,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
           readVia(taxi.via);
           continue;
         }
-        if (['holding', 'runway', 'stand', 'gate', 'parking'].includes(c.peek()!) && !taxi.destination) {
+        if (['holding', 'runway', 'stand', 'gate', 'parking', 'deicing', 'de'].includes(c.peek()!) && !taxi.destination) {
           const d = readTaxiDestination();
           if (d) {
             taxi.destination = d;

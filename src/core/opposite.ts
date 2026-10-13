@@ -51,7 +51,8 @@ function stopNeed(ac: Aircraft, other: Aircraft): number {
 function junctionBetween(sim: Simulation, a: Aircraft, b: Aircraft, gap: number): { node: TaxiNode; sA: number; sB: number } | undefined {
   let best: { node: TaxiNode; sA: number; sB: number; margin: number } | undefined;
   for (const n of a.route!.nodes) {
-    if (n.edges.length < 3) continue;
+    // Lead lines of de-icing pads are no way out (a stand lane can be, when the stand is free).
+    if (n.edges.filter((e) => !sim.airport.isDeicingLead(e)).length < 3) continue;
     const mA = a.path!.marker(n.id);
     const mB = b.path!.marker(n.id);
     if (!mA || !mB) continue;
@@ -62,7 +63,6 @@ function junctionBetween(sim: Simulation, a: Aircraft, b: Aircraft, gap: number)
     if (margin < 5) continue;
     if (!best || margin > best.margin) best = { node: n, sA: mA.s, sB: mB.s, margin };
   }
-  void sim;
   return best;
 }
 

@@ -59,6 +59,19 @@ export function validateAirport(data: AirportData): string[] {
       if (!airport.taxiwayNames.has(f.taxiway.toUpperCase())) add(`runway ${ops.runway}: flow on unknown taxiway ${f.taxiway}`);
     }
   }
+  for (const pad of airport.deicingPads) {
+    if (!(pad.maxWingspanM > 0)) add(`de-icing pad ${pad.name} has no maximum wingspan`);
+    const wingspanM = Math.min(pad.maxWingspanM, 65);
+    const fromStand = [...airport.stands.values()].some((s) => !isRouteError(findRoute(airport, { node: s.node, heading: s.pushback ? (s.heading + 180) % 360 : s.heading }, pad.node, [], { wingspanM: Math.min(wingspanM, s.maxWingspanM) })));
+    if (!fromStand) add(`de-icing pad ${pad.name} cannot be reached from any stand`);
+    for (const ops of data.runwayOps) {
+      const ok = ops.departureEntries.some((e) => {
+        const hp = airport.holdingPoint(e.holdingPoint);
+        return !!hp && e.fullLength && !isRouteError(findRoute(airport, { node: pad.node }, hp, [], { wingspanM }));
+      });
+      if (!ok) add(`de-icing pad ${pad.name} cannot reach a full-length entry of runway ${ops.runway}`);
+    }
+  }
   if (!data.stations.some((s) => s.type === 'GND') && !data.stations.some((s) => s.type === 'TWR')) add('has neither a Ground nor a Tower station');
 
   // ---------------------------------------------------------------- reachability

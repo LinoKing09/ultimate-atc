@@ -643,6 +643,24 @@ export class Scope {
       }
     }
 
+    // De-icing pads: outlined square with the designator
+    if (z > 0.12 && ap.deicingPads.length) {
+      ctx.font = `${Math.max(9, Math.min(12, 10 * z))}px Consolas, monospace`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      for (const pad of ap.deicingPads) {
+        const p = this.toScreen(pad.node.pos);
+        const half = Math.max(4, 18 * z);
+        ctx.strokeStyle = C.standLabel;
+        ctx.lineWidth = 1;
+        ctx.strokeRect(p.x - half, p.y - half, half * 2, half * 2);
+        if (z > 0.25) {
+          ctx.fillStyle = C.standLabel;
+          ctx.fillText(pad.name, p.x + half + 14, p.y);
+        }
+      }
+    }
+
     // Taxiway designators
     if (z > 0.12) {
       ctx.font = `bold ${Math.max(10, Math.min(13, 12 * z))}px Consolas, monospace`;

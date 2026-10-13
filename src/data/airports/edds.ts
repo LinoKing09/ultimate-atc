@@ -13,8 +13,7 @@ import { RunwayFrameBuilder } from './builder';
  * measured on the charts and converted into the runway-aligned frame below
  * (accuracy roughly +-10 m). Only the network topology and approximate
  * positions are used - no chart graphics are reproduced. Simplifications:
- * de-icing pads DP1-DP4, run-up areas / holding bays P1-P2, the general
- * aviation apron, the US army airfield and the "A" stands (9A, 24A ...) are
+ * the run-up areas, the general aviation apron, the US army airfield and the "A" stands (9A, 24A ...) are
  * not modelled; drive-through stands are modelled as "taxi in from the
  * north lane, taxi out forwards to the south lane".
  *
@@ -284,6 +283,36 @@ function chainSorted(name: string, kind: 'taxiway' | 'taxilane', list: [string, 
   b.chain(name, kind, [...prefix, ...ids, ...suffix]);
 }
 
+// ======================================================================== holding bays P1 / P2 (25 end)
+// Bypass from N down to S just before A (VATSIM Germany Tower SOP: waiting / re-sequencing area, max.
+// B739/A321): a departure that is not ready waits on P1 or P2, the next one passes it via P1/P2 and S.
+// Positions estimated from the chart description, not measured.
+const BYPASS: [string, number, number][] = [
+  ['P1', 3020, 3090],
+  ['P2', 3130, 3200],
+];
+for (const [name, onN, onS] of BYPASS) {
+  nNodes.push([`N_${name}`, onN]);
+  sNodes.push([`S_${name}`, onS]);
+}
+// ======================================================================== de-icing pads DP1-DP4
+// De-icing only on DP1-DP4 (STR A-CDM briefing / VATSIM Germany). The pads lie between N and S; their positions
+// along the runway are estimates (not from the chart), between G and E. Each pad is a drive-through bay with
+// lead lines to N and S on both sides, so a departure keeps its direction with the taxi flow of either runway
+// (25: in and out on N eastbound; 07: in from S eastbound, out onto N westbound).
+const DEICING: [string, number][] = [
+  ['DP1', 1330],
+  ['DP2', 1470],
+  ['DP3', 1610],
+  ['DP4', 1750],
+];
+/** Along-distance of the pad lead lines from the pad centre (m). */
+const PAD_LEAD = 55;
+for (const [name, a] of DEICING) {
+  nNodes.push([`N_${name}W`, a - PAD_LEAD], [`N_${name}E`, a + PAD_LEAD]);
+  sNodes.push([`S_${name}W`, a - PAD_LEAD], [`S_${name}E`, a + PAD_LEAD]);
+}
+
 chainSorted('N', 'taxiway', nNodes, () => N_LAT, [CIRCLE]);
 n('A_TOP', 3324, S_LAT);
 b.chain('N', 'taxiway', ['N_END', 'A_TOP']);
@@ -295,6 +324,17 @@ chainSorted('M', 'taxilane', mNodes, (a) => latOn(M_LINE, a));
   for (const e of b.edges) if (e.name === 'M' && east.has(e.from) && east.has(e.to)) e.maxWingspanM = 36;
 }
 chainSorted('O', 'taxiway', oNodes, () => 229, [], [CIRCLE]);
+
+// P1 / P2: angled bypass N -> S (eastbound), limited to code C (wingspan 36 m)
+for (const [name, onN, onS] of BYPASS) {
+  n(name, (onN + onS) / 2, (N_LAT + S_LAT) / 2);
+  b.chain(name, 'taxiway', [`N_${name}`, name, `S_${name}`], { maxWingspanM: 36 });
+}
+// De-icing pads: lead lines of kind 'stand' (only used to enter or leave the pad, never as a short cut)
+for (const [name, a] of DEICING) {
+  n(name, a, (N_LAT + S_LAT) / 2);
+  for (const lane of ['N', 'S']) b.chain(name, 'stand', [`${lane}_${name}W`, name, `${lane}_${name}E`]);
+}
 
 // L3: west end of O up to M; L2: from M down into the circle
 b.chain('L3', 'taxiway', ['O_L3', 'M_L3']);
@@ -408,7 +448,10 @@ export const EDDS: AirportData = {
   initialClimbFt: 5000,
   // Stand sizes: code C on Apron North except the wide-body positions 71A / 74A; Apron South 105-107 wide-body.
   dataNotice:
-    'Layout digitised by hand from the AIP Germany aerodrome charts (AD 2 EDDS 2-5 / 2-7, AMDT 10/26), accuracy about +-10 m; some areas simplified. Not for real-world navigation.',
+    'Layout digitised by hand from the AIP Germany aerodrome charts (AD 2 EDDS 2-5 / 2-7, AMDT 10/26), accuracy about +-10 m; some areas simplified; holding bays P1/P2 and de-icing pads DP1-DP4 at estimated positions. Not for real-world navigation.',
+  // De-icing pads DP1-DP4 (positions estimated, see the de-icing comment above). Between N and S there is room
+  // for code D at most (wingtip clearance to the traffic on N and S); larger aircraft are de-iced on their stand.
+  deicingPads: DEICING.map(([name]) => ({ name, node: name, maxWingspanM: 52 })),
   runways: [
     {
       name: RWY,

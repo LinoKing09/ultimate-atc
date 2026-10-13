@@ -108,11 +108,22 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 - **done** - Score and incident statistics
 - **done** - CI and GitHub Pages deployment
 
+## 1.x - after 1.0
+
+Wishes collected for the 1.x releases (from the [release report](release-1.0-report.md#after-10) and earlier sessions), roughly in order:
+
+- **done** (1.1) - **EDDS holding bays P1/P2** (bypass at the 25 end) and **de-icing pads DP1-DP4** with de-icing as a scenario condition (winter operations); positions estimated
+- planned - **Low visibility procedures (LVP)** with the CAT II/III holding points and larger spacing (values from the AIP, supplied as text)
+- planned - **Take-off run available from the intersections** from the AIP (supplied as text) instead of the measured approximations
+- planned - **Voice**: test text-to-speech and speech recognition again on the iPad and switch them back on
+- planned - Smarter AI Tower after a rejected take-off; partial taxiway closures; a taxiway blocked during the session (special event)
+- planned - Further airports (EDDF first), then the Approach / Departure position
+
 ## Next steps
 
 ### Gameplay and realism
 
-- planned - EDDS details: de-icing pads DP1-DP4, holding bays P1/P2, GA apron, A-stands (9A, 24A ...)
+- planned - EDDS details: GA apron, A-stands (9A, 24A ...) (de-icing pads and P1/P2: see 1.x above)
 - planned - Real `follow` behaviour (follow-the-leader)
 - planned - Stand allocation per airline and terminal (Schengen / non-Schengen), contact/remote stands
 - planned - More special events (bird strike, a taxiway blocked during the session - closed taxiways for a whole session are done since 0.9; follow-me and tows are done since 0.6.1), de-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short; squawk read-back errors are done since 0.6)

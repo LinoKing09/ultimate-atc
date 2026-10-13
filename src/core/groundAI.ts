@@ -7,6 +7,7 @@ import { aiInstruct } from './pilot';
 import type { Simulation } from './simulation';
 import { apronClosed } from './weather';
 import { needsCurfewRoute, sendBackToStand } from './night';
+import { freePads, needsDeicing } from './deicing';
 
 /**
  * AI Ground controller, active when the user does not staff Ground (for
@@ -43,25 +44,37 @@ function busyNearby(sim: Simulation, ac: Aircraft, radius: number): boolean {
   return sim.aircraft.some((o) => o !== ac && o.onGround && ['taxi', 'pushback'].includes(o.phase) && Math.hypot(o.pos.x - ac.pos.x, o.pos.y - ac.pos.y) < radius);
 }
 
+/** Where a departure taxis next: to a free de-icing pad first if it still needs de-icing (winter operations). */
+function outbound(sim: Simulation, ac: Aircraft): TaxiDestination {
+  return needsDeicing(sim, ac) ? { kind: 'deicing' } : { kind: 'runway', runway: sim.runway };
+}
+
 function departure(sim: Simulation, ac: Aircraft): void {
   // Tower asked to hold all departures, or lightning stopped the ground handling: no pushbacks (aircraft already moving continue).
   if (ac.phase === 'parked' && (sim.flow.departuresStopped || apronClosed(sim))) return;
   if (ac.phase === 'parked' && sim.time >= ac.readyAt && ac.cleared) {
     if (busyNearby(sim, ac, 250)) return; // the simplest pushback sequencing: wait for passing traffic
+    if (needsDeicing(sim, ac) && !freePads(sim, ac).length) return; // all de-icing pads busy: stay on the stand
     const stand = sim.airport.stand(ac.stand ?? '');
-    if (stand && !stand.pushback) aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.runway }, via: [], holdShort: [], cross: [] });
+    if (stand && !stand.pushback) aiInstruct(sim, ac, { type: 'taxi', destination: outbound(sim, ac), via: [], holdShort: [], cross: [] });
     else aiInstruct(sim, ac, { type: 'pushback', startup: true });
     return;
   }
   if (ac.phase === 'startup' && sim.time >= ac.timerUntil && !ac.pendingTaxi) {
     // Night curfew missed during the pushback: back onto a stand instead of to the runway.
-    const destination: TaxiDestination = ac.returnToStand && ac.assignedStand ? { kind: 'stand', stand: ac.assignedStand } : { kind: 'runway', runway: sim.runway };
+    const destination: TaxiDestination = ac.returnToStand && ac.assignedStand ? { kind: 'stand', stand: ac.assignedStand } : outbound(sim, ac);
     aiInstruct(sim, ac, { type: 'taxi', destination, via: [], holdShort: [], cross: [] });
     return;
   }
   // Night curfew missed: back to a stand, not on to the runway.
   if (needsCurfewRoute(ac)) {
     sendBackToStand(sim, ac);
+    return;
+  }
+  // De-iced on the pad: on to the runway - metered, so the queue to the runway does not fill the taxiways.
+  if (ac.phase === 'taxi' && ac.deicing === 'done' && ac.routeDestination?.kind === 'deicing' && ac.stoppedAt) {
+    if (runwayQueue(sim) >= PAD_RELEASE_QUEUE) return;
+    aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.runway }, via: [], holdShort: [], cross: [] });
     return;
   }
   if (ac.phase === 'holding' || readyForTower(sim, ac)) {
@@ -74,8 +87,16 @@ function departure(sim: Simulation, ac: Aircraft): void {
     if (ac.returnToStand) {
       const stand = ac.assignedStand ?? sim.freeStands(ac.type.wingspanM, undefined, ac)[0]?.id;
       if (stand) aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] });
-    } else aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.runway }, via: [], holdShort: [], cross: [] });
+    } else aiInstruct(sim, ac, { type: 'taxi', destination: outbound(sim, ac), via: [], holdShort: [], cross: [] });
   }
+}
+
+/** The AI Ground releases a de-iced aircraft from its pad only while fewer departures than this queue on the way to the runway. */
+const PAD_RELEASE_QUEUE = 2;
+
+/** Departures standing in a queue on the way to a holding point (stopped short of it, behind traffic). */
+function runwayQueue(sim: Simulation): number {
+  return sim.aircraft.filter((o) => o.category === 'departure' && o.phase === 'taxi' && o.routeDestination?.kind === 'holdingPoint' && o.speed < 0.5 && !!o.blockedBy).length;
 }
 
 /** Tows: approved when no other traffic moves nearby. */

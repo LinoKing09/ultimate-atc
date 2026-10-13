@@ -10,6 +10,7 @@ Every session is driven by a **seeded random number generator**. This page expla
 - [Start time and night flying restrictions](#start-time-and-night-flying-restrictions)
 - [Closed taxiways](#closed-taxiways)
 - [Thunderstorm](#thunderstorm)
+- [De-icing](#de-icing)
 - [Sharing a scenario](#sharing-a-scenario)
 
 ---
@@ -42,7 +43,7 @@ EDDS-25-MB0-S20-T2215.N.CE.CS-K7Q2M      (with the optional options part)
 | Runway   | `25`        | Runway in use at the start. `AUTO` = from the random wind                                      |
 | Traffic  | `HD1` or `4213` | **Letter form**: density (`L` light, `M` medium, `H` heavy), traffic mix (`B` balanced, `D` departure rush, `A` arrival rush), flags (`0` none, `1` heavies 35 %, `2` random special events "rare", `3` both). **Digit form** for the other slider steps: density 1-5, mix 1-5 (1 departure rush ... 3 balanced ... 5 arrival rush), heavies 0-4, random events 0-4 (see the tables below). The letter form is used whenever it fits, so older codes stay the same |
 | Events   | `M10R20W30` | Scheduled events: a letter and the minute after the start. `M` medical emergency (arrival), `D` medical emergency (departure), `R` rejected take-off, `W` wind shift, `S` thunderstorm. `X` = none |
-| Options  | `T2215.N.CE` | *Optional* (codes without options have five parts and are still valid). Tokens separated by `.`: `T2215` start at 22:15 local airport time, `N` night flying restrictions, `C` + taxiway (`CE`, `CL2`) taxiway closed - one token per closed taxiway |
+| Options  | `T2215.N.CE` | *Optional* (codes without options have five parts and are still valid). Tokens separated by `.`: `T2215` start at 22:15 local airport time, `N` night flying restrictions, `C` + taxiway (`CE`, `CL2`) taxiway closed - one token per closed taxiway, `I` de-icing (winter operations) |
 | Seed     | `K7Q2M`     | The random seed, in base 36 (digits and letters)                                               |
 
 Codes are not case-sensitive. Type or paste one into the **Scenario** field of the Connect dialog; the dialog shows what it means (or why it is invalid). With a code, the density and special-events sliders of the dialog show the code's values and are locked.
@@ -64,7 +65,7 @@ The four traffic **sliders** have five steps each (digit in the code in brackets
 Click **Scenario builder...** next to the Scenario field in the Connect dialog:
 
 1. Pick a **preset**, or set the runway and the sliders for density, traffic mix, heavies and random events yourself.
-2. Under **Conditions**, set a **start time** (local airport time; empty = now), the **night flying restrictions** and **closed taxiways**. A closure that would cut stands off from a runway is shown in red and cannot be used.
+2. Under **Conditions**, set a **start time** (local airport time; empty = now), the **night flying restrictions**, **de-icing** and **closed taxiways**. A closure that would cut stands off from a runway is shown in red and cannot be used.
 3. Add **scheduled events** with the minute when they should happen.
 4. **New seed** keeps the scenario but gives different traffic.
 5. The **scenario code** updates as you go. **Copy code** / **Copy link** copy it, **Use this scenario** puts it into the Connect dialog.
@@ -81,6 +82,7 @@ Click **Scenario builder...** next to the Scenario field in the Connect dialog:
 | Runway change   | medium, runway 25, wind shift at 15 min                     | Changing the runway with traffic on the move                   |
 | Night shift     | medium, start 22:15 local, night flying restrictions        | The last wave before the curfew: jets out by 2300, landings until 2330 (delayed ones until 2400) |
 | Construction works | medium, runway 25, taxiways E and S closed               | Routing around closed taxiways                                 |
+| Winter morning  | medium, departure rush, start 06:30 local, de-icing         | Every departure via a de-icing pad: pad allocation, two taxi clearances per departure |
 | Thunderstorm    | medium, thunderstorm at 12 min                              | Gusts, a tailwind shift, windshear go-arounds, a departure stop |
 | Full shift      | heavy, more heavies, random events; medical arrival at 12, wind shift at 35 | Everything at once                                   |
 
@@ -137,6 +139,19 @@ A storm cell crosses the airport (event `S`), in three phases:
 | Passed                 | -          | The wind settles from the new direction at 6-11 kt; the other runway is usually better now. Departures and ground handling resume. |
 
 What you do: broadcast a new ATIS (the editor is pre-filled with the gusts), change the runway to stop the tailwind go-arounds, keep the departures waiting at the holding points in order, and get the queue moving when the storm has passed. Weather go-arounds **do not cost points**; the toolbar shows the wind in red with `TS` while the storm is active.
+
+## De-icing
+
+Winter operations (option `I`): frost on the wings, every departure has to be de-iced on one of the **de-icing pads** before take-off. Stuttgart has four, **DP1-DP4**, between taxiways N and S (between G and E); each pad is a drive-through bay with lead lines to N and S on both sides, so a departure keeps the direction of the taxi flow (runway 25: in and out on N eastbound; runway 07: in from S eastbound, out onto N westbound). The positions are estimates - see [EDDS](airports/EDDS.md).
+
+- The crew asks for it: `ready for taxi, request de-icing` (the ATIS says `de-icing in progress on the de-icing pads`, the briefing has a *De-icing* row).
+- **Taxi it to a pad**: `taxi to de-icing pad DP2 via N` (also `de-icing position 2`, `delta papa 2`; without a pad the crew takes the free pad nearest to it). The *Taxi to* menu lists the pads first, occupied ones greyed out. A pad is taken from the taxi clearance until the aircraft has left it; crews refuse an occupied pad (`de-icing pad DP2 is occupied, request another pad`).
+- On the pad the status shows `DEICE` for **6-10 minutes** (3 more for aircraft over 40 m wingspan). A taxi instruction meanwhile: `negative, de-icing in progress, about 4 more minutes`.
+- Then: `de-icing complete on DP2, ready for taxi` - taxi it to the runway as usual.
+- **Before the de-icing** crews refuse the runway or a holding point: `negative, we require de-icing first`.
+- The pads take aircraft up to **52 m wingspan** (code D; there is no room for more between N and S). Wide-bodies are de-iced on their stand and taxi straight to the runway.
+- The AI Ground does the same: it keeps a departure on its stand while all pads are busy, taxis it to a free pad, and on to the runway afterwards.
+- Not modelled: holdover times (a de-iced aircraft stays de-iced), de-icing fluid types, snow on the taxiways, braking action.
 
 ## Sharing a scenario
 

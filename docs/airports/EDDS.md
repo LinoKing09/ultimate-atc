@@ -56,7 +56,7 @@ Facts collected from public sources to bring the simulation closer to reality. C
 | Runway crossings | only between K and Y | likely (VATGER) | crossings where the routes need them |
 | Taxi-out stands | 40-56 taxi out; 61-64 only with the opposite stand free; jet bridges only at 9-16 | likely (VATGER) | 40-48, 50-56 taxi out |
 | Simultaneous pushbacks | at least two stands between them | likely (VATGER) | AI Ground: nothing taxiing within 250 m |
-| Initial climb / transition | climb via SID to 5000 ft; transition altitude 5000 ft, transition level in the ATIS | likely (VATGER) | 5000 ft, TL 70 |
+| Initial climb / transition | climb via SID to 5000 ft; transition altitude 5000 ft, transition level in the ATIS | likely (VATGER) | 5000 ft; TL from the QNH: FL60 from 1013 hPa, FL70 below (the lowest flight level at least 1000 ft above the transition altitude) |
 | Capacity | max. 48 movements/h (40 departures without arrivals; 40 arrivals with max. 8 departures), 14 in LVP | likely (VATGER) | traffic densities below that |
 | Traffic 2025 | 95 765 movements, 9.6 million passengers | certain (aerotelegraph) | - |
 | Runway direction | 2025: 55 % of departures to the west; long-term average 60/40 west/east | certain (RP Stuttgart noise report) | session wind 60 % westerly |

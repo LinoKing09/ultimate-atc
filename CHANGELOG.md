@@ -50,6 +50,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- The ATIS always said `transition level 70`; it now follows the QNH (transition altitude 5000 ft: FL60 from 1013 hPa, FL70 below).
+
 - Landing aircraft crept along the exit at 10 kt and stayed in the protected runway area for up to a minute, so the next arrival sometimes went around: they now keep their exit speed until they are behind the holding point. More arrivals and departures per hour as a result (benchmark 14.0 / 7.2, Tower benchmark 11.2 / 10.5).
 - Two departures from K and Y (the same runway point at the 07 end) cleared at the same moment lined up nose to nose and blocked the runway for good; an aircraft lining up onto a point nearby now blocks the line-up.
 - A departure at the holding point whose take-off was refused (thunderstorm) never called again; it now reminds Tower after 150 s. Reminders on the way to the holding point say `taxiing to holding point A` instead of `holding point , ready for departure`.

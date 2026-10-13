@@ -460,3 +460,15 @@ describe('stand allocation', () => {
     }
   }, 60000);
 });
+
+describe('ATIS', () => {
+  it('transition level follows the QNH (transition altitude 5000 ft)', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'light', seed: 1, generateTraffic: false });
+    expect(sim.transitionLevel(1013)).toBe(60);
+    expect(sim.transitionLevel(1028)).toBe(60);
+    expect(sim.transitionLevel(1012)).toBe(70);
+    expect(sim.transitionLevel(980)).toBe(70);
+    expect(sim.transitionLevel(975)).toBe(80);
+    expect(sim.atisText()).toMatch(/transition level (60|70)\./);
+  });
+});

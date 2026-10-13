@@ -597,6 +597,17 @@ export class Simulation {
     return `${t === 'ILS' ? 'ILS' : t === 'LOC' ? 'localizer' : 'RNP'} approach runway ${runway}`;
   }
 
+  /**
+   * Transition level (flight level) for a QNH: the lowest flight level at least 1000 ft above the
+   * transition altitude (Germany: 5000 ft gives FL60 from QNH 1013 hPa, FL70 below, FL80 below 978).
+   */
+  transitionLevel(qnh: number): number {
+    const ftPerHpa = 27.3;
+    // Tables use whole hPa with 1013 as standard.
+    const pressureAltitude = this.config.airport.transitionAltitudeFt + 1000 + (1013 - qnh) * ftPerHpa;
+    return Math.ceil(pressureAltitude / 1000) * 10;
+  }
+
   /** ATIS broadcast text (abbreviated). */
   atisText(): string {
     const a = this.atis;
@@ -605,7 +616,7 @@ export class Simulation {
     const closed = [...this.airport.closedTaxiways].sort();
     const taxiways = closed.length ? `, taxiway${closed.length > 1 ? 's' : ''} ${closed.join(' and ')} closed` : '';
     const storm = this.storm ? (this.storm.phase === 'overhead' ? ', thunderstorm over the airport, windshear reported on final' : ', thunderstorm in the vicinity') : '';
-    return `${this.station.name.split(' ')[0]} information ${a.letter}, time ${hhmm}, ${this.approachName(a.runway)}${navaids}, runway in use ${a.runway}${taxiways}, wind ${windWords(a.wind)}${storm}, QNH ${a.qnh}, transition level 70.`;
+    return `${this.station.name.split(' ')[0]} information ${a.letter}, time ${hhmm}, ${this.approachName(a.runway)}${navaids}, runway in use ${a.runway}${taxiways}, wind ${windWords(a.wind)}${storm}, QNH ${a.qnh}, transition level ${this.transitionLevel(a.qnh)}.`;
   }
 
   private changeRunway(newEnd: string): void {

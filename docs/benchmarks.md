@@ -44,6 +44,7 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 0.7.0   | 12.8 | 5.5 | 0  | 0 | 1  | 9.0  | 4.4 s |
 | 0.8.0   | 13.3 | 6.3 | 0  | 0 | 0  | 12.0 | 4.3 s |
 | **1.0.0** (2026-10-13) | 14.0 | 7.2 | 0 | 0 | 0 | 11.3 | 6.2 s |
+| 1.1.0 (2026-10-13) | 14.0 | 7.2 | 0 | 0 | 0 | 11.3 | 5.8 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -59,6 +60,8 @@ Soak test (0.5.0, 20 h with special events and more heavies in every third sessi
 
 **1.0.0** (scenario conditions, tutorials, review fixes): landing aircraft now keep their exit speed until they are behind the holding point instead of creeping at 10 kt inside the runway area. That frees the runway sooner: departures rise from 13.7 to 14.0 and arrivals from 6.8 to 7.2 per hour compared with the state before the review (13.3 / 6.3 in 0.8.0). Computing time is higher (6.2 s per simulated hour) because of the night, weather and closure checks and the extended conflict checks. Soak test (1.0.0): 12.9 departures and 7.0 arrivals per hour, no collisions, no incursions, **2 go-arounds** (before the review fixes: 5) - both caused by the same random rejected take-off (the aircraft blocked the runway, and later its second departure attempt). Without special events no go-around was left in any of the diagnostic runs.
 
+**1.1.0** (P1/P2, de-icing pads, de-icing scenario option): the benchmark sessions do not use de-icing, and the new taxiways and pads do not change a single route - the results are identical to 1.0.0. Soak test (1.1.0): 12.9 departures and 7.0 arrivals per hour, no collisions, no incursions, 2 go-arounds (the same rejected take-off as in 1.0.0). With de-icing (not part of the benchmark; AI Ground and the scripted Tower controller, 5 sessions of 2 h per runway, second hour): 9.4 departures per hour on runway 25 (10.4 without de-icing) and 8.4 on runway 07 (13.6 without) - every departure spends 6-10 minutes on a pad, and on runway 07 the de-iced departures share taxiway N with the arrivals.
+
 ### Tower benchmark (since 0.7)
 
 The same 20 sessions with you as **Tower** (Ground and Delivery run by the simulator) and a simple scripted Tower controller: it clears arrivals to land inside 4 NM when nobody is lined up, clears a departure for take-off when the runway is free, the next arrival is more than 110 s away, the departure spacing is met and its CTOT window is open, hands departures to Radar and arrivals to Ground when they ask, and clears crossings when the runway is free and the next arrival is more than 90 s away.
@@ -69,6 +72,7 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 | 0.7.x (early hand-off to Tower) | 10.3 | 10.8 | 0 | 0 | 0 | 0 | 0 |
 | 0.8.0 | 11.2 | 10.3 | 0 | 0 | 0 | 0 | 0 |
 | **1.0.0** (2026-10-13) | 11.2 | 10.5 | 0 | 0 | 0 | 0 | 0 |
+| 1.1.0 (2026-10-13) | 11.2 | 10.5 | 0 | 0 | 0 | 0 | 0 |
 
 Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
 
@@ -101,6 +105,10 @@ How many hours of traffic have been simulated while developing and testing the s
 | 0.9 / 1.0: diagnostic runs (all positions, scenarios, go-around analysis, traces) | ~140 h | estimate from the run lengths |
 | 0.9 / 1.0: test-suite runs | ~450 h | estimate: about 30 runs, growing from 9 to 24 h each (one run now simulates 24 h) |
 | **Total up to 1.0.0** | **~2730 h** | of which 1480 h exactly measured |
+| 1.1: benchmark and soak runs | 160 h | measured: 3 benchmark runs (Ground + Tower) and 2 soak runs |
+| 1.1: de-icing diagnostic runs | 160 h | measured: one 1-h and five 2-h comparisons (AI Ground, with and without de-icing) |
+| 1.1: test-suite runs and traces | ~130 h | estimate |
+| **Total up to 1.1.0** | **~3180 h** | of which 1800 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

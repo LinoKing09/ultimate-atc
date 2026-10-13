@@ -4,9 +4,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-10-13
+
+Winter operations and the Stuttgart holding bays: de-icing as a scenario condition, P1/P2 and DP1-DP4.
+
 ### Added
 
-- **De-icing** (winter operations): scenario option `I` (scenario builder: *Conditions* -> *De-icing*), preset *Winter morning*. Every departure up to 52 m wingspan has to be de-iced on one of the de-icing pads before take-off: the crew asks `ready for taxi, request de-icing`, you taxi it to a pad (`taxi to de-icing pad DP2 via N`, or `taxi to de-icing` for a free one), it is de-iced for 6-10 minutes (status `DEICE`) and reports `de-icing complete on DP2, ready for taxi`. Crews refuse the runway before the de-icing and refuse an occupied pad. ATIS, briefing and the *Taxi to* menu (pads first) show it; the AI Ground de-ices too and meters the departures from the pads. See [scenarios](docs/scenarios.md#de-icing).
+- **De-icing** (winter operations): scenario option `I` (scenario builder: *Conditions* -> *De-icing*), preset *Winter morning*. Every departure up to 52 m wingspan has to be de-iced on one of the de-icing pads before take-off: the crew asks `ready for taxi, request de-icing`, you taxi it to a pad (`taxi to de-icing pad DP2 via N`, or `taxi to de-icing` for a free one), it is de-iced for 6-10 minutes (status `DEICE`) and reports `de-icing complete on DP2, ready for taxi`. Crews refuse the runway before the de-icing and refuse an occupied pad. ATIS, briefing and the *Taxi to* menu (pads first) show it; the AI Ground de-ices too and releases de-iced aircraft from the pads only while fewer than 3 departures taxi to the runway. See [scenarios](docs/scenarios.md#de-icing).
 - **Stuttgart: holding bays P1/P2** at the 25 end (bypass from N to S, code C) and the **de-icing pads DP1-DP4** between N and S, at estimated positions ([EDDS](docs/airports/EDDS.md#holding-bays-and-de-icing-pads)). New airport data field `deicingPads`, checked by the data validation.
 
 ### Changed

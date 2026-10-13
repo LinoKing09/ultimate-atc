@@ -73,7 +73,7 @@ function departure(sim: Simulation, ac: Aircraft): void {
   }
   // De-iced on the pad: on to the runway - metered, so the queue to the runway does not fill the taxiways.
   if (ac.phase === 'taxi' && ac.deicing === 'done' && ac.routeDestination?.kind === 'deicing' && ac.stoppedAt) {
-    if (runwayQueue(sim) >= PAD_RELEASE_QUEUE) return;
+    if (runwayQueueFull(sim)) return;
     aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.runway }, via: [], holdShort: [], cross: [] });
     return;
   }
@@ -91,12 +91,12 @@ function departure(sim: Simulation, ac: Aircraft): void {
   }
 }
 
-/** The AI Ground releases a de-iced aircraft from its pad only while fewer departures than this queue on the way to the runway. */
-const PAD_RELEASE_QUEUE = 2;
+/** The AI Ground releases a de-iced aircraft from its pad only while fewer departures than this taxi to the runway. */
+const PAD_RELEASE_TAXIING = 3;
 
-/** Departures standing in a queue on the way to a holding point (stopped short of it, behind traffic). */
-function runwayQueue(sim: Simulation): number {
-  return sim.aircraft.filter((o) => o.category === 'departure' && o.phase === 'taxi' && o.routeDestination?.kind === 'holdingPoint' && o.speed < 0.5 && !!o.blockedBy).length;
+/** True when enough departures are already on the way to the runway (they would fill the taxiways). */
+function runwayQueueFull(sim: Simulation): boolean {
+  return sim.aircraft.filter((o) => o.category === 'departure' && o.phase === 'taxi' && o.routeDestination?.kind === 'holdingPoint').length >= PAD_RELEASE_TAXIING;
 }
 
 /** Tows: approved when no other traffic moves nearby. */

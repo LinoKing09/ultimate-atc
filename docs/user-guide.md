@@ -233,7 +233,7 @@ From each runway threshold an extended centreline runs 15 NM outwards with a tic
 | ---------------------------- | --------------------------------------------------------------- |
 | White                        | On your frequency                                               |
 | Grey                         | On another frequency (Tower, or a position run by the simulator) |
-| Flashing red                 | A-SMGCS CATC: cleared routes meet head-on (see [Resolve conflict](#7-aircraft-menu)); *Acknowledge CATC alert* in the aircraft menu (`ACK` in the quick-action bar) stops the flashing when you know they will not meet |
+| Flashing red                 | A-SMGCS CATC: two aircraft rolling towards each other on cleared routes that meet head-on (not when one of them stands still; see [Resolve conflict](#7-aircraft-menu)); *Acknowledge CATC alert* in the aircraft menu (`ACK` in the quick-action bar) stops the flashing when you know they will not meet |
 | Flashing yellow              | Waiting for your answer (a request is pending); `roger` / `standby` (or ROGER in the sidebar) stops it until the pilot calls again |
 | Flashing orange              | Waiting for more than a minute                                  |
 | Flashing magenta, `PAN`      | Emergency (medical) - give priority                             |

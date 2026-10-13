@@ -43,6 +43,26 @@ describe('head-on conflicts (CATC)', () => {
     void dep;
   });
 
+  it('no alert while one of them stands still - only when both roll towards each other', () => {
+    const { sim, dep, arr } = headOnSetup();
+    // The departure stays where it is; only the arrival rolls towards it.
+    sim.transmit('EWG2CD taxi to stand 14 via N, L2');
+    for (let t = 0; t < 20; t++) sim.tick(1);
+    expect(dep.speed).toBeLessThan(0.5);
+    expect(arr.speed).toBeGreaterThan(1);
+    expect(catcAlert(sim, arr)).toBeUndefined();
+    expect(catcAlert(sim, dep)).toBeUndefined();
+    expect(sim.messages.some((m) => /CATC:/.test(m.text))).toBe(false);
+    // Now both roll: the alert comes.
+    sim.transmit('DLH1AB taxi to holding point A via N');
+    expect(runUntil(sim, () => !!catcAlert(sim, dep), 30)).toBe(true);
+    expect(catcAlert(sim, dep)?.b.callsign).toBe('EWG2CD');
+    expect(sim.messages.some((m) => /CATC: DLH1AB and EWG2CD/.test(m.text))).toBe(true);
+    // One stops: no more flashing.
+    sim.transmit('DLH1AB hold position');
+    expect(runUntil(sim, () => !catcAlert(sim, dep) && !catcAlert(sim, arr), 30)).toBe(true);
+  });
+
   it('acknowledged CATC alerts stop flashing until the conflict ends', () => {
     const { sim, dep, arr } = headOnSetup();
     sim.transmit('DLH1AB taxi to holding point A via N');

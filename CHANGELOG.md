@@ -33,6 +33,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- The red flashing CATC alert on the ground comes only when **both** aircraft are rolling towards each other; an aircraft standing still (holding, waiting, stopped) no longer makes the other one flash. A pair that stops briefly and rolls on is not announced again within 60 s. The route preview still warns about standing traffic.
+
 - Runway 07 taxi flows as in the VATSIM Germany SOP: N westbound (arrivals to the aprons), S eastbound (N is always used against the runway direction).
 - SIDs with the real first fixes and letters (KRH, ETASA, SUL, ROTWE; B = runway 25, H = runway 07), e.g. `ETASA4B` (numbers approximate).
 - IFR clearances in the German form: `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312` (the short form is still understood).

@@ -19,6 +19,10 @@ import type { Simulation } from './simulation';
 const HEAD_ON_DEG = 135;
 const SAMPLE_STEP = 15;
 const LOOK_AHEAD = 900;
+/** CATC only alerts for aircraft that are rolling (m/s, about 2 kt): one standing still is not a closing conflict. */
+const MOVING_MS = 1;
+/** A pair that was closing this recently is not announced again (s). */
+const REALERT_S = 60;
 
 export interface HeadOnConflict {
   other: Aircraft;
@@ -90,7 +94,21 @@ function firstHeadOn(a: Sample[], b: Sample[], r: number): Vec2 | undefined {
   return undefined;
 }
 
-/** Head-on conflicts between the cleared routes of all taxiing aircraft (pair key -> conflict). */
+/** Rolling along a cleared route (taxi, pushback, vacating), not standing or waiting. */
+function isMovingOnRoute(ac: Aircraft): boolean {
+  return !!ac.path && ['taxi', 'pushback', 'vacating'].includes(ac.phase) && ac.speed > MOVING_MS && !ac.stoppedAt && !ac.holdPosition;
+}
+
+/** Both aircraft of a conflict are rolling towards each other (only then CATC flashes and announces it). */
+export function isClosing(c: { a: Aircraft; b: Aircraft }): boolean {
+  return isMovingOnRoute(c.a) && isMovingOnRoute(c.b);
+}
+
+/**
+ * Head-on conflicts between the cleared routes of all taxiing aircraft (pair key -> conflict). Also
+ * pairs where one aircraft stands still: the AI Ground resolves those early. The alert (flashing,
+ * message) is only given for pairs that are closing (`isClosing`).
+ */
 export function findRouteConflicts(sim: Simulation): Map<string, { a: Aircraft; b: Aircraft; taxiway: string }> {
   const out = new Map<string, { a: Aircraft; b: Aircraft; taxiway: string }>();
   const list = sim.aircraft.filter(isTaxiingTraffic);
@@ -118,8 +136,14 @@ export function updateConflictAlerts(sim: Simulation): void {
     return;
   }
   const now = findRouteConflicts(sim);
+  let seen = lastSeen.get(sim);
+  if (!seen) lastSeen.set(sim, (seen = new Map()));
   for (const [key, c] of now) {
-    if (sim.routeConflicts.has(key)) continue;
+    // Only when both roll towards each other; a pair that stopped for a moment and rolls on is not announced again.
+    if (!isClosing(c)) continue;
+    const recent = (seen.get(key) ?? -Infinity) > sim.time - REALERT_S;
+    seen.set(key, sim.time);
+    if (recent) continue;
     if (!sim.isOnMyFrequency(c.a) && !sim.isOnMyFrequency(c.b)) continue;
     sim.system(`CATC: ${c.a.callsign} and ${c.b.callsign} are routed head-on${c.taxiway ? ` on ${c.taxiway}` : ''}.`, 'warning', c.a.callsign);
   }
@@ -127,13 +151,17 @@ export function updateConflictAlerts(sim: Simulation): void {
   for (const [k, v] of now) sim.routeConflicts.set(k, v);
   // An acknowledged alert ends with its conflict: a new conflict of the same pair alerts again.
   for (const k of [...sim.catcAcknowledged]) if (!now.has(k)) sim.catcAcknowledged.delete(k);
+  for (const [k, t] of seen) if (t < sim.time - REALERT_S) seen.delete(k);
 }
+
+/** Per session: when each pair was last closing (simulation time). */
+const lastSeen = new WeakMap<Simulation, Map<string, number>>();
 
 /** The CATC alert shown for an aircraft: a conflict that involves your traffic and has not been acknowledged. */
 export function catcAlert(sim: Simulation, ac: Aircraft): { a: Aircraft; b: Aircraft; taxiway: string; key: string } | undefined {
   for (const [key, c] of sim.routeConflicts) {
     if (c.a !== ac && c.b !== ac) continue;
-    if (sim.catcAcknowledged.has(key)) continue;
+    if (sim.catcAcknowledged.has(key) || !isClosing(c)) continue;
     if (!sim.isOnMyFrequency(c.a) && !sim.isOnMyFrequency(c.b)) continue;
     return { ...c, key };
   }

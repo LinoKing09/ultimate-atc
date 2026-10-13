@@ -4,8 +4,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.0.0] - 2026-10-13
+
+The first full version: Delivery, Ground and Tower at Stuttgart, alone and combined, with tutorials for each position, training scenarios with conditions (night flying restrictions, closed taxiways, thunderstorm), traffic sliders and a final review. Statistics: [benchmarks](docs/benchmarks.md#major-release-statistics) (chart: `docs/images/benchmarks-1.0.svg`), review: [release report](docs/release-1.0-report.md).
+
 ### Added
 
+- Benchmark chart for the release (`docs/images/benchmarks-1.0.svg`) in the benchmarks page and the README.
 - **Release report for 1.0** ([docs/release-1.0-report.md](docs/release-1.0-report.md)): criteria, checks, fixes, realism review, open points; 1.0 candidate statistics in `docs/benchmarks.md`.
 
 - **Sliders** with five steps: traffic density (light ... heavy, also in the settings), special events (never, very rare, rare, occasional, often - also in the settings), and in the scenario builder the traffic mix (departure rush ... balanced ... arrival rush) and the share of heavies (normal, 10, 20, 35, 50 %). Scenario codes store the in-between steps as four digits (`EDDS-25-4214-X-...`); the letter form (`MB2`) is kept whenever it fits, so older codes stay valid and unchanged.

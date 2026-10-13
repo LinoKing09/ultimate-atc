@@ -6,6 +6,8 @@ Status legend: **done**, *in progress*, planned.
 
 ## Road to 1.0
 
+**Version 1.0.0 was released on 2026-10-13** ([release report](release-1.0-report.md)). The text below is the agreement it was released under.
+
 Version 1.0 is the first full version. It is released only when we agree on it: when the criteria below are met, Claude proposes the release - it is never done automatically. (Criteria agreed on 2026-10-08.)
 
 **Criteria for 1.0**
@@ -28,7 +30,7 @@ Further airports follow in the 1.x releases (the airport data format, the data c
 | **0.7** | **done** - **Tower** at EDDS: line-up / take-off / landing clearances, runway crossings, arrival sequence |
 | **0.8** | **done** - Combined positions with Tower, AI pilots that resolve simple conflicts (opposite traffic, lane priority), debriefing |
 | 0.9 | **done** - Scenario conditions (night flying restrictions, closed taxiways, thunderstorm), tutorials, traffic sliders, polish; final review in the [release report](release-1.0-report.md) |
-| 1.0 | Release after the criteria above are met and agreed |
+| **1.0** | **released 2026-10-13** - the first full version, see the [release report](release-1.0-report.md) |
 | 1.x | Further airports |
 
 Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md](benchmarks.md) that compares them with the previous major release.
@@ -39,7 +41,7 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 - **done** - Tutorials for each position (Delivery, Ground, Tower): guided lessons with a fixed traffic situation, step panel with *Show me*, live traffic afterwards; tested by playing every lesson
 - **done** - Polish: five-step traffic sliders, CATC only for closing traffic, intersection line-ups, touch menus, quick-action bar, rejected take-off braking
 - **done** - Final review for 1.0 ([release report](release-1.0-report.md)): diagnostic runs over all positions and conditions, six fixes (exit speed, K/Y line-up, departure re-call, transition level, rejected take-off, touch menus)
-- *in progress* - Beta test on the iPad (performance criterion), then the 1.0 decision
+- **done** - 1.0.0 released on 2026-10-13 (decision of the project owner); the iPad performance check continues in play
 
 ## v0.8 - Combined positions, pilots, debriefing
 

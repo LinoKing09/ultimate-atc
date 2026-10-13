@@ -1,6 +1,8 @@
 # Release report: version 1.0
 
-Final review before version 1.0 (2026-10-13). It checks the [Road to 1.0](roadmap.md#road-to-10) criteria, lists what was tested and fixed during the review, assesses how realistic the simulation is, and names what is still open. The decision to release is taken together with the project owner.
+Final review before version 1.0 (2026-10-13). It checks the [Road to 1.0](roadmap.md#road-to-10) criteria, lists what was tested and fixed during the review, assesses how realistic the simulation is, and names what is still open.
+
+**Released as 1.0.0 on 2026-10-13** on the project owner's decision. The iPad performance check (below) was left to play on the device after the release; no device measurement was made.
 
 - [Summary](#summary)
 - [Criteria](#criteria)
@@ -9,14 +11,14 @@ Final review before version 1.0 (2026-10-13). It checks the [Road to 1.0](roadma
 - [Realism review](#realism-review)
 - [Known limitations](#known-limitations)
 - [Statistics](#statistics)
-- [Open before the release](#open-before-the-release)
+- [Open points at the release](#open-points-at-the-release)
 - [After 1.0](#after-10)
 
 ---
 
 ## Summary
 
-**Recommendation: ready for 1.0 once the iPad check is done.** Three of the four criteria are met with measurements. The fourth is met except for one point that can only be checked on the device: the iPad performance (see [Open before the release](#open-before-the-release)).
+**Recommendation: ready for 1.0 once the iPad check is done.** Three of the four criteria are met with measurements. The fourth is met except for one point that can only be checked on the device: the iPad performance (see [Open points at the release](#open-points-at-the-release)).
 
 - Delivery, Ground and Tower are playable at Stuttgart, alone and in every combination, with AI for the positions you don't staff.
 - 142 automated tests, the release benchmark (Ground and Tower) and the 20-hour soak test pass: **no collision, no runway incursion**; go-arounds only after a random rejected take-off.
@@ -96,13 +98,17 @@ Rated against ICAO / German practice and the Stuttgart data in [EDDS](airports/E
 
 ## Statistics
 
+![Release benchmark from 0.1 to 1.0](images/benchmarks-1.0.svg)
+
 See [benchmarks.md](benchmarks.md#major-release-statistics): since 0.4 (the benchmark baseline) +4 % departures and +38 % arrivals per hour, still 0 collisions, 0 incursions and 0 go-arounds in the benchmark, computing time down from 13.8 to 6.2 s per simulated hour; since 0.1 three times the departures, twice the arrivals, collisions 11 → 0, go-arounds 53 → 0. About **2730 hours** of traffic have been simulated during development (1480 h exactly measured).
 
-## Open before the release
+## Open points at the release
+
+The project owner released 1.0 before these checks; they remain the first things to watch in play.
 
 1. **iPad check by the project owner**: one session of about 30 minutes in mobile mode with heavy traffic at 4x / 8x - smooth scrolling and zooming, menus and quick-action bar, no lag. This closes the performance criterion.
 2. **A short play test** of the review fixes on the iPad: landing roll and exits, a rejected take-off (`stop immediately`), intersection line-ups, touch menus.
-3. **Release steps** (after the decision): version 1.0.0 in `package.json`, `CHANGELOG.md` section `[1.0.0]`, the statistics section in `benchmarks.md` marked final, roadmap updated, tag `v1.0.0`.
+3. **Release steps**: done - version 1.0.0 in `package.json`, `CHANGELOG.md` section `[1.0.0]`, the statistics section in `benchmarks.md` final with the [benchmark chart](images/benchmarks-1.0.svg), roadmap updated, tag `v1.0.0`.
 
 ## After 1.0
 

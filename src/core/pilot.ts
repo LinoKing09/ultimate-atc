@@ -524,7 +524,7 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       if (c.type === 'lineUp') return rb(`line up and wait runway ${rwy}`);
       ac.takeoffCleared = true;
       ac.immediateTakeoff = !!c.immediate;
-      if (sim.systemOn('rmca') && sim.tower.runwayBusy(ac)) {
+      if (sim.systemOn('rmca') && sim.tower.runwayBusyForDeparture(ac)) {
         sim.system(`RMCA: take-off clearance for ${ac.callsign} while runway ${rwy} is occupied!`, 'warning', ac.callsign);
       }
       return rb(`cleared for ${c.immediate ? 'immediate ' : ''}take-off runway ${rwy}`);

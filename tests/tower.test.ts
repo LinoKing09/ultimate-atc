@@ -265,3 +265,52 @@ describe('coordination with Approach and Ground', () => {
     expect(sim.setFlow('departures', true)).toBe('You staff Ground yourself.');
   });
 });
+
+describe('departures from different entries', () => {
+  /** Ground + Tower: DLH1AA to the full length A, EWG2BB to the intersection B, both at their holding points. */
+  function twoEntries(): { sim: Simulation; a: Aircraft; b: Aircraft } {
+    const sim = new Simulation({ airport: EDDS, position: 'TWR', positions: ['GND', 'TWR'], runway: '25', density: 'medium', seed: 42, events: false, generateTraffic: false });
+    const a = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH1AA', type: 'A320' }) as Aircraft;
+    const b = sim.traffic.spawnDeparture(2, { stand: '12', callsign: 'EWG2BB', type: 'A320' }) as Aircraft;
+    for (const [ac, hp] of [[a, 'A'], [b, 'B']] as const) {
+      expect(runUntil(sim, () => ac.request === 'pushback', 900)).toBe(true);
+      sim.transmit(`${ac.callsign} push and start approved facing east`);
+      expect(runUntil(sim, () => ac.request === 'taxi', 300)).toBe(true);
+      sim.transmit(`${ac.callsign} taxi to holding point ${hp} via M, H, N`);
+    }
+    expect(runUntil(sim, () => a.phase === 'holding' && b.phase === 'holding', 1200)).toBe(true);
+    sim.transmit('DLH1AA contact tower');
+    sim.transmit('EWG2BB contact tower');
+    expect(runUntil(sim, () => a.frequency === 'TWR' && b.frequency === 'TWR', 60)).toBe(true);
+    return { sim, a, b };
+  }
+
+  it('an aircraft lined up at A does not block a departure from intersection B ahead of it', () => {
+    const { sim, a, b } = twoEntries();
+    sim.transmit('DLH1AA line up and wait runway 25');
+    expect(runUntil(sim, () => a.phase === 'lineup' && !!a.stoppedAt, 120)).toBe(true);
+    // B is ahead of A: the runway is not occupied for B.
+    expect(sim.tower.runwayBusyForDeparture(b)).toBe(false);
+    sim.transmit('EWG2BB line up and wait runway 25');
+    expect(runUntil(sim, () => b.phase === 'lineup' && !!b.stoppedAt, 120)).toBe(true);
+    expect(a.phase).toBe('lineup');
+    sim.transmit('EWG2BB cleared for take-off runway 25');
+    expect(runUntil(sim, () => b.phase === 'climb', 120)).toBe(true);
+    expect(sim.messages.some((m) => /RMCA: take-off clearance for EWG2BB/.test(m.text))).toBe(false);
+    expect(sim.incidents).toEqual([]);
+  });
+
+  it('the full-length departure sees an aircraft lined up ahead of it as runway occupied', () => {
+    const { sim, a, b } = twoEntries();
+    sim.transmit('EWG2BB line up and wait runway 25');
+    expect(runUntil(sim, () => b.phase === 'lineup' && !!b.stoppedAt, 120)).toBe(true);
+    expect(sim.tower.runwayBusyForDeparture(a)).toBe(true);
+    // A may still line up behind it (another entry), but does not roll while B is in front.
+    sim.transmit('DLH1AA line up and wait runway 25');
+    expect(runUntil(sim, () => a.phase === 'lineup' && !!a.stoppedAt, 120)).toBe(true);
+    sim.transmit('DLH1AA cleared for take-off runway 25');
+    for (let t = 0; t < 60; t++) sim.tick(1);
+    expect(a.phase).toBe('lineup');
+    expect(sim.messages.some((m) => /RMCA: take-off clearance for DLH1AA/.test(m.text))).toBe(true);
+  });
+});

@@ -48,6 +48,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- Tower: a departure from an intersection (e.g. B) no longer counts the runway as occupied by an aircraft lined up behind it at the full-length entry (A): it may line up and take off first. The full-length departure still waits while the intersection departure is on the runway in front of it.
+
 - A departure cleared for take-off on its runway did not take off after the ATIS had changed the runway in use: it now takes off from the runway in its clearance.
 - Arrivals already talking to Tower went back to Approach when the runway in use changed.
 - A new departure could appear on a drive-through stand that another departure was still taxiing out of (collision).

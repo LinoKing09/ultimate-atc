@@ -1236,7 +1236,7 @@ export class App {
       items.push({ label: 'Taxi to stand', submenu: () => this.standDestinations(ac) });
     }
     if (ac.category === 'departure' && ac.onGround && ['holding', 'lineup', 'taxi'].includes(ac.phase)) {
-      const busy = sim.tower.runwayBusy(ac);
+      const busy = sim.tower.runwayBusyForDeparture(ac);
       const slotOpens = ac.ctot !== undefined && sim.time < ac.ctot - CTOT_EARLY_S ? ac.ctot - CTOT_EARLY_S : undefined;
       // Tower may send a departure to another holding point (e.g. an intersection) before it gets there.
       if (ac.phase === 'taxi' || ac.phase === 'holding') {
@@ -1256,7 +1256,7 @@ export class App {
         hint: () => {
           const wait = Math.max(0, Math.round(sim.tower.spacingRemaining(ac)));
           const eta = sim.tower.nextArrivalEta();
-          if (sim.tower.runwayBusy(ac)) return 'runway occupied!';
+          if (sim.tower.runwayBusyForDeparture(ac)) return 'runway occupied!';
           if (slotOpens !== undefined && sim.time < slotOpens) return `CTOT: not before ${hhmm(sim, slotOpens)}!`;
           if (wait) return `spacing: wait ${wait} s`;
           return Number.isFinite(eta) ? `next arrival ${Math.round(eta)} s` : 'no arrival';

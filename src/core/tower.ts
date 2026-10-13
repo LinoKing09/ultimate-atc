@@ -28,6 +28,8 @@ const TAKEOFF_ACCEL = 2.0; // m/s^2
 /** Chance of a random rejected take-off at the standard ("rare") event level. */
 const REJECTED_TAKEOFF_CHANCE = 0.015;
 const LINEUP_SPEED = 9 * KT_TO_MS;
+/** An aircraft standing this far behind a departure's start point is not in its way (metres). */
+const BEHIND_MARGIN_M = 30;
 /** A landing aircraft may cross the threshold when a preceding departure is airborne and this far down the runway (RRSM). */
 const RRSM_DISTANCE = 2400;
 /** Short final: from here on the arrival goes around if the runway is not clear. */
@@ -301,21 +303,46 @@ export class TowerAI {
     this.sim.updateScore();
   }
 
-  /** Another aircraft lined up, or on the runway within 400 m of this departure's entry (and not rolling away). */
+  /**
+   * Another aircraft on the runway within 400 m of this departure's entry (and not rolling away). An
+   * aircraft lined up elsewhere does not block it: departures from different entries (full length A,
+   * intersection B) may line up at the same time.
+   */
   private entryBlocked(ac: Aircraft): boolean {
     const end = this.end;
     const here = this.sim.airport.runwayCoordinates(end, ac.pos).along;
     return this.runwayOccupants(ac).some((o) => {
-      if (o.phase === 'lineup') return true;
       if (o.phase === 'takeoff') return false;
       return Math.abs(this.sim.airport.runwayCoordinates(end, o.pos).along - here) < 400;
     });
   }
 
-  /** Runway free in front of a departure: nobody else on the runway, nobody landing or taking off. */
+  /** Runway free in front of a departure: nobody on the runway ahead of it, nobody landing or taking off. */
   private runwayClearFor(ac: Aircraft): boolean {
-    if (this.runwayOccupants(ac).length > 0) return false;
-    return !this.sim.aircraft.some((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing'));
+    return !this.runwayBusyForDeparture(ac);
+  }
+
+  /** Where a departure starts its take-off run, along the runway (metres from the start of the departure end). */
+  private departureStartAlong(ac: Aircraft): number {
+    const end = this.departureEnd(ac);
+    const hpName = ac.stoppedAt?.holdingPoint ?? (ac.routeDestination?.kind === 'holdingPoint' ? ac.routeDestination.name : undefined);
+    const hp = ac.phase === 'lineup' || ac.phase === 'takeoff' ? undefined : hpName ? this.sim.airport.holdingPoint(hpName) : undefined;
+    return this.sim.airport.runwayCoordinates(end, hp?.pos ?? ac.pos).along;
+  }
+
+  /**
+   * The runway is occupied for this departure: somebody landing or taking off, or an aircraft on the
+   * runway ahead of its start point. Aircraft standing behind it (e.g. lined up at the full-length
+   * entry A while it departs from intersection B) do not count - its take-off run is in front of them.
+   */
+  runwayBusyForDeparture(ac: Aircraft): boolean {
+    if (this.sim.aircraft.some((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing'))) return true;
+    const end = this.departureEnd(ac);
+    const start = this.departureStartAlong(ac);
+    return this.runwayOccupants(ac).some((o) => {
+      const standing = o.phase === 'lineup' || o.phase === 'holding' || o.speed < 1;
+      return !(standing && this.sim.airport.runwayCoordinates(end, o.pos).along < start - BEHIND_MARGIN_M);
+    });
   }
 
   private touchdown(ac: Aircraft): void {

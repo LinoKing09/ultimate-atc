@@ -12,6 +12,9 @@ export interface MenuItem {
   divider?: boolean;
 }
 
+/** Clicks this soon after a menu level opened are ignored (the tap that opened it), ms. */
+const TAP_GUARD_MS = 350;
+
 /**
  * EuroScope-style popup list with cascading sub-menus.
  */
@@ -54,9 +57,12 @@ export class PopupMenu {
     while (this.stack.length > level) this.stack.pop()!.remove();
   }
 
-  private openLevel(title: string | null, items: MenuItem[], x: number, y: number, level: number): void {
+  private openLevel(title: string | null, items: MenuItem[], x: number, y: number, level: number, anchor?: DOMRect): void {
     this.closeFrom(level);
     const el = h('div.popup');
+    // Taps that arrive right after a level opened belong to the tap that opened it (touch screens fire
+    // the click after the menu has appeared under the finger): they are ignored.
+    const openedAt = performance.now();
     if (title) el.append(h('div.head', { text: title }));
     for (const it of items) {
       if (it.divider) {
@@ -73,15 +79,19 @@ export class PopupMenu {
         if (it.submenu && !it.disabled) {
           row.classList.add('open');
           const r = row.getBoundingClientRect();
-          this.openLevel(null, it.submenu(), r.right, r.top - 3, level + 1);
+          this.openLevel(null, it.submenu(), r.right, r.top - 3, level + 1, r);
         } else {
           this.closeFrom(level + 1);
         }
       };
-      row.addEventListener('pointerenter', enter);
+      // Hover opens sub-menus with a mouse only; on touch screens a tap does (below).
+      row.addEventListener('pointerenter', (e) => {
+        if (e.pointerType === 'mouse') enter();
+      });
       row.addEventListener('pointerleave', () => it.onHover?.(false));
       row.addEventListener('click', (e) => {
         e.stopPropagation();
+        if (performance.now() - openedAt < TAP_GUARD_MS) return;
         // Touch screens have no hover: a tap on a sub-menu entry opens it.
         if (it.submenu && !it.disabled && !row.classList.contains('open')) enter();
         if (it.disabled || it.submenu) return;
@@ -91,10 +101,19 @@ export class PopupMenu {
       el.append(row);
     }
     document.body.append(el);
-    // keep on screen
+    // Keep on screen. A sub-menu goes right of its row, else left of it; if neither fits (phones),
+    // below the row, so it never covers the entry that was tapped.
     const r = el.getBoundingClientRect();
-    const px = Math.min(x, window.innerWidth - r.width - 4);
-    const py = Math.min(y, window.innerHeight - r.height - 4);
+    let px = x;
+    let py = y;
+    if (anchor && x + r.width > window.innerWidth - 4) {
+      const parent = this.stack[level - 1]?.getBoundingClientRect();
+      const left = (parent?.left ?? anchor.left) - r.width;
+      if (left >= 2) px = left;
+      else py = anchor.bottom + 2;
+    }
+    px = Math.min(px, window.innerWidth - r.width - 4);
+    py = Math.min(py, window.innerHeight - r.height - 4);
     el.style.left = `${Math.max(2, px)}px`;
     el.style.top = `${Math.max(2, py)}px`;
     this.stack.push(el);

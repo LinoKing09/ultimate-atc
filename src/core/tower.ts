@@ -22,6 +22,8 @@ import { WEATHER_DECISION_NM, takeoffsSuspended, weatherGoAround } from './weath
 const GLIDE_SLOPE = Math.tan((3 * Math.PI) / 180);
 const ROLLOUT_DECEL = 1.6; // m/s^2 normal landing roll-out
 const REJECT_DECEL = 3.0; // m/s^2 rejected take-off
+/** After a rejected take-off the crew slows to this speed at once and rolls to the next exit (m/s). */
+const REJECT_ROLL_SPEED = 25 * KT_TO_MS;
 const TOUCHDOWN_DISTANCE = 350; // metres past the threshold
 const LINEUP_DISTANCE = 50; // metres along the runway from the entry point
 const TAKEOFF_ACCEL = 2.0; // m/s^2
@@ -359,7 +361,7 @@ export class TowerAI {
    * Plans the roll-out to the first exit that can be reached at the given
    * deceleration and puts the aircraft into phase 'landing'.
    */
-  private planRollout(ac: Aircraft, end: RunwayEnd, decel: number, preferSouth: boolean, longRoll = false): void {
+  private planRollout(ac: Aircraft, end: RunwayEnd, decel: number, preferSouth: boolean, longRoll = false, brakeNow = false): void {
     const sim = this.sim;
     ac.phase = 'landing';
     const here = sim.airport.runwayCoordinates(end, ac.pos).along;
@@ -405,7 +407,10 @@ export class TowerAI {
     ac.route = null;
     ac.stops = [{ s: path.length, kind: 'destination', target: 'vacated' }];
     ac.stoppedAt = undefined;
-    ac.speedLimit = (s) => (s < sExit ? Math.min(v0, Math.sqrt(vExit * vExit + 2 * decel * (sExit - s))) : 10 * KT_TO_MS);
+    // A rejected take-off brakes at once down to runway taxi speed, then rolls on to the exit; a landing
+    // brakes as needed for its exit.
+    const braking = (s: number) => (brakeNow ? Math.sqrt(Math.max(REJECT_ROLL_SPEED * REJECT_ROLL_SPEED, v0 * v0 - 2 * decel * s)) : Infinity);
+    ac.speedLimit = (s) => (s < sExit ? Math.min(v0, Math.sqrt(vExit * vExit + 2 * decel * (sExit - s)), braking(s)) : 10 * KT_TO_MS);
   }
 
   private checkVacating(ac: Aircraft): void {
@@ -615,7 +620,7 @@ export class TowerAI {
     ac.rejectedTakeoff = true;
     ac.takeoffCleared = false;
     this.sim.system(`Tower: ${ac.callsign} stopped its take-off on your instruction - runway blocked until vacated.`, 'warning', ac.callsign);
-    this.planRollout(ac, this.departureEnd(ac), REJECT_DECEL, false);
+    this.planRollout(ac, this.departureEnd(ac), REJECT_DECEL, false, false, true);
   }
 
   private startTakeoff(ac: Aircraft): void {
@@ -684,7 +689,7 @@ export class TowerAI {
     ac.rejectedTakeoff = true;
     sim.stats.rejectedTakeoffs++;
     sim.system(`Tower: ${ac.callsign} rejected the take-off on runway ${this.departureEnd(ac).name} - runway blocked until vacated.`, 'warning', ac.callsign);
-    this.planRollout(ac, this.departureEnd(ac), REJECT_DECEL, false);
+    this.planRollout(ac, this.departureEnd(ac), REJECT_DECEL, false, false, true);
   }
 
   private climbOut(ac: Aircraft, dt: number): void {

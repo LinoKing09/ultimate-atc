@@ -703,6 +703,11 @@ body.mobile .toolbar {
   overflow-x: auto;
   flex-wrap: nowrap;
 }
+/* Phones: menus never wider than the screen. */
+body.mobile .popup {
+  max-width: calc(100vw - 8px);
+  overflow-x: auto;
+}
 body.mobile .popup .item {
   padding-top: 10px;
   padding-bottom: 10px;

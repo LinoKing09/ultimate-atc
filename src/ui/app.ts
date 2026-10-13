@@ -571,7 +571,7 @@ export class App {
       return;
     }
     const mine = this.sim.isOnMyFrequency(ac);
-    const key = `${ac.callsign}|${ac.phase}|${ac.onGround}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}|${catcAlert(this.sim, ac)?.key ?? ''}|${ac.requestAck}|${this.sim.handoffPending(ac)}`;
+    const key = `${ac.callsign}|${ac.phase}|${ac.onGround}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}|${catcAlert(this.sim, ac)?.key ?? ''}|${ac.requestAck}|${this.sim.handoffPending(ac)}|${ac.continueApproachGiven}|${ac.readbackConfirmed}|${ac.holdPosition}|${ac.giveWayTo}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
     if (this.quickSel && this.quickSel.cs !== ac.callsign) this.clearQuickSel();
@@ -622,7 +622,8 @@ export class App {
       const sub = (label: string) => del.find((i) => i.label === label);
       const clr = sub('Send DCL (datalink)') ?? sub('IFR clearance') ?? sub('IFR clearance by voice') ?? sub('Amend IFR clearance');
       if (clr && !ac.cleared) items.push(btn(clr.label.startsWith('Send') ? 'DCL' : 'CLR', (b) => this.menu.open(`${ac.callsign} - ${clr.label}`, clr.submenu!(), ...at(b))));
-      if (ac.cleared) items.push(phrase('RB OK', 'readback correct'));
+      // One-time instructions disappear once given.
+      if (ac.cleared && !ac.readbackConfirmed) items.push(phrase('RB OK', 'readback correct'));
       if (ac.cleared && !ac.startupApproved) items.push(phrase('START', 'start-up approved'));
       const ground = this.sim.airport.station(this.sim.stationFor('ground'));
       if (ac.cleared && ground) items.push(phrase('GND', `contact ground ${ground.frequency}`));
@@ -636,11 +637,12 @@ export class App {
       } else if (ac.onGround && ['pushback', 'startup', 'taxi', 'holding'].includes(ac.phase)) {
         const arr = ac.category === 'arrival' || ac.returnToStand || ac.category === 'tow';
         items.push(btn('TAXI', (b) => this.menu.open(arr ? `${ac.callsign} - taxi to stand` : `${ac.callsign} - taxi to`, arr ? this.standDestinations(ac) : this.taxiDestinations(ac), ...at(b))));
-        items.push(phrase('HOLD', 'hold position'));
+        // HOLD while it may move, CONT only when it waits for it (hold position, hold short, give way).
+        if (!ac.holdPosition) items.push(phrase('HOLD', 'hold position'));
         const partner = headOnPartner(this.sim, ac);
-        if (ac.wantsFollowMe) items.push(phrase('FLWM', 'follow the follow-me'));
+        if (ac.wantsFollowMe && !ac.followMe) items.push(phrase('FLWM', 'follow the follow-me'));
         if (partner) items.push(btn('RESOLVE', (b) => this.menu.open(`${ac.callsign} - resolve conflict`, this.resolveItem(ac, partner).submenu!(), ...at(b))));
-        items.push(phrase('CONT', 'continue taxi'));
+        if (ac.holdPosition || ac.stoppedAt?.kind === 'holdShort' || ac.giveWayTo) items.push(phrase('CONT', 'continue taxi'));
         const tower = this.sim.airport.station(this.sim.stationFor('tower'));
         if (ac.category === 'departure' && tower && ['taxi', 'holding'].includes(ac.phase)) items.push(phrase('TWR', `contact tower ${tower.frequency}`));
       }
@@ -1261,13 +1263,13 @@ export class App {
           if (wait) return `spacing: wait ${wait} s`;
           return Number.isFinite(eta) ? `next arrival ${Math.round(eta)} s` : 'no arrival';
         },
-        disabled: ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint',
+        disabled: (ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint') || !!ac.takeoffCleared,
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for take-off`),
       });
       items.push({
         label: `Cleared for immediate take-off`,
         hint: slotOpens !== undefined ? `CTOT: not before ${hhmm(sim, slotOpens)}!` : undefined,
-        disabled: ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint',
+        disabled: (ac.phase === 'taxi' && ac.routeDestination?.kind !== 'holdingPoint') || !!ac.takeoffCleared,
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for immediate take-off`),
       });
       if (ac.takeoffCleared || ac.lineUpCleared) items.push({ label: 'Cancel take-off', action: () => this.say(ac, 'hold position, cancel take-off') });
@@ -1283,10 +1285,10 @@ export class App {
         hint: sim.tower.runwayBusy() ? 'runway occupied!' : `${sim.distanceToThresholdNm(ac).toFixed(1)} NM`,
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared to land`),
       });
-      items.push({ label: 'Continue approach', disabled: !!ac.landingCleared, action: () => this.say(ac, 'continue approach') });
+      items.push({ label: 'Continue approach', disabled: !!ac.landingCleared || !!ac.continueApproachGiven, action: () => this.say(ac, 'continue approach') });
       items.push({
         label: 'Continue, expect late landing clearance',
-        disabled: !!ac.landingCleared,
+        disabled: !!ac.landingCleared || !!ac.continueApproachGiven,
         action: () => this.say(ac, 'continue approach, expect late landing clearance'),
       });
       const vapp = ac.type.approachSpeedKt;
@@ -1355,7 +1357,7 @@ export class App {
           action: () => this.say(ac, `cleared to ${dest}, ${sd.name} departure, flight planned route, climb via SID to altitude ${climb}, squawk ${squawk}${ctot}`),
         })),
     });
-    items.push({ label: 'Readback correct', disabled: !ac.cleared, action: () => this.say(ac, 'readback correct') });
+    items.push({ label: 'Readback correct', disabled: !ac.cleared || !!ac.readbackConfirmed, action: () => this.say(ac, 'readback correct') });
     const assigned = ac.clearance?.squawk;
     items.push({
       label: 'Squawk',

@@ -248,6 +248,7 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
     case 'squawk': {
       const caught = !!ac.readbackError && ac.readbackError.squawk === c.code;
       const r = execSquawk(sim, ac, c.code);
+      ac.readbackConfirmed = true;
       if (caught) {
         sim.stats.readbackErrorsCaught++;
         sim.updateScore();
@@ -541,6 +542,7 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
     }
     case 'continueApproach':
       if (ac.phase !== 'approach') return { unable: 'say again' };
+      ac.continueApproachGiven = true;
       return rb(c.lateLanding ? 'continue approach, expect late landing clearance' : 'continue approach');
     case 'goAround':
       if (ac.phase !== 'approach') return { unable: ac.onGround ? 'unable, we are on the ground' : 'say again' };

@@ -131,6 +131,8 @@ export function execClearance(sim: Simulation, ac: Aircraft, c: Extract<Command,
   fp.runway = sim.runway;
   fp.squawk = squawk;
   ac.cleared = true;
+  // A new clearance: its readback is still to be checked.
+  ac.readbackConfirmed = false;
   let said = squawk;
   // Tutorials switch the random readback errors off, or force one for the next clearance.
   const mode = sim.readbackErrors;
@@ -164,6 +166,7 @@ export function execSquawk(sim: Simulation, ac: Aircraft, code: string): Deliver
 /** "Readback correct": if the readback was wrong, the error went unnoticed. */
 export function execReadbackCorrect(sim: Simulation, ac: Aircraft): DeliveryResult {
   missReadbackError(sim, ac);
+  ac.readbackConfirmed = true;
   return {};
 }
 

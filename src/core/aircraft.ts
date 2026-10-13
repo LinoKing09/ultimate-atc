@@ -189,6 +189,10 @@ export interface Aircraft {
   rejectAtSpeed?: number;
   /** Departure that wants to return to a stand (technical problem, medical emergency, night curfew). */
   returnToStand?: boolean;
+  /** Tower said "continue approach" (it need not be said again). */
+  continueApproachGiven?: boolean;
+  /** Delivery confirmed the clearance readback ("readback correct" or a squawk correction). */
+  readbackConfirmed?: boolean;
   /** Night rules: the jet was still on the ground when the departure curfew started. */
   missedCurfew?: boolean;
   /** Thunderstorm: the arrival has passed the windshear / tailwind check on final. */

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import type { Aircraft } from '../src/core/aircraft';
 import { debrief } from '../src/core/debrief';
+import { suggestedSid } from '../src/core/delivery';
+import { destinationName } from '../src/data/destinations';
 import { parseTransmission } from '../src/core/phraseology/parser';
 import { Simulation } from '../src/core/simulation';
 import { EDDS } from '../src/data/airports/edds';
@@ -312,5 +314,49 @@ describe('departures from different entries', () => {
     for (let t = 0; t < 60; t++) sim.tick(1);
     expect(a.phase).toBe('lineup');
     expect(sim.messages.some((m) => /RMCA: take-off clearance for DLH1AA/.test(m.text))).toBe(true);
+  });
+});
+
+describe('rejected take-off', () => {
+  it('brakes at once instead of rolling on at the speed of the stop, then vacates at the next exit', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'TWR', positions: ['GND', 'TWR'], runway: '25', density: 'medium', seed: 42, events: false, generateTraffic: false });
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH1AA', type: 'A320' }) as Aircraft;
+    expect(runUntil(sim, () => ac.request === 'pushback', 900)).toBe(true);
+    sim.transmit('DLH1AA push and start approved facing east');
+    expect(runUntil(sim, () => ac.request === 'taxi', 300)).toBe(true);
+    sim.transmit('DLH1AA taxi to holding point A via M, H, N');
+    expect(runUntil(sim, () => ac.phase === 'holding', 1200)).toBe(true);
+    sim.transmit('DLH1AA contact tower');
+    expect(runUntil(sim, () => ac.frequency === 'TWR', 60)).toBe(true);
+    sim.transmit('DLH1AA cleared for take-off runway 25');
+    // Stop at about 60 kt.
+    for (let t = 0; t < 600 && !(ac.phase === 'takeoff' && ac.speed > 60 * 0.5144); t++) sim.tick(0.2);
+    const v0 = ac.speed;
+    sim.transmit('DLH1AA stop immediately');
+    for (let t = 0; t < 30; t++) sim.tick(0.2); // 6 s
+    expect(ac.speed).toBeLessThan(v0 - 10);
+    expect(runUntil(sim, () => ac.phase === 'taxi', 300)).toBe(true);
+    expect(sim.incidents).toEqual([]);
+  });
+});
+
+describe('one-time instructions', () => {
+  it('remembers "continue approach" and "readback correct" (the quick-action bar hides them afterwards)', () => {
+    const sim = towerSim();
+    const arr = sim.traffic.spawnArrival(7, { callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    sim.tick(2);
+    sim.transmit('EWG7TK continue approach');
+    sim.tick(1);
+    expect(arr.continueApproachGiven).toBe(true);
+
+    const del = new Simulation({ airport: EDDS, position: 'DEL', runway: '25', density: 'light', seed: 3, events: false, generateTraffic: false });
+    del.readbackErrors = 'off';
+    const dep = del.traffic.spawnDeparture(60, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    dep.ctot = undefined;
+    del.transmit(`DLH5AB cleared to ${destinationName(dep.flightPlan.destination)}, ${suggestedSid(del, dep)} departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2101`);
+    expect(dep.cleared).toBe(true);
+    expect(dep.readbackConfirmed).toBe(false);
+    del.transmit('DLH5AB readback correct');
+    expect(dep.readbackConfirmed).toBe(true);
   });
 });

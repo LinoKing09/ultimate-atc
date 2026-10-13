@@ -33,6 +33,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- Mobile quick-action bar: one-time instructions disappear once given (`RB OK` after the readback is confirmed, *continue approach* and the take-off clearance on Tower, `HOLD` while holding); `CONT` (continue taxi) only while the aircraft waits for it.
+
 - The red flashing CATC alert on the ground comes only when **both** aircraft are rolling towards each other; an aircraft standing still (holding, waiting, stopped) no longer makes the other one flash. A pair that stops briefly and rolls on is not announced again within 60 s. The route preview still warns about standing traffic.
 
 - Runway 07 taxi flows as in the VATSIM Germany SOP: N westbound (arrivals to the aprons), S eastbound (N is always used against the runway direction).
@@ -47,6 +49,9 @@ All notable changes to this project are documented in this file. The format is b
 - MIC works like a push-to-talk key on touch screens: hold it while you speak, or tap to start and tap again to stop.
 
 ### Fixed
+
+- A rejected take-off (also on `stop immediately`) brakes at once down to taxi speed and takes the next exit, instead of rolling on at the speed it had.
+- Touch screens: sub-menus no longer open on top of their menu where the same tap selected an entry of both (e.g. *Able intersection* and *Intersection B*); they open on a tap, beside the menu or below the row, and a tap right after a menu opened is ignored. Menus are never wider than the screen.
 
 - Tower: a departure from an intersection (e.g. B) no longer counts the runway as occupied by an aircraft lined up behind it at the full-length entry (A): it may line up and take off first. The full-length departure still waits while the intersection departure is on the runway in front of it.
 

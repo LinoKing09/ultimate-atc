@@ -53,6 +53,11 @@ export interface AirportData {
    * use a pad as a short cut.
    */
   deicingPads?: DeicingPadData[];
+  /**
+   * Wind at session start: with chance `primaryShare` from the `primary` direction range (degrees,
+   * from-to), otherwise from `secondary`. Default: Stuttgart (60 % 220-290°, else 040-110°).
+   */
+  wind?: { primaryShare: number; primary: [number, number]; secondary: [number, number] };
   /** IANA time zone of the airport (local time for airport rules), e.g. "Europe/Berlin". Default: UTC. */
   timeZone?: string;
   /** Night flying restrictions (applied in scenarios with night rules, see core/night.ts). */
@@ -88,6 +93,8 @@ export interface NightRestrictions {
 export interface AirportTraffic {
   /** Where the figures come from (shown in the airport documentation). */
   source?: string;
+  /** Traffic level relative to the density steps (1 = the Stuttgart figures in levels.ts; a smaller airport less). */
+  rateFactor?: number;
   operators: TrafficOperator[];
 }
 
@@ -190,6 +197,11 @@ export interface StandData {
   pushback: boolean;
   /** Preferred facing after pushback if the controller does not specify one. */
   defaultPushFacing?: Compass;
+  /**
+   * Who parks here first: 'airline' (default), 'ga' (business jets prefer these) or 'cargo' (used by
+   * the traffic generator only when no other stand is free).
+   */
+  use?: 'airline' | 'ga' | 'cargo';
 }
 
 export type Compass = 'north' | 'east' | 'south' | 'west';
@@ -213,7 +225,16 @@ export interface RunwayOpsData {
   /** Runway end designator this applies to, e.g. "25". */
   runway: string;
   /** Holding points usable for departures, most preferred (usually full length) first. */
-  departureEntries: { holdingPoint: string; intersection: string; fullLength: boolean }[];
+  departureEntries: {
+    holdingPoint: string;
+    intersection: string;
+    fullLength: boolean;
+    /**
+     * The entry is used with a backtrack: the departure enters the runway, taxis on it to the runway
+     * end, turns around there and departs from the full length (airports without a taxiway to the end).
+     */
+    backtrack?: boolean;
+  }[];
   /** Exits arrivals may use, ordered by distance from the threshold. */
   exits: ExitData[];
   /**
@@ -232,6 +253,11 @@ export interface ExitData {
   path: string[];
   /** Rapid exit taxiways can be taken at higher speed. */
   rapid: boolean;
+  /**
+   * Arrivals that cannot vacate ahead of them (no exit left, or none they may use) turn around on the
+   * runway and backtrack to this exit.
+   */
+  backtrack?: boolean;
 }
 
 export interface SidData {

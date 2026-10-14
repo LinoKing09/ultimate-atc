@@ -3,7 +3,7 @@ import { describeScenario, parseScenarioCode, type Scenario } from '../core/scen
 import { closureProblems } from '../core/airport/validate';
 import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
 import { levelSlider } from './levelSlider';
-import { TUTORIALS, type TutorialId } from '../core/tutorial';
+import { TUTORIAL_AIRPORT, TUTORIALS, type TutorialId } from '../core/tutorial';
 import type { Density, Simulation } from '../core/simulation';
 import { h } from './dom';
 import { renderBriefing } from './briefing';
@@ -123,6 +123,21 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     });
     const update = () => {
       const ap = airport();
+      // Only the positions this airport has (Memmingen: no Delivery; Sylt: Tower only).
+      POSITIONS.forEach((p, i) => {
+        const has = p.available && ap.stations.some((st) => st.type === p.type);
+        posButtons[i].disabled = !has;
+        posButtons[i].title = !p.available ? 'Planned for a later version' : has ? 'Click to staff this position; select several for combined positions' : `${ap.name} has no ${p.label} position - it is covered by the next position up`;
+        if (!has) positions.delete(p.type);
+      });
+      if (!positions.size) positions.add(POSITIONS.find((p) => p.available && ap.stations.some((st) => st.type === p.type))?.type ?? 'TWR');
+      posButtons.forEach((x, i) => x.classList.toggle('active', positions.has(POSITIONS[i].type)));
+      // The tutorials are written for Stuttgart.
+      for (const b of tutorialButtons) {
+        b.disabled = ap.icao !== TUTORIAL_AIRPORT;
+        b.title = b.disabled ? `The tutorials take place at ${TUTORIAL_AIRPORT}` : b.dataset.summary ?? '';
+      }
+      updateScenario();
       const sts = selectedPositions()
         .map((t) => ap.stations.find((s) => s.type === t))
         .filter((s) => !!s);
@@ -133,14 +148,14 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       notice.textContent = ap.dataNotice;
     };
     airportSel.addEventListener('change', update);
-    update();
 
     const connect = h('button.primary', { type: 'submit', text: 'Connect' });
     // Tutorials: a guided first session for each position (fixed traffic, step by step).
     const tutorialButtons = TUTORIALS.map((t) => {
       const b = h(`button.pos-${t.position}`, { type: 'button', text: t.title, title: t.summary });
+      b.dataset.summary = t.summary;
       b.addEventListener('click', () => {
-        const ap = airport();
+        const ap = airports.find((x) => x.icao === TUTORIAL_AIRPORT) ?? airport();
         overlay.remove();
         resolve({ airport: ap, position: t.position, positions: [t.position], density: 'light', eventLevel: 0, tutorial: t.id });
       });
@@ -200,7 +215,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       });
     });
     document.body.append(overlay);
-    updateScenario();
+    update();
     connect.focus();
   });
 }
@@ -216,6 +231,8 @@ const TOWER_REFERENCE: [string, string][] = [
   ['maintain 160 knots until 4 miles / reduce to final approach speed', 'Speed control on final to fine-tune the gaps between arrivals.'],
   ['cleared for immediate take-off / cleared for take-off, no delay', 'Brisk line-up and roll without waiting - for tight gaps.'],
   ['vacate via E', 'The exit the arrival should take after landing (if it can still reach it; not over a closed taxiway).'],
+  ['backtrack runway 24, line up and wait', 'Backtrack (airports without a taxiway to the runway end, e.g. Memmingen N for 24): the departure taxis along the runway to its end, turns around on it and lines up for the full length. Also "enter runway 24 and backtrack" or with "cleared for take-off". The runway is occupied all that time.'],
+  ['backtrack, vacate via N', 'An arrival that has rolled past its exit turns around on the runway and backtracks to it (Memmingen runway 06: N).'],
   ['contact radar 119.200 / contact ground 118.605', 'Departures to Langen Radar after take-off, arrivals to Ground once they have vacated.'],
   ['cross runway 25', 'Runway crossing for an aircraft Ground handed over at the runway holding point; it reports the runway vacated.'],
 ];

@@ -1,0 +1,259 @@
+import { LocalProjection, distance, type LatLon } from '../../core/geo';
+import type { AreaData, ExitData, StandData, TaxiEdgeData, TaxiEdgeKind, TaxiNodeData } from '../../core/airport/types';
+
+/**
+ * Airport layouts imported from OpenStreetMap by `scripts/osm-import.mjs` (files `<icao>.layout.ts`),
+ * and the helper that turns them into the taxi graph of an `AirportData`. The OSM part gives the
+ * geometry (taxiways, runway centre line, holding positions, stands, aprons, buildings); the airport
+ * file adds what OSM does not know or gets wrong: holding point names, taxiway names, stand sizes,
+ * runway operations.
+ */
+export interface OsmLayout {
+  /** [id, lat, lon] */
+  nodes: [string, number, number][];
+  /** [from, to, name, kind, oneWay?] - kind 'taxiway' or 'runway' */
+  edges: [string, string, string, string, boolean?][];
+  holdingPositions: { node: string; ref: string; type: string; taxiways: string[] }[];
+  stands: { id: string; pos: [number, number]; heading: number; lanes: string[]; spacingM: number }[];
+  areas: { name: string; polygon: [number, number][] }[];
+  buildings: { name: string; polygon: [number, number][] }[];
+}
+
+export interface StandSpec {
+  id: string;
+  apron: string;
+  maxWingspanM: number;
+  /** false: self-manoeuvring / drive-through stand (taxi in on `lanes[0]`, out on `lanes[1]`). */
+  pushback: boolean;
+  /** Lane node(s); default: the imported ones. */
+  lanes?: string[];
+  /** Position and heading; default: the imported ones. */
+  pos?: LatLon;
+  heading?: number;
+}
+
+export interface LayoutOptions {
+  /** Physical runway name, e.g. "06/24" (the runway edges are named like this). */
+  runway: string;
+  /** Holding positions that are runway holding points: imported node -> published name. Others become plain nodes. */
+  holdingPoints: Record<string, string>;
+  /** Rename the taxiway of single edges (imported names that are missing or wrong): "from>to" -> name. */
+  edgeNames?: Record<string, string>;
+  /** Rename taxiways everywhere: imported name -> name ("?" = unnamed ways). */
+  taxiwayNames?: Record<string, string>;
+  /** Taxiways that are apron taxilanes. */
+  taxilanes?: string[];
+  /** Keep only these taxiways (after renaming); default all. */
+  taxiways?: string[];
+  /** Largest wingspan per taxiway (default: none). */
+  maxWingspanM?: Record<string, number>;
+  /** Edges to leave out ("from>to"), e.g. service roads tagged as taxiway. */
+  dropEdges?: string[];
+  /** Extra edges [from, to, name, kind]. */
+  addEdges?: [string, string, string, TaxiEdgeKind][];
+  /** Extra nodes [id, lat, lon]. */
+  addNodes?: [string, number, number][];
+  /** Dead-end nodes to keep (dead ends are pruned otherwise). */
+  keepNodes?: string[];
+  /** The stands to use (imported stands not listed are dropped). */
+  stands: StandSpec[];
+  /** Buildings / aprons to keep: only those within this distance (m) of the taxiways and stands. Default 300. */
+  areaRadiusM?: number;
+}
+
+export interface BuiltLayout {
+  taxiNodes: TaxiNodeData[];
+  taxiEdges: TaxiEdgeData[];
+  stands: StandData[];
+  areas: AreaData[];
+  buildings: AreaData[];
+  /** Runway node where the strip of a holding point meets the runway, by holding point name. */
+  runwayNodeOf: Record<string, string>;
+}
+
+const key = (a: string, b: string) => `${a}>${b}`;
+
+/** Builds nodes, edges and stands of an airport from an imported layout. */
+export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
+  const pos = new Map<string, LatLon>(layout.nodes.map(([id, lat, lon]) => [id, { lat, lon }]));
+  for (const [id, lat, lon] of o.addNodes ?? []) pos.set(id, { lat, lon });
+  const proj = new LocalProjection(pos.values().next().value as LatLon);
+  const p = (id: string) => proj.toLocal(pos.get(id)!);
+  const drop = new Set(o.dropEdges ?? []);
+  const taxilanes = new Set(o.taxilanes ?? []);
+
+  type E = { from: string; to: string; name: string; kind: TaxiEdgeKind; oneWay?: boolean };
+  let edges: E[] = [];
+  for (const [from, to, rawName, kind, oneWay] of layout.edges) {
+    if (drop.has(key(from, to)) || drop.has(key(to, from))) continue;
+    let name = o.edgeNames?.[key(from, to)] ?? o.edgeNames?.[key(to, from)] ?? rawName;
+    if (kind !== 'runway') name = o.taxiwayNames?.[name || '?'] ?? name;
+    const k: TaxiEdgeKind = kind === 'runway' ? 'runway' : taxilanes.has(name) ? 'taxilane' : 'taxiway';
+    edges.push({ from, to, name: kind === 'runway' ? o.runway : name, kind: k, ...(oneWay ? { oneWay } : {}) });
+  }
+  if (o.taxiways) {
+    const only = new Set(o.taxiways);
+    edges = edges.filter((e) => e.kind === 'runway' || only.has(e.name));
+  }
+  for (const [from, to, name, kind] of o.addEdges ?? []) edges.push({ from, to, name, kind });
+
+  // Runway strips: from every named holding point the shortest way to the runway centre line becomes one
+  // straight 'runwayStrip' edge (the line-up and exit logic needs holding point -> runway node directly).
+  const hpNames = o.holdingPoints;
+  const runwayNodes = new Set(edges.filter((e) => e.kind === 'runway').flatMap((e) => [e.from, e.to]));
+  const runwayNodeOf: Record<string, string> = {};
+  for (const [hp, name] of Object.entries(hpNames)) {
+    // Dijkstra over taxi edges, not through other holding points, at most 400 m.
+    const dist = new Map<string, number>([[hp, 0]]);
+    const prev = new Map<string, E>();
+    const open = [hp];
+    let goal: string | undefined;
+    while (open.length) {
+      open.sort((a, b) => dist.get(a)! - dist.get(b)!);
+      const cur = open.shift()!;
+      if (runwayNodes.has(cur)) {
+        goal = cur;
+        break;
+      }
+      if (cur !== hp && hpNames[cur]) continue;
+      for (const e of edges) {
+        if (e.kind === 'runway' || (e.from !== cur && e.to !== cur)) continue;
+        const nb = e.from === cur ? e.to : e.from;
+        const d = dist.get(cur)! + distance(p(cur), p(nb));
+        if (d > 400 || d >= (dist.get(nb) ?? Infinity)) continue;
+        dist.set(nb, d);
+        prev.set(nb, e);
+        if (!open.includes(nb)) open.push(nb);
+      }
+    }
+    if (!goal) throw new Error(`holding point ${name} (${hp}) does not reach the runway`);
+    const path: E[] = [];
+    for (let n = goal; n !== hp; ) {
+      const e = prev.get(n)!;
+      path.push(e);
+      n = e.from === n ? e.to : e.from;
+    }
+    const twy = path[path.length - 1]?.name ?? name;
+    edges = edges.filter((e) => !path.includes(e));
+    edges.push({ from: hp, to: goal, name: twy, kind: 'runwayStrip' });
+    runwayNodeOf[name] = goal;
+  }
+
+  // Stands
+  const stands: StandData[] = [];
+  const standNodes: TaxiNodeData[] = [];
+  for (const spec of o.stands) {
+    const imp = layout.stands.find((s) => s.id === spec.id);
+    const lanes = spec.lanes ?? imp?.lanes;
+    const at = spec.pos ?? (imp ? { lat: imp.pos[0], lon: imp.pos[1] } : undefined);
+    if (!lanes?.length || !at) throw new Error(`stand ${spec.id}: no position or lane`);
+    const node = `STAND_${spec.id}`;
+    standNodes.push({ id: node, pos: at });
+    pos.set(node, at);
+    let heading = spec.heading ?? imp?.heading ?? 0;
+    if (spec.pushback) {
+      edges.push({ from: lanes[0], to: node, name: spec.id, kind: 'stand' });
+      if (spec.heading === undefined) heading = Math.round(bearingOf(proj, pos.get(lanes[0])!, at));
+    } else {
+      const out = lanes[1] ?? lanes[0];
+      edges.push({ from: lanes[0], to: node, name: spec.id, kind: 'stand', oneWay: true });
+      edges.push({ from: node, to: out, name: spec.id, kind: 'stand', oneWay: true });
+      if (spec.heading === undefined) heading = Math.round(bearingOf(proj, at, pos.get(out)!));
+    }
+    stands.push({ id: spec.id, apron: spec.apron, pos: at, heading, laneNode: lanes[0], maxWingspanM: spec.maxWingspanM, pushback: spec.pushback });
+  }
+
+  // Every way onto the runway goes through a holding point: other taxiway edges that touch the runway
+  // (the second fillet of a junction mapped as a "Y" in OSM) are removed, then dead ends are pruned.
+  edges = edges.filter((e) => e.kind === 'runway' || e.kind === 'runwayStrip' || e.kind === 'stand' || !(runwayNodes.has(e.from) || runwayNodes.has(e.to)));
+  const keep = new Set([...Object.keys(hpNames), ...(o.keepNodes ?? [])]);
+  for (let changed = true; changed; ) {
+    changed = false;
+    const degree = new Map<string, number>();
+    for (const e of edges) for (const id of [e.from, e.to]) degree.set(id, (degree.get(id) ?? 0) + 1);
+    const before = edges.length;
+    edges = edges.filter((e) => e.kind !== 'taxiway' && e.kind !== 'taxilane' ? true : ![e.from, e.to].some((id) => degree.get(id) === 1 && !keep.has(id) && !runwayNodes.has(id)));
+    changed = edges.length !== before;
+  }
+
+  // Wingspan limits
+  for (const e of edges) {
+    const lim = o.maxWingspanM?.[e.name];
+    if (lim) (e as TaxiEdgeData).maxWingspanM = lim;
+  }
+
+  // Nodes actually used
+  const usedIds = new Set(edges.flatMap((e) => [e.from, e.to]));
+  const taxiNodes: TaxiNodeData[] = [];
+  for (const id of usedIds) {
+    if (id.startsWith('STAND_')) continue;
+    const at = pos.get(id);
+    if (!at) throw new Error(`unknown node ${id}`);
+    const n: TaxiNodeData = { id, pos: at };
+    if (hpNames[id]) n.holdingPoint = { name: hpNames[id], runway: o.runway };
+    taxiNodes.push(n);
+  }
+  taxiNodes.push(...standNodes);
+
+  // Aprons and buildings near the graph
+  const radius = o.areaRadiusM ?? 300;
+  // Near taxiways and stands (not just the runway: that keeps far-away buildings beside a long runway out).
+  const graphPts = [...new Set(edges.filter((e) => e.kind !== 'runway').flatMap((e) => [e.from, e.to]))].map((id) => proj.toLocal(pos.get(id)!));
+  const near = (poly: [number, number][]) =>
+    poly.some(([lat, lon]) => {
+      const q = proj.toLocal({ lat, lon });
+      return graphPts.some((g) => distance(g, q) < radius);
+    });
+  const toArea = (a: { name: string; polygon: [number, number][] }): AreaData => ({ name: a.name, polygon: a.polygon.map(([lat, lon]) => ({ lat, lon })) });
+  return {
+    taxiNodes,
+    taxiEdges: edges.map((e) => ({ ...e })),
+    stands,
+    areas: layout.areas.filter((a) => near(a.polygon)).map(toArea),
+    buildings: layout.buildings.filter((a) => near(a.polygon)).map(toArea),
+    runwayNodeOf,
+  };
+}
+
+function bearingOf(proj: LocalProjection, from: LatLon, to: LatLon): number {
+  const a = proj.toLocal(from);
+  const b = proj.toLocal(to);
+  return ((Math.atan2(b.x - a.x, b.y - a.y) * 180) / Math.PI + 360) % 360;
+}
+
+/**
+ * Exit path for `runwayOps`: runway node -> holding point -> the next node behind it (where the
+ * aircraft stops after vacating), at least `clearM` metres behind the holding point.
+ */
+export function exitVia(built: BuiltLayout, name: string, hp: string, opts: { rapid?: boolean; clearM?: number; via?: string } = {}): ExitData {
+  const rwy = built.runwayNodeOf[built.taxiNodes.find((n) => n.id === hp)?.holdingPoint?.name ?? ''];
+  if (!rwy) throw new Error(`exit ${name}: ${hp} is not a holding point`);
+  const nodes = new Map(built.taxiNodes.map((n) => [n.id, n.pos]));
+  const proj = new LocalProjection(nodes.get(hp)!);
+  const at = (id: string) => proj.toLocal(nodes.get(id)!);
+  const path = [rwy, hp];
+  let len = 0;
+  let cur = hp;
+  let prev = rwy;
+  while (len < (opts.clearM ?? 50)) {
+    const next = built.taxiEdges
+      .filter((e) => e.kind !== 'runway' && e.kind !== 'runwayStrip' && e.kind !== 'stand' && (e.from === cur || e.to === cur))
+      .map((e) => (e.from === cur ? e.to : e.from))
+      .filter((id) => id !== prev && !path.includes(id))
+      // Straight on (or along the named taxiway) first.
+      .sort((a, b) => score(a) - score(b))[0];
+    if (!next) break;
+    len += Math.hypot(at(next).x - at(cur).x, at(next).y - at(cur).y);
+    path.push(next);
+    prev = cur;
+    cur = next;
+  }
+  function score(id: string): number {
+    const d1 = { x: at(cur).x - at(prev).x, y: at(cur).y - at(prev).y };
+    const d2 = { x: at(id).x - at(cur).x, y: at(id).y - at(cur).y };
+    const cos = (d1.x * d2.x + d1.y * d2.y) / (Math.hypot(d1.x, d1.y) * Math.hypot(d2.x, d2.y) || 1);
+    const named = opts.via && built.taxiEdges.some((e) => e.name === opts.via && ((e.from === cur && e.to === id) || (e.to === cur && e.from === id)));
+    return -cos - (named ? 2 : 0);
+  }
+  return { name, path, rapid: !!opts.rapid };
+}

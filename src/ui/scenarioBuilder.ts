@@ -4,7 +4,7 @@ import { minutesToHhmm } from '../core/time';
 import {
   EVENT_LABEL,
   MAX_EVENT_MINUTE,
-  SCENARIO_PRESETS,
+  presetsFor,
   describeScenario,
   formatScenarioCode,
   parseScenarioCode,
@@ -158,7 +158,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
       render();
     });
 
-    const presets = SCENARIO_PRESETS.map((p) => {
+    const presets = presetsFor(airport).map((p) => {
       const b = h('button', { type: 'button', text: p.name, title: p.description });
       b.addEventListener('click', () => {
         // Options a preset does not set are cleared.

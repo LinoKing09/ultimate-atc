@@ -32,6 +32,13 @@ const TAKEOFF_ACCEL = 2.0; // m/s^2
 /** Chance of a random rejected take-off at the standard ("rare") event level. */
 const REJECTED_TAKEOFF_CHANCE = 0.015;
 const LINEUP_SPEED = 9 * KT_TO_MS;
+/** Backtrack: taxi speed on the runway, speed in the 180° turn, turn radius, and how far from the runway end the turn starts. */
+const BACKTRACK_SPEED = 18 * KT_TO_MS;
+const BACKTRACK_TURN_SPEED = 6 * KT_TO_MS;
+const BACKTRACK_TURN_RADIUS = 11;
+const BACKTRACK_TURN_ALONG = 30;
+/** A holding point at least this far from the runway end can be used with a backtrack (metres along the runway). */
+const BACKTRACK_MIN_ALONG = 120;
 /** An aircraft standing this far behind a departure's start point is not in its way (metres). */
 const BEHIND_MARGIN_M = 30;
 /** A landing aircraft may cross the threshold when a preceding departure is airborne and this far down the runway (RRSM). */
@@ -372,10 +379,12 @@ export class TowerAI {
     ac.phase = 'landing';
     const here = sim.airport.runwayCoordinates(end, ac.pos).along;
     const v0 = ac.speed;
-    const candidates = sim.airport
+    const all = sim.airport
       .exits(end.name)
       // Closed taxiways (construction works) cannot be used to vacate.
       .filter((ex) => !sim.airport.closedTaxiways.has(ex.name.toUpperCase()))
+      // Nor exits too narrow for the aircraft.
+      .filter((ex) => this.exitFits(ex.path, ac.type.wingspanM))
       .map((ex) => {
         const node = sim.airport.node(ex.path[0]);
         const along = sim.airport.runwayCoordinates(end, node.pos).along;
@@ -384,19 +393,29 @@ export class TowerAI {
         const needed = (v0 * v0 - vExit * vExit) / (2 * decel);
         return { ex, node, along, vExit, ok: along - here >= needed, south: ex.path[1].endsWith('2') };
       })
-      .filter((c) => c.along > here + 5)
       // Don't take an exit that is blocked by an aircraft waiting behind its holding point.
       .filter((c) => {
         const stop = sim.airport.node(c.ex.path[c.ex.path.length - 1]).pos;
         return !sim.aircraft.some((o) => o !== ac && o.onGround && distance(o.pos, stop) < 70);
-      })
-      .sort((a, b) => a.along - b.along);
+      });
+    const candidates = all.filter((c) => c.along > here + 5).sort((a, b) => a.along - b.along);
     let usable = candidates.filter((c) => c.ok);
     // A long landing roll: the first exit that could be made is passed.
     if (longRoll && usable.length > 1) usable = usable.slice(1);
-    const pool = usable.length ? usable : candidates.slice(-1);
     // Tower: "vacate via E" - taken if it can still be reached.
     const requested = ac.requestedExit ? usable.find((c) => c.ex.name.toUpperCase() === ac.requestedExit) : undefined;
+    // Backtrack: to an exit behind the stopping point (exits marked for it) when the requested exit is
+    // behind, or when no exit ahead can be made.
+    if (!requested && !brakeNow) {
+      const stopAlong = Math.min(end.length - BACKTRACK_TURN_ALONG - 20, here + (v0 * v0) / (2 * decel) + 30);
+      const behind = all.filter((c) => c.ex.backtrack && c.along < stopAlong - 40).sort((a, b) => b.along - a.along);
+      const target = ac.requestedExit ? behind.find((c) => c.ex.name.toUpperCase() === ac.requestedExit) : !usable.length ? behind[0] : undefined;
+      if (target) {
+        this.planBacktrack(ac, end, decel, Math.max(stopAlong, here + 60), target.ex.path, target.ex.name);
+        return;
+      }
+    }
+    const pool = usable.length ? usable : candidates.slice(-1);
     const chosen = requested ?? pool.find((c) => c.south === preferSouth) ?? pool.find((c) => !c.south) ?? pool[0];
     if (!chosen) {
       ac.phase = 'gone';
@@ -425,6 +444,51 @@ export class TowerAI {
       const v = Math.min(vExit, braking(s));
       if (s < sHp) return Math.max(taxi, v);
       return Math.sqrt(Math.max(taxi * taxi, v * v - 2 * EXIT_DECEL * (s - sHp)));
+    };
+  }
+
+  /** Every edge of an exit path takes this wingspan. */
+  private exitFits(path: string[], wingspanM: number): boolean {
+    for (let i = 0; i < path.length - 1; i++) {
+      const a = this.sim.airport.node(path[i]);
+      const e = a.edges.find((x) => (x.from === a ? x.to : x.from).id === path[i + 1]);
+      if (e && e.maxWingspanM < wingspanM) return false;
+    }
+    return true;
+  }
+
+  /**
+   * Landing roll with a backtrack: the aircraft slows down on the runway, turns around on it at
+   * `stopAlong` and taxis back along the runway to the exit `exitPath` (runway node, holding point, ...).
+   */
+  private planBacktrack(ac: Aircraft, end: RunwayEnd, decel: number, stopAlong: number, exitPath: string[], exitName: string): void {
+    const sim = this.sim;
+    const v0 = ac.speed;
+    const u = headingVector(end.heading);
+    const centre = add(end.start, scale(u, stopAlong));
+    const turn = this.uTurn(centre, u);
+    const nodes = exitPath.map((id) => sim.airport.node(id));
+    const before = add(end.start, scale(u, stopAlong - 20));
+    const path = new Path([ac.pos, before, ...turn, ...nodes.map((n) => n.pos)], [null, null, ...turn.map(() => null), ...nodes.map((n) => n.id)], 8);
+    const sTurn = path.closestS(turn[0], 0);
+    const sTurnEnd = path.closestS(turn[turn.length - 1], sTurn);
+    const sExit = path.marker(nodes[0].id)?.s ?? path.length;
+    const sHp = path.marker(exitPath[1])?.s ?? path.length;
+    const vExit = 10 * KT_TO_MS;
+    const taxi = 10 * KT_TO_MS;
+    ac.exitName = exitName;
+    ac.path = path;
+    ac.s = 0;
+    ac.reverse = false;
+    ac.route = null;
+    ac.stops = [{ s: path.length, kind: 'destination', target: 'vacated' }];
+    ac.stoppedAt = undefined;
+    ac.speedLimit = (s) => {
+      if (s < sTurn) return Math.min(v0, Math.sqrt(BACKTRACK_TURN_SPEED ** 2 + 2 * decel * (sTurn - s)));
+      if (s < sTurnEnd) return BACKTRACK_TURN_SPEED;
+      if (s < sExit) return Math.min(BACKTRACK_SPEED, Math.sqrt(vExit * vExit + 2 * 0.8 * (sExit - s)));
+      if (s < sHp) return vExit;
+      return Math.max(3, Math.sqrt(Math.max(taxi * taxi, vExit * vExit - 2 * EXIT_DECEL * (s - sHp))));
     };
   }
 
@@ -580,7 +644,7 @@ export class TowerAI {
     if (remainingSpacing > 45) return false;
     // Emergency arrivals get priority.
     if (this.sim.aircraft.some((a) => a.phase === 'approach' && a.emergency && distance(a.pos, this.endFor(a.runway).threshold) < 8 * M_PER_NM)) return false;
-    const lineupTime = 35;
+    const lineupTime = 35 + this.backtrackTime(ac);
     const needed = lineupTime + Math.max(5, remainingSpacing, landingRemaining) + this.rollTime(ac) + 15;
     return this.nextArrivalEta() > needed;
   }
@@ -603,7 +667,10 @@ export class TowerAI {
     const rwyNode = strip.from === hp ? strip.to : strip.from;
     const lineupPt = add(rwyNode.pos, scale(headingVector(end.heading), LINEUP_DISTANCE));
     const remaining = end.length - sim.airport.runwayCoordinates(end, lineupPt).along;
-    if (remaining < 1500) {
+    const entry = sim.airport.runwayOps(end.name)?.departureEntries.find((e) => e.holdingPoint === hp.holdingPoint?.name);
+    // Backtrack: on your instruction, or (AI Tower) where the entry is used that way.
+    const backtrack = (sim.userTower ? !!ac.backtrackCleared : !!entry?.backtrack) && this.canBacktrackFrom(hp.holdingPoint?.name ?? '', ac);
+    if (remaining < 1500 && !backtrack) {
       if (sim.userTower) return `not enough runway at ${hp.holdingPoint?.name ?? ''} for departure ${end.name}`;
       // Wrong end of the runway: send the aircraft back to Ground.
       ac.frequency = sim.stationFor('ground');
@@ -611,17 +678,64 @@ export class TowerAI {
       call(sim, ac, 'route', `${sim.stationName(sim.stationFor('ground'))}, ${sim.tel(ac)}, tower sent us back, not enough runway at ${hp.holdingPoint?.name ?? ''} for departure ${end.name}, request taxi`);
       return undefined;
     }
-    const entry = sim.airport.runwayOps(end.name)?.departureEntries.find((e) => e.holdingPoint === hp.holdingPoint?.name);
-    ac.intersectionDeparture = entry ? !entry.fullLength : remaining < end.length - 300;
-    const path = new Path([ac.pos, rwyNode.pos, lineupPt], [hp.id, rwyNode.id, null], 35);
+    ac.intersectionDeparture = backtrack ? false : entry ? !entry.fullLength : remaining < end.length - 300;
     ac.phase = 'lineup';
-    ac.path = path;
     ac.s = 0;
-    ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
     ac.stoppedAt = undefined;
+    if (backtrack) {
+      // Along the runway to its end, a 180° turn on the runway, then lined up at the start.
+      const u = headingVector(end.heading);
+      const turn = this.uTurn(add(end.start, scale(u, BACKTRACK_TURN_ALONG)), scale(u, -1));
+      // Back onto the centre line, then lined up straight along it.
+      const merge = add(end.start, scale(u, BACKTRACK_TURN_ALONG + 30));
+      const linePt = add(end.start, scale(u, BACKTRACK_TURN_ALONG + 50));
+      const path = new Path([ac.pos, rwyNode.pos, add(end.start, scale(u, BACKTRACK_TURN_ALONG + 15)), ...turn, merge, linePt], [hp.id, rwyNode.id, null, ...turn.map(() => null), null, null], 8);
+      ac.path = path;
+      ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
+      const sTurn = path.closestS(turn[0], 0);
+      ac.speedLimit = (s) => (s < sTurn ? Math.min(BACKTRACK_SPEED, Math.sqrt(BACKTRACK_TURN_SPEED ** 2 + 2 * 0.8 * (sTurn - s))) : BACKTRACK_TURN_SPEED);
+      ac.backtrackCleared = false;
+      return undefined;
+    }
+    const path = new Path([ac.pos, rwyNode.pos, lineupPt], [hp.id, rwyNode.id, null], 35);
+    ac.path = path;
+    ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
     // "Cleared for immediate take-off": a brisk line-up.
     ac.speedLimit = () => (ac.immediateTakeoff && ac.takeoffCleared ? LINEUP_SPEED * 1.5 : LINEUP_SPEED);
     return undefined;
+  }
+
+  /** Extra time a departure needs to backtrack from its holding point (AI Tower, entries used with a backtrack), seconds. */
+  private backtrackTime(ac: Aircraft): number {
+    const name = ac.stoppedAt?.holdingPoint;
+    const entry = name ? this.sim.airport.runwayOps(this.end.name)?.departureEntries.find((e) => e.holdingPoint === name) : undefined;
+    if (!entry?.backtrack || !name || !this.canBacktrackFrom(name, ac)) return 0;
+    const hp = this.sim.airport.holdingPoint(name)!;
+    return this.sim.airport.runwayCoordinates(this.end, hp.pos).along / (BACKTRACK_SPEED * 0.8) + 40;
+  }
+
+  /** A departure at this holding point can backtrack (its runway node is far enough from the start of the runway in use). */
+  canBacktrackFrom(holdingPoint: string, ac: Aircraft): boolean {
+    const hp = this.sim.airport.holdingPoint(holdingPoint);
+    const strip = hp?.edges.find((e) => e.kind === 'runwayStrip');
+    if (!hp || !strip) return false;
+    const rwyNode = strip.from === hp ? strip.to : strip.from;
+    return this.sim.airport.runwayCoordinates(this.departureEnd(ac), rwyNode.pos).along >= BACKTRACK_MIN_ALONG;
+  }
+
+  /**
+   * Points of a 180° turn on the runway: starting at `centre` offset to the left of the direction of
+   * travel `dir`, ending on its right, travelling in the opposite direction.
+   */
+  private uTurn(centre: { x: number; y: number }, dir: { x: number; y: number }): { x: number; y: number }[] {
+    const n = { x: -dir.y, y: dir.x };
+    const r = BACKTRACK_TURN_RADIUS;
+    const pts = [];
+    for (let k = 0; k <= 8; k++) {
+      const phi = (k * Math.PI) / 8;
+      pts.push(add(centre, add(scale(n, r * Math.cos(phi)), scale(dir, r * Math.sin(phi)))));
+    }
+    return pts;
   }
 
   onLinedUp(ac: Aircraft): void {

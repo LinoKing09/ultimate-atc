@@ -296,9 +296,11 @@ export class Simulation {
 
     // Wind first; the active runway is the one with the most headwind unless given.
     // Stuttgart: about 60 % of the operations on runway 25 (long-term average, RP Stuttgart noise report).
-    const westerly = this.rng.chance(0.6);
+    const wm = config.airport.wind ?? { primaryShare: 0.6, primary: [220, 290], secondary: [40, 110] };
+    const primary = this.rng.chance(wm.primaryShare);
+    const [from, to] = primary ? wm.primary : wm.secondary;
     const wind = {
-      direction: Math.round((westerly ? this.rng.range(220, 290) : this.rng.range(40, 110)) / 10) * 10,
+      direction: ((Math.round(this.rng.range(from, to) / 10) * 10) % 360) || 360,
       speedKt: this.rng.int(3, 14),
     };
     const runway = config.runway ?? this.bestRunwayForWind(wind);

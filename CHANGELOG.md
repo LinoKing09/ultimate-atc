@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Memmingen (EDJA)** as a second airport: layout from OpenStreetMap, procedures after the VATSIM Germany SOP. Only the taxiways airliners may use (W, N); departures 24 and landings 06 **backtrack** on the runway. Ground gives the clearances (no Delivery). Ryanair / Wizz Air traffic at about a third of Stuttgart's rate. See [EDJA](docs/airports/EDJA.md).
+- **Backtracking**: `backtrack runway 24, line up and wait` / `enter runway 24 and backtrack` / `backtrack runway 24, cleared for take-off` - the departure taxis along the runway to its end, turns around on the runway and departs from the full length; `backtrack, vacate via N` - an arrival turns around after landing and backtracks to an exit behind it. Airports mark entries and exits used that way (`backtrack`); crews ask for it (`request backtrack`) and refuse a line-up without it when the runway ahead is too short. The AI Tower backtracks on its own, Approach spaces arrivals wider on such runways. Tower menu and quick-action bar (`B/T`).
+- **OpenStreetMap importer** `scripts/osm-import.mjs` and `buildLayout()` for airport layouts from OSM (ODbL), see [airport data](docs/airport-data.md#importing-from-openstreetmap).
+- Airport data: `traffic.rateFactor` (movements relative to Stuttgart), `wind` (wind distribution at session start), stand `use` (airline / ga / cargo), initial climb as a flight level when it is above the transition altitude (`climb via SID to flight level 70`).
+
+### Changed
+
+- The AI Ground keeps a departure on its stand while its way out would meet an arrival coming the other way on a taxiway (single taxiways like Memmingen N). Stuttgart benchmark unchanged (Tower benchmark: 10.6 instead of 10.5 arrivals per hour).
+- Connect dialog: only the positions the airport has are offered (Memmingen has no Delivery); the tutorials are Stuttgart-only; scenario presets adapt to the airport (runway, closures, night rules, de-icing).
+
 ## [1.1.0] - 2026-10-13
 
 Winter operations and the Stuttgart holding bays: de-icing as a scenario condition, P1/P2 and DP1-DP4.

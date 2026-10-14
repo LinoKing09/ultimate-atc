@@ -104,9 +104,10 @@ export function formatCommand(c: Command): string {
     case 'ctot':
       return `CTOT ${c.time}`;
     case 'lineUp':
+      if (c.backtrack) return `backtrack${c.runway ? ` runway ${c.runway}` : ''}, line up and wait`;
       return `line up and wait${c.runway ? ` runway ${c.runway}` : ''}`;
     case 'takeoff':
-      return `${c.runway ? `runway ${c.runway}, ` : ''}cleared for ${c.immediate ? 'immediate ' : ''}take-off`;
+      return `${c.backtrack ? 'backtrack, ' : ''}${c.runway ? `runway ${c.runway}, ` : ''}cleared for ${c.immediate ? 'immediate ' : ''}take-off`;
     case 'speed':
       if (c.final) return 'reduce to final approach speed';
       return `maintain ${c.kt} knots${c.untilNm ? ` until ${c.untilNm} miles` : ''}`;
@@ -119,7 +120,7 @@ export function formatCommand(c: Command): string {
     case 'cancelTakeoff':
       return 'hold position, cancel take-off';
     case 'vacate':
-      return `vacate via ${c.exit}`;
+      return `${c.backtrack ? 'backtrack, ' : ''}vacate via ${c.exit}`;
   }
 }
 

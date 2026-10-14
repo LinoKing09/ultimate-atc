@@ -107,6 +107,7 @@ const KEYWORDS = new Set([
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
   'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise', 'climb', 'squawk',
   'readback', 'ctot', 'slot', 'tow', 'proceed', 'return', 'wind', 'go', 'vacate', 'abort', 'reduce', 'increase', 'maintain', 'resume', 'speed', 'no',
+  'backtrack', 'enter',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -605,6 +606,8 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
   readCondition();
   /** "runway 25" in front of a take-off / landing clearance: "runway 25, cleared to land". */
   let pendingRunway: string | undefined;
+  /** "backtrack runway 24" / "enter runway 24 and backtrack": applies to the line-up / take-off / vacate of the transmission. */
+  let backtrack = false;
 
   while (!c.done()) {
     const w = c.peek()!;
@@ -666,6 +669,20 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       c.accept('clearance');
       while (c.peek() === 'i' || c.peek() === 'say' || c.peek() === 'again' || c.peek() === 'cancel' || c.peek() === 'takeoff' || c.peek() === 'take' || c.peek() === 'off') c.next();
       result.commands.push({ type: 'cancelTakeoff' });
+      continue;
+    }
+    // "backtrack runway 24 [, line up and wait]", "enter runway 24 and backtrack", "enter and backtrack runway 24"
+    if (w === 'backtrack' || (w === 'enter' && (c.peek(1) === 'runway' || (c.peek(1) === 'and' && c.peek(2) === 'backtrack')))) {
+      c.next();
+      if (w === 'enter') {
+        c.accept('and');
+        if (c.accept('backtrack')) backtrack = true;
+      } else backtrack = true;
+      if (c.accept('runway')) pendingRunway = readRunway(c) ?? pendingRunway;
+      if (c.peek() === 'and' && c.peek(1) === 'backtrack') {
+        c.i += 2;
+        backtrack = true;
+      }
       continue;
     }
     if (w === 'vacate') {
@@ -1124,6 +1141,12 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
   if (!result.commands.length && !result.unparsed.length && tokens.includes('roger')) result.commands.push({ type: 'roger' });
   for (const t of pendingHoldShort) result.commands.push({ type: 'holdShort', target: t });
   for (const r of pendingCross) result.commands.push({ type: 'cross', runway: r });
+  if (backtrack) {
+    const targets = result.commands.filter((x) => x.type === 'lineUp' || x.type === 'takeoff' || x.type === 'vacate');
+    // "backtrack runway 24" on its own: line up after the backtrack (and wait).
+    if (!targets.length) result.commands.push({ type: 'lineUp', runway: pendingRunway, backtrack: true });
+    for (const x of targets) if (x.type === 'lineUp' || x.type === 'takeoff' || x.type === 'vacate') x.backtrack = true;
+  }
   return result;
 }
 

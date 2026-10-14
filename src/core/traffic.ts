@@ -42,7 +42,8 @@ export class TrafficGenerator {
   get rates(): { departures: number; arrivals: number } {
     const base = DENSITIES[densityIndex(this.sim.config.density)];
     const mix = MIXES[mixIndex(this.sim.config.scenario?.mix ?? 'balanced')];
-    const r = { departures: base.departures * mix.departures, arrivals: base.arrivals * mix.arrivals };
+    const f = this.sim.config.airport.traffic?.rateFactor ?? 1;
+    const r = { departures: base.departures * mix.departures * f, arrivals: base.arrivals * mix.arrivals * f };
     return this.sim.storm ? { departures: r.departures, arrivals: r.arrivals * STORM_ARRIVAL_RATE } : r;
   }
 
@@ -131,7 +132,10 @@ export class TrafficGenerator {
     const approach = sim.approachType === 'ILS' ? 0 : NON_PRECISION_SPACING_NM;
     // Thunderstorm: Approach spaces the arrivals out.
     const storm = sim.storm ? STORM_ARRIVAL_SPACING_NM : 0;
-    return Math.max(wake, gap, approach, storm);
+    // Runways used with backtracks (landing or departing aircraft taxi on the runway): more room on final.
+    const ops = sim.airport.runwayOps(sim.runway);
+    const backtrack = ops?.exits.some((x) => x.backtrack) ? BACKTRACK_ARRIVAL_SPACING_NM : ops?.departureEntries.some((e) => e.backtrack) ? BACKTRACK_DEPARTURE_SPACING_NM : 0;
+    return Math.max(wake, gap, approach, storm, backtrack);
   }
 
   /** Night rules: a delayed arrival after the landing curfew (its schedule was before it). */
@@ -225,11 +229,12 @@ export class TrafficGenerator {
 
   private pickStand(type: AircraftType, airline: Airline, except?: Aircraft): Stand | undefined {
     const ga = airline.callsignStyle === 'reg';
-    // Business jets prefer the small stands 60-65, airlines the rest of Apron North; Apron South is cargo.
-    const preferred = this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron North' && (ga ? /^6\d$/.test(s.id) : !/^6\d$/.test(s.id)), except);
+    // Business jets prefer the GA stands, airlines the airline stands; cargo stands only when nothing else is free.
+    const use = (s: Stand) => s.use ?? 'airline';
+    const preferred = this.sim.freeStands(type.wingspanM, (s) => use(s) === (ga ? 'ga' : 'airline'), except);
     const any = preferred.length
       ? preferred
-      : this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron North', except).concat(this.sim.freeStands(type.wingspanM, (s) => s.apron === 'Apron South', except));
+      : this.sim.freeStands(type.wingspanM, (s) => use(s) !== 'cargo', except).concat(this.sim.freeStands(type.wingspanM, (s) => use(s) === 'cargo', except));
     if (!any.length) return undefined;
     // Smallest stand that fits, to keep large stands available.
     const minSpan = Math.min(...any.map((s) => s.maxWingspanM));
@@ -334,6 +339,9 @@ export class TrafficGenerator {
 
 /** Minimum time between the first calls of the initial departures at session start (seconds). */
 const INITIAL_CALL_SPACING_S = 90;
+/** Minimum spacing on final when arrivals backtrack after landing / departures backtrack before take-off (NM). */
+export const BACKTRACK_ARRIVAL_SPACING_NM = 10;
+export const BACKTRACK_DEPARTURE_SPACING_NM = 8;
 /** The first initial departure calls this long after the session starts. */
 const INITIAL_FIRST_CALL_S = 15;
 /** Time a crew needs between its clearance and being ready for start-up / pushback (seconds). */

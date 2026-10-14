@@ -1,6 +1,6 @@
 import type { Aircraft } from './aircraft';
 import { destinationName, resolveDestination } from '../data/destinations';
-import type { Command } from './phraseology/commands';
+import type { Altitude, Command } from './phraseology/commands';
 import { formatAltitude, formatSidClimb } from './phraseology/format';
 import type { Simulation } from './simulation';
 
@@ -40,6 +40,12 @@ const SPECIAL_CODES = new Set(['7500', '7600', '7700', '7000', '2000', '1000', '
 
 export function initialClimbFt(sim: Simulation): number {
   return sim.config.airport.initialClimbFt ?? DEFAULT_INITIAL_CLIMB_FT;
+}
+
+/** The initial climb as said in a clearance: an altitude up to the transition altitude, else a flight level. */
+export function initialClimb(sim: Simulation): Altitude {
+  const ft = initialClimbFt(sim);
+  return ft > sim.config.airport.transitionAltitudeFt ? { fl: Math.round(ft / 100) } : { feet: ft };
 }
 
 /** Next free squawk code (not used by any aircraft in the session). */
@@ -99,7 +105,7 @@ export function prepareDeparture(sim: Simulation, ac: Aircraft): void {
   } else {
     // AI Delivery: the crew already has its clearance (and start-up is given by Ground).
     ac.cleared = true;
-    ac.clearance = { sid: ac.flightPlan.sid, climb: `${initialClimbFt(sim)} feet`, squawk: ac.flightPlan.squawk };
+    ac.clearance = { sid: ac.flightPlan.sid, climb: formatAltitude(initialClimb(sim)), squawk: ac.flightPlan.squawk };
   }
 }
 
@@ -197,7 +203,7 @@ export function sendDcl(sim: Simulation, ac: Aircraft, sidName: string, squawk: 
   const sid = sim.config.airport.sids.find((s) => s.name === sidName);
   if (!sid) return `Unknown SID ${sidName}`;
   if (!isValidSquawk(squawk)) return `Invalid squawk ${squawk}`;
-  ac.clearance = { sid: sid.name, climb: `${initialClimbFt(sim)} feet`, squawk };
+  ac.clearance = { sid: sid.name, climb: formatAltitude(initialClimb(sim)), squawk };
   ac.flightPlan.sid = sid.name;
   ac.flightPlan.runway = sim.runway;
   ac.flightPlan.squawk = squawk;
@@ -207,7 +213,7 @@ export function sendDcl(sim: Simulation, ac: Aircraft, sidName: string, squawk: 
     ac.request = null;
   }
   sim.system(
-    `DCL to ${ac.callsign}: cleared to ${destinationName(ac.flightPlan.destination)}, ${sid.name} departure, flight planned route, climb via SID to altitude ${initialClimbFt(sim)} feet, squawk ${squawk}${ac.ctot ? `, CTOT ${hhmm(sim, ac.ctot)}` : ''} - WILCO.`,
+    `DCL to ${ac.callsign}: cleared to ${destinationName(ac.flightPlan.destination)}, ${sid.name} departure, flight planned route, ${formatSidClimb(initialClimb(sim))}, squawk ${squawk}${ac.ctot ? `, CTOT ${hhmm(sim, ac.ctot)}` : ''} - WILCO.`,
     'system',
     ac.callsign,
   );
@@ -266,7 +272,7 @@ export function updateDeliveryAI(sim: Simulation): void {
     if (!ac.cleared) {
       ac.flightPlan.squawk ||= allocateSquawk(sim);
       ac.flightPlan.sid = suggestedSid(sim, ac) ?? ac.flightPlan.sid;
-      ac.clearance = { sid: ac.flightPlan.sid, climb: `${initialClimbFt(sim)} feet`, squawk: ac.flightPlan.squawk };
+      ac.clearance = { sid: ac.flightPlan.sid, climb: formatAltitude(initialClimb(sim)), squawk: ac.flightPlan.squawk };
       ac.cleared = true;
     }
     ac.frequency = sim.stationFor('ground');

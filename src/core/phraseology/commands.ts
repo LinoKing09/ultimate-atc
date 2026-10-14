@@ -58,9 +58,9 @@ export type Command =
   /** Calculated take-off time (ATFM slot): "CTOT 1435" / "slot time 1435". */
   | { type: 'ctot'; time: string }
   /** Tower: "line up and wait runway 25" (optionally behind traffic: conditional clearance). */
-  | { type: 'lineUp'; runway?: string }
+  | { type: 'lineUp'; runway?: string; backtrack?: boolean }
   /** Tower: "runway 25, cleared for take-off" (`immediate`: "cleared for immediate take-off" / "..., no delay"). */
-  | { type: 'takeoff'; runway?: string; immediate?: boolean }
+  | { type: 'takeoff'; runway?: string; immediate?: boolean; backtrack?: boolean }
   /**
    * Tower / Approach speed control on final: "maintain 160 knots until 4 miles", "reduce speed to 150 knots",
    * "reduce to final approach speed" (`final`).
@@ -75,7 +75,7 @@ export type Command =
   /** Tower: "hold position, cancel take-off" / "stop immediately" (rolling). */
   | { type: 'cancelTakeoff' }
   /** Tower: "vacate via E" (the exit to take after landing). */
-  | { type: 'vacate'; exit: string };
+  | { type: 'vacate'; exit: string; backtrack?: boolean };
 
 /** Conditional clearance: "behind the A320 passing left to right, ...". */
 export interface Condition {

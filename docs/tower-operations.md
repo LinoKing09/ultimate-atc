@@ -70,7 +70,9 @@ Since v0.7 you can staff Tower yourself; then the rules below are yours to apply
 | Line-up vs. arrival | Next arrival far enough out for line-up + remaining separation + roll + 15 s (about 4-5 NM) |
 | Landing vs. runway | Go-around at 0.5 NM if the runway is occupied; a departure already beyond 1200 m / 100 kt is accepted (RRSM-like) |
 | Landing vs. landing | The preceding landing aircraft must have vacated |
-| Arrival spacing | max(wake minimum, 4 NM; 6 NM with departures waiting; 8 NM with four or more) |
+| Arrival spacing | max(wake minimum, 4 NM; 6 NM with departures waiting; 8 NM with four or more); 10 NM when landing aircraft backtrack (exits marked `backtrack`), 8 NM when departures backtrack (entries marked `backtrack`) |
+| Backtrack (departure) | From an entry marked `backtrack`: along the runway at up to 18 kt, a 180° turn on the runway (radius 11 m, 6 kt) 30 m from the runway end, lined up 80 m from the end; the line-up time counts the backtrack (distance / 14 kt + 40 s) |
+| Backtrack (arrival) | When no exit ahead can be made (or the requested exit is behind): slows to 6 kt, turns around on the runway where it stopped, taxis back at up to 18 kt and vacates at the exit marked `backtrack` |
 | Emergencies | No line-ups while an emergency arrival is within 8 NM |
 | Exit choice | Skips exits whose vacate point is blocked by a waiting aircraft |
 

@@ -88,7 +88,8 @@ Rules:
   laneNode: 'M_14',         // taxi node where the lead-in line starts
   maxWingspanM: 36,
   pushback: true,           // false = taxi-out stand
-  defaultPushFacing: 'east' // optional
+  defaultPushFacing: 'east', // optional
+  use: 'ga',                // optional: 'airline' (default), 'ga' (business jets first), 'cargo' (only when nothing else is free)
 }
 ```
 
@@ -119,7 +120,9 @@ runwayOps: [
 ```
 
 - `departureEntries` drive `taxi to runway 25` (full-length entries are preferred) and the *Taxi to* menu.
-- `exits[].path` is the node sequence from the runway centre line, through the holding point, to the vacate stop point. Its second node must be the holding point; the Tower uses it to detect "vacated". The last node is where the aircraft stops.
+- `exits[].path` is the node sequence from the runway centre line, through the holding point, to the vacate stop point. Its second node must be the holding point; the Tower uses it to detect "vacated". The last node is where the aircraft stops. Exits whose edges are too narrow for an aircraft (`maxWingspanM`) are not used by it.
+- `departureEntries[].backtrack: true`: the entry is used with a **backtrack** - the departure enters the runway there, taxis to the runway end and turns around (airports without a taxiway to the runway end, e.g. Memmingen N for 24). The AI Tower backtracks automatically; crews ask for it.
+- `exits[].backtrack: true`: arrivals that cannot make an exit ahead turn around on the runway and backtrack to this exit (Memmingen N for 06).
 - `flows` (optional) are the **standard taxi flows** while this runway is in use. `east` / `west` mean towards the higher / lower runway coordinate of the lower-numbered runway end (for 07/25: east = towards the 25 end). Automatic routes avoid taxiing against them.
 
 ## Stations
@@ -167,6 +170,9 @@ traffic: {
 - `airline` refers to an operator in [`src/data/airlines.ts`](../src/data/airlines.ts) (ICAO code, radiotelephony callsign, callsign style). Add new operators there.
 - `weight` is the operator's share of the movements (any unit; passenger shares are fine). `types` and `destinations` override the operator's defaults; repeat an entry to make it more frequent.
 - Without `traffic`, the global operator list is used.
+- `rateFactor` (optional) scales the movements per hour of every density step (1 = the Stuttgart figures; Memmingen 0.35).
+
+The wind at session start comes from `wind` (optional): `{ primaryShare: 0.65, primary: [200, 280], secondary: [20, 100] }` - with that chance from the primary direction range, otherwise from the secondary one (default: the Stuttgart values 0.6 / 220-290° / 040-110°).
 
 ## Data checks
 
@@ -187,6 +193,21 @@ const area = b.area('Apron South', [[-30, -215], [560, -215], [560, -375], [-30,
 ```
 
 `b.nodes`, `b.edges` and the `area(...)` results go straight into the `AirportData`. See `edds.ts` for a complete example.
+
+## Importing from OpenStreetMap
+
+`scripts/osm-import.mjs` builds the geometry of an airport from [OpenStreetMap](https://www.openstreetmap.org/) (© OpenStreetMap contributors, ODbL 1.0):
+
+```sh
+node scripts/osm-import.mjs EDJA --bbox 10.215,47.975,10.265,48.000   # downloads via the OSM API
+node scripts/osm-import.mjs EDJA --osm edja.osm                        # or from a saved .osm file
+```
+
+It writes `src/data/airports/<icao>.layout.ts` (do not edit by hand): the taxi graph of every way tagged `aeroway=taxiway`/`taxilane` connected to the runway centre line (`aeroway=runway` with a `ref` like `06/24`), reduced to junctions, ends, holding positions and shape points (Douglas-Peucker, `--simplify` metres, default 2.5); the runway holding positions (`aeroway=holding_position`); stands from `aeroway=parking_position` (the stand point and the lane points where the lead-in lines meet a taxiway; lanes off the graph are snapped onto the nearest taxiway); aprons and buildings. Node ids are readable: `N.3` (third node on N), `N/W` (junction), `RWY.N` (where N meets the runway), `HP.<osm id>` (holding positions), `STAND_<id>`. The raw OSM data is not committed.
+
+`buildLayout(layout, options)` in `src/data/airports/osmLayout.ts` turns it into nodes, edges and stands. The airport file says what OSM does not: which holding positions are runway holding points and their names (`holdingPoints`), which taxiways to keep (`taxiways`), names for unnamed ways (`taxiwayNames`, `"?"` = unnamed), apron taxilanes, wingspan limits, extra nodes and edges, and every stand with its size, apron and pushback / taxi-out. It makes every way onto the runway go through a holding point: the shortest way from each named holding point to the runway centre line becomes one straight `runwayStrip` edge, other taxiway edges touching the runway are removed, and dead ends are pruned. `exitVia(built, 'N', holdingPointNode)` builds an exit path (runway node, holding point, the next nodes up to 50 m behind it). See `edja.ts`.
+
+Derived layouts are available under the ODbL: credit OpenStreetMap in `dataNotice` and in the airport page.
 
 ## Adding an airport - checklist
 

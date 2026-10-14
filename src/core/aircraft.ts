@@ -207,6 +207,8 @@ export interface Aircraft {
   wantsFollowMe?: boolean;
   /** Tower (user): line-up clearance received (lines up on reaching the holding point). */
   lineUpCleared?: boolean;
+  /** Tower (user): "backtrack runway 24": the line-up goes along the runway to its end and turns around there. */
+  backtrackCleared?: boolean;
   /** Tower (user): take-off clearance received. */
   takeoffCleared?: boolean;
   /** Tower (user): landing clearance received. */

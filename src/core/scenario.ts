@@ -1,5 +1,7 @@
 import { DENSITIES, MIXES, HEAVY_SHARES, EVENT_LEVELS, clampLevel, densityIndex, mixIndex, type Density, type TrafficMix } from './levels';
 import { hhmmToMinutes } from './time';
+import type { AirportData } from './airport/types';
+import { closureProblems } from './airport/validate';
 
 /**
  * Training scenarios.
@@ -291,3 +293,26 @@ export const SCENARIO_PRESETS: { name: string; description: string; scenario: Om
     },
   },
 ];
+
+/**
+ * The presets that make sense at an airport (the list above is written for Stuttgart): a fixed runway
+ * becomes the airport's preferred runway, closures need taxiways that exist and can be closed, night
+ * rules and de-icing need the airport's restrictions and pads.
+ */
+export function presetsFor(airport: AirportData): typeof SCENARIO_PRESETS {
+  const first = airport.runwayOps[0]?.runway;
+  const ends = new Set(airport.runwayOps.map((o) => o.runway));
+  const taxiways = new Set(airport.taxiEdges.filter((e) => e.kind === 'taxiway').map((e) => e.name.toUpperCase()));
+  const out: typeof SCENARIO_PRESETS = [];
+  for (const p of SCENARIO_PRESETS) {
+    const sc = { ...p.scenario };
+    if (sc.runway && !ends.has(sc.runway)) sc.runway = first;
+    if (sc.nightRules && !airport.nightRestrictions) continue;
+    if (sc.deicing && !airport.deicingPads?.length) continue;
+    if (sc.closedTaxiways?.length) {
+      if (!sc.closedTaxiways.every((t) => taxiways.has(t)) || closureProblems(airport, sc.closedTaxiways).length) continue;
+    }
+    out.push({ ...p, scenario: sc });
+  }
+  return out;
+}

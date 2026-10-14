@@ -217,7 +217,9 @@ A follow-me only drives onto the taxiways after your `proceed`; the aircraft wai
 | `reduce to final approach speed` / `resume normal speed` | Cancels the speed restriction |
 | `cleared for immediate take-off` / `cleared for take-off, no delay` | Take-off into a tight gap: brisk line-up and roll without waiting |
 | `go around [, I say again, go around]` | The arrival goes around |
-| `vacate via E` | The exit to take after landing (used if it can still be reached) |
+| `vacate via E` | The exit to take after landing (used if it can still be reached; an exit marked for backtracking behind the aircraft is reached by turning around on the runway) |
+| `backtrack runway 24, line up and wait` / `backtrack runway 24` / `enter runway 24 and backtrack` / `backtrack runway 24, cleared for take-off` | **Backtrack**: the departure enters the runway at an intersection, taxis along it against the take-off direction to the runway end, turns around on the runway and lines up for a full-length departure. The runway is occupied all the time. From a holding point at the runway end: `unable to backtrack from W, we are at the runway end`. Where the airport uses an entry with a backtrack (Memmingen N for 24) the crew asks for it (`holding point N, ready for departure, request backtrack`) and refuses a plain line-up if the runway ahead is too short (`unable, we require a backtrack for departure, 1009 metres available from N`) |
+| `backtrack, vacate via N` | Arrival: after landing turn around on the runway and backtrack to N (the exit is behind it) |
 | `contact radar [119.200]` / `contact Langen Radar 119.200` / `contact departure` | Departure to Radar after take-off (`confirm contact Radar, we are not airborne yet` on the ground) |
 | `contact ground [118.605]` | Arrival to Ground - from touchdown on (it calls Ground once vacated) - or a crossing aircraft once it has vacated |
 | `cross runway 25` | Crossing for an aircraft Ground handed over at the runway holding point |

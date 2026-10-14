@@ -2,7 +2,8 @@ import { AIRLINES } from '../data/airlines';
 import { destinationName } from '../data/destinations';
 import type { Aircraft } from './aircraft';
 import type { AirportData, StationType } from './airport/types';
-import { allocateSquawk, initialClimbFt, suggestedSid } from './delivery';
+import { allocateSquawk, initialClimb, suggestedSid } from './delivery';
+import { formatSidClimb } from './phraseology/format';
 import type { SimConfig, Simulation } from './simulation';
 import { windWords } from './weather';
 
@@ -50,6 +51,8 @@ export interface Tutorial {
 }
 
 /** Fixed session settings of a tutorial: runway 25, wind 250/08, no random traffic or events. */
+/** The tutorials are written for Stuttgart. */
+export const TUTORIAL_AIRPORT = 'EDDS';
 export const TUTORIAL_RUNWAY = '25';
 const TUTORIAL_SEED = 2026;
 
@@ -161,7 +164,7 @@ function arrival(sim: Simulation, callsign: string, distanceNm: number): void {
 
 /** "cleared to Frankfurt, KRH4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2101" */
 function clearance(sim: Simulation, a: Aircraft): string {
-  return `cleared to ${destinationName(a.flightPlan.destination)}, ${suggestedSid(sim, a)} departure, flight planned route, climb via SID to altitude ${initialClimbFt(sim)} feet, squawk ${a.clearance?.squawk || allocateSquawk(sim)}`;
+  return `cleared to ${destinationName(a.flightPlan.destination)}, ${suggestedSid(sim, a)} departure, flight planned route, ${formatSidClimb(initialClimb(sim))}, squawk ${a.clearance?.squawk || allocateSquawk(sim)}`;
 }
 
 const wind = (sim: Simulation) => `wind ${windWords(sim.observedWind)}`;

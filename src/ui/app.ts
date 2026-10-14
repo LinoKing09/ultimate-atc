@@ -5,8 +5,10 @@ import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { parseTransmission } from '../core/phraseology/parser';
 import { acknowledgeCatc, catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
-import { allocateSquawk, CTOT_EARLY_S, hhmm, initialClimbFt, sendDcl, suggestedSid } from '../core/delivery';
+import { allocateSquawk, CTOT_EARLY_S, hhmm, initialClimb, sendDcl, suggestedSid } from '../core/delivery';
+import { formatSidClimb } from '../core/phraseology/format';
 import { previewTaxi } from '../core/pilot';
+import type { SystemId } from '../core/systems';
 import { needsDeicing, padUser } from '../core/deicing';
 import { destinationName } from '../data/destinations';
 import type { RadioMessage } from '../core/radio';
@@ -441,7 +443,9 @@ export class App {
     this.fields.score.innerHTML = `SCORE <b>${s.score}</b> | DEP ${s.departuresHandedOff} | ARR ${s.arrivalsParked} | <span class="${bad ? 'bad' : ''}">INC ${bad}</span>`;
     this.targetEl.textContent = this.targetText();
     this.updateQuickbar();
-    const off = Object.values(this.sim.systems).filter((v) => !v).length;
+    // Switched off by you or a failure - not the systems the airport does not have at all.
+    const available = this.sim.config.airport.systems;
+    const off = Object.entries(this.sim.systems).filter(([id, on]) => !on && (!available || available.includes(id as SystemId))).length;
     this.sysBtn.classList.toggle('sys-warn', off > 0);
     const holds = [this.sim.flow.arrivalsStopped ? 'ARR' : '', this.sim.flow.departuresStopped ? 'DEP' : ''].filter(Boolean);
     this.coordBtn.classList.toggle('sys-warn', holds.length > 0);
@@ -598,6 +602,7 @@ export class App {
       // Tower: the clearances of the moment as buttons.
       const short: [RegExp, string][] = [
         [/^Line up/, 'LUP'],
+        [/^Backtrack .*line up/, 'B/T'],
         [/^Cleared for take-off/, 'T/O'],
         [/^Cleared to land/, 'LAND'],
         [/^Continue approach/, 'CONT'],
@@ -1247,6 +1252,12 @@ export class App {
         items.push(this.ableItem(ac));
       }
       items.push({ label: `Line up and wait runway ${rwy}`, disabled: ac.phase === 'lineup' || !!ac.lineUpCleared, hint: busy ? 'runway occupied' : undefined, action: () => this.say(ac, `line up and wait runway ${rwy}`) });
+      // Backtrack: along the runway to its end, turn around there, full-length departure.
+      const hpName = ac.stoppedAt?.holdingPoint ?? (ac.routeDestination?.kind === 'holdingPoint' ? ac.routeDestination.name : undefined);
+      if (ac.phase !== 'lineup' && hpName && sim.tower.canBacktrackFrom(hpName, ac)) {
+        items.push({ label: `Backtrack runway ${rwy}, line up and wait`, disabled: !!ac.lineUpCleared, hint: busy ? 'runway occupied' : ac.request === 'departure' && /request backtrack/.test(ac.lastTransmission ?? '') ? 'requested' : undefined, action: () => this.say(ac, `backtrack runway ${rwy}, line up and wait`) });
+        items.push({ label: `Backtrack runway ${rwy}, cleared for take-off`, disabled: !!ac.takeoffCleared, hint: busy ? 'runway occupied!' : undefined, action: () => this.say(ac, `backtrack runway ${rwy}, cleared for take-off`) });
+      }
       const landing = sim.aircraft.filter((o) => (o.phase === 'approach' && sim.distanceToThresholdNm(o) < 5) || o.phase === 'landing');
       items.push({
         label: 'Behind ... line up and wait',
@@ -1321,7 +1332,7 @@ export class App {
   private deliveryItems(ac: Aircraft): MenuItem[] {
     const sim = this.sim;
     const items: MenuItem[] = [];
-    const climb = `${initialClimbFt(sim)} feet`;
+    const climb = formatSidClimb(initialClimb(sim));
     // Keep the code of an earlier clearance; otherwise the next free code.
     const squawk = ac.clearance?.squawk || allocateSquawk(sim);
     const suggested = suggestedSid(sim, ac);
@@ -1355,7 +1366,7 @@ export class App {
         sids.map((sd) => ({
           label: sd.name,
           hint: sidHint(sd.name, sd.fix),
-          action: () => this.say(ac, `cleared to ${dest}, ${sd.name} departure, flight planned route, climb via SID to altitude ${climb}, squawk ${squawk}${ctot}`),
+          action: () => this.say(ac, `cleared to ${dest}, ${sd.name} departure, flight planned route, ${climb}, squawk ${squawk}${ctot}`),
         })),
     });
     items.push({ label: 'Readback correct', disabled: !ac.cleared || !!ac.readbackConfirmed, action: () => this.say(ac, 'readback correct') });

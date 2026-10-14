@@ -284,6 +284,18 @@ export function takeoffRunAvailable(sim: Simulation, holdingPoint: string): numb
   return end.length - sim.airport.runwayCoordinates(end, rwyNode.pos).along;
 }
 
+/** ", request backtrack" when the crew needs one from this holding point. */
+function backtrackWords(sim: Simulation, ac: Aircraft, hp: string | undefined): string {
+  if (!hp || !backtrackEntry(sim, hp)) return '';
+  const tora = takeoffRunAvailable(sim, hp);
+  return tora !== undefined && tora < requiredRunway(sim, ac) ? ', request backtrack' : '';
+}
+
+/** The departure entry at this holding point is normally used with a backtrack (runway in use). */
+export function backtrackEntry(sim: Simulation, holdingPoint: string): boolean {
+  return !!sim.airport.runwayOps(sim.runway)?.departureEntries.find((e) => e.holdingPoint.toUpperCase() === holdingPoint.toUpperCase())?.backtrack;
+}
+
 /** Take-off run this crew needs today (type figure varied per flight, -10 % / +15 %). */
 function requiredRunway(sim: Simulation, ac: Aircraft): number {
   ac.requiredRunwayM ??= Math.round(ac.type.minRunwayM * sim.rng.range(0.9, 1.15));
@@ -520,16 +532,27 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
         ac.standbyUntil = Math.max(ac.standbyUntil, sim.storm?.until ?? sim.time);
         return { unable: 'unable, thunderstorm overhead with windshear, we will wait until it has passed' };
       }
+      // An entry used with a backtrack (no taxiway to the runway end): the crew asks for it if the runway ahead is too short.
+      const hpName = ac.stoppedAt?.holdingPoint ?? (ac.routeDestination?.kind === 'holdingPoint' ? ac.routeDestination.name : undefined);
+      if (c.backtrack) {
+        if (ac.phase === 'lineup') return { unable: 'we are already lined up' };
+        if (hpName && !sim.tower.canBacktrackFrom(hpName, ac)) return { unable: `unable to backtrack from ${hpName}, we are at the runway end` };
+      } else if (ac.phase !== 'lineup' && hpName && backtrackEntry(sim, hpName)) {
+        const tora = takeoffRunAvailable(sim, hpName);
+        if (tora !== undefined && tora < requiredRunway(sim, ac)) return { unable: `unable, we require a backtrack for departure, ${Math.round(tora)} metres available from ${hpName}` };
+      }
       ac.lineUpCleared = true;
+      ac.backtrackCleared = !!c.backtrack || (ac.phase === 'lineup' ? ac.backtrackCleared : false);
       ac.holdPosition = false;
       const rwy = ac.runway ?? sim.runway;
-      if (c.type === 'lineUp') return rb(`line up and wait runway ${rwy}`);
+      const bt = c.backtrack ? `backtrack runway ${rwy}, ` : '';
+      if (c.type === 'lineUp') return rb(c.backtrack ? `backtrack runway ${rwy}, line up and wait` : `line up and wait runway ${rwy}`);
       ac.takeoffCleared = true;
       ac.immediateTakeoff = !!c.immediate;
       if (sim.systemOn('rmca') && sim.tower.runwayBusyForDeparture(ac)) {
         sim.system(`RMCA: take-off clearance for ${ac.callsign} while runway ${rwy} is occupied!`, 'warning', ac.callsign);
       }
-      return rb(`cleared for ${c.immediate ? 'immediate ' : ''}take-off runway ${rwy}`);
+      return rb(`${bt}cleared for ${c.immediate ? 'immediate ' : ''}take-off runway ${rwy}`);
     }
     case 'land': {
       if (ac.phase !== 'approach') return { unable: ac.onGround ? 'we have already landed' : 'say again' };
@@ -572,7 +595,7 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       if (!ok) return { unable: `unable to vacate via ${c.exit}` };
       if (sim.airport.closedTaxiways.has(c.exit.toUpperCase())) return { unable: `unable, taxiway ${c.exit.toUpperCase()} closed` };
       ac.requestedExit = c.exit;
-      return rb(`vacate via ${c.exit}`, false);
+      return rb(`${c.backtrack ? 'backtrack, ' : ''}vacate via ${c.exit}`, false);
     }
     default:
       return { unable: 'say again' };
@@ -606,18 +629,18 @@ function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: stri
   if (ac.phase === 'taxi' && ac.category === 'departure' && ac.routeDestination?.kind === 'holdingPoint' && !ac.towerContact && !ac.lineUpCleared) {
     ac.towerContact = true;
     const far = !!ac.path && ac.path.length - ac.s > 400;
-    call(sim, ac, 'departure', `${stationName}, ${tel}, ${far ? 'taxiing to' : 'approaching'} holding point ${ac.routeDestination.name}, ready for departure`);
+    call(sim, ac, 'departure', `${stationName}, ${tel}, ${far ? 'taxiing to' : 'approaching'} holding point ${ac.routeDestination.name}, ready for departure${backtrackWords(sim, ac, ac.routeDestination.name)}`);
     return true;
   }
   if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && !ac.towerContact && now - (ac.holdingSince ?? now) > 4) {
     ac.towerContact = true;
-    call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`);
+    call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure${backtrackWords(sim, ac, ac.stoppedAt?.holdingPoint)}`);
     return true;
   }
   // Still waiting at the holding point without an open request (e.g. a take-off refused in a thunderstorm,
   // or a "roger" that has run out): the crew reminds Tower that it is ready.
   if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && ac.towerContact && ac.request === null && now > ac.standbyUntil && now - ac.lastCallAt > DEPARTURE_RECALL_S) {
-    call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`);
+    call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure${backtrackWords(sim, ac, ac.stoppedAt?.holdingPoint)}`);
     return true;
   }
   if (ac.phase === 'approach' && !ac.landingCleared) {
@@ -1443,7 +1466,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       pushback: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request pushback`,
       taxi: `${stationName}, ${tel}, ready for taxi${deiceWords(sim, ac)}`,
       taxiIn: `${stationName}, ${tel}, request taxi to the stand`,
-      handoff: `${stationName}, ${tel}, ${hpWords(ac)}, ready for departure`,
+      handoff: `${stationName}, ${tel}, ${hpWords(ac)}, ready for departure${backtrackWords(sim, ac, ac.stoppedAt?.holdingPoint ?? (ac.routeDestination?.kind === 'holdingPoint' ? ac.routeDestination.name : undefined))}`,
       crossing: `${stationName}, ${tel}, holding short runway, request crossing`,
       blocked: `${stationName}, ${tel}, still blocked by traffic, request instructions`,
       route: `${stationName}, ${tel}, request further taxi instructions`,
@@ -1451,7 +1474,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       startup: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, ready for start-up`,
       frequency: `${stationName}, ${tel}, request frequency for pushback`,
       tow: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request tow to stand ${ac.tow?.to ?? ''}`,
-      departure: `${stationName}, ${tel}, ${hpWords(ac)}, ready for departure`,
+      departure: `${stationName}, ${tel}, ${hpWords(ac)}, ready for departure${backtrackWords(sim, ac, ac.stoppedAt?.holdingPoint ?? (ac.routeDestination?.kind === 'holdingPoint' ? ac.routeDestination.name : undefined))}`,
       landing: `${stationName}, ${tel}, ${Math.max(1, Math.round(sim.distanceToThresholdNm(ac)))} miles final runway ${ac.runway ?? sim.runway}`,
       vacated: `${stationName}, ${tel}, runway vacated, request taxi`,
       radar: `${stationName}, ${tel}, request frequency change`,

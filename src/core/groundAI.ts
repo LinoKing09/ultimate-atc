@@ -3,7 +3,8 @@ import { blockCycle, headOnPartner, resolveOptions } from './conflicts';
 import { CTOT_EARLY_S } from './delivery';
 import type { TaxiDestination } from './phraseology/commands';
 import { parseTransmission } from './phraseology/parser';
-import { aiInstruct } from './pilot';
+import { aiInstruct, previewTaxi } from './pilot';
+import type { TaxiRoute } from './airport/routing';
 import type { Simulation } from './simulation';
 import { apronClosed } from './weather';
 import { needsCurfewRoute, sendBackToStand } from './night';
@@ -55,12 +56,14 @@ function departure(sim: Simulation, ac: Aircraft): void {
   if (ac.phase === 'parked' && sim.time >= ac.readyAt && ac.cleared) {
     if (busyNearby(sim, ac, 250)) return; // the simplest pushback sequencing: wait for passing traffic
     if (needsDeicing(sim, ac) && !freePads(sim, ac).length) return; // all de-icing pads busy: stay on the stand
+    if (headOnAhead(sim, ac)) return; // an arrival comes the other way on the taxiways out (single-lane taxiways)
     const stand = sim.airport.stand(ac.stand ?? '');
     if (stand && !stand.pushback) aiInstruct(sim, ac, { type: 'taxi', destination: outbound(sim, ac), via: [], holdShort: [], cross: [] });
     else aiInstruct(sim, ac, { type: 'pushback', startup: true });
     return;
   }
   if (ac.phase === 'startup' && sim.time >= ac.timerUntil && !ac.pendingTaxi) {
+    if (headOnAhead(sim, ac) && sim.time - ac.timerUntil < HEAD_ON_WAIT_MAX_S) return;
     // Night curfew missed during the pushback: back onto a stand instead of to the runway.
     const destination: TaxiDestination = ac.returnToStand && ac.assignedStand ? { kind: 'stand', stand: ac.assignedStand } : outbound(sim, ac);
     aiInstruct(sim, ac, { type: 'taxi', destination, via: [], holdShort: [], cross: [] });
@@ -97,6 +100,46 @@ const PAD_RELEASE_TAXIING = 3;
 /** True when enough departures are already on the way to the runway (they would fill the taxiways). */
 function runwayQueueFull(sim: Simulation): boolean {
   return sim.aircraft.filter((o) => o.category === 'departure' && o.phase === 'taxi' && o.routeDestination?.kind === 'holdingPoint').length >= PAD_RELEASE_TAXIING;
+}
+
+/** Longest time the AI Ground keeps a departure that has started up waiting for opposite traffic (seconds). */
+const HEAD_ON_WAIT_MAX_S = 240;
+/** Arrivals on final closer than this (seconds to the threshold) count as coming the other way on their exits. */
+const ARRIVAL_LOOKAHEAD_S = 240;
+
+/**
+ * The departure's way out would meet traffic coming the other way on a taxiway: an aircraft taxiing or
+ * vacating along one of its taxiway segments in the opposite direction, or an arrival about to land
+ * whose exits run against it. Where taxiways are one-way by flow this never happens; on a single
+ * taxiway between apron and runway (Memmingen N) Ground keeps the departure on its stand meanwhile.
+ */
+function headOnAhead(sim: Simulation, ac: Aircraft): boolean {
+  const r = previewTaxi(sim, ac, { type: 'taxi', destination: outbound(sim, ac), via: [], holdShort: [], cross: [] });
+  if ('error' in r) return false;
+  const ours = directedTaxiwayPairs(sim, r.route);
+  if (!ours.size) return false;
+  const against = (ids: string[]) => ids.some((id, i) => i > 0 && ours.has(`${id}>${ids[i - 1]}`));
+  for (const o of sim.aircraft) {
+    if (o === ac) continue;
+    if (o.onGround && o.path && ['taxi', 'landing', 'vacating'].includes(o.phase)) {
+      if (against(o.path.markers.filter((m) => m.s >= o.s - 1).map((m) => m.id))) return true;
+    } else if (o.phase === 'approach' && o.category === 'arrival') {
+      const eta = sim.distanceToThresholdNm(o) * 1852 / Math.max(o.speed, 1);
+      if (eta < ARRIVAL_LOOKAHEAD_S && sim.airport.exits(o.runway ?? sim.runway).some((x) => against(x.path))) return true;
+    }
+  }
+  return false;
+}
+
+/** "a>b" for every taxiway / runway strip segment of a route (apron taxilanes and stand lines are two-way anyway). */
+function directedTaxiwayPairs(sim: Simulation, route: TaxiRoute): Set<string> {
+  const out = new Set<string>();
+  route.edges.forEach((e, i) => {
+    if (e.kind !== 'taxiway' && e.kind !== 'runwayStrip') return;
+    out.add(`${route.nodes[i].id}>${route.nodes[i + 1].id}`);
+  });
+  void sim;
+  return out;
 }
 
 /** Tows: approved when no other traffic moves nearby. */

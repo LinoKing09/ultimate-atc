@@ -275,6 +275,11 @@ const south: StandSpec[] = [
   { id: '107', along: 480.5, span: 65 },
 ];
 for (const s of south) pushStand(s, 'Apron South', -327, SOUTH, 'V');
+// Who parks where: business jets prefer 60-65, Apron South is the cargo apron (airline stands when nothing else is free).
+for (const s of stands) {
+  if (s.apron === 'Apron South') s.use = 'cargo';
+  else if (/^6\d$/.test(s.id)) s.use = 'ga';
+}
 
 // ======================================================================== lanes
 function chainSorted(name: string, kind: 'taxiway' | 'taxilane', list: [string, number][], lat: (a: number) => number, prefix: string[] = [], suffix: string[] = []): void {

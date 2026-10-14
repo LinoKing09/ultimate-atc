@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.1.1] - 2026-10-14
+
 ### Added
 
 - Airport data: **permanently closed taxiway parts** (`closed: true` on an edge, `closedEdges` / closed `addEdges` in `buildLayout()`): drawn with black crosses like on the aerodrome chart, never used by routes; crews refuse a route via a taxiway that is closed everywhere (`unable, taxiway S closed`). Unnamed apron lanes get no designator label.
@@ -16,10 +18,14 @@ All notable changes to this project are documented in this file. The format is b
 - **Memmingen: complete layout after the aerodrome chart.** All taxiways and aprons are now in the simulator: **R** (between the aprons and the runway, 2175 m take-off run for 06; an intersection for 06 and an exit for 24), the south side **P**, **P4**, **C**, **D**, **E**, the GA lanes, Apron 3 and **Apron 4** (small aircraft only, 24 m wingspan limit), and the parts the chart marks closed (crosses): **S**, P east of E, the loops around both runway ends and the branches to Apron 4. The OSM positions were checked against the chart's intersection take-off distances (within a few metres); what OSM lacks was digitised by hand from the chart (approximate).
 - Memmingen checked against the AIP aerodrome and ground movement charts (as a reference only): terminal stands are **P11 / P12** (were 1 / 2), runway length 2630 m; the position of holding point W (before the turn towards the runway) matches.
 
-## [1.2.0] - 2026-10-14
+## [1.1.0] - 2026-10-14
+
+Winter operations, three more airports and runway backtracking: de-icing as a scenario condition, the Stuttgart holding bays P1/P2 and de-icing pads DP1-DP4, Nuremberg, Memmingen and Sylt from OpenStreetMap.
 
 ### Added
 
+- **De-icing** (winter operations): scenario option `I` (scenario builder: *Conditions* -> *De-icing*), preset *Winter morning*. Every departure up to 52 m wingspan has to be de-iced on one of the de-icing pads before take-off: the crew asks `ready for taxi, request de-icing`, you taxi it to a pad (`taxi to de-icing pad DP2 via N`, or `taxi to de-icing` for a free one), it is de-iced for 6-10 minutes (status `DEICE`) and reports `de-icing complete on DP2, ready for taxi`. Crews refuse the runway before the de-icing and refuse an occupied pad. ATIS, briefing and the *Taxi to* menu (pads first) show it; the AI Ground de-ices too and releases de-iced aircraft from the pads only while fewer than 3 departures taxi to the runway. See [scenarios](docs/scenarios.md#de-icing).
+- **Stuttgart: holding bays P1/P2** at the 25 end (bypass from N to S, code C) and the **de-icing pads DP1-DP4** between N and S, at estimated positions ([EDDS](docs/airports/EDDS.md#holding-bays-and-de-icing-pads)). New airport data field `deicingPads`, checked by the data validation.
 - **Nuremberg (EDDN)**: layout from OpenStreetMap, procedures after the VATSIM Germany SOP - runway 28 preferred, parallel taxiway F / A, terminal stands with pushback, remote and cargo stands taxi-in / taxi-out, business jet stands, taxiway restrictions; Ground gives the clearances (datalink common, no A-CDM). About 60 % of Stuttgart's traffic. See [EDDN](docs/airports/EDDN.md).
 - **Memmingen (EDJA)**: layout from OpenStreetMap, procedures after the VATSIM Germany SOP. Only the taxiways airliners may use (W, N); departures 24 and landings 06 **backtrack** on the runway. Ground gives the clearances (no Delivery). Ryanair / Wizz Air traffic at about a third of Stuttgart's rate. See [EDJA](docs/airports/EDJA.md).
 - **Backtracking**: `backtrack runway 24, line up and wait` / `enter runway 24 and backtrack` / `backtrack runway 24, cleared for take-off` - the departure taxis along the runway to its end, turns around on the runway and departs from the full length; `backtrack, vacate via N` - an arrival turns around after landing and backtracks to an exit behind it. Airports mark entries and exits used that way (`backtrack`); crews ask for it (`request backtrack`) and refuse a line-up without it when the runway ahead is too short. The AI Tower backtracks on its own, Approach spaces arrivals wider on such runways. Tower menu and quick-action bar (`B/T`).
@@ -29,6 +35,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- Roadmap: the wishes for after 1.0 are now a "1.x" section in the [roadmap](docs/roadmap.md).
+- Project rules: minor and patch releases (1.x.y) may be published without asking.
 - The AI Ground keeps a departure on its stand while its way out would meet an arrival coming the other way on a taxiway (single taxiways like Memmingen N). Stuttgart benchmark unchanged (Tower benchmark: 10.6 instead of 10.5 arrivals per hour).
 - Connect dialog: only the positions the airport has are offered (Memmingen has no Delivery); the tutorials are Stuttgart-only; scenario presets adapt to the airport (runway, closures, night rules, de-icing).
 
@@ -37,20 +45,6 @@ All notable changes to this project are documented in this file. The format is b
 - An arrival that lands while every stand is taken gets a stand as soon as one becomes free (before, it kept none).
 - A runway crossing request names the runway that is actually crossed, and is withdrawn when the aircraft is moving again.
 - At an airport without a Ground position, the Tower's ground instructions (taxi, pushback, crossings) are accepted on the Tower frequency.
-
-## [1.1.0] - 2026-10-13
-
-Winter operations and the Stuttgart holding bays: de-icing as a scenario condition, P1/P2 and DP1-DP4.
-
-### Added
-
-- **De-icing** (winter operations): scenario option `I` (scenario builder: *Conditions* -> *De-icing*), preset *Winter morning*. Every departure up to 52 m wingspan has to be de-iced on one of the de-icing pads before take-off: the crew asks `ready for taxi, request de-icing`, you taxi it to a pad (`taxi to de-icing pad DP2 via N`, or `taxi to de-icing` for a free one), it is de-iced for 6-10 minutes (status `DEICE`) and reports `de-icing complete on DP2, ready for taxi`. Crews refuse the runway before the de-icing and refuse an occupied pad. ATIS, briefing and the *Taxi to* menu (pads first) show it; the AI Ground de-ices too and releases de-iced aircraft from the pads only while fewer than 3 departures taxi to the runway. See [scenarios](docs/scenarios.md#de-icing).
-- **Stuttgart: holding bays P1/P2** at the 25 end (bypass from N to S, code C) and the **de-icing pads DP1-DP4** between N and S, at estimated positions ([EDDS](docs/airports/EDDS.md#holding-bays-and-de-icing-pads)). New airport data field `deicingPads`, checked by the data validation.
-
-### Changed
-
-- Roadmap: the wishes for after 1.0 are now a "1.x" section in the [roadmap](docs/roadmap.md).
-- Project rules: minor and patch releases (1.x.y) may be published without asking.
 
 ## [1.0.0] - 2026-10-13
 

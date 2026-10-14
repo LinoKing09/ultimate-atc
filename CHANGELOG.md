@@ -4,10 +4,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-14
+
 ### Added
 
 - **Nuremberg (EDDN)**: layout from OpenStreetMap, procedures after the VATSIM Germany SOP - runway 28 preferred, parallel taxiway F / A, terminal stands with pushback, remote and cargo stands taxi-in / taxi-out, business jet stands, taxiway restrictions; Ground gives the clearances (datalink common, no A-CDM). About 60 % of Stuttgart's traffic. See [EDDN](docs/airports/EDDN.md).
-- **Memmingen (EDJA)** as a second airport: layout from OpenStreetMap, procedures after the VATSIM Germany SOP. Only the taxiways airliners may use (W, N); departures 24 and landings 06 **backtrack** on the runway. Ground gives the clearances (no Delivery). Ryanair / Wizz Air traffic at about a third of Stuttgart's rate. See [EDJA](docs/airports/EDJA.md).
+- **Memmingen (EDJA)**: layout from OpenStreetMap, procedures after the VATSIM Germany SOP. Only the taxiways airliners may use (W, N); departures 24 and landings 06 **backtrack** on the runway. Ground gives the clearances (no Delivery). Ryanair / Wizz Air traffic at about a third of Stuttgart's rate. See [EDJA](docs/airports/EDJA.md).
 - **Backtracking**: `backtrack runway 24, line up and wait` / `enter runway 24 and backtrack` / `backtrack runway 24, cleared for take-off` - the departure taxis along the runway to its end, turns around on the runway and departs from the full length; `backtrack, vacate via N` - an arrival turns around after landing and backtracks to an exit behind it. Airports mark entries and exits used that way (`backtrack`); crews ask for it (`request backtrack`) and refuse a line-up without it when the runway ahead is too short. The AI Tower backtracks on its own, Approach spaces arrivals wider on such runways. Tower menu and quick-action bar (`B/T`).
 - **Sylt (EDXW)**: layout from OpenStreetMap, procedures after the VATSIM Germany SOP - a Tower-only airport (Sylt Tower also does the ground movements and clearances), runway 14/32 in use, departures 32 cross runway 06/24 on the way to the 32 end, arrivals vacate at the far end, three airliner stands and a business jet apron. A quarter of Stuttgart's traffic. See [EDXW](docs/airports/EDXW.md).
 - **OpenStreetMap importer** `scripts/osm-import.mjs` and `buildLayout()` for airport layouts from OSM (ODbL), see [airport data](docs/airport-data.md#importing-from-openstreetmap).

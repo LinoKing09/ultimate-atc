@@ -30,6 +30,8 @@ export interface StandSpec {
   /** Position and heading; default: the imported ones. */
   pos?: LatLon;
   heading?: number;
+  /** Who parks here first (see StandData.use). */
+  use?: StandData['use'];
 }
 
 export interface LayoutOptions {
@@ -160,7 +162,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
       edges.push({ from: node, to: out, name: spec.id, kind: 'stand', oneWay: true });
       if (spec.heading === undefined) heading = Math.round(bearingOf(proj, at, pos.get(out)!));
     }
-    stands.push({ id: spec.id, apron: spec.apron, pos: at, heading, laneNode: lanes[0], maxWingspanM: spec.maxWingspanM, pushback: spec.pushback });
+    stands.push({ id: spec.id, apron: spec.apron, pos: at, heading, laneNode: lanes[0], maxWingspanM: spec.maxWingspanM, pushback: spec.pushback, ...(spec.use ? { use: spec.use } : {}) });
   }
 
   // Every way onto the runway goes through a holding point: other taxiway edges that touch the runway

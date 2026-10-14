@@ -31,7 +31,7 @@ Further airports follow in the 1.x releases (the airport data format, the data c
 | **0.8** | **done** - Combined positions with Tower, AI pilots that resolve simple conflicts (opposite traffic, lane priority), debriefing |
 | 0.9 | **done** - Scenario conditions (night flying restrictions, closed taxiways, thunderstorm), tutorials, traffic sliders, polish; final review in the [release report](release-1.0-report.md) |
 | **1.0** | **released 2026-10-13** - the first full version, see the [release report](release-1.0-report.md) |
-| 1.x | Further airports |
+| 1.x | Further airports - 1.1 de-icing, 1.2 Nuremberg, Memmingen, Sylt and runway backtracking |
 
 Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md](benchmarks.md) that compares them with the previous major release.
 
@@ -112,6 +112,8 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 
 Wishes collected for the 1.x releases (from the [release report](release-1.0-report.md#after-10) and earlier sessions), roughly in order:
 
+- **done** (1.2) - **Nuremberg (EDDN), Memmingen (EDJA) and Sylt (EDXW)** from OpenStreetMap with an importer (`scripts/osm-import.mjs`), procedures after the VATSIM Germany SOPs; Tower-only airports (Sylt)
+- **done** (1.2) - **Runway backtracking** for departures and arrivals (Memmingen)
 - **done** (1.1) - **EDDS holding bays P1/P2** (bypass at the 25 end) and **de-icing pads DP1-DP4** with de-icing as a scenario condition (winter operations); positions estimated
 - planned - **Low visibility procedures (LVP)** with the CAT II/III holding points and larger spacing (values from the AIP, supplied as text)
 - planned - **Take-off run available from the intersections** from the AIP (supplied as text) instead of the measured approximations
@@ -138,6 +140,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 
 ### Airports
 
+- **done** (1.2) - EDDN Nuremberg, EDJA Memmingen, EDXW Sylt
 - planned - EDDF Frankfurt
 - planned - EGLL London Heathrow
 - planned - KLAX Los Angeles

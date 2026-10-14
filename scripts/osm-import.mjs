@@ -265,13 +265,18 @@ for (const id of graphIds) {
 // ------------------------------------------------------------------ areas
 const polygon = (w) => w.nds.map((id) => nodes.get(id)).filter(Boolean);
 const simplifyPoly = (pts) => {
-  const ids = pts.map((_, i) => i);
-  // Reuse Douglas-Peucker on a temporary node table.
+  // Douglas-Peucker on a temporary node table. A closed ring (first = last point) is split at the point
+  // farthest from its start, so the two halves keep their shape.
   const tmp = pts.map((p, i) => [`p${i}`, p]);
   for (const [id, p] of tmp) nodes.set(id, p);
-  const out = simplify(tmp.map(([id]) => id)).map((id) => nodes.get(id));
+  const ids = tmp.map(([id]) => id);
+  let out;
+  if (pts.length > 3 && dist(pts[0], pts[pts.length - 1]) < 0.5) {
+    let k = 1;
+    for (let i = 1; i < pts.length - 1; i++) if (dist(pts[0], pts[i]) > dist(pts[0], pts[k])) k = i;
+    out = [...simplify(ids.slice(0, k + 1)).slice(0, -1), ...simplify(ids.slice(k))].map((id) => nodes.get(id));
+  } else out = simplify(ids).map((id) => nodes.get(id));
   for (const [id] of tmp) nodes.delete(id);
-  void ids;
   return out;
 };
 const areas = ways.filter((w) => w.tags.aeroway === 'apron' && w.nds.length > 3).map((w) => ({ name: w.tags.name ?? (w.tags.ref ? `Apron ${w.tags.ref}` : 'Apron'), pts: simplifyPoly(polygon(w)) }));

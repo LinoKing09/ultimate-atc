@@ -509,7 +509,7 @@ function wrongRunway(sim: Simulation, ac: Aircraft, runway: string | undefined):
 /** Tower instructions: line-up, take-off and landing clearances, go-around, exits. */
 function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
   const tower = sim.stationFor('tower');
-  if (ac.frequency !== tower || tower === sim.stationFor('ground')) {
+  if (ac.frequency !== tower || !sim.userTower) {
     return { unable: `confirm, we are on ${STATION_WORD[ac.frequency] ?? 'your'} frequency, contact Tower?` };
   }
   const rb = (text: string, answers = true): ExecResult => ({ readback: text, answers });
@@ -661,7 +661,7 @@ function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: stri
     return true;
   }
   if (ac.onGround && ac.phase === 'taxi' && ac.stoppedAt?.kind === 'runway') {
-    call(sim, ac, 'crossing', `${stationName}, ${tel}, holding short runway ${ac.runway ?? sim.runway} at ${ac.stoppedAt.holdingPoint ?? ''}, request crossing`);
+    call(sim, ac, 'crossing', `${stationName}, ${tel}, holding short runway ${runwayEndsText(sim, ac.stoppedAt.target)} at ${ac.stoppedAt.holdingPoint ?? ''}, request crossing`);
     return true;
   }
   // Landed and vacated, still on Tower frequency (the first call may have been lost on a busy frequency).
@@ -1457,6 +1457,17 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
   if (ac.request === 'blocked' && !ac.blockedBy && ac.speed > 0.5) {
     ac.request = null;
     return;
+  }
+  // Crossed (or re-routed) meanwhile: no crossing to ask for any more.
+  if (ac.request === 'crossing' && ac.stoppedAt?.kind !== 'runway' && ac.speed > 0.5) {
+    ac.request = null;
+    return;
+  }
+
+  // An arrival that landed without a stand (all were taken) gets one as soon as one is free.
+  if (ac.category === 'arrival' && ac.onGround && !ac.assignedStand && (ac.request === 'vacated' || ac.request === 'taxiIn') && now >= (ac.standRetryAt ?? 0)) {
+    ac.standRetryAt = now + 20;
+    ac.assignedStand = sim.traffic.allocateStand(ac)?.id;
   }
 
   // Reminders when nobody answers

@@ -293,9 +293,15 @@ function readCode(c: Cursor): string | undefined {
   return /^\d{4}$/.test(s) ? s : undefined;
 }
 
-/** Reads a stand number such as "12", "1 2", "50a". */
+/** Reads a stand number such as "12", "1 2", "50a", or a lettered stand such as "g1" / "golf 1". */
 function readStand(c: Cursor): string | undefined {
   let s = '';
+  const first = c.peek();
+  if (first && (/^[a-z]\d+$/.test(first) || (/^[a-z]$/.test(first) && isDigit(c.peek(1))))) {
+    s = c.next()!;
+    while (isDigit(c.peek()) && s.length < 4) s += c.next();
+    return s.toUpperCase();
+  }
   while (isDigit(c.peek()) || (s === '' && c.peek() && /^\d+[a-z]?$/.test(c.peek()!))) {
     s += c.next();
     if (/[a-z]$/.test(s)) break;

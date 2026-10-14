@@ -95,6 +95,11 @@ export interface AirportTraffic {
   source?: string;
   /** Traffic level relative to the density steps (1 = the Stuttgart figures in levels.ts; a smaller airport less). */
   rateFactor?: number;
+  /**
+   * Small airports: new departures are not placed on the last this many free stands, and Approach
+   * releases an arrival only when a stand is free for it. Default 0.
+   */
+  standReserve?: number;
   operators: TrafficOperator[];
 }
 
@@ -244,6 +249,11 @@ export interface RunwayOpsData {
    * against these directions.
    */
   flows?: { taxiway: string; direction: 'east' | 'west' }[];
+  /**
+   * Minimum spacing Approach provides between arrivals on this runway in NM (e.g. when arrivals can
+   * only vacate at the far end and occupy the runway for long).
+   */
+  arrivalSpacingNm?: number;
 }
 
 export interface ExitData {

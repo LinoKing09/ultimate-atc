@@ -92,6 +92,8 @@ export interface Aircraft {
   stand?: string;
   /** Stand allocated to an arrival (suggestion shown to the controller). */
   assignedStand?: string;
+  /** Arrival without a stand: when the stand plan is checked again (sim time). */
+  standRetryAt?: number;
   /**
    * The crew saw on approach that its destination stand is not usable
    * (occupied, or a neighbour too close) and stopped: `reported` once it has

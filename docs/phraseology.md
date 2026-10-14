@@ -86,7 +86,7 @@ taxi via|along X [,] X ..., hold short of TAXIWAY|runway RWY        (incomplete 
 | Holding point with runway                      | `taxi to holding point D runway 25 via H, S`     |
 | Runway (the pilot picks the full-length holding point on the shortest route) | `taxi to runway 25 via N` |
 | Runway at an intersection                      | `taxi to runway 25 at D`                         |
-| Stand                                          | `taxi to stand 14 via N, R` (also `gate 14`, `parking position 14`) |
+| Stand                                          | `taxi to stand 14 via N, R` (also `gate 14`, `parking position 14`; lettered stands `stand G1` / `stand golf 1`) |
 | De-icing pad (scenario option [de-icing](scenarios.md#de-icing)) | `taxi to de-icing pad DP2 via N` (also `de-icing position 2`, `deicing pad delta papa 2`; `taxi to de-icing via N` = the free pad nearest to the aircraft) |
 
 **The `via` list** must name the taxiways in the order they are used. The router finds the shortest path that follows exactly these taxiways. Taxiways that controllers usually leave out may be omitted:

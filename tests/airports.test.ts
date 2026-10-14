@@ -10,7 +10,9 @@ describe('airport data', () => {
     });
 
     it(`${ap.icao} generates traffic from its own operator mix`, () => {
-      const sim = new Simulation({ airport: ap, position: 'GND', density: 'heavy', seed: 1 });
+      // The lowest position the airport has (Sylt: Tower only).
+      const position = (['GND', 'TWR'] as const).find((t) => ap.stations.some((st) => st.type === t))!;
+      const sim = new Simulation({ airport: ap, position, density: 'heavy', seed: 1 });
       for (let t = 0; t < 3600; t++) sim.tick(1);
       const ops = new Set((ap.traffic?.operators ?? []).map((o) => o.airline));
       if (ops.size) {

@@ -683,7 +683,8 @@ export class Simulation {
   /** True if the user staffs Tower: the AI Tower then only flies the aircraft, all clearances are yours. */
   get userTower(): boolean {
     const tower = this.stationFor('tower');
-    return this.userControls(tower) && tower !== this.stationFor('ground');
+    // An airport without a Tower station has its runway run by Ground (and the AI Tower flies the aircraft).
+    return this.userControls(tower) && (!!this.airport.station('TWR') || tower !== this.stationFor('ground'));
   }
 
   /**

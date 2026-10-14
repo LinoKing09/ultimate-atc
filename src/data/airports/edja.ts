@@ -111,6 +111,7 @@ export const EDJA: AirportData = {
   traffic: {
     source: 'Memmingen Airport route network (Ryanair and Wizz Air bases), operator shares estimated',
     rateFactor: 0.35,
+    standReserve: 1,
     operators: [
       { airline: 'RYR', weight: 60, types: ['B738', 'B738', 'B38M'], destinations: ['LEPA', 'LEPA', 'EGSS', 'EIDW', 'LIRA', 'LPPR', 'LEMG', 'LEAL', 'LGTS', 'LEVC', 'LIME', 'GMMX', 'LCLK', 'LGKR', 'LDZD'] },
       { airline: 'WZZ', weight: 30, types: ['A320', 'A21N', 'A21N'], destinations: ['LWSK', 'LBSF', 'LROP', 'UGKO', 'LQTZ', 'LRCL', 'LRIA', 'LYPG', 'LYBE'] },

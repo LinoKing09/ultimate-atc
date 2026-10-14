@@ -105,7 +105,9 @@ export class TrafficGenerator {
     if (sim.time >= this.nextArrivalAt) {
       // Pick the next arrival first: the required gap depends on its wake category.
       this.pendingArrival ??= this.pickArrivalSpec();
-      if (this.arrivalGapAvailable(this.pendingArrival.type.wake)) {
+      // Small airports (stand reserve): Approach releases an arrival only when a stand is free for it.
+      const standFree = !this.standReserve || this.sim.freeStands(this.pendingArrival.type.wingspanM).length > 0;
+      if (standFree && this.arrivalGapAvailable(this.pendingArrival.type.wake)) {
         const ac = this.spawnArrival(SPAWN_DISTANCE_NM, { airline: this.pendingArrival.airline, type: this.pendingArrival.type.icao });
         if (ac && landingStatus(sim, sim.time + NIGHT_APPROACH_ESTIMATE_S) === 'delayed') this.announceDelayed(ac);
         this.pendingArrival = undefined;
@@ -135,7 +137,7 @@ export class TrafficGenerator {
     // Runways used with backtracks (landing or departing aircraft taxi on the runway): more room on final.
     const ops = sim.airport.runwayOps(sim.runway);
     const backtrack = ops?.exits.some((x) => x.backtrack) ? BACKTRACK_ARRIVAL_SPACING_NM : ops?.departureEntries.some((e) => e.backtrack) ? BACKTRACK_DEPARTURE_SPACING_NM : 0;
-    return Math.max(wake, gap, approach, storm, backtrack);
+    return Math.max(wake, gap, approach, storm, backtrack, ops?.arrivalSpacingNm ?? 0);
   }
 
   /** Night rules: a delayed arrival after the landing curfew (its schedule was before it). */
@@ -174,6 +176,11 @@ export class TrafficGenerator {
   }
 
   // ------------------------------------------------------------------ helpers
+
+  /** Stands kept free for arrivals (airport traffic data, default none). */
+  private get standReserve(): number {
+    return this.sim.config.airport.traffic?.standReserve ?? 0;
+  }
 
   /** Operators of this airport (airport traffic data merged with the global operator table). */
   private get operators(): Airline[] {
@@ -257,6 +264,8 @@ export class TrafficGenerator {
     const planned = plannedReadyIn(sim, type, readyIn, `dep${Math.round(sim.time)}:${this.usedCallsigns.size}`);
     if (planned === undefined) return undefined;
     readyIn = planned;
+    // Small airports: the last free stands are kept for arrivals.
+    if (!opts.stand && this.standReserve && sim.freeStands(type.wingspanM).length <= this.standReserve) return undefined;
     const stand = opts.stand ? sim.airport.stand(opts.stand) : this.pickStand(type, airline);
     if (!stand) return undefined;
     const callsign = opts.callsign ?? this.makeCallsign(airline);

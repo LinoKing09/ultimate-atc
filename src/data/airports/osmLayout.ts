@@ -37,8 +37,12 @@ export interface StandSpec {
 export interface LayoutOptions {
   /** Physical runway name, e.g. "06/24" (the runway edges are named like this). */
   runway: string;
-  /** Holding positions that are runway holding points: imported node -> published name. Others become plain nodes. */
-  holdingPoints: Record<string, string>;
+  /**
+   * Holding positions that are runway holding points: imported node -> published name (holding
+   * point of `runway`), or { name, runway, node } for another runway or a fixed runway node (e.g.
+   * the same node for the holding points on both sides of a runway crossing). Others become plain nodes.
+   */
+  holdingPoints: Record<string, string | { name: string; runway?: string; node?: string }>;
   /** Rename the taxiway of single edges (imported names that are missing or wrong): "from>to" -> name. */
   edgeNames?: Record<string, string>;
   /** Rename taxiways everywhere: imported name -> name ("?" = unnamed ways). */
@@ -91,7 +95,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     let name = o.edgeNames?.[key(from, to)] ?? o.edgeNames?.[key(to, from)] ?? rawName;
     if (kind !== 'runway') name = o.taxiwayNames?.[name || '?'] ?? name;
     const k: TaxiEdgeKind = kind === 'runway' ? 'runway' : taxilanes.has(name) ? 'taxilane' : 'taxiway';
-    edges.push({ from, to, name: kind === 'runway' ? o.runway : name, kind: k, ...(oneWay ? { oneWay } : {}) });
+    edges.push({ from, to, name: kind === 'runway' ? rawName || o.runway : name, kind: k, ...(oneWay ? { oneWay } : {}) });
   }
   if (o.taxiways) {
     const only = new Set(o.taxiways);
@@ -101,10 +105,20 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
 
   // Runway strips: from every named holding point the shortest way to the runway centre line becomes one
   // straight 'runwayStrip' edge (the line-up and exit logic needs holding point -> runway node directly).
-  const hpNames = o.holdingPoints;
+  const hpSpec = (v: LayoutOptions['holdingPoints'][string]) => (typeof v === 'string' ? { name: v, runway: o.runway } : { runway: o.runway, ...v });
+  const hpNames: Record<string, string> = Object.fromEntries(Object.entries(o.holdingPoints).map(([k, v]) => [k, hpSpec(v).name]));
   const runwayNodes = new Set(edges.filter((e) => e.kind === 'runway').flatMap((e) => [e.from, e.to]));
   const runwayNodeOf: Record<string, string> = {};
-  for (const [hp, name] of Object.entries(hpNames)) {
+  for (const [hp, raw] of Object.entries(o.holdingPoints)) {
+    const { name, runway, node: fixed } = hpSpec(raw);
+    const own = new Set(edges.filter((e) => e.kind === 'runway' && e.name === runway).flatMap((e) => [e.from, e.to]));
+    if (fixed) {
+      // A given runway node: one straight strip; the old connection to the runway is removed below.
+      const twy = edges.find((e) => e.kind !== 'runway' && (e.from === hp || e.to === hp))?.name ?? name;
+      edges.push({ from: hp, to: fixed, name: twy, kind: 'runwayStrip' });
+      runwayNodeOf[name] = fixed;
+      continue;
+    }
     // Dijkstra over taxi edges, not through other holding points, at most 400 m.
     const dist = new Map<string, number>([[hp, 0]]);
     const prev = new Map<string, E>();
@@ -113,7 +127,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     while (open.length) {
       open.sort((a, b) => dist.get(a)! - dist.get(b)!);
       const cur = open.shift()!;
-      if (runwayNodes.has(cur)) {
+      if (own.has(cur)) {
         goal = cur;
         break;
       }
@@ -192,7 +206,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     const at = pos.get(id);
     if (!at) throw new Error(`unknown node ${id}`);
     const n: TaxiNodeData = { id, pos: at };
-    if (hpNames[id]) n.holdingPoint = { name: hpNames[id], runway: o.runway };
+    if (o.holdingPoints[id]) n.holdingPoint = { name: hpSpec(o.holdingPoints[id]).name, runway: hpSpec(o.holdingPoints[id]).runway };
     taxiNodes.push(n);
   }
   taxiNodes.push(...standNodes);

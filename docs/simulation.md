@@ -296,7 +296,7 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 | medium to heavy | 18         | 15              |
 | heavy    | 22                | 18              |
 
-These are the Stuttgart figures. Smaller airports scale them with their `rateFactor` (see [airport data](airport-data.md#traffic)): Memmingen 0.35.
+These are the Stuttgart figures. Smaller airports scale them with their `rateFactor` (see [airport data](airport-data.md#traffic)): Nuremberg 0.6, Memmingen 0.35, Sylt 0.25. At Memmingen and Sylt (`standReserve` 1) no new departure takes the last free stand and Approach releases an arrival only when a stand is free for it; an arrival that still has none gets one (checked every 20 s) as soon as one becomes free.
 
 - **Initial situation**: about 55% of an hour's departures are already parked at stands, with ready times spread over the first 25 minutes, **denser towards the end** (`30 s + sqrt(u) x 24.5 min`), so the workload builds up gradually. Their first calls are **staggered**: the first after 15 s, each next one at least **90 s** later, in the order of their ready times. On Delivery that is the clearance request (a crew then needs at least 4 minutes until it is ready); on Ground the pushback call. One arrival is on a 4-6 NM final.
 - **New departures** appear at exponentially distributed intervals (a Poisson process) with the mean given by the rate.
@@ -306,6 +306,7 @@ These are the Stuttgart figures. Smaller airports scale them with their `rateFac
   - **5 NM** for non-precision approaches (localizer only or RNP, when the ILS glide path or localizer is switched off in the [systems window](systems.md); simulator value),
   - **8 NM** while a [thunderstorm](scenarios.md#thunderstorm) is active (the arrival rate is halved too),
   - **10 NM** on a runway where landing aircraft backtrack to their exit, **8 NM** where departures backtrack (Memmingen).
+  - the runway's own minimum where the airport sets one (`arrivalSpacingNm`; Sylt **6 NM**, arrivals vacate only at the far end).
 - **Night flying restrictions** (scenario option): no jet departure is generated that would take off after the curfew (ready time + 20 min estimate); within 75 minutes of its end, departures are planned for the morning wave (ready 10-0 minutes before it). Arrivals that would land in the landing curfew (12 NM ≈ 5 minutes) are not generated, except delayed flights (35 % of the normal rate) until delayed landings end. See [scenarios.md](scenarios.md#start-time-and-night-flying-restrictions).
 - **Operators, types and destinations** come from the airport's `traffic` data (see [airport data format](airport-data.md#traffic)), weighted by each operator's share. At EDDS this follows the real airline shares (Eurowings about 40 %, SunExpress 8 %, TUIfly 6 %, Pegasus and the Lufthansa group 5 % each, Turkish 5 %, Condor 4 %, British Airways 4 % ...) and the busiest destinations (Palma, Antalya, Istanbul, Pristina, London, Barcelona, Berlin, Hamburg); see [EDDS](airports/EDDS.md#traffic). Airports without traffic data use the global list in [`src/data/airlines.ts`](../src/data/airlines.ts).
 - **Callsigns** are unique within a session: alphanumeric (`EWG7TK`), numeric (`THY1734`) or registrations (`DCMGB`), depending on the operator.

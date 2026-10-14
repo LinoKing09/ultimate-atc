@@ -19,7 +19,7 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 | `stands`               | `StandData[]`     | Parking positions                                                        |
 | `areas`                | `AreaData[]`      | Apron polygons (drawn below taxiways)                                    |
 | `buildings`            | `AreaData[]`      | Building polygons (drawn above aprons)                                   |
-| `stations`             | `StationData[]`   | ATC stations (callsign, type, radio name, frequency)                     |
+| `stations`             | `StationData[]`   | ATC stations (callsign, type, radio name, frequency). Positions the airport lacks are not offered; without GND / DEL the Tower does their work (Sylt) |
 | `runwayOps`            | `RunwayOpsData[]` | Per runway end: departure entries and arrival exits                      |
 | `sids`                 | `SidData[]`       | Sample SIDs per runway end, used in generated flight plans               |
 | `briefing`             | `BriefingSection[]` | Optional airport briefing shown in the help window (see [Airport briefing](#airport-briefing)) |
@@ -93,6 +93,8 @@ Rules:
 }
 ```
 
+Stand ids are numbers with an optional suffix letter (`14`, `71A`) or a letter followed by digits (`G1`, spoken `stand golf 1`).
+
 `maxWingspanM` is the largest aircraft the stand itself is rated for. Neighbouring stands are checked automatically: an aircraft only gets a stand if the stand centres leave enough wingtip clearance to the aircraft on the stands next to it (4.5 m between code C aircraft, 7.5 m if one is code D or larger). So stands that can only take a wide-body when the neighbour is empty (like the EDDS wide-body positions 71A and 74A, which overlap 71+72 and 74+75) need no special data.
 
 There must also be a node `STAND_<id>` at `pos`, connected to `laneNode` by an edge `{ name: '<id>', kind: 'stand' }`. A pushback moves the aircraft from the stand to `laneNode`, then 45 m (or 90% of the edge length, whichever is shorter) along a taxilane or taxiway edge leaving `laneNode`. The edge is picked by the requested facing.
@@ -123,6 +125,7 @@ runwayOps: [
 - `exits[].path` is the node sequence from the runway centre line, through the holding point, to the vacate stop point. Its second node must be the holding point; the Tower uses it to detect "vacated". The last node is where the aircraft stops. Exits whose edges are too narrow for an aircraft (`maxWingspanM`) are not used by it.
 - `departureEntries[].backtrack: true`: the entry is used with a **backtrack** - the departure enters the runway there, taxis to the runway end and turns around (airports without a taxiway to the runway end, e.g. Memmingen N for 24). The AI Tower backtracks automatically; crews ask for it.
 - `exits[].backtrack: true`: arrivals that cannot make an exit ahead turn around on the runway and backtrack to this exit (Memmingen N for 06).
+- `arrivalSpacingNm` (optional): minimum spacing Approach provides between arrivals on this runway, e.g. where arrivals can only vacate at the far end (Sylt: 6 NM).
 - `flows` (optional) are the **standard taxi flows** while this runway is in use. `east` / `west` mean towards the higher / lower runway coordinate of the lower-numbered runway end (for 07/25: east = towards the 25 end). Automatic routes avoid taxiing against them.
 
 ## Stations
@@ -170,7 +173,8 @@ traffic: {
 - `airline` refers to an operator in [`src/data/airlines.ts`](../src/data/airlines.ts) (ICAO code, radiotelephony callsign, callsign style). Add new operators there.
 - `weight` is the operator's share of the movements (any unit; passenger shares are fine). `types` and `destinations` override the operator's defaults; repeat an entry to make it more frequent.
 - Without `traffic`, the global operator list is used.
-- `rateFactor` (optional) scales the movements per hour of every density step (1 = the Stuttgart figures; Memmingen 0.35).
+- `rateFactor` (optional) scales the movements per hour of every density step (1 = the Stuttgart figures; Memmingen 0.35, Sylt 0.25).
+- `standReserve` (optional, small airports): no new departure is placed on the last free stands (this many), and Approach releases an arrival only when a stand is free for it (Memmingen and Sylt: 1). An arrival that still lands without a stand gets one as soon as one becomes free.
 
 The wind at session start comes from `wind` (optional): `{ primaryShare: 0.65, primary: [200, 280], secondary: [20, 100] }` - with that chance from the primary direction range, otherwise from the secondary one (default: the Stuttgart values 0.6 / 220-290° / 040-110°).
 

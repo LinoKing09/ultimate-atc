@@ -2,7 +2,7 @@
 
 **Ultimate ATC** is an air traffic control simulator that runs in your browser. It aims to come as close as possible to [EuroScope](https://www.euroscope.hu/), the radar client used on the [VATSIM](https://vatsim.net/) network. You log in to a controller position at a real airport, and AI pilots respond to your instructions in ICAO phraseology, whether you type them or speak them.
 
-> **Status: version 1.0.** Three positions are playable at **Stuttgart (EDDS)**: **Delivery**, **Ground** and **Tower**, each alone or combined; **Nuremberg (EDDN)** and **Memmingen (EDJA)** follow - Memmingen a small airport where departures and arrivals **backtrack** on the runway. The code is built so that more positions (Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
+> **Status: version 1.0.** Three positions are playable at **Stuttgart (EDDS)**: **Delivery**, **Ground** and **Tower**, each alone or combined; **Nuremberg (EDDN)**, **Memmingen (EDJA)** and **Sylt (EDXW)** follow - Memmingen a small airport where departures and arrivals **backtrack** on the runway, Sylt a Tower-only airport with crossing runways. The code is built so that more positions (Approach/Departure, Center) and more airports (EDDF, EGLL, KLAX, KSAN, ...) can be added later. See the [roadmap](docs/roadmap.md).
 
 ![Ultimate ATC - EDDS Ground overview](docs/images/screenshot-overview.png)
 
@@ -87,6 +87,7 @@ Press **F1** in the app for the in-game reference.
 | [Airport: EDDS Stuttgart](docs/airports/EDDS.md) | Layout, taxiways, holding points, stands, typical routes, frequencies    |
 | [Airport: EDDN Nuremberg](docs/airports/EDDN.md) | OpenStreetMap layout, stands, exits, frequencies                         |
 | [Airport: EDJA Memmingen](docs/airports/EDJA.md) | OpenStreetMap layout, backtracking, stands, frequencies                  |
+| [Airport: EDXW Sylt](docs/airports/EDXW.md)      | OpenStreetMap layout, Tower only, crossing runways, stands               |
 | [Tutorials](docs/tutorials.md)               | Guided first sessions for Delivery, Ground and Tower                         |
 | [Scenarios and seeds](docs/scenarios.md)     | What the seed does, scenario codes, the scenario builder, presets            |
 | [Simulation model](docs/simulation.md)       | How AI pilots, AI Ground and Tower, Delivery and A-CDM, traffic generation, separation, special events and incidents work |
@@ -109,7 +110,7 @@ The same 20 hours of Stuttgart traffic with the same simple automatic controller
 
 ## Data accuracy
 
-The EDDS layout (taxiways, holding points, stand numbers, aprons) was **digitised by hand from the AIP Germany aerodrome charts** (AD 2 EDDS 2-5 and 2-7). The accuracy is about ±10 m, and some areas (de-icing pads, GA apron, US airfield) are simplified. Runway end coordinates come from [OurAirports](https://ourairports.com/) (public domain). The SIDs in the flight plans are placeholders. The Nuremberg and Memmingen layouts come from [OpenStreetMap](https://www.openstreetmap.org/) (© OpenStreetMap contributors, ODbL; the derived layout files are available under the ODbL), their procedures from the VATSIM Germany SOPs. **Never use this simulator for real-world navigation or flight planning.** The airport pages ([EDDS](docs/airports/EDDS.md), [EDDN](docs/airports/EDDN.md), [EDJA](docs/airports/EDJA.md)) describe exactly what is approximated.
+The EDDS layout (taxiways, holding points, stand numbers, aprons) was **digitised by hand from the AIP Germany aerodrome charts** (AD 2 EDDS 2-5 and 2-7). The accuracy is about ±10 m, and some areas (de-icing pads, GA apron, US airfield) are simplified. Runway end coordinates come from [OurAirports](https://ourairports.com/) (public domain). The SIDs in the flight plans are placeholders. The Nuremberg, Memmingen and Sylt layouts come from [OpenStreetMap](https://www.openstreetmap.org/) (© OpenStreetMap contributors, ODbL; the derived layout files are available under the ODbL), their procedures from the VATSIM Germany SOPs. **Never use this simulator for real-world navigation or flight planning.** The airport pages ([EDDS](docs/airports/EDDS.md), [EDDN](docs/airports/EDDN.md), [EDJA](docs/airports/EDJA.md), [EDXW](docs/airports/EDXW.md)) describe exactly what is approximated.
 
 ## License
 

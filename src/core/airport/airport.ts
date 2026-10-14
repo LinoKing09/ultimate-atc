@@ -38,6 +38,8 @@ export interface TaxiEdge {
   maxWingspanM: number;
   /** Permanently closed (chart crosses): never routed. */
   closed: boolean;
+  /** Shape points between `from` and `to` (empty for a straight edge). */
+  shape: Vec2[];
 }
 
 export interface RunwayEnd {
@@ -117,6 +119,7 @@ export class Airport {
     for (const e of data.taxiEdges) {
       const from = this.node(e.from);
       const to = this.node(e.to);
+      const shape = (e.shape ?? []).map((p) => this.proj.toLocal(p));
       const edge: TaxiEdge = {
         index: this.edges.length,
         from,
@@ -124,10 +127,11 @@ export class Airport {
         name: e.name,
         kind: e.kind,
         oneWay: e.oneWay ?? false,
-        length: distance(from.pos, to.pos),
+        length: polylineLength([from.pos, ...shape, to.pos]),
         widthM: e.widthM ?? DEFAULT_WIDTH[e.kind],
         maxWingspanM: e.maxWingspanM ?? Infinity,
         closed: e.closed ?? false,
+        shape,
       };
       this.edges.push(edge);
       from.edges.push(edge);
@@ -275,10 +279,29 @@ export class Airport {
     let best: { edge: TaxiEdge; t: number; point: Vec2; dist: number } | null = null;
     for (const e of this.edges) {
       if (!filter(e)) continue;
-      const pr = projectOnSegment(p, e.from.pos, e.to.pos);
+      const pr = projectOnEdge(p, e);
       if (!best || pr.dist < best.dist) best = { edge: e, ...pr };
     }
     return best;
+  }
+
+  /**
+   * Polyline through the nodes of a route or exit path, with the shape points of the edges between
+   * them, and the node id of every vertex (null for shape points).
+   */
+  polyline(nodes: TaxiNode[]): { points: Vec2[]; ids: (string | null)[] } {
+    const points: Vec2[] = [];
+    const ids: (string | null)[] = [];
+    nodes.forEach((n, i) => {
+      if (i > 0) {
+        const prev = nodes[i - 1];
+        const e = prev.edges.find((x) => otherEnd(x, prev) === n && x.shape.length);
+        if (e) for (const p of e.from === prev ? e.shape : [...e.shape].reverse()) (points.push(p), ids.push(null));
+      }
+      points.push(n.pos);
+      ids.push(n.id);
+    });
+    return { points, ids };
   }
 
   /** Taxiway names of all edges touching a node. */
@@ -302,6 +325,32 @@ export class Airport {
     this.buildings.forEach((b) => b.polygon.forEach(visit));
     return { minX, minY, maxX, maxY };
   }
+}
+
+/** All vertices of an edge from `from` to `to`, including its shape points. */
+export function edgeVertices(e: TaxiEdge): Vec2[] {
+  return [e.from.pos, ...e.shape, e.to.pos];
+}
+
+/** Closest point of an edge (with its shape points) to `p`; `t` is the fraction of the edge length. */
+export function projectOnEdge(p: Vec2, e: TaxiEdge): { t: number; point: Vec2; dist: number } {
+  if (!e.shape.length) return projectOnSegment(p, e.from.pos, e.to.pos);
+  const v = edgeVertices(e);
+  let best = { t: 0, point: v[0], dist: Infinity };
+  let done = 0;
+  for (let i = 1; i < v.length; i++) {
+    const len = distance(v[i - 1], v[i]);
+    const pr = projectOnSegment(p, v[i - 1], v[i]);
+    if (pr.dist < best.dist) best = { t: (done + pr.t * len) / (e.length || 1), point: pr.point, dist: pr.dist };
+    done += len;
+  }
+  return best;
+}
+
+function polylineLength(pts: Vec2[]): number {
+  let len = 0;
+  for (let i = 1; i < pts.length; i++) len += distance(pts[i - 1], pts[i]);
+  return len;
 }
 
 export function otherEnd(edge: TaxiEdge, node: TaxiNode): TaxiNode {

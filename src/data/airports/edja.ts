@@ -27,7 +27,7 @@ const CLOSED: [string, string, string][] = [
   ['S.N', 'S.8', 'S'],
   ['S.8', 'S.4', 'S'],
   // Loop around the runway 06 end (north and south of the stopway) and the stub at the threshold.
-  ['W.J', 'X06.1', ''],
+  ['W.2', 'X06.1', ''],
   ['X06.1', 'X06.2', ''],
   ['X06.2', 'X06.3', ''],
   ['X06.3', 'X06.4', ''],
@@ -112,8 +112,6 @@ const built = buildLayout(EDJA_LAYOUT, {
     ['HP.R', 47.9861157, 10.2302681],
     ['S.N', 47.9885516, 10.2339606],
     ['S.8', 47.9881258, 10.2341257],
-    // Where the 06 end loop leaves W (on the straight runway strip of W).
-    ['W.J', 47.983933, 10.2262333],
     ['X06.1', 47.9840037, 10.2245724],
     ['X06.2', 47.9836354, 10.2235509],
     ['X06.3', 47.9832952, 10.2226378],

@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Added
 
 - Airport data: **permanently closed taxiway parts** (`closed: true` on an edge, `closedEdges` / closed `addEdges` in `buildLayout()`): drawn with black crosses like on the aerodrome chart, never used by routes; crews refuse a route via a taxiway that is closed everywhere (`unable, taxiway S closed`). Unnamed apron lanes get no designator label.
+- Airport data: **curved edges** (`shape` points). Runway strips built by `buildLayout()` keep the curve of the taxiway instead of a straight line from the holding point to the runway: aircraft taxi, line up and vacate along it. Memmingen W now has its turn towards the runway (holding point W lies before it); the strips at Nuremberg and Sylt follow their fillets too.
 
 ### Changed
 

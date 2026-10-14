@@ -434,7 +434,8 @@ export class TowerAI {
     }
     ac.exitName = chosen.ex.name;
     const nodes: TaxiNode[] = chosen.ex.path.map((id) => sim.airport.node(id));
-    const path = new Path([ac.pos, ...nodes.map((n) => n.pos)], [null, ...nodes.map((n) => n.id)], 40);
+    const line = sim.airport.polyline(nodes);
+    const path = new Path([ac.pos, ...line.points], [null, ...line.ids], 40);
     const sExit = path.marker(chosen.node.id)?.s ?? path.length;
     const vExit = chosen.vExit;
     ac.path = path;
@@ -480,7 +481,8 @@ export class TowerAI {
     const turn = this.uTurn(centre, u);
     const nodes = exitPath.map((id) => sim.airport.node(id));
     const before = add(end.start, scale(u, stopAlong - 20));
-    const path = new Path([ac.pos, before, ...turn, ...nodes.map((n) => n.pos)], [null, null, ...turn.map(() => null), ...nodes.map((n) => n.id)], 8);
+    const line = sim.airport.polyline(nodes);
+    const path = new Path([ac.pos, before, ...turn, ...line.points], [null, null, ...turn.map(() => null), ...line.ids], 8);
     const sTurn = path.closestS(turn[0], 0);
     const sTurnEnd = path.closestS(turn[turn.length - 1], sTurn);
     const sExit = path.marker(nodes[0].id)?.s ?? path.length;
@@ -676,6 +678,8 @@ export class TowerAI {
     const strip = hp?.edges.find((e) => e.kind === 'runwayStrip');
     if (!hp || !strip) return 'we are not at a runway holding point';
     const rwyNode = strip.from === hp ? strip.to : strip.from;
+    // Shape points of a curved strip, from the holding point towards the runway.
+    const bend = strip.from === hp ? strip.shape : [...strip.shape].reverse();
     const lineupPt = add(rwyNode.pos, scale(headingVector(end.heading), LINEUP_DISTANCE));
     const remaining = end.length - sim.airport.runwayCoordinates(end, lineupPt).along;
     const entry = sim.airport.runwayOps(end.name)?.departureEntries.find((e) => e.holdingPoint === hp.holdingPoint?.name);
@@ -700,7 +704,7 @@ export class TowerAI {
       // Back onto the centre line, then lined up straight along it.
       const merge = add(end.start, scale(u, BACKTRACK_TURN_ALONG + 30));
       const linePt = add(end.start, scale(u, BACKTRACK_TURN_ALONG + 50));
-      const path = new Path([ac.pos, rwyNode.pos, add(end.start, scale(u, BACKTRACK_TURN_ALONG + 15)), ...turn, merge, linePt], [hp.id, rwyNode.id, null, ...turn.map(() => null), null, null], 8);
+      const path = new Path([ac.pos, ...bend, rwyNode.pos, add(end.start, scale(u, BACKTRACK_TURN_ALONG + 15)), ...turn, merge, linePt], [hp.id, ...bend.map(() => null), rwyNode.id, null, ...turn.map(() => null), null, null], 8);
       ac.path = path;
       ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
       const sTurn = path.closestS(turn[0], 0);
@@ -708,7 +712,7 @@ export class TowerAI {
       ac.backtrackCleared = false;
       return undefined;
     }
-    const path = new Path([ac.pos, rwyNode.pos, lineupPt], [hp.id, rwyNode.id, null], 35);
+    const path = new Path([ac.pos, ...bend, rwyNode.pos, lineupPt], [hp.id, ...bend.map(() => null), rwyNode.id, null], 35);
     ac.path = path;
     ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
     // "Cleared for immediate take-off": a brisk line-up.

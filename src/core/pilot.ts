@@ -1042,10 +1042,9 @@ export function applyRoute(
     points.push(route.startPosition);
     ids.push(null);
   }
-  for (const n of route.nodes) {
-    points.push(n.pos);
-    ids.push(n.id);
-  }
+  const line = sim.airport.polyline(route.nodes);
+  points.push(...line.points);
+  ids.push(...line.ids);
   const path = new Path(points, ids, 30);
   ac.path = path;
   ac.s = 0;

@@ -1,5 +1,5 @@
 import { dot, headingVector, normalize, projectOnSegment, sub, type Vec2 } from '../geo';
-import { isClosedEdge, otherEnd, type Airport, type TaxiEdge, type TaxiNode } from './airport';
+import { edgeVertices, isClosedEdge, otherEnd, type Airport, type TaxiEdge, type TaxiNode } from './airport';
 
 /**
  * Taxi route finding.
@@ -173,11 +173,14 @@ export function findRoute(
       if (e.oneWay && e.from !== cur.node) continue;
       if (isClosedEdge(airport, e)) continue;
       if (options.wingspanM !== undefined && options.wingspanM > e.maxWingspanM) continue;
-      if (options.avoid && segmentNear(e.from.pos, e.to.pos, options.avoid)) continue;
+      if (options.avoid && edgeNear(e, options.avoid)) continue;
       const nxt = otherEnd(e, cur.node);
       // Stand lead-in lines may only be used to leave the start stand or to enter the destination stand.
       if (e.kind === 'stand' && nxt !== destination && cur.node !== start.node) continue;
-      const out = unit(sub(nxt.pos, cur.node.pos));
+      // Directions when leaving the node and when arriving at the next one (they differ on curved edges).
+      const verts = e.from === cur.node ? edgeVertices(e) : edgeVertices(e).reverse();
+      const out = unit(sub(verts[1], verts[0]));
+      const arrive = unit(sub(verts[verts.length - 1], verts[verts.length - 2]));
       if (cur.dir && turnAngle(cur.dir, out) > MAX_TURN) continue;
 
       const name = e.name.toUpperCase();
@@ -208,7 +211,7 @@ export function findRoute(
       if (nc < (dist.get(nk) ?? Infinity)) {
         dist.set(nk, nc);
         prev.set(nk, { key: cur.key, edge: e });
-        open.push({ key: nk, node: nxt, k, cost: nc, dir: out });
+        open.push({ key: nk, node: nxt, k, cost: nc, dir: arrive });
       }
     }
   }
@@ -252,6 +255,12 @@ export function findRoute(
 
 export function isRouteError(r: TaxiRoute | RouteError): r is RouteError {
   return (r as RouteError).error !== undefined;
+}
+
+function edgeNear(e: TaxiEdge, avoid: { points: Vec2[]; radius: number }): boolean {
+  const v = edgeVertices(e);
+  for (let i = 1; i < v.length; i++) if (segmentNear(v[i - 1], v[i], avoid)) return true;
+  return false;
 }
 
 function unit(v: Vec2): Vec2 {

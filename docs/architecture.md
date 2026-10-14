@@ -150,6 +150,8 @@ The goal is any state at `(destination, len(via))`. With an empty `via` list, th
 
 **Closed taxiways** (scenario option): `Airport.closedTaxiways` holds the closed designators; `findRoute` skips every edge of them (taxiway and runway strip, so also their holding points) and fails a `via` list naming one with `taxiway X closed`. Because every caller uses the same `Airport`, AI routes, previews, conflict resolution and follow-me cars all respect it. `closureProblems()` (validate.ts) checks a closure with the same reachability rules as the airport data validation. **Permanently closed** edges (`closed: true` in the airport data, chart crosses) are skipped the same way (`isClosedEdge`); `Airport.outOfServiceTaxiways` lists the designators closed everywhere, so a `via` naming one fails with `taxiway X closed` too. `nearestEdge()` ignores closed edges.
 
+**Curved edges**: an edge may carry `shape` points. `Airport.polyline(nodes)` expands a node sequence (route, exit path) with them; every path an aircraft or vehicle follows is built that way, and the line-up path follows the shape of the holding point's runway strip. `projectOnEdge()` measures distances to the whole polyline.
+
 `resolveClearanceLimit` (pilot.ts) handles incomplete instructions like `taxi via N, hold short of F`. It tries every junction of the last via taxiway with F (or every holding point of the runway) as destination and keeps the shortest valid route.
 
 ### Paths

@@ -1,4 +1,4 @@
-import { otherEnd } from '../core/airport/airport';
+import { otherEnd, type Airport, type TaxiNode } from '../core/airport/airport';
 import type { Compass, StationType } from '../core/airport/types';
 import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
@@ -844,7 +844,7 @@ export class App {
         ok = false;
         msg += `  -- ${r.error}`;
       } else {
-        const pts = routePoints(ac, r.route.nodes.map((n) => n.pos), r.route.startPosition);
+        const pts = routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition);
         this.scope.preview = { points: pts, ok: true };
         // The pilot accepts any stand that fits; you see (the crew doesn't yet) whether it is free.
         const dest = r.dest;
@@ -1093,7 +1093,7 @@ export class App {
       return { label, hint: hint ?? 'no route proposal', action: () => this.say(ac, `taxi to ${destText}`) };
     }
     const via = r.route.taxiways.filter((t) => this.sim.airport.taxiwayNames.has(t.toUpperCase()));
-    const pts = routePoints(ac, r.route.nodes.map((n) => n.pos), r.route.startPosition);
+    const pts = routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition);
     const conflict = this.sim.systemOn('catc') ? routeHeadOn(this.sim, ac, pts) : undefined;
     return {
       label,
@@ -1101,7 +1101,7 @@ export class App {
       action: () => this.say(ac, `taxi to ${destText} via ${via.join(', ')}`),
       onHover: (on) => {
         this.menuPreview = on;
-        this.scope.preview = on ? { points: routePoints(ac, r.route.nodes.map((n) => n.pos), r.route.startPosition), ok: true } : undefined;
+        this.scope.preview = on ? { points: routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition), ok: true } : undefined;
         if (!on) this.updatePreview();
       },
     };
@@ -1437,7 +1437,7 @@ export class App {
           action: () => this.say(o.aircraft, o.instruction),
           onHover: (on: boolean) => {
             this.menuPreview = on;
-            this.scope.preview = on && o.route ? { points: routePoints(o.aircraft, o.route.nodes.map((n) => n.pos), o.route.startPosition), ok: true } : undefined;
+            this.scope.preview = on && o.route ? { points: routePoints(this.sim.airport, o.aircraft, o.route.nodes, o.route.startPosition), ok: true } : undefined;
             if (!on) this.updatePreview();
           },
         }));
@@ -1523,6 +1523,6 @@ export class App {
   }
 }
 
-function routePoints(ac: Aircraft, nodes: Vec2[], start?: Vec2): Vec2[] {
-  return [start ?? ac.pos, ...nodes];
+function routePoints(airport: Airport, ac: Aircraft, nodes: TaxiNode[], start?: Vec2): Vec2[] {
+  return [start ?? ac.pos, ...(nodes[0] ? airport.polyline(nodes).points : [])];
 }

@@ -1,7 +1,7 @@
 import { createAircraft, type Aircraft } from './aircraft';
-import type { TaxiNode } from './airport/airport';
+import { projectOnEdge, type TaxiNode } from './airport/airport';
 import { findRoute, isRouteError } from './airport/routing';
-import { add, distance, headingVector, projectOnSegment, scale, sub, type Vec2 } from './geo';
+import { add, distance, headingVector, scale, sub, type Vec2 } from './geo';
 import { Path } from './path';
 import type { ParsedTransmission } from './phraseology/commands';
 import { capitalize, formatCommand } from './phraseology/format';
@@ -170,7 +170,7 @@ export function vehicleTel(v: Vehicle): string {
 function routeBetween(sim: Simulation, from: Vec2, heading: number | undefined, to: TaxiNode, via: string[] = []): Path | null | { error: string } {
   const r = findRoute(sim.airport, { position: from, heading }, to, via, { allowUTurn: true });
   if (isRouteError(r)) return via.length ? { error: r.error } : null;
-  const pts = [...(r.startPosition ? [r.startPosition] : []), ...r.nodes.map((n) => n.pos)];
+  const pts = [...(r.startPosition ? [r.startPosition] : []), ...sim.airport.polyline(r.nodes).points];
   return pts.length > 1 ? new Path(pts, [], 15) : null;
 }
 
@@ -189,7 +189,7 @@ export function locationOf(sim: Simulation, ac: Aircraft): string {
   let best: { name: string; d: number } | undefined;
   for (const e of sim.airport.edges) {
     if (!e.name || !sim.airport.taxiwayNames.has(e.name.toUpperCase())) continue;
-    const d = projectOnSegment(ac.pos, e.from.pos, e.to.pos).dist;
+    const d = projectOnEdge(ac.pos, e).dist;
     if (!best || d < best.d) best = { name: e.name, d };
   }
   return best ? `taxiway ${best.name.toUpperCase()}` : 'the apron';
@@ -396,7 +396,7 @@ function vehiclePosition(sim: Simulation, v: Vehicle): string {
   let best: { name: string; d: number } | undefined;
   for (const e of sim.airport.edges) {
     if (!e.name || !sim.airport.taxiwayNames.has(e.name.toUpperCase())) continue;
-    const d = projectOnSegment(v.pos, e.from.pos, e.to.pos).dist;
+    const d = projectOnEdge(v.pos, e).dist;
     if (!best || d < best.d) best = { name: e.name, d };
   }
   const where = best && best.d < 60 ? `on taxiway ${best.name.toUpperCase()}` : 'on the apron';

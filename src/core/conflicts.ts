@@ -1,5 +1,5 @@
 import { findRoute, isRouteError, type TaxiRoute } from './airport/routing';
-import type { TaxiNode } from './airport/airport';
+import type { Airport, TaxiNode } from './airport/airport';
 import type { Aircraft } from './aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from './geo';
 import type { TaxiDestination } from './phraseology/commands';
@@ -267,7 +267,7 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
       const via = viaOf(route);
       // The pilot's own interpretation of the instruction must also keep clear of the other aircraft.
       const check = previewTaxi(sim, x, { type: 'taxi', destination: target, via, holdShort: [], cross: [] });
-      if (!('error' in check) && !check.route.requiresUTurn && keepsClear(check.route, avoid)) {
+      if (!('error' in check) && !check.route.requiresUTurn && keepsClear(sim.airport, check.route, avoid)) {
         out.push({ aircraft: x, other: y, instruction: `taxi to ${destText} via ${via.join(', ')}`, route: check.route, tug: false });
         continue;
       }
@@ -284,8 +284,8 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
   return forward.length ? [...forward, ...out.filter((o) => o.crossesRunway)] : [...out, ...tugs].sort(byCrossing);
 }
 
-function keepsClear(route: TaxiRoute, avoid: { points: Vec2[]; radius: number }): boolean {
-  const pts = [...(route.startPosition ? [route.startPosition] : []), ...route.nodes.map((n) => n.pos)];
+function keepsClear(airport: Airport, route: TaxiRoute, avoid: { points: Vec2[]; radius: number }): boolean {
+  const pts = [...(route.startPosition ? [route.startPosition] : []), ...airport.polyline(route.nodes).points];
   // The first segment leads away from where the aircraft stands now (checked by the router); check the rest.
   return pts.every((p, i) => i <= 1 || avoid.points.every((q) => distanceToSegment(q, pts[i - 1], p) >= avoid.radius));
 }

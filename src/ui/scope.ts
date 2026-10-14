@@ -1,4 +1,4 @@
-import { isClosedEdge } from '../core/airport/airport';
+import { edgeVertices, isClosedEdge, type TaxiEdge } from '../core/airport/airport';
 import type { Aircraft } from '../core/aircraft';
 import { catcAlert } from '../core/conflicts';
 import { KT_TO_MS, M_PER_NM, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
@@ -448,6 +448,17 @@ export class Scope {
     ctx.restore();
   }
 
+  /** Starts a canvas path along an edge, through its shape points. */
+  private edgePath(e: TaxiEdge): void {
+    const ctx = this.ctx;
+    ctx.beginPath();
+    edgeVertices(e).forEach((v, i) => {
+      const p = this.toScreen(v);
+      if (i === 0) ctx.moveTo(p.x, p.y);
+      else ctx.lineTo(p.x, p.y);
+    });
+  }
+
   /** Permanently closed taxiway parts (airport data): crosses along the pavement, as on the aerodrome chart. */
   private drawOutOfService(): void {
     const ap = this.sim.airport;
@@ -559,11 +570,7 @@ export class Scope {
     for (const pass of [0, 1]) {
       for (const e of ap.edges) {
         if (e.kind === 'runway' || e.kind === 'stand') continue;
-        const a = this.toScreen(e.from.pos);
-        const b = this.toScreen(e.to.pos);
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
+        this.edgePath(e);
         ctx.strokeStyle = pass === 0 ? C.taxiwayEdge : C.taxiway;
         ctx.lineWidth = Math.max(pass === 0 ? 3 : 2, e.widthM * z + (pass === 0 ? 2 : 0));
         ctx.stroke();
@@ -576,12 +583,8 @@ export class Scope {
       ctx.lineWidth = 1;
       for (const e of ap.edges) {
         if (e.kind === 'runway' || e.closed) continue;
-        const a = this.toScreen(e.from.pos);
-        const b = this.toScreen(e.to.pos);
         ctx.strokeStyle = e.kind === 'stand' ? C.standLine : C.centreline;
-        ctx.beginPath();
-        ctx.moveTo(a.x, a.y);
-        ctx.lineTo(b.x, b.y);
+        this.edgePath(e);
         ctx.stroke();
       }
     }
@@ -639,8 +642,9 @@ export class Scope {
       const other = node.edges.find((e) => e.kind !== 'runwayStrip');
       const ref = strip ?? other;
       if (!ref) continue;
-      const far = ref.from === node ? ref.to : ref.from;
-      const d = sub(far.pos, node.pos);
+      // Towards the next vertex (the first shape point of a curved strip).
+      const verts = ref.from === node ? edgeVertices(ref) : edgeVertices(ref).reverse();
+      const d = sub(verts[1], node.pos);
       const len = Math.hypot(d.x, d.y) || 1;
       const u = { x: d.x / len, y: d.y / len };
       const n = { x: -u.y, y: u.x };

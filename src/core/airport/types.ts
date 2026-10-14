@@ -192,6 +192,12 @@ export interface TaxiEdgeData {
    * and must not touch runway nodes.
    */
   closed?: boolean;
+  /**
+   * Shape points between `from` and `to` (in that order) for a curved edge, e.g. a runway strip that
+   * turns towards the runway behind its holding point. Aircraft follow them; routing and the runway
+   * logic still treat the edge as one connection.
+   */
+  shape?: LatLon[];
 }
 
 export interface StandData {

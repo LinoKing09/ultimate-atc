@@ -50,4 +50,25 @@ describe('Memmingen (EDJA) layout after the aerodrome chart', () => {
     expect(ac.phase).toBe('holding');
     expect(Math.hypot(ac.pos.x - ap.holdingPoint('R')!.pos.x, ac.pos.y - ap.holdingPoint('R')!.pos.y)).toBeLessThan(15);
   });
+
+  it('W keeps its turn towards the runway: line-up follows the curve, not the chord', () => {
+    const strip = ap.holdingPoint('W')!.edges.find((e) => e.kind === 'runwayStrip')!;
+    expect(strip.shape.length).toBeGreaterThan(2);
+    const corner = strip.shape[Math.floor(strip.shape.length / 2)];
+    const sim = new Simulation({ airport: EDJA, position: 'GND', positions: ['GND', 'TWR'], runway: '06', density: 'medium', seed: 3, events: false, generateTraffic: false });
+    const ac = sim.traffic.spawnDeparture(2, { stand: '5', callsign: 'RYR1AB', type: 'B738' })!;
+    for (let t = 0; t < 900 && ac.request !== 'taxi'; t++) sim.tick(1);
+    sim.transmit('RYR1AB taxi to holding point W');
+    for (let t = 0; t < 900 && ac.phase !== 'holding'; t++) sim.tick(1);
+    sim.transmit('RYR1AB contact tower');
+    for (let t = 0; t < 60 && ac.frequency !== 'TWR'; t++) sim.tick(1);
+    sim.transmit('RYR1AB line up and wait runway 06');
+    let closest = Infinity;
+    for (let t = 0; t < 300 && !(ac.phase === 'lineup' && ac.stoppedAt); t++) {
+      sim.tick(1);
+      closest = Math.min(closest, Math.hypot(ac.pos.x - corner.x, ac.pos.y - corner.y));
+    }
+    expect(ac.phase).toBe('lineup');
+    expect(closest).toBeLessThan(15);
+  });
 });

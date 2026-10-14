@@ -95,7 +95,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   const drop = new Set(o.dropEdges ?? []);
   const taxilanes = new Set(o.taxilanes ?? []);
 
-  type E = { from: string; to: string; name: string; kind: TaxiEdgeKind; oneWay?: boolean; closed?: boolean };
+  type E = { from: string; to: string; name: string; kind: TaxiEdgeKind; oneWay?: boolean; closed?: boolean; shape?: LatLon[] };
   const closed = new Set(o.closedEdges ?? []);
   let edges: E[] = [];
   for (const [from, to, rawName, kind, oneWay] of layout.edges) {
@@ -113,7 +113,8 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   for (const [from, to, name, kind, shut] of o.addEdges ?? []) edges.push({ from, to, name, kind, ...(shut ? { closed: true } : {}) });
 
   // Runway strips: from every named holding point the shortest way to the runway centre line becomes one
-  // straight 'runwayStrip' edge (the line-up and exit logic needs holding point -> runway node directly).
+  // 'runwayStrip' edge (the line-up and exit logic needs holding point -> runway node directly); the nodes
+  // in between become its shape points, so a strip that turns towards the runway keeps its curve.
   const hpSpec = (v: LayoutOptions['holdingPoints'][string]) => (typeof v === 'string' ? { name: v, runway: o.runway } : { runway: o.runway, ...v });
   const hpNames: Record<string, string> = Object.fromEntries(Object.entries(o.holdingPoints).map(([k, v]) => [k, hpSpec(v).name]));
   const runwayNodes = new Set(edges.filter((e) => e.kind === 'runway').flatMap((e) => [e.from, e.to]));
@@ -160,7 +161,14 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     }
     const twy = path[path.length - 1]?.name ?? name;
     edges = edges.filter((e) => !path.includes(e));
-    edges.push({ from: hp, to: goal, name: twy, kind: 'runwayStrip' });
+    // The nodes in between stay as shape points: the strip keeps its curve (e.g. a turn towards the runway).
+    const inner: string[] = [];
+    for (let n = goal, i = 0; i < path.length - 1; i++) {
+      const e = path[i];
+      n = e.from === n ? e.to : e.from;
+      inner.unshift(n);
+    }
+    edges.push({ from: hp, to: goal, name: twy, kind: 'runwayStrip', ...(inner.length ? { shape: inner.map((id) => pos.get(id)!) } : {}) });
     runwayNodeOf[name] = goal;
   }
 

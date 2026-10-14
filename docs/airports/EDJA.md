@@ -53,7 +53,7 @@ Accuracy: the OSM parts as good as the OSM mapping (usually a few metres), the h
 
 | Taxiway / point | Description |
 | --------------- | ----------- |
-| **W** | From the west end of Apron 2 to the runway 06 end (holding point W, before the turn towards the runway). Full-length entry for 06, last exit for landings on 24 |
+| **W** | From the west end of Apron 2 to the runway 06 end (holding point W, before the turn towards the runway; the simulator follows the turn). Full-length entry for 06, last exit for landings on 24 |
 | **N** | Along the aprons and down to the middle of the runway (holding point N, about 1060 m from the 06 end; take-off run 06 from N 1570 m) |
 | **R** | From the N / Apron 2 junction straight to the runway, 455 m from the 06 end (take-off run 06 from R 2175 m). Used on pilot request (SOP): an intersection for runway 06 departures and an exit for runway 24 landings between N and W |
 | **P** | Parallel taxiway on the south side, from the 06 end to E; small aircraft only. East of E it is closed |

@@ -21,8 +21,9 @@ import { isClosedEdge, otherEnd, type Airport, type TaxiEdge, type TaxiNode } fr
  * (used by the UI's "auto route" and by AI traffic) and avoids crossing
  * runways if any alternative exists.
  *
- * Closed taxiways (`airport.closedTaxiways`, a scenario option) are never
- * used; a `via` list naming one fails with "taxiway X closed".
+ * Closed taxiways (`airport.closedTaxiways`, a scenario option) and
+ * permanently closed edges (`closed` in the airport data) are never used; a
+ * `via` list naming a closed taxiway fails with "taxiway X closed".
  */
 
 export interface RouteStart {
@@ -88,7 +89,7 @@ export function findRoute(
   const viaU = via.map((v) => v.toUpperCase());
   for (const v of viaU) {
     if (!airport.taxiwayNames.has(v)) return { error: `unknown taxiway ${v}` };
-    if (airport.closedTaxiways.has(v)) return { error: `taxiway ${v} closed` };
+    if (airport.closedTaxiways.has(v) || airport.outOfServiceTaxiways.has(v)) return { error: `taxiway ${v} closed` };
   }
   const m = viaU.length;
   const auto = m === 0;

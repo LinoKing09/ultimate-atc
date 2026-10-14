@@ -21,6 +21,7 @@ const C = {
   runwayMark: '#d9dcdc',
   building: '#5b5249',
   buildingEdge: '#7c7064',
+  closedCross: 'rgba(15, 18, 19, 0.85)',
   holdBar: '#e0b52a',
   label: '#e3c548',
   labelBg: 'rgba(20, 24, 26, 0.85)',
@@ -374,7 +375,8 @@ export class Scope {
   private computeLabels(): void {
     const byName = new Map<string, { edges: { a: Vec2; b: Vec2; len: number }[]; total: number }>();
     for (const e of this.sim.airport.edges) {
-      if (e.kind !== 'taxiway' && e.kind !== 'taxilane') continue;
+      // Unnamed apron lanes get no label.
+      if ((e.kind !== 'taxiway' && e.kind !== 'taxilane') || !e.name) continue;
       const cur = byName.get(e.name) ?? { edges: [], total: 0 };
       cur.edges.push({ a: e.from.pos, b: e.to.pos, len: e.length });
       cur.total += e.length;
@@ -446,6 +448,34 @@ export class Scope {
     ctx.restore();
   }
 
+  /** Permanently closed taxiway parts (airport data): crosses along the pavement, as on the aerodrome chart. */
+  private drawOutOfService(): void {
+    const ap = this.sim.airport;
+    const ctx = this.ctx;
+    const z = this.zoom;
+    ctx.save();
+    ctx.strokeStyle = C.closedCross;
+    ctx.lineWidth = Math.max(1, Math.min(2.5, 3 * z));
+    ctx.lineCap = 'round';
+    const half = Math.max(2.5, 9 * z);
+    const spacing = 60; // metres between crosses
+    ctx.beginPath();
+    for (const e of ap.edges) {
+      if (!e.closed) continue;
+      const n = Math.max(1, Math.round(e.length / spacing));
+      for (let i = 0; i < n; i++) {
+        const t = (i + 0.5) / n;
+        const p = this.toScreen({ x: e.from.pos.x + (e.to.pos.x - e.from.pos.x) * t, y: e.from.pos.y + (e.to.pos.y - e.from.pos.y) * t });
+        ctx.moveTo(p.x - half, p.y - half);
+        ctx.lineTo(p.x + half, p.y + half);
+        ctx.moveTo(p.x - half, p.y + half);
+        ctx.lineTo(p.x + half, p.y - half);
+      }
+    }
+    ctx.stroke();
+    ctx.restore();
+  }
+
   /** Closed taxiways (scenario option): red, hatched, with the designator crossed out. */
   private drawClosedTaxiways(): void {
     const ap = this.sim.airport;
@@ -455,7 +485,7 @@ export class Scope {
     ctx.save();
     ctx.lineCap = 'butt';
     for (const e of ap.edges) {
-      if (!isClosedEdge(ap, e)) continue;
+      if (e.closed || !isClosedEdge(ap, e)) continue;
       const a = this.toScreen(e.from.pos);
       const b = this.toScreen(e.to.pos);
       const w = Math.max(3, e.widthM * z + 2);
@@ -540,11 +570,12 @@ export class Scope {
       }
     }
     this.drawClosedTaxiways();
+    this.drawOutOfService();
     // Centre lines and stand lead-in lines
     if (z > 0.25) {
       ctx.lineWidth = 1;
       for (const e of ap.edges) {
-        if (e.kind === 'runway') continue;
+        if (e.kind === 'runway' || e.closed) continue;
         const a = this.toScreen(e.from.pos);
         const b = this.toScreen(e.to.pos);
         ctx.strokeStyle = e.kind === 'stand' ? C.standLine : C.centreline;
@@ -668,7 +699,9 @@ export class Scope {
         if (l.repeat && z < 0.35) continue; // repeats only when zoomed in
         const p = this.toScreen(l.pos);
         // Closed taxiways: designator in red.
-        this.labelBox(l.name, p.x, p.y, ap.closedTaxiways.has(l.name.toUpperCase()) ? '#ff6b6b' : C.label);
+        // Closed taxiways: designator in red (session closure) or grey (permanently closed).
+        const u = l.name.toUpperCase();
+        this.labelBox(l.name, p.x, p.y, ap.closedTaxiways.has(u) ? '#ff6b6b' : ap.outOfServiceTaxiways.has(u) ? C.standLabel : C.label);
       }
     }
 

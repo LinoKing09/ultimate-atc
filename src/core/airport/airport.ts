@@ -36,6 +36,8 @@ export interface TaxiEdge {
   widthM: number;
   /** Largest wingspan allowed (Infinity = no restriction). */
   maxWingspanM: number;
+  /** Permanently closed (chart crosses): never routed. */
+  closed: boolean;
 }
 
 export interface RunwayEnd {
@@ -95,6 +97,8 @@ export class Airport {
    * uses them (also not their runway entries / exits), see routing.ts.
    */
   readonly closedTaxiways = new Set<string>();
+  /** Taxiways whose every edge is permanently closed in the airport data (upper case). */
+  readonly outOfServiceTaxiways = new Set<string>();
   /** De-icing pads (empty if the airport has none). */
   readonly deicingPads: DeicingPad[];
 
@@ -123,6 +127,7 @@ export class Airport {
         length: distance(from.pos, to.pos),
         widthM: e.widthM ?? DEFAULT_WIDTH[e.kind],
         maxWingspanM: e.maxWingspanM ?? Infinity,
+        closed: e.closed ?? false,
       };
       this.edges.push(edge);
       from.edges.push(edge);
@@ -130,6 +135,11 @@ export class Airport {
       if (e.kind === 'taxiway' || e.kind === 'taxilane' || e.kind === 'runwayStrip') {
         this.taxiwayNames.add(e.name.toUpperCase());
       }
+    }
+
+    for (const name of this.taxiwayNames) {
+      const own = this.edges.filter((e) => e.kind !== 'stand' && e.kind !== 'runway' && e.name.toUpperCase() === name);
+      if (own.length && own.every((e) => e.closed)) this.outOfServiceTaxiways.add(name);
     }
 
     for (const s of data.stands) {
@@ -256,7 +266,7 @@ export class Airport {
   }
 
   /** Finds the nearest routable edge to a point. */
-  nearestEdge(p: Vec2, filter: (e: TaxiEdge) => boolean = (e) => e.kind !== 'runway'): {
+  nearestEdge(p: Vec2, filter: (e: TaxiEdge) => boolean = (e) => e.kind !== 'runway' && !e.closed): {
     edge: TaxiEdge;
     t: number;
     point: Vec2;
@@ -298,7 +308,11 @@ export function otherEnd(edge: TaxiEdge, node: TaxiNode): TaxiNode {
   return edge.from === node ? edge.to : edge.from;
 }
 
-/** True if the edge belongs to a closed taxiway (stand lead-in lines never count as closed). */
+/**
+ * True if the edge is permanently closed (airport data) or belongs to a taxiway closed for this
+ * session (stand lead-in lines never count as closed).
+ */
 export function isClosedEdge(airport: Airport, e: TaxiEdge): boolean {
+  if (e.closed) return true;
   return e.kind !== 'stand' && airport.closedTaxiways.size > 0 && airport.closedTaxiways.has(e.name.toUpperCase());
 }

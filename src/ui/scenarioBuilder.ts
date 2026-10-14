@@ -58,7 +58,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
     const deiceBox = h('input', { type: 'checkbox' });
     const pads = (airport.deicingPads ?? []).map((p) => p.name);
     // Taxiways that can be closed (not taxilanes on the aprons, not runway strips).
-    const taxiways = [...new Set(airport.taxiEdges.filter((e) => e.kind === 'taxiway').map((e) => e.name.toUpperCase()))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
+    const taxiways = [...new Set(airport.taxiEdges.filter((e) => e.kind === 'taxiway' && e.name && !e.closed).map((e) => e.name.toUpperCase()))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
     const closedBoxes = new Map(taxiways.map((t) => [t, h('input', { type: 'checkbox', value: t })]));
     const closedEl = h('div.taxiways', {}, ...taxiways.map((t) => h('label', {}, closedBoxes.get(t)!, ` ${t}`)));
     const closedStatus = h('div.sub');

@@ -57,8 +57,13 @@ export interface LayoutOptions {
   maxWingspanM?: Record<string, number>;
   /** Edges to leave out ("from>to"), e.g. service roads tagged as taxiway. */
   dropEdges?: string[];
-  /** Extra edges [from, to, name, kind]. */
-  addEdges?: [string, string, string, TaxiEdgeKind][];
+  /** Extra edges [from, to, name, kind, closed?]. */
+  addEdges?: [string, string, string, TaxiEdgeKind, boolean?][];
+  /**
+   * Permanently closed imported edges ("from>to"), see TaxiEdgeData.closed. Closed edges are never
+   * pruned as dead ends and never become part of a runway strip.
+   */
+  closedEdges?: string[];
   /** Extra nodes [id, lat, lon]. */
   addNodes?: [string, number, number][];
   /** Dead-end nodes to keep (dead ends are pruned otherwise). */
@@ -90,20 +95,22 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   const drop = new Set(o.dropEdges ?? []);
   const taxilanes = new Set(o.taxilanes ?? []);
 
-  type E = { from: string; to: string; name: string; kind: TaxiEdgeKind; oneWay?: boolean };
+  type E = { from: string; to: string; name: string; kind: TaxiEdgeKind; oneWay?: boolean; closed?: boolean };
+  const closed = new Set(o.closedEdges ?? []);
   let edges: E[] = [];
   for (const [from, to, rawName, kind, oneWay] of layout.edges) {
     if (drop.has(key(from, to)) || drop.has(key(to, from))) continue;
     let name = o.edgeNames?.[key(from, to)] ?? o.edgeNames?.[key(to, from)] ?? rawName;
     if (kind !== 'runway') name = o.taxiwayNames?.[name || '?'] ?? name;
     const k: TaxiEdgeKind = kind === 'runway' ? 'runway' : taxilanes.has(name) ? 'taxilane' : 'taxiway';
-    edges.push({ from, to, name: kind === 'runway' ? rawName || o.runway : name, kind: k, ...(oneWay ? { oneWay } : {}) });
+    const shut = closed.has(key(from, to)) || closed.has(key(to, from));
+    edges.push({ from, to, name: kind === 'runway' ? rawName || o.runway : name, kind: k, ...(oneWay ? { oneWay } : {}), ...(shut ? { closed: true } : {}) });
   }
   if (o.taxiways) {
     const only = new Set(o.taxiways);
     edges = edges.filter((e) => e.kind === 'runway' || only.has(e.name));
   }
-  for (const [from, to, name, kind] of o.addEdges ?? []) edges.push({ from, to, name, kind });
+  for (const [from, to, name, kind, shut] of o.addEdges ?? []) edges.push({ from, to, name, kind, ...(shut ? { closed: true } : {}) });
 
   // Runway strips: from every named holding point the shortest way to the runway centre line becomes one
   // straight 'runwayStrip' edge (the line-up and exit logic needs holding point -> runway node directly).
@@ -135,7 +142,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
       }
       if (cur !== hp && hpNames[cur]) continue;
       for (const e of edges) {
-        if (e.kind === 'runway' || (e.from !== cur && e.to !== cur)) continue;
+        if (e.kind === 'runway' || e.closed || (e.from !== cur && e.to !== cur)) continue;
         const nb = e.from === cur ? e.to : e.from;
         const d = dist.get(cur)! + distance(p(cur), p(nb));
         if (d > 400 || d >= (dist.get(nb) ?? Infinity)) continue;
@@ -190,7 +197,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     const degree = new Map<string, number>();
     for (const e of edges) for (const id of [e.from, e.to]) degree.set(id, (degree.get(id) ?? 0) + 1);
     const before = edges.length;
-    edges = edges.filter((e) => e.kind !== 'taxiway' && e.kind !== 'taxilane' ? true : ![e.from, e.to].some((id) => degree.get(id) === 1 && !keep.has(id) && !runwayNodes.has(id)));
+    edges = edges.filter((e) => (e.kind !== 'taxiway' && e.kind !== 'taxilane') || e.closed ? true : ![e.from, e.to].some((id) => degree.get(id) === 1 && !keep.has(id) && !runwayNodes.has(id)));
     changed = edges.length !== before;
   }
 

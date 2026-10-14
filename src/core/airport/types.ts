@@ -186,6 +186,12 @@ export interface TaxiEdgeData {
   widthM?: number;
   /** Largest wingspan allowed on this edge (e.g. 36 for a code C taxilane). */
   maxWingspanM?: number;
+  /**
+   * Permanently closed (marked with crosses on the aerodrome chart, e.g. disused parts of a former
+   * military airfield): drawn with crosses, never used by routes. Closed edges need no holding point
+   * and must not touch runway nodes.
+   */
+  closed?: boolean;
 }
 
 export interface StandData {

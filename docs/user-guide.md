@@ -157,6 +157,7 @@ The scope is a ground radar showing the aerodrome chart. By default it is rotate
 | Taxiways and taxilanes                 | Grey bands with a thin yellow centre line                                      |
 | Taxiway designators                    | Yellow letters in dark boxes (`N`, `S`, `R`, `D` ...). Long taxiways (N, S, M) repeat their designator about every 600 m when you zoom in |
 | Closed taxiways                        | Red, hatched, designator in red (scenario option, see [closed taxiways](scenarios.md#closed-taxiways)) |
+| Permanently closed taxiway parts       | Grey pavement with black crosses, as on the aerodrome chart; a taxiway closed everywhere has a grey designator (Memmingen S, the loops around the runway ends) |
 | De-icing pads                          | Outlined squares with the pad name (`DP1` ... `DP4`), with thin lead lines to N and S |
 | Runway holding positions               | Thick yellow bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
 | Stands                                 | Thin yellow lead-in line plus the stand number                                 |

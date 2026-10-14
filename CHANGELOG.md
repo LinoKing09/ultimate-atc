@@ -4,9 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- Airport data: **permanently closed taxiway parts** (`closed: true` on an edge, `closedEdges` / closed `addEdges` in `buildLayout()`): drawn with black crosses like on the aerodrome chart, never used by routes; crews refuse a route via a taxiway that is closed everywhere (`unable, taxiway S closed`). Unnamed apron lanes get no designator label.
+
 ### Changed
 
 - **Realistic speeds on final**: arrivals no longer fly the whole final at their final approach speed. They intercept at 170-190 kt, reduce to 160 kt from 7-8.5 NM and keep it until 4 NM (the usual Approach instruction), then slow down to Vapp - stabilised at about 3 NM / 1000 ft. Approach spaces arrivals so the spacing is met at the threshold (compression on final), ETAs follow the profile. `resume normal speed` returns to the profile, `reduce to final approach speed` slows down at once; crews refuse a speed they could not reduce from in time. Speed menu: 180 kt until 6 NM, 170 kt until 5 NM, 160 / 150 kt until 4 NM. Stuttgart benchmark within its spread (40 extra sessions: 11.7 / 7.2 per hour with the profile, 12.0 / 7.1 without).
+- **Memmingen: complete layout after the aerodrome chart.** All taxiways and aprons are now in the simulator: **R** (between the aprons and the runway, 2175 m take-off run for 06; an intersection for 06 and an exit for 24), the south side **P**, **P4**, **C**, **D**, **E**, the GA lanes, Apron 3 and **Apron 4** (small aircraft only, 24 m wingspan limit), and the parts the chart marks closed (crosses): **S**, P east of E, the loops around both runway ends and the branches to Apron 4. The OSM positions were checked against the chart's intersection take-off distances (within a few metres); what OSM lacks was digitised by hand from the chart (approximate).
 - Memmingen checked against the AIP aerodrome and ground movement charts (as a reference only): terminal stands are **P11 / P12** (were 1 / 2), runway length 2630 m; the position of holding point W (before the turn towards the runway) matches.
 
 ## [1.2.0] - 2026-10-14

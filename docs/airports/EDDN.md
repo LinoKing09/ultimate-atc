@@ -18,6 +18,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 | Data | Source |
 | ---- | ------ |
 | Runway, taxiways, holding points (names from the OSM tags "Rollhalt Alpha" ...), stands, aprons, buildings | [OpenStreetMap](https://www.openstreetmap.org/) - © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/). Imported with `scripts/osm-import.mjs`; the derived layout is available under the ODbL |
+| Taxiway widths | OSM `width` tags: A, B, C, D and F 20 m; the others keep the simulator default (23 m, taxilanes 20 m) |
 | Reference point, elevations | [OurAirports](https://ourairports.com/) (public domain) |
 | Frequencies, SIDs, stand use, taxiway restrictions, preferred runway, exits, intersections | VATSIM Germany Nürnberg SOP (facts only; a simulation resource, not an official source) |
 

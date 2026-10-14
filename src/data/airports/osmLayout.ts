@@ -11,8 +11,8 @@ import type { AreaData, ExitData, StandData, TaxiEdgeData, TaxiEdgeKind, TaxiNod
 export interface OsmLayout {
   /** [id, lat, lon] */
   nodes: [string, number, number][];
-  /** [from, to, name, kind, oneWay?] - kind 'taxiway' or 'runway' */
-  edges: [string, string, string, string, boolean?][];
+  /** [from, to, name, kind, oneWay?, widthM?] - kind 'taxiway' or 'runway'; width from the OSM `width` tag */
+  edges: [string, string, string, string, boolean?, number?][];
   holdingPositions: { node: string; ref: string; type: string; taxiways: string[] }[];
   stands: { id: string; pos: [number, number]; heading: number; lanes: string[]; spacingM: number }[];
   areas: { name: string; polygon: [number, number][] }[];
@@ -55,6 +55,8 @@ export interface LayoutOptions {
   taxiways?: string[];
   /** Largest wingspan per taxiway (default: none). */
   maxWingspanM?: Record<string, number>;
+  /** Pavement width per taxiway in metres, also for its runway strip (default: the OSM `width` tag, else by kind: taxiway 23, taxilane 20). */
+  widthM?: Record<string, number>;
   /** Edges to leave out ("from>to"), e.g. service roads tagged as taxiway. */
   dropEdges?: string[];
   /** Extra edges [from, to, name, kind, closed?]. */
@@ -95,16 +97,16 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   const drop = new Set(o.dropEdges ?? []);
   const taxilanes = new Set(o.taxilanes ?? []);
 
-  type E = { from: string; to: string; name: string; kind: TaxiEdgeKind; oneWay?: boolean; closed?: boolean; shape?: LatLon[] };
+  type E = { from: string; to: string; name: string; kind: TaxiEdgeKind; oneWay?: boolean; closed?: boolean; shape?: LatLon[]; widthM?: number };
   const closed = new Set(o.closedEdges ?? []);
   let edges: E[] = [];
-  for (const [from, to, rawName, kind, oneWay] of layout.edges) {
+  for (const [from, to, rawName, kind, oneWay, widthM] of layout.edges) {
     if (drop.has(key(from, to)) || drop.has(key(to, from))) continue;
     let name = o.edgeNames?.[key(from, to)] ?? o.edgeNames?.[key(to, from)] ?? rawName;
     if (kind !== 'runway') name = o.taxiwayNames?.[name || '?'] ?? name;
     const k: TaxiEdgeKind = kind === 'runway' ? 'runway' : taxilanes.has(name) ? 'taxilane' : 'taxiway';
     const shut = closed.has(key(from, to)) || closed.has(key(to, from));
-    edges.push({ from, to, name: kind === 'runway' ? rawName || o.runway : name, kind: k, ...(oneWay ? { oneWay } : {}), ...(shut ? { closed: true } : {}) });
+    edges.push({ from, to, name: kind === 'runway' ? rawName || o.runway : name, kind: k, ...(oneWay ? { oneWay } : {}), ...(shut ? { closed: true } : {}), ...(widthM && kind !== 'runway' ? { widthM } : {}) });
   }
   if (o.taxiways) {
     const only = new Set(o.taxiways);
@@ -168,7 +170,8 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
       n = e.from === n ? e.to : e.from;
       inner.unshift(n);
     }
-    edges.push({ from: hp, to: goal, name: twy, kind: 'runwayStrip', ...(inner.length ? { shape: inner.map((id) => pos.get(id)!) } : {}) });
+    const stripWidth = path[path.length - 1]?.widthM;
+    edges.push({ from: hp, to: goal, name: twy, kind: 'runwayStrip', ...(inner.length ? { shape: inner.map((id) => pos.get(id)!) } : {}), ...(stripWidth ? { widthM: stripWidth } : {}) });
     runwayNodeOf[name] = goal;
   }
 
@@ -209,10 +212,12 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     changed = edges.length !== before;
   }
 
-  // Wingspan limits
+  // Wingspan limits and widths
   for (const e of edges) {
     const lim = o.maxWingspanM?.[e.name];
     if (lim) (e as TaxiEdgeData).maxWingspanM = lim;
+    const w = e.kind === 'stand' || e.kind === 'runway' ? undefined : o.widthM?.[e.name];
+    if (w) (e as TaxiEdgeData).widthM = w;
   }
 
   // Nodes actually used

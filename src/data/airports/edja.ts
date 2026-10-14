@@ -86,6 +86,9 @@ const built = buildLayout(EDJA_LAYOUT, {
   taxilanes: [''],
   // South side: small aircraft only (P: outer main gear wheel span up to 6 m).
   maxWingspanM: { P: 24, P4: 24, C: 24, D: 24, E: 24, '': 24 },
+  // Pavement widths estimated from the proportions on the aerodrome chart: R wider than N / W, the south
+  // side and S about two thirds of N, the GA lanes narrower still.
+  widthM: { N: 23, W: 23, R: 27, S: 15, P: 15, P4: 15, C: 15, D: 15, E: 15, '': 12 },
   dropEdges: [
     // The western part of S (OSM) is gone on the current chart (R was built there).
     'S.4>HP.1183356701',
@@ -239,7 +242,8 @@ export const EDJA: AirportData = {
     },
   ],
   taxiNodes: built.taxiNodes,
-  taxiEdges: built.taxiEdges,
+  // The closed loops (unnamed) are as wide as P, not like the GA lanes.
+  taxiEdges: built.taxiEdges.map((e) => (e.closed && !e.name ? { ...e, widthM: 15 } : e)),
   stands: built.stands,
   areas: [...built.areas, { name: 'Apron 4', polygon: APRON_4 }, { name: 'Stopway 06', polygon: STOPWAY_06 }],
   buildings: built.buildings,

@@ -1,4 +1,5 @@
 import { edgeVertices, isClosedEdge, type TaxiEdge } from '../core/airport/airport';
+import { pavementGeometry, type PavementGeometry } from '../core/airport/pavement';
 import type { Aircraft } from '../core/aircraft';
 import { catcAlert } from '../core/conflicts';
 import { KT_TO_MS, M_PER_NM, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
@@ -111,6 +112,8 @@ export class Scope {
 
   /** Taxiway designators; `repeat` labels are extra copies along long taxiways, shown when zoomed in. */
   private readonly taxiwayLabels: { name: string; pos: Vec2; repeat: boolean }[] = [];
+  /** Rounded taxiway pavement, computed once. */
+  private readonly pavement: PavementGeometry;
 
   constructor(
     private readonly canvas: HTMLCanvasElement,
@@ -119,6 +122,7 @@ export class Scope {
   ) {
     this.ctx = canvas.getContext('2d')!;
     this.computeLabels();
+    this.pavement = pavementGeometry(this.sim.airport);
     this.bindEvents();
     this.resize();
     this.resetView();
@@ -450,9 +454,14 @@ export class Scope {
 
   /** Starts a canvas path along an edge, through its shape points. */
   private edgePath(e: TaxiEdge): void {
+    this.polylinePath(edgeVertices(e));
+  }
+
+  /** Starts a canvas path along a polyline (local metres). */
+  private polylinePath(points: Vec2[]): void {
     const ctx = this.ctx;
     ctx.beginPath();
-    edgeVertices(e).forEach((v, i) => {
+    points.forEach((v, i) => {
       const p = this.toScreen(v);
       if (i === 0) ctx.moveTo(p.x, p.y);
       else ctx.lineTo(p.x, p.y);
@@ -551,7 +560,19 @@ export class Scope {
 
     for (const a of ap.areas) poly(a.polygon, C.apron);
 
-    // Runways
+    // Taxiways: rounded chains and junction fillets (see core/airport/pavement.ts), edge colour first.
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    const strokes = [...this.pavement.fillets, ...this.pavement.chains];
+    for (const pass of [0, 1]) {
+      for (const st of strokes) {
+        this.polylinePath(st.points);
+        ctx.strokeStyle = pass === 0 ? C.taxiwayEdge : C.taxiway;
+        ctx.lineWidth = Math.max(pass === 0 ? 3 : 2, st.widthM * z + (pass === 0 ? 2 : 0));
+        ctx.stroke();
+      }
+    }
+    // Runways, on top of the taxiway pavement (only the fillets outside the runway edge stay visible)
     for (const end of ap.runwayEnds.values()) {
       if (end.name > (ap.oppositeEnd(end.name)?.name ?? '')) continue; // draw each runway once
       const u = headingVector(end.heading);
@@ -561,29 +582,22 @@ export class Scope {
       const b = end.farEnd;
       poly([add(a, scale(n, w)), add(b, scale(n, w)), sub(b, scale(n, w)), sub(a, scale(n, w))], C.runway);
     }
-
     this.drawExtendedCentrelines();
 
-    // Taxiways (edges drawn as thick round lines)
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    for (const pass of [0, 1]) {
-      for (const e of ap.edges) {
-        if (e.kind === 'runway' || e.kind === 'stand') continue;
-        this.edgePath(e);
-        ctx.strokeStyle = pass === 0 ? C.taxiwayEdge : C.taxiway;
-        ctx.lineWidth = Math.max(pass === 0 ? 3 : 2, e.widthM * z + (pass === 0 ? 2 : 0));
-        ctx.stroke();
-      }
-    }
     this.drawClosedTaxiways();
     this.drawOutOfService();
     // Centre lines and stand lead-in lines
     if (z > 0.25) {
       ctx.lineWidth = 1;
+      ctx.strokeStyle = C.centreline;
+      for (const st of this.pavement.chains) {
+        if (st.closed) continue;
+        this.polylinePath(st.points);
+        ctx.stroke();
+      }
+      ctx.strokeStyle = C.standLine;
       for (const e of ap.edges) {
-        if (e.kind === 'runway' || e.closed) continue;
-        ctx.strokeStyle = e.kind === 'stand' ? C.standLine : C.centreline;
+        if (e.kind !== 'stand') continue;
         this.edgePath(e);
         ctx.stroke();
       }

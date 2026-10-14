@@ -7,6 +7,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Added
 
 - Airport data: **permanently closed taxiway parts** (`closed: true` on an edge, `closedEdges` / closed `addEdges` in `buildLayout()`): drawn with black crosses like on the aerodrome chart, never used by routes; crews refuse a route via a taxiway that is closed everywhere (`unable, taxiway S closed`). Unnamed apron lanes get no designator label.
+- **More realistic taxiway drawing**: taxiways are drawn as rounded chains (bends with the radius taxiing aircraft fly) instead of straight pieces with corners, junctions and runway entries get fillets (widened corners), and taxiways have their own **widths**. Memmingen after the chart (N / W 23 m, R 27 m, the south side and S 15 m, GA lanes 12 m), Nuremberg from OSM (A-D, F 20 m). The OSM importer reads `width` tags; `buildLayout()` takes `widthM` per taxiway.
 - Airport data: **curved edges** (`shape` points). Runway strips built by `buildLayout()` keep the curve of the taxiway instead of a straight line from the holding point to the runway: aircraft taxi, line up and vacate along it. Memmingen W now has its turn towards the runway (holding point W lies before it); the strips at Nuremberg and Sylt follow their fillets too.
 
 ### Changed

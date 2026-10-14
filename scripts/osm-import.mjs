@@ -17,6 +17,7 @@
  * - keeps the ways tagged aeroway=taxiway/taxilane/runway (runway centre lines with a "06/24" ref)
  *   that are connected to the runway; other components (closed military areas, isolated lines)
  *   are dropped,
+ * - takes the pavement width of taxiways from their `width` tag (metres) where mapped,
  * - reduces every way to its important nodes (junctions, ends, holding positions) plus shape
  *   points (Douglas-Peucker, `--simplify` metres),
  * - stands from aeroway=parking_position (nodes and ways, grouped by ref): the stand point, and one
@@ -139,7 +140,7 @@ for (const w of kept) {
     run.push(w.nds[i]);
     if (important(w, i)) {
       const s = w.kind === 'runway' ? [run[0], run[run.length - 1]] : simplify(run);
-      for (let j = 0; j < s.length - 1; j++) if (s[j] !== s[j + 1]) edges.push({ from: s[j], to: s[j + 1], name: w.name, kind: w.kind, oneWay: w.tags.oneway === 'yes' });
+      for (let j = 0; j < s.length - 1; j++) if (s[j] !== s[j + 1]) edges.push({ from: s[j], to: s[j + 1], name: w.name, kind: w.kind, oneWay: w.tags.oneway === 'yes', width: w.kind === 'runway' ? undefined : parseFloat(w.tags.width ?? '') || undefined });
       run = [w.nds[i]];
     }
   }
@@ -305,9 +306,9 @@ for (const id of [...graphIds].sort((a, b) => names.get(a).localeCompare(names.g
   lines.push(`    [${q(names.get(id))}, ${f6(n.lat)}, ${f6(n.lon)}],`);
 }
 lines.push('  ],');
-lines.push('  // [from, to, name, kind, oneWay?]');
+lines.push('  // [from, to, name, kind, oneWay?, widthM?]');
 lines.push('  edges: [');
-for (const e of edges) lines.push(`    [${q(names.get(e.from))}, ${q(names.get(e.to))}, ${q(e.name)}, ${q(e.kind)}${e.oneWay ? ', true' : ''}],`);
+for (const e of edges) lines.push(`    [${q(names.get(e.from))}, ${q(names.get(e.to))}, ${q(e.name)}, ${q(e.kind)}${e.oneWay || e.width ? `, ${e.oneWay}` : ''}${e.width ? `, ${e.width}` : ''}],`);
 lines.push('  ],');
 lines.push('  holdingPositions: [');
 for (const h of holdingOut) lines.push(`    { node: ${q(h.node)}, ref: ${q(h.ref)}, type: ${q(h.type)}, taxiways: ${q(h.taxiways)} },`);

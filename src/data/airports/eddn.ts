@@ -36,6 +36,8 @@ const built = buildLayout(EDDN_LAYOUT, {
   // SOP: B, C, E, J and N2 code C only, D code D; GA lanes S3 / S4 code B. J is not limited here: larger
   // aircraft cross it between M3 and M4 / N4, and the simulator does not split J into parts.
   maxWingspanM: { B: 36, C: 36, E: 36, N2: 36, D: 52, S3: 24, S4: 24 },
+  // Pavement widths: OSM `width` tags (A, B, C, D, F: 20 m); the others keep the default.
+  widthM: { A: 20, B: 20, C: 20, D: 20, F: 20 },
   taxilanes: ['M1', 'M2', 'M3', 'M4', 'N2', 'N4', 'S3', 'S4'],
   stands: [
     // Terminal stands, nose south (jet bridges 10-13), taxi in and push back.

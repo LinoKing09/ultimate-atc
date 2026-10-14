@@ -1,3 +1,4 @@
+import { approachProfile, stepSpeedKt, targetSpeedKt, timeOnFinalS, type ApproachProfile } from './approach';
 import { CTOT_EARLY_S, CTOT_LATE_S, hhmm } from './delivery';
 import { wantsFollowMe } from './vehicles';
 import type { RunwayEnd, TaxiNode } from './airport/airport';
@@ -111,9 +112,20 @@ export class TowerAI {
     let best = Infinity;
     for (const a of this.sim.aircraft) {
       if (a.phase !== 'approach') continue;
-      best = Math.min(best, distance(a.pos, this.endFor(a.runway).threshold) / Math.max(1, a.speed));
+      best = Math.min(best, this.timeToThreshold(a));
     }
     return best;
+  }
+
+  /** The approach speed profile of an arrival (see approach.ts). */
+  profileOf(ac: Aircraft): ApproachProfile {
+    return (ac.approachProfile ??= approachProfile(ac.type.approachSpeedKt, this.sim.variation(`${ac.callsign}:ias`), this.sim.variation(`${ac.callsign}:reduce`)));
+  }
+
+  /** Seconds until an arrival crosses its threshold, flying its speed profile. */
+  timeToThreshold(ac: Aircraft): number {
+    const d = distance(ac.pos, this.endFor(ac.runway).threshold) / M_PER_NM;
+    return timeOnFinalS(this.profileOf(ac), d, 0, ac.speed / KT_TO_MS, ac.speedRestriction);
   }
 
   /** Number of departures waiting for the runway (holding or about to reach a holding point). */
@@ -208,7 +220,7 @@ export class TowerAI {
     ac.heading = end.heading;
     ac.runway = end.name;
     ac.flightPlan.runway = end.name;
-    ac.speed = ac.type.approachSpeedKt * KT_TO_MS;
+    ac.speed = targetSpeedKt(this.profileOf(ac), distanceNm, ac.speedRestriction) * KT_TO_MS;
     ac.altitudeFt = end.elevationFt + 50 + (d * GLIDE_SLOPE) / M_PER_FT;
     ac.onGround = false;
     ac.phase = 'approach';
@@ -219,12 +231,11 @@ export class TowerAI {
 
   private flyApproach(ac: Aircraft, dt: number): void {
     const end = this.endFor(ac.runway);
-    // Speed control: the instructed speed until the given distance, then the final approach speed.
-    const vapp = ac.type.approachSpeedKt * KT_TO_MS;
-    const r = ac.speedRestriction;
-    const target = r && this.sim.distanceToThresholdNm(ac) > r.untilNm ? r.kt * KT_TO_MS : vapp;
-    const accel = 0.6 * dt; // about 1 kt per second
-    ac.speed = ac.speed < target ? Math.min(target, ac.speed + accel) : Math.max(target, ac.speed - accel);
+    // Speed control: the speed profile on final (intercept speed, 160 kt until 4 NM, then the final
+    // approach speed), or an instructed speed until the given distance.
+    const p = this.profileOf(ac);
+    const distNm = this.sim.distanceToThresholdNm(ac);
+    ac.speed = stepSpeedKt(ac.speed / KT_TO_MS, targetSpeedKt(p, distNm, ac.speedRestriction), distNm, p, dt) * KT_TO_MS;
     moveFree(ac, dt);
     if (ac.frequency === 'APP' && this.sim.distanceToThresholdNm(ac) <= (ac.approachHandoffNm ?? APP_HANDOFF_MAX_NM)) ac.frequency = this.sim.stationFor('tower');
     const c = this.sim.airport.runwayCoordinates(end, ac.pos);

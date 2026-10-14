@@ -65,7 +65,7 @@ export type Command =
    * Tower / Approach speed control on final: "maintain 160 knots until 4 miles", "reduce speed to 150 knots",
    * "reduce to final approach speed" (`final`).
    */
-  | { type: 'speed'; kt?: number; untilNm?: number; final?: boolean }
+  | { type: 'speed'; kt?: number; untilNm?: number; final?: boolean; resume?: boolean }
   /** Tower: "runway 25, cleared to land". */
   | { type: 'land'; runway?: string }
   /** Tower: "continue approach" (expect a late landing clearance). */

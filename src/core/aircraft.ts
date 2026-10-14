@@ -1,3 +1,4 @@
+import type { ApproachProfile } from './approach';
 import type { AircraftType } from '../data/aircraftTypes';
 import type { Compass, StationType } from './airport/types';
 import type { TaxiRoute } from './airport/routing';
@@ -219,6 +220,8 @@ export interface Aircraft {
   immediateTakeoff?: boolean;
   /** Speed control on final: fly `kt` until `untilNm` from the threshold, then slow to the approach speed. */
   speedRestriction?: { kt: number; untilNm: number };
+  /** Speed profile on final (intercept speed, 160 kt until 4 NM, Vapp), set when the approach starts. */
+  approachProfile?: ApproachProfile;
   /** Tower: exit to vacate by ("vacate via E"). */
   requestedExit?: string;
   /** Tower: after a runway crossing on Tower frequency, the aircraft reports vacated. */

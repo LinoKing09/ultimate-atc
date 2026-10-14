@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- **Realistic speeds on final**: arrivals no longer fly the whole final at their final approach speed. They intercept at 170-190 kt, reduce to 160 kt from 7-8.5 NM and keep it until 4 NM (the usual Approach instruction), then slow down to Vapp - stabilised at about 3 NM / 1000 ft. Approach spaces arrivals so the spacing is met at the threshold (compression on final), ETAs follow the profile. `resume normal speed` returns to the profile, `reduce to final approach speed` slows down at once; crews refuse a speed they could not reduce from in time. Speed menu: 180 kt until 6 NM, 170 kt until 5 NM, 160 / 150 kt until 4 NM. Stuttgart benchmark within its spread (40 extra sessions: 11.7 / 7.2 per hour with the profile, 12.0 / 7.1 without).
+- Memmingen checked against the AIP aerodrome and ground movement charts (as a reference only): terminal stands are **P11 / P12** (were 1 / 2), runway length 2630 m; the position of holding point W (before the turn towards the runway) matches.
+
 ## [1.2.0] - 2026-10-14
 
 ### Added

@@ -1306,11 +1306,11 @@ export class App {
       const vapp = ac.type.approachSpeedKt;
       items.push({
         label: 'Speed',
-        hint: ac.speedRestriction ? `${ac.speedRestriction.kt} kt until ${ac.speedRestriction.untilNm} NM` : `${Math.round(ac.speed / 0.514444)} kt`,
+        hint: ac.speedRestriction ? (ac.speedRestriction.untilNm > 0 ? `${ac.speedRestriction.kt} kt until ${ac.speedRestriction.untilNm} NM` : 'final approach speed') : `${Math.round(ac.speed / 0.514444)} kt`,
         submenu: () => [
-          ...[180, 170, 160, 150]
-            .filter((kt) => kt > vapp)
-            .map((kt) => ({ label: `Maintain ${kt} knots until 4 miles`, action: () => this.say(ac, `maintain ${kt} knots until 4 miles`) })),
+          ...[[180, 6], [170, 5], [160, 4], [150, 4]]
+            .filter(([kt]) => kt > vapp)
+            .map(([kt, nm]) => ({ label: `Maintain ${kt} knots until ${nm} miles`, action: () => this.say(ac, `maintain ${kt} knots until ${nm} miles`) })),
           { label: 'Reduce to final approach speed', hint: `${vapp} kt`, action: () => this.say(ac, 'reduce to final approach speed') },
         ],
       });

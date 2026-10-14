@@ -110,6 +110,7 @@ export function formatCommand(c: Command): string {
       return `${c.backtrack ? 'backtrack, ' : ''}${c.runway ? `runway ${c.runway}, ` : ''}cleared for ${c.immediate ? 'immediate ' : ''}take-off`;
     case 'speed':
       if (c.final) return 'reduce to final approach speed';
+      if (c.resume) return 'resume normal speed';
       return `maintain ${c.kt} knots${c.untilNm ? ` until ${c.untilNm} miles` : ''}`;
     case 'land':
       return `${c.runway ? `runway ${c.runway}, ` : ''}cleared to land`;

@@ -1113,8 +1113,9 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     // ---------- speed control on final
     if ((w === 'reduce' || w === 'resume') && ['to', 'final', 'normal'].includes(c.peek(1) ?? '') && ['final', 'normal', 'approach'].some((x) => c.t.slice(c.i, c.i + 4).includes(x))) {
       // "reduce to final approach speed", "reduce final approach speed", "resume normal speed"
+      const resume = w === 'resume';
       while (!c.done() && ['reduce', 'resume', 'to', 'final', 'approach', 'normal', 'speed'].includes(c.peek()!)) c.next();
-      result.commands.push({ type: 'speed', final: true });
+      result.commands.push(resume ? { type: 'speed', resume: true } : { type: 'speed', final: true });
       continue;
     }
     if (((w === 'reduce' || w === 'increase') && c.peek(1) === 'speed') || (w === 'maintain' && /^\d+$/.test(c.peek(1) ?? '')) || (w === 'speed' && /^\d+$/.test(c.peek(1) ?? ''))) {

@@ -26,10 +26,11 @@ const built = buildLayout(EDJA_LAYOUT, {
   addNodes: [['RWY.24END', 47.9953372, 10.2559803]],
   addEdges: [['RWY.END.2', 'RWY.24END', '06/24', 'runway']],
   keepNodes: ['RWY.24END'],
-  // Stands: Apron 1 (terminal, 1-2, pushback) and Apron 2 (3-6, taxi in / out; the SOP has a pushback on 6, but its lane ends there).
+  // Stands: Apron 1 (terminal, P11 / P12 after the AIP ground movement chart, OSM refs 1 / 2; pushback) and
+  // Apron 2 (3-6, taxi in / out; the SOP has a pushback on 6, but its lane ends there).
   stands: [
-    { id: '1', apron: 'Apron 1', maxWingspanM: 36, pushback: true, lanes: ['N.7'] },
-    { id: '2', apron: 'Apron 1', maxWingspanM: 36, pushback: true, lanes: ['N.8'] },
+    { id: 'P11', osm: '1', apron: 'Apron 1', maxWingspanM: 36, pushback: true, lanes: ['N.7'] },
+    { id: 'P12', osm: '2', apron: 'Apron 1', maxWingspanM: 36, pushback: true, lanes: ['N.8'] },
     { id: '3', apron: 'Apron 2', maxWingspanM: 36, pushback: false, lanes: ['?.3'] },
     { id: '4', apron: 'Apron 2', maxWingspanM: 36, pushback: false, lanes: ['N.12'] },
     { id: '5', apron: 'Apron 2', maxWingspanM: 36, pushback: false, lanes: ['N.13'] },
@@ -62,7 +63,7 @@ export const EDJA: AirportData = {
     {
       name: '06/24',
       widthM: 45,
-      lengthM: 2943,
+      lengthM: 2630,
       ends: [
         { name: '06', threshold: THR_06, end: THR_06, elevationFt: 2077 },
         { name: '24', threshold: THR_24, end: END_24, elevationFt: 2077 },
@@ -128,7 +129,7 @@ export const EDJA: AirportData = {
         'Landing 06, aircraft roll past N, **turn around on the runway** and backtrack to N (`backtrack, vacate via N`). Landing 24, they vacate via N or roll to the end and vacate via W.',
         'During a backtrack the runway is occupied for a long time - plan landings with more space.',
         'Memmingen Ground also gives the IFR clearances (there is no Delivery). De-icing is done on the stands.',
-        'Stands 1-2 (Apron 1, terminal) and 6 need a pushback; 3-5 on Apron 2 are taxi-in / taxi-out positions.',
+        'Stands P11 / P12 (Apron 1, terminal) and 6 need a pushback; 3-5 on Apron 2 are taxi-in / taxi-out positions.',
       ],
     },
   ],

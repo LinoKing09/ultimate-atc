@@ -95,7 +95,7 @@ describe('local time', () => {
 
 describe('night flying restrictions', () => {
   it('no jet take-off and no landing in the curfew, delayed arrivals until 2400', () => {
-    const sim = simFor('EDDS-25-MB0-X-T2220.N-7');
+    const sim = simFor('EDDS-25-MB0-X-T2220.N-8');
     const takeoffs: number[] = [];
     const landings: { min: number; cs: string }[] = [];
     const seen = new Set<string>();
@@ -204,7 +204,7 @@ describe('closed taxiways', () => {
 
 describe('thunderstorm', () => {
   it('warns, stops pushbacks and take-offs, causes go-arounds, then passes', () => {
-    const sim = simFor('EDDS-25-MB0-S1-9');
+    const sim = simFor('EDDS-25-MB0-S1-5');
     const takeoffsOverhead: string[] = [];
     let pushRefused = '';
     let gustSeen = false;

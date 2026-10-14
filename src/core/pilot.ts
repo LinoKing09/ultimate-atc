@@ -1,3 +1,4 @@
+import { STABILISED_NM, finalReductionNm } from './approach';
 import { otherEnd } from './airport/airport';
 import { findRoute, isRouteError, type RouteStart, type TaxiRoute } from './airport/routing';
 import type { Compass, StationType } from './airport/types';
@@ -576,8 +577,14 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return execCancelTakeoff(sim, ac);
     case 'speed': {
       if (ac.phase !== 'approach') return { unable: ac.onGround ? 'say again' : 'unable' };
-      if (c.final) {
+      if (c.resume) {
+        // Back to the normal speeds on final (160 kt until 4 NM, then the final approach speed).
         ac.speedRestriction = undefined;
+        return rb('resuming normal speed', false);
+      }
+      if (c.final) {
+        // From now on: no profile speed (160 kt until 4 NM) any more.
+        ac.speedRestriction = { kt: ac.type.approachSpeedKt, untilNm: 0 };
         return rb('reducing to final approach speed', false);
       }
       const kt = c.kt ?? 0;
@@ -586,6 +593,8 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       if (kt > 210) return { unable: `unable ${kt} knots on final` };
       const untilNm = c.untilNm ?? 4;
       if (sim.distanceToThresholdNm(ac) < untilNm + 0.5) return { unable: `unable, we are inside ${untilNm} miles` };
+      // The crew must be able to slow down to its final approach speed before it has to be stabilised.
+      if (untilNm - finalReductionNm(kt, min) < STABILISED_NM) return { unable: `unable ${kt} knots until ${untilNm} miles, we could not be stabilised` };
       ac.speedRestriction = { kt, untilNm };
       return rb(`${kt} knots until ${untilNm} miles`, false);
     }

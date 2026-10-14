@@ -21,6 +21,8 @@ export interface OsmLayout {
 
 export interface StandSpec {
   id: string;
+  /** Imported stand to take position, heading and lanes from when its OSM ref differs from `id`. */
+  osm?: string;
   apron: string;
   maxWingspanM: number;
   /** false: self-manoeuvring / drive-through stand (taxi in on `lanes[0]`, out on `lanes[1]`). */
@@ -159,7 +161,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   const stands: StandData[] = [];
   const standNodes: TaxiNodeData[] = [];
   for (const spec of o.stands) {
-    const imp = layout.stands.find((s) => s.id === spec.id);
+    const imp = layout.stands.find((s) => s.id === (spec.osm ?? spec.id));
     const lanes = spec.lanes ?? imp?.lanes;
     const at = spec.pos ?? (imp ? { lat: imp.pos[0], lon: imp.pos[1] } : undefined);
     if (!lanes?.length || !at) throw new Error(`stand ${spec.id}: no position or lane`);

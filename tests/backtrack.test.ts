@@ -123,7 +123,7 @@ describe('backtrack after landing', () => {
 describe('Memmingen (EDJA): backtracks in normal operation', () => {
   it('runway 24: the departure from N backtracks to the runway end (AI Tower)', () => {
     const sim = new Simulation({ airport: EDJA, position: 'GND', runway: '24', density: 'medium', seed: 7, events: false, generateTraffic: false });
-    const ac = sim.traffic.spawnDeparture(2, { stand: '1', callsign: 'RYR1AB', type: 'B738' }) as Aircraft;
+    const ac = sim.traffic.spawnDeparture(2, { stand: 'P11', callsign: 'RYR1AB', type: 'B738' }) as Aircraft;
     expect(runUntil(sim, () => ac.request === 'pushback', 900)).toBe(true);
     sim.transmit('RYR1AB push and start approved');
     expect(runUntil(sim, () => ac.request === 'taxi', 300)).toBe(true);

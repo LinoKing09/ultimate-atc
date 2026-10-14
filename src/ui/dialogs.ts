@@ -228,7 +228,7 @@ const TOWER_REFERENCE: [string, string][] = [
   ['wind 250 degrees 8 knots, runway 25, cleared to land', 'Landing clearance. Without one the arrival goes around at 0.5 NM.'],
   ['continue approach, expect late landing clearance', 'The landing clearance will come late (runway not free yet). Not a landing clearance: clear it to land before the threshold.'],
   ['continue approach / go around', 'Landing clearance later ("continue" alone works too on final) / the arrival climbs away (costs less than a go-around the crew has to make).'],
-  ['maintain 160 knots until 4 miles / reduce to final approach speed', 'Speed control on final to fine-tune the gaps between arrivals.'],
+  ['maintain 160 knots until 4 miles / reduce to final approach speed', 'Speed control on final to fine-tune the gaps between arrivals. Without it arrivals fly about 180 kt on the intercept and 160 kt until 4 NM, then their final approach speed. "resume normal speed" cancels an instruction.'],
   ['cleared for immediate take-off / cleared for take-off, no delay', 'Brisk line-up and roll without waiting - for tight gaps.'],
   ['vacate via E', 'The exit the arrival should take after landing (if it can still reach it; not over a closed taxiway).'],
   ['backtrack runway 24, line up and wait', 'Backtrack (airports without a taxiway to the runway end, e.g. Memmingen N for 24): the departure taxis along the runway to its end, turns around on it and lines up for the full length. Also "enter runway 24 and backtrack" or with "cleared for take-off". The runway is occupied all that time.'],

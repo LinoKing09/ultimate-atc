@@ -38,7 +38,7 @@ On a single runway, every departure needs a **gap** between two arrivals large e
 line-up (30-40 s)  +  take-off roll until airborne and clear (~45-55 s)  +  buffer
 ```
 
-At a typical final approach speed of 140 kt (about 26 s per NM), that is roughly **4-5 NM** of final. Add the runway occupancy time of the preceding landing aircraft (about 50-60 s until it has vacated), and two arrivals need to be about **6 NM apart** to fit one departure in between.
+At a typical final approach speed of 140 kt (about 26 s per NM), that is roughly **4-5 NM** of final (arrivals fly faster further out - usually 160 kt until 4 NM - but the gap that counts is the one at the threshold). Add the runway occupancy time of the preceding landing aircraft (about 50-60 s until it has vacated), and two arrivals need to be about **6 NM apart** to fit one departure in between.
 
 This is exactly what busy airports do:
 

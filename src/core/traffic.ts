@@ -1,3 +1,4 @@
+import { approachProfile, targetSpeedKt, timeOnFinalS } from './approach';
 import { aircraftType, type AircraftType } from '../data/aircraftTypes';
 import { AIRLINES, type Airline } from '../data/airlines';
 import type { Stand } from './airport/airport';
@@ -107,7 +108,7 @@ export class TrafficGenerator {
       this.pendingArrival ??= this.pickArrivalSpec();
       // Small airports (stand reserve): Approach releases an arrival only when a stand is free for it.
       const standFree = !this.standReserve || this.sim.freeStands(this.pendingArrival.type.wingspanM).length > 0;
-      if (standFree && this.arrivalGapAvailable(this.pendingArrival.type.wake)) {
+      if (standFree && this.arrivalGapAvailable(this.pendingArrival.type)) {
         const ac = this.spawnArrival(SPAWN_DISTANCE_NM, { airline: this.pendingArrival.airline, type: this.pendingArrival.type.icao });
         if (ac && landingStatus(sim, sim.time + NIGHT_APPROACH_ESTIMATE_S) === 'delayed') this.announceDelayed(ac);
         this.pendingArrival = undefined;
@@ -157,10 +158,19 @@ export class TrafficGenerator {
     return best;
   }
 
-  private arrivalGapAvailable(followerWake: string): boolean {
+  /**
+   * The spacing applies when the last arrival crosses the threshold: the follower, flying its speed
+   * profile from the spawn point, must not reach the spacing distance before that (the leader slows
+   * down to its final approach speed first, which compresses the spacing on final).
+   */
+  private arrivalGapAvailable(follower: AircraftType): boolean {
     const last = this.lastArrivalOnFinal();
     if (!last) return true;
-    return SPAWN_DISTANCE_NM - this.sim.distanceToThresholdNm(last) >= this.requiredArrivalSpacingNm(followerWake);
+    const required = this.requiredArrivalSpacingNm(follower.wake);
+    if (SPAWN_DISTANCE_NM - this.sim.distanceToThresholdNm(last) < required) return false;
+    const p = approachProfile(follower.approachSpeedKt);
+    const followerTime = timeOnFinalS(p, SPAWN_DISTANCE_NM, required, targetSpeedKt(p, SPAWN_DISTANCE_NM));
+    return followerTime >= this.sim.tower.timeToThreshold(last);
   }
 
   private pendingArrival?: { airline: Airline; type: AircraftType };

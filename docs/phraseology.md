@@ -213,8 +213,9 @@ A follow-me only drives onto the taxiways after your `proceed`; the aircraft wai
 | `[wind ...,] [runway 25,] cleared to land` | Landing clearance (required, otherwise the crew goes around at 0.5 NM) |
 | `continue approach` (also just `continue` to an aircraft on final) | The landing clearance comes later |
 | `continue approach, expect late landing clearance` (also `expect late landing clearance` alone) | The landing clearance will come late, for example because a departure is still rolling or an arrival is vacating. Common practice at European airports; it is **not** a landing clearance - the crew reads back `continue approach, expect late landing clearance` and still needs `cleared to land` |
-| `maintain 160 knots until 4 miles` / `reduce speed to 150 knots` / `speed 170 knots` | Speed control on final (default until 4 NM, then the crew slows to its approach speed). Below the approach speed: `unable, our minimum speed is 135 knots`; above 210 kt or inside the given distance: unable |
-| `reduce to final approach speed` / `resume normal speed` | Cancels the speed restriction |
+| `maintain 160 knots until 4 miles` / `reduce speed to 150 knots` / `speed 170 knots` | Speed control on final (default until 4 NM, then the crew slows to its approach speed). Without it, arrivals fly 170-190 kt on the intercept and 160 kt until 4 NM anyway. Below the approach speed: `unable, our minimum speed is 135 knots`; above 210 kt or inside the given distance: unable; too fast to slow down by 2.5 NM: `unable 180 knots until 4 miles, we could not be stabilised` (180 kt until 6 NM works) |
+| `reduce to final approach speed` | The crew slows to its final approach speed at once (to open a gap to the next arrival) |
+| `resume normal speed` | Cancels a speed instruction: back to the normal speeds on final (160 kt until 4 NM) |
 | `cleared for immediate take-off` / `cleared for take-off, no delay` | Take-off into a tight gap: brisk line-up and roll without waiting |
 | `go around [, I say again, go around]` | The arrival goes around |
 | `vacate via E` | The exit to take after landing (used if it can still be reached; an exit marked for backtracking behind the aircraft is reached by turning around on the runway) |

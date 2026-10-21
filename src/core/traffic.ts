@@ -3,7 +3,7 @@ import { aircraftType, type AircraftType } from '../data/aircraftTypes';
 import { AIRLINES, type Airline } from '../data/airlines';
 import type { Stand } from './airport/airport';
 import { createAircraft, type Aircraft, type FlightPlan } from './aircraft';
-import { CLEARANCE_LEAD_S, prepareDeparture } from './delivery';
+import { CLEARANCE_LEAD_S, prepareDeparture, sidsForDestination } from './delivery';
 import type { Simulation } from './simulation';
 import { DENSITIES, HEAVY_SHARES, MIXES, clampLevel, densityIndex, mixIndex } from './levels';
 import { NON_PRECISION_SPACING_NM } from './systems';
@@ -12,6 +12,8 @@ import { minutesToHhmm } from './time';
 import { STORM_ARRIVAL_RATE, STORM_ARRIVAL_SPACING_NM } from './weather';
 
 const SPAWN_DISTANCE_NM = 12;
+/** Largest wingspan of a code D stand (m): stands up to this size are used by all aircraft up to code D. */
+const NARROW_STAND_MAX_M = 52;
 /** Chance that a generated arrival declares a medical emergency (with special events on). */
 const ARRIVAL_MEDICAL_CHANCE = 0.02;
 /** Chance that a departure declares a medical emergency while taxiing (with special events on). */
@@ -253,7 +255,10 @@ export class TrafficGenerator {
       ? preferred
       : this.sim.freeStands(type.wingspanM, (s) => use(s) !== 'cargo', except).concat(this.sim.freeStands(type.wingspanM, (s) => use(s) === 'cargo', except));
     if (!any.length) return undefined;
-    // Smallest stand that fits, to keep large stands available.
+    // Keep the wide-body stands (code E-F) available: aircraft up to code D take any stand up to code D,
+    // larger ones the smallest stand that fits.
+    const narrow = any.filter((s) => s.maxWingspanM <= NARROW_STAND_MAX_M);
+    if (type.wingspanM <= NARROW_STAND_MAX_M && narrow.length) return this.sim.rng.pick(narrow);
     const minSpan = Math.min(...any.map((s) => s.maxWingspanM));
     return this.sim.rng.pick(any.filter((s) => s.maxWingspanM === minSpan));
   }
@@ -280,9 +285,10 @@ export class TrafficGenerator {
     if (!stand) return undefined;
     const callsign = opts.callsign ?? this.makeCallsign(airline);
     const rwy = sim.runway;
-    const sids = sim.config.airport.sids.filter((s) => s.runway === rwy);
-    const sid = sids.length ? sim.rng.pick(sids) : undefined;
     const destination = sim.rng.pick(airline.destinations);
+    // The SID towards the destination (exit fix by direction, or a SID filed for this destination only).
+    const sids = sidsForDestination(sim.config.airport, rwy, destination);
+    const sid = sids.length ? sim.rng.pick(sids) : undefined;
     const fp: FlightPlan = {
       departure: sim.config.airport.icao,
       destination,

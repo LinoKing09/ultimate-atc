@@ -29,8 +29,8 @@ describe('backtrack on the runway', () => {
   /** Ground + Tower at Stuttgart: a departure taxied to the intersection D of runway 25. */
   function atD(): { sim: Simulation; ac: Aircraft } {
     const sim = new Simulation({ airport: EDDS, position: 'TWR', positions: ['GND', 'TWR'], runway: '25', density: 'medium', seed: 42, events: false, generateTraffic: false });
-    // A regional jet: it accepts the intersection D.
-    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'CRJ9' }) as Aircraft;
+    // A turboprop: it accepts the intersection D (TORA 1990 m).
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'DH8D' }) as Aircraft;
     expect(runUntil(sim, () => ac.request === 'pushback', 900)).toBe(true);
     sim.transmit('DLH5AB push and start approved facing east');
     expect(runUntil(sim, () => ac.request === 'taxi', 300)).toBe(true);

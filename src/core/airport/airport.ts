@@ -55,6 +55,8 @@ export interface RunwayEnd {
   heading: number;
   /** Length from `start` to `farEnd`. */
   length: number;
+  /** Take-off run available from `start` (metres): `length`, or less where the airport data publishes a shorter TORA. */
+  tora: number;
   elevationFt: number;
   widthM: number;
 }
@@ -172,6 +174,7 @@ export class Airport {
           farEnd: far,
           heading: headingOf(sub(far, start)),
           length: distance(start, far),
+          tora: Math.min(distance(start, far), end.toraM ?? Infinity),
           elevationFt: end.elevationFt,
           widthM: rwy.widthM,
         });

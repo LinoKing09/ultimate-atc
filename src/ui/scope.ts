@@ -140,13 +140,15 @@ export class Scope {
   }
 
   /**
-   * Rotates the scope. With `runwayUp` false the scope is north-up; with true
-   * the runway is horizontal (like the aerodrome chart), the first runway end
-   * on the left.
+   * Rotates the scope. With `runwayAligned` false the scope is north-up; with
+   * true the main runway is horizontal (like the aerodrome chart), its first
+   * end on the left.
    */
   setRotation(runwayAligned: boolean): void {
-    const ends = [...this.sim.airport.runwayEnds.values()].sort((a, b) => a.name.localeCompare(b.name));
-    this.viewHeading = runwayAligned && ends.length ? (ends[0].heading - 90 + 360) % 360 : 0;
+    // The main runway (the first one in the airport data), its first end on the left.
+    const first = this.sim.airport.data.runways[0]?.ends[0].name;
+    const end = first ? this.sim.airport.runwayEnd(first) : undefined;
+    this.viewHeading = runwayAligned && end ? (end.heading - 90 + 360) % 360 : 0;
     this.up = headingVector(this.viewHeading);
     this.right = headingVector(this.viewHeading + 90);
     this.resetView();

@@ -1,5 +1,7 @@
 import { AIRCRAFT_TYPES } from '../../data/aircraftTypes';
 import { AIRLINES } from '../../data/airlines';
+import { DESTINATION_POSITIONS } from '../../data/destinations';
+import { sidsForDestination } from '../delivery';
 import { Airport } from './airport';
 import { findRoute, isRouteError } from './routing';
 import type { AirportData } from './types';
@@ -73,6 +75,31 @@ export function validateAirport(data: AirportData): string[] {
     }
   }
   if (!data.stations.some((s) => s.type === 'GND') && !data.stations.some((s) => s.type === 'TWR')) add('has neither a Ground nor a Tower station');
+  for (const id of data.runwayCrossings ?? []) {
+    const n = airport.nodes.get(id);
+    if (!n || !n.edges.some((e) => e.kind === 'runway')) add(`runway crossing ${id} is not a runway node`);
+  }
+  for (const ops of data.runwayOps) {
+    const end = airport.runwayEnd(ops.runway);
+    for (const e of ops.departureEntries) {
+      if (e.toraM !== undefined && end && !(e.toraM > 0 && e.toraM <= end.length + 50)) add(`runway ${ops.runway}: implausible TORA ${e.toraM} m from ${e.holdingPoint}`);
+    }
+  }
+
+  // ---------------------------------------------------------------- SIDs
+  for (const sid of data.sids) {
+    if (!airport.runwayEnd(sid.runway)) add(`SID ${sid.name} for unknown runway ${sid.runway}`);
+    if (sid.towards && sid.towards.some((b) => !(b >= 0 && b <= 360))) add(`SID ${sid.name} has an invalid sector`);
+    if (sid.frequency && !/^1[1-3]\d\.\d{2,3}$/.test(sid.frequency)) add(`SID ${sid.name} has an invalid frequency ${sid.frequency}`);
+  }
+  const destinations = new Set((data.traffic?.operators ?? []).flatMap((o) => o.destinations ?? AIRLINES.find((a) => a.icao === o.airline)?.destinations ?? []));
+  for (const ops of data.runwayOps) {
+    if (!data.sids.some((s) => s.runway === ops.runway)) continue;
+    for (const d of destinations) {
+      if (data.sids.some((s) => s.towards) && !DESTINATION_POSITIONS[d]) add(`traffic: destination ${d} has no position (data/destinations.ts)`);
+      if (!sidsForDestination(data, ops.runway, d).length) add(`no SID of runway ${ops.runway} for destination ${d}`);
+    }
+  }
 
   // ---------------------------------------------------------------- reachability
   for (const p of reachabilityProblems(airport)) add(p);

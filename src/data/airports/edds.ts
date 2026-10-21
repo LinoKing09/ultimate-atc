@@ -1,4 +1,4 @@
-import type { AirportData, ExitData, StandData } from '../../core/airport/types';
+import type { AirportData, ExitData, SidData, StandData } from '../../core/airport/types';
 import { RunwayFrameBuilder } from './builder';
 
 /**
@@ -180,9 +180,9 @@ function throughStand(s: StandSpec, apron: string, standLat: number, inLane: 'M'
 
 // Terminal stands 9-19 (terminals 1-4), nose north
 const terminal: StandSpec[] = [
-  { id: '9', along: -481.3, span: 36 },
+  { id: '9', along: -481.3, span: 60.5 },
   { id: '10', along: -421.1, span: 36 },
-  { id: '11', along: -367.2, span: 36 },
+  { id: '11', along: -367.2, span: 52 },
   { id: '12', along: -313.9, span: 36 },
   { id: '13', along: -248.4, span: 36 },
   { id: '14', along: -197.6, span: 36 },
@@ -193,6 +193,8 @@ const terminal: StandSpec[] = [
   { id: '19', along: 47.2, span: 36 },
 ];
 for (const s of terminal) pushStand(s, 'Apron North', 453.6, NORTH, 'M');
+// 9A: wide-body position overlapping 9 (60.5-65 m wingspan).
+pushStand({ id: '9A', along: -500, span: 65 }, 'Apron North', 453.6, NORTH, 'M');
 
 // Stands 24-29 and 30-36, nose north
 const north2: StandSpec[] = [
@@ -204,6 +206,12 @@ const north2: StandSpec[] = [
   { id: '29', along: 389.8, span: 36 },
 ];
 for (const s of north2) pushStand(s, 'Apron North', 517.2, NORTH, 'M');
+// Code D-E positions overlapping 24+25, 25+26 and 28 (the wingtip clearance check blocks the neighbours).
+for (const s of [
+  { id: '24A', along: 143.7, span: 65 },
+  { id: '26A', along: 209.2, span: 65 },
+  { id: '28A', along: 344.8, span: 65 },
+]) pushStand(s, 'Apron North', 517.2, NORTH, 'M');
 const north3: StandSpec[] = [
   { id: '30', along: 474.2, span: 36 },
   { id: '31', along: 522.4, span: 36 },
@@ -222,7 +230,7 @@ const north4: StandSpec[] = [
   { id: '62', along: 644, span: 36 },
   { id: '63', along: 693.5, span: 36 },
   { id: '64', along: 742.9, span: 36 },
-  { id: '65', along: 804.7, span: 36 },
+  { id: '65', along: 804.7, span: 29 },
 ];
 for (const s of north4) pushStand(s, 'Apron North', 429.7, SOUTH, 'M');
 
@@ -235,10 +243,10 @@ const north5: StandSpec[] = [
   { id: '75', along: 792.8, span: 36 },
 ];
 for (const s of north5) pushStand(s, 'Apron North', 364, NORTH, 'N');
-// Wide-body positions 71A / 74A overlap 71+72 / 74+75 (multi-aircraft ramp system). The wingtip clearance
+// Wide-body positions 71A / 74A (code E-F, the only stands for an A380 diversion) overlap 71+72 / 74+75. The wingtip clearance
 // check blocks the overlapped stands automatically while a wide-body is on an A position and vice versa.
-pushStand({ id: '71A', along: 619.8, span: 65 }, 'Apron North', 364, NORTH, 'N');
-pushStand({ id: '74A', along: 767.9, span: 65 }, 'Apron North', 364, NORTH, 'N');
+pushStand({ id: '71A', along: 611.5, span: 80 }, 'Apron North', 364, NORTH, 'N');
+pushStand({ id: '74A', along: 746.7, span: 80 }, 'Apron North', 364, NORTH, 'N');
 
 // Drive-through stands 40-48 (M -> O) and 50-56 (M -> N)
 const west: StandSpec[] = [
@@ -246,36 +254,41 @@ const west: StandSpec[] = [
   { id: '41', along: -435.3, span: 36 },
   { id: '42', along: -384.9, span: 36 },
   { id: '43', along: -335, span: 36 },
+  { id: '44', along: -262.4, span: 36 },
   { id: '45', along: -214, span: 36 },
   { id: '46', along: -165.4, span: 36 },
   { id: '47', along: -116.8, span: 36 },
-  { id: '48', along: -68.5, span: 36 },
+  { id: '48', along: -68.5, span: 30 },
 ];
 for (const s of west) throughStand(s, 'Apron North', 311.5, 'M', 'O');
 const mid: StandSpec[] = [
   { id: '50', along: 111, span: 36 },
-  { id: '51', along: 160, span: 36 },
-  { id: '52', along: 210.7, span: 36 },
-  { id: '53', along: 261.9, span: 36 },
-  { id: '54', along: 313.2, span: 36 },
-  { id: '55', along: 363.9, span: 36 },
-  { id: '56', along: 412.9, span: 36 },
+  { id: '51', along: 160, span: 45 },
+  { id: '52', along: 210.7, span: 52 },
+  { id: '53', along: 261.9, span: 45 },
+  { id: '54', along: 313.2, span: 52 },
+  { id: '55', along: 363.9, span: 45 },
+  { id: '56', along: 412.9, span: 45 },
 ];
 for (const s of mid) throughStand(s, 'Apron North', 372.8, 'M', 'N');
 
-// Apron South (cargo) stands 100-107, nose south, push onto V
+// Apron South (cargo, layout since AIRAC 2512): 100-104 code D, 206 / 207 code E-F (the former 105 / 106),
+// nose south, push onto V. The small stands 300-303 and the new 105-107 between 206 and 207 are not modelled.
 const south: StandSpec[] = [
-  { id: '100', along: 100.6, span: 36 },
-  { id: '101', along: 148.9, span: 36 },
-  { id: '102', along: 196.8, span: 36 },
-  { id: '103', along: 248.3, span: 36 },
-  { id: '104', along: 304.6, span: 36 },
-  { id: '105', along: 362.3, span: 65 },
-  { id: '106', along: 420.9, span: 65 },
-  { id: '107', along: 480.5, span: 65 },
+  { id: '100', along: 62.8, span: 52 },
+  { id: '101', along: 137.4, span: 52 },
+  { id: '102', along: 207.8, span: 52 },
+  { id: '103', along: 266.7, span: 52 },
+  { id: '104', along: 325.6, span: 52 },
 ];
-for (const s of south) pushStand(s, 'Apron South', -327, SOUTH, 'V');
+for (const s of south) pushStand(s, 'Apron South', -318, SOUTH, 'V');
+for (const s of [
+  { id: '206', along: 389.8, span: 80 },
+  { id: '207', along: 459.2, span: 80 },
+]) pushStand(s, 'Apron South', -325, SOUTH, 'V');
 // Who parks where: business jets prefer 60-65, Apron South is the cargo apron (airline stands when nothing else is free).
+// The stand allocation takes the smallest stand that fits, so the wide-body positions (9A, 24A, 26A, 28A, 71A, 74A)
+// go to narrow-bodies only when nothing else is free.
 for (const s of stands) {
   if (s.apron === 'Apron South') s.use = 'cargo';
   else if (/^6\d$/.test(s.id)) s.use = 'ga';
@@ -291,31 +304,32 @@ function chainSorted(name: string, kind: 'taxiway' | 'taxilane', list: [string, 
 // ======================================================================== holding bays P1 / P2 (25 end)
 // Bypass from N down to S just before A (VATSIM Germany Tower SOP: waiting / re-sequencing area, max.
 // B739/A321): a departure that is not ready waits on P1 or P2, the next one passes it via P1/P2 and S.
-// Positions estimated from the chart description, not measured.
+// Positions from OpenStreetMap (unnamed links between N and S at the 25 end).
 const BYPASS: [string, number, number][] = [
-  ['P1', 3020, 3090],
-  ['P2', 3130, 3200],
+  ['P1', 2998, 3123],
+  ['P2', 3104, 3230],
 ];
 for (const [name, onN, onS] of BYPASS) {
   nNodes.push([`N_${name}`, onN]);
   sNodes.push([`S_${name}`, onS]);
 }
 // ======================================================================== de-icing pads DP1-DP4
-// De-icing only on DP1-DP4 (STR A-CDM briefing / VATSIM Germany). The pads lie between N and S; their positions
-// along the runway are estimates (not from the chart), between G and E. Each pad is a drive-through bay with
-// lead lines to N and S on both sides, so a departure keeps its direction with the taxi flow of either runway
-// (25: in and out on N eastbound; 07: in from S eastbound, out onto N westbound).
-const DEICING: [string, number][] = [
-  ['DP1', 1330],
-  ['DP2', 1470],
-  ['DP3', 1610],
-  ['DP4', 1750],
+// De-icing only on DP1-DP4 (STR A-CDM briefing). The pads lie between N and S, DP1 / DP2 between I and H,
+// DP3 / DP4 between H and F (positions from the VATSIM Germany ground radar maps, built from the AIP data).
+// Every pad is entered from N and left onto S: DP1 and DP3 westbound, DP2 and DP4 eastbound (VATSIM Germany
+// Ground SOP). Wingspan limits: DP1 code E (65 m), DP2 code F (80 m), DP3 / DP4 code C (36 m).
+// [pad, along on N, pad centre (along, lateral), shape points of the lead line, along on S, max wingspan]: the lead
+// lines follow the painted taxilines, so aircraft join S in the pad's direction.
+const DEICING: [string, number, [number, number], [number, number][], number, number][] = [
+  ['DP1', 246, [197, 234], [[171, 208]], 124, 65],
+  ['DP2', 363.9, [399, 234], [[418, 206]], 450, 80],
+  ['DP3', 767, [761.5, 234], [[739, 201]], 717, 36],
+  ['DP4', 792.8, [833, 232], [[853, 206]], 885, 36],
 ];
-/** Along-distance of the pad lead lines from the pad centre (m). */
-const PAD_LEAD = 55;
-for (const [name, a] of DEICING) {
-  nNodes.push([`N_${name}W`, a - PAD_LEAD], [`N_${name}E`, a + PAD_LEAD]);
-  sNodes.push([`S_${name}W`, a - PAD_LEAD], [`S_${name}E`, a + PAD_LEAD]);
+for (const [name, onN, , , onS] of DEICING) {
+  // DP2 and DP4 start at the lane nodes of stands 55 and 75 on N (same position).
+  if (name !== 'DP2' && name !== 'DP4') nNodes.push([`N_${name}`, onN]);
+  sNodes.push([`S_${name}`, onS]);
 }
 
 chainSorted('N', 'taxiway', nNodes, () => N_LAT, [CIRCLE]);
@@ -335,10 +349,12 @@ for (const [name, onN, onS] of BYPASS) {
   n(name, (onN + onS) / 2, (N_LAT + S_LAT) / 2);
   b.chain(name, 'taxiway', [`N_${name}`, name, `S_${name}`], { maxWingspanM: 36 });
 }
-// De-icing pads: lead lines of kind 'stand' (only used to enter or leave the pad, never as a short cut)
-for (const [name, a] of DEICING) {
-  n(name, a, (N_LAT + S_LAT) / 2);
-  for (const lane of ['N', 'S']) b.chain(name, 'stand', [`${lane}_${name}W`, name, `${lane}_${name}E`]);
+// De-icing pads: one-way lead lines of kind 'stand' from N over the pad to S (only used to enter or leave a pad).
+for (const [name, , [a, l], shape] of DEICING) {
+  n(name, a, l);
+  const entry = name === 'DP2' ? 'N_55' : name === 'DP4' ? 'N_75' : `N_${name}`;
+  const exit = shape.map(([sa, sl], i) => n(`${name}_X${i + 1}`, sa, sl));
+  b.chain(name, 'stand', [entry, name, ...exit, `S_${name}`], { oneWay: true });
 }
 
 // L3: west end of O up to M; L2: from M down into the circle
@@ -425,6 +441,24 @@ b.chain('Z', 'taxiway', ['O_L3', 'Z_A', 'Z_B', 'R_W']);
 b.chain('R', 'taxiway', ['R_W', 'R_1', 'RV']);
 chainSorted('V', 'taxilane', vNodes, () => V_LAT);
 
+// ======================================================================== SIDs
+/** [fix, designator runway 25, designator runway 07, planning]: chart designators (they change with the AIRAC cycle). */
+const SID_FIXES: [string, string, string, Pick<SidData, 'towards' | 'destinations'>][] = [
+  ['ABTAL', '4B', '4H', { towards: [45, 110] }],
+  ['DKB', '9B', '4H', { destinations: ['EDDN', 'EDTY'] }],
+  ['ETASA', '4B', '2H', { destinations: ['EDDF', 'EDFE', 'EDFC', 'ETOU'] }],
+  ['GEBNO', '7B', '6H', { destinations: [] }],
+  ['KRH', '5B', '2H', { destinations: ['EDDR', 'EDRZ', 'EDSB', 'ETAR'] }],
+  ['KUNOD', '2B', '2H', { towards: [110, 190] }],
+  ['OKIBA', '4B', '4H', { towards: [340, 45] }],
+  ['ROTWE', '5B', '7H', { towards: [190, 255] }],
+  ['SUL', '3B', '3H', { destinations: ['LSZH', 'LSZR', 'EDTL', 'EDNY'] }],
+  ['TAGIK', '4B', '2H', { destinations: ['EDDL', 'EDDK', 'EDDG', 'EDLP', 'EDLN', 'EDLW'] }],
+  ['VESID', '4B', '2H', { towards: [255, 340] }],
+];
+/** Exit fixes of the southern departures (Langen Radar sector Reutlingen). */
+const SOUTH_FIXES = ['ROTWE', 'SUL', 'KUNOD', 'ABTAL'];
+
 // ======================================================================== runway operations
 function exit(name: string, path: string[], rapid = false): ExitData {
   return { name, path, rapid };
@@ -437,7 +471,7 @@ export const EDDS: AirportData = {
   country: 'Germany',
   arp: ARP,
   elevationFt: 1276,
-  magneticVariation: 3.5,
+  magneticVariation: 3.9,
   timeZone: 'Europe/Berlin',
   // Night flying restrictions of Stuttgart Airport (Flughafen Stuttgart, "Nachtflugbeschraenkung"): no jet
   // departures 23:00-06:00 local, no landings 23:30-06:00; delayed landings scheduled before 23:30 until 24:00.
@@ -454,9 +488,8 @@ export const EDDS: AirportData = {
   // Stand sizes: code C on Apron North except the wide-body positions 71A / 74A; Apron South 105-107 wide-body.
   dataNotice:
     'Layout digitised by hand from the AIP Germany aerodrome charts (AD 2 EDDS 2-5 / 2-7, AMDT 10/26), accuracy about +-10 m; some areas simplified; holding bays P1/P2 and de-icing pads DP1-DP4 at estimated positions. Not for real-world navigation.',
-  // De-icing pads DP1-DP4 (positions estimated, see the de-icing comment above). Between N and S there is room
-  // for code D at most (wingtip clearance to the traffic on N and S); larger aircraft are de-iced on their stand.
-  deicingPads: DEICING.map(([name]) => ({ name, node: name, maxWingspanM: 52 })),
+  // De-icing pads DP1-DP4 (see the de-icing comment above).
+  deicingPads: DEICING.map(([name, , , , , span]) => ({ name, node: name, maxWingspanM: span })),
   runways: [
     {
       name: RWY,
@@ -464,7 +497,8 @@ export const EDDS: AirportData = {
       lengthM: 3345,
       ends: [
         { name: '07', threshold: b.ll(THR_07_DISPLACEMENT * K, 0), end: b.ll(0, 0), elevationFt: 1267 },
-        { name: '25', threshold: b.ll(L, 0), end: b.ll(L, 0), elevationFt: 1181 },
+        // TORA 25 is 3045 m: the 300 m behind the displaced threshold 07 do not count for take-offs 25.
+        { name: '25', threshold: b.ll(L, 0), end: b.ll(L, 0), elevationFt: 1181, toraM: 3045 },
       ],
     },
   ],
@@ -543,21 +577,28 @@ export const EDDS: AirportData = {
       [1350 * K, -520],
     ]),
   ],
+  // Runway crossings only between K and Y; Z (west of Y) is reserved for military aircraft (VATSIM Germany Ground SOP).
+  runwayCrossings: ['RWY_K'],
+  avoidTaxiways: ['Z'],
   stations: [
     { callsign: 'EDDS_DEL', type: 'DEL', name: 'Stuttgart Delivery', frequency: '121.915' },
     { callsign: 'EDDS_GND', type: 'GND', name: 'Stuttgart Ground', frequency: '118.605' },
     { callsign: 'EDDS_TWR', type: 'TWR', name: 'Stuttgart Tower', frequency: '118.805' },
-    { callsign: 'EDDS_APP', type: 'APP', name: 'Langen Radar', frequency: '119.200' },
+    // Langen Radar, sector Stuttgart (the southern departures contact sector Reutlingen 119.200, see the SIDs).
+    { callsign: 'EDDS_APP', type: 'APP', name: 'Langen Radar', frequency: '125.050' },
     { callsign: 'EDDS_ATIS', type: 'ATIS', name: 'Stuttgart Information', frequency: '126.130' },
   ],
   runwayOps: [
     {
       runway: '25',
+      // Take-off run available from each entry as published (TORA 25 is 3045 m from A).
       departureEntries: [
-        { holdingPoint: 'A', intersection: 'A', fullLength: true },
-        { holdingPoint: 'B', intersection: 'B', fullLength: false },
-        { holdingPoint: 'C', intersection: 'C', fullLength: false },
-        { holdingPoint: 'D', intersection: 'D', fullLength: false },
+        { holdingPoint: 'A', intersection: 'A', fullLength: true, toraM: 3045 },
+        { holdingPoint: 'B', intersection: 'B', fullLength: false, toraM: 2435 },
+        { holdingPoint: 'C', intersection: 'C', fullLength: false, toraM: 2175 },
+        { holdingPoint: 'D', intersection: 'D', fullLength: false, toraM: 1990 },
+        // Small aircraft only.
+        { holdingPoint: 'E', intersection: 'E', fullLength: false, toraM: 1665 },
       ],
       exits: [
         exit('F', ['RWY_F', 'F', 'F_CLR'], true),
@@ -579,11 +620,13 @@ export const EDDS: AirportData = {
     {
       runway: '07',
       departureEntries: [
-        { holdingPoint: 'K', intersection: 'K', fullLength: true },
-        { holdingPoint: 'Y', intersection: 'Y', fullLength: true },
-        { holdingPoint: 'I', intersection: 'I', fullLength: false },
-        { holdingPoint: 'H', intersection: 'H', fullLength: false },
-        { holdingPoint: 'W', intersection: 'W', fullLength: false },
+        { holdingPoint: 'K', intersection: 'K', fullLength: true, toraM: 3345 },
+        { holdingPoint: 'Y', intersection: 'Y', fullLength: true, toraM: 3345 },
+        { holdingPoint: 'I', intersection: 'I', fullLength: false, toraM: 3090 },
+        { holdingPoint: 'H', intersection: 'H', fullLength: false, toraM: 2515 },
+        { holdingPoint: 'W', intersection: 'W', fullLength: false, toraM: 2520 },
+        // Small aircraft usually depart from G.
+        { holdingPoint: 'G', intersection: 'G', fullLength: false, toraM: 2210 },
       ],
       exits: [
         exit('G', ['RWY_G', 'G', 'G_CLR']),
@@ -601,19 +644,21 @@ export const EDDS: AirportData = {
       ],
     },
   ],
-  // SIDs: the first fixes and the designator letters (B = runway 25, H = runway 07) follow the VATSIM
-  // Germany EDDS SOP (modelled on the real procedures); the numbers change with every AIRAC cycle and
-  // are approximations here. North: KRH, ETASA; south: SUL, ROTWE.
-  sids: [
-    { name: 'KRH4B', runway: '25', fix: 'KRH' },
-    { name: 'ETASA4B', runway: '25', fix: 'ETASA' },
-    { name: 'SUL4B', runway: '25', fix: 'SUL' },
-    { name: 'ROTWE4B', runway: '25', fix: 'ROTWE' },
-    { name: 'KRH2H', runway: '07', fix: 'KRH' },
-    { name: 'ETASA2H', runway: '07', fix: 'ETASA' },
-    { name: 'SUL2H', runway: '07', fix: 'SUL' },
-    { name: 'ROTWE2H', runway: '07', fix: 'ROTWE' },
-  ],
+  // SIDs (B = runway 25, H = runway 07) with the current designators. Each flight is planned via the exit
+  // fix towards its destination (`towards`: bearing from Stuttgart); some fixes are restricted to a few
+  // destinations (VATSIM Germany Delivery SOP: ETASA only Frankfurt, KRH only Saarbruecken / Karlsruhe /
+  // Ramstein, SUL only Zurich / Friedrichshafen / Lahr for jets, DKB only Nuremberg area, GEBNO via Z76
+  // below FL180, TAGIK via Frankfurt below FL240). Southern departures (ROTWE, SUL, KUNOD, ABTAL) contact
+  // Langen Radar sector Reutlingen on 119.200. The local SIDs STG / TEDGO and the RNP K-SIDs are not modelled.
+  sids: (['25', '07'] as const).flatMap((runway) =>
+    SID_FIXES.map(([fix, b25, h07, plan]) => ({
+      name: `${fix}${runway === '25' ? b25 : h07}`,
+      runway,
+      fix,
+      ...plan,
+      ...(SOUTH_FIXES.includes(fix) ? { frequency: '119.200' } : {}),
+    })),
+  ),
   // Traffic mix: shares of the operators at Stuttgart (passengers in scheduled and charter traffic, airport annual
   // report 2024 as quoted in the press; Eurowings about 40 % in 2025 as well) and the busiest destinations of 2025.
   // Passenger shares are used as movement shares. Smaller operators (Corendon, AJet, Croatia ...) are not modelled.
@@ -652,7 +697,7 @@ export const EDDS: AirportData = {
         'Departures get their IFR clearance and start-up from Delivery 121.915 (run by the simulator unless you staff it too). They call you for pushback (or taxi from a drive-through stand); with A-CDM on, at their TSAT.',
         'Hand departures over to Tower 118.805 at or shortly before the holding point: `contact tower 118.805`. Tower lines them up and clears them for take-off.',
         'Arrivals are with Tower until they have vacated the runway. They call you from the vacate point: give them a stand and a route.',
-        'The runway belongs to Tower. Nobody enters it without a clearance; aircraft that must cross (south side) stop at the runway holding point and ask you: `cross runway 25`.',
+        'The runway belongs to Tower. Nobody enters it without a clearance; aircraft that must cross (to or from the south side) cross only between K and Y: they stop at the holding point and ask you: `cross runway 25`.',
       ],
     },
     {
@@ -662,7 +707,7 @@ export const EDDS: AirportData = {
         'You own the runway 07/25 and its protected area. Ground (run by the simulator) brings departures to the holding points and hands them to you; Approach (Langen Radar) brings arrivals onto final about 9 NM out.',
         'Departures call `ready for departure` at the holding point. `line up and wait runway 25` (also as soon as a landing aircraft has passed: `behind landing EWG7TK, line up and wait behind`), then `wind 250 degrees 8 knots, runway 25, cleared for take-off`. Only one aircraft may use the runway at a time.',
         'Departure spacing (measured from airborne to start of roll): 2 minutes behind a heavy (3 from an intersection), 2 minutes on the same SID fix, 1 minute on diverging SIDs. The take-off menu shows how long you still have to wait.',
-        'After take-off the crew asks for a frequency change: `contact Langen Radar 119.200`. A departure that leaves the control zone on your frequency costs points.',
+        'After take-off the crew asks for a frequency change: `contact radar 125.050` (Langen Radar, sector Stuttgart); southern departures (ROTWE, SUL, KUNOD, ABTAL) go to sector Reutlingen: `contact radar 119.200`. The take-off menu offers the right one. A departure that leaves the control zone on your frequency costs points.',
         'Arrivals call on final (`ILS approach runway 25`). Clear them to land in time: `wind 250 degrees 8 knots, runway 25, cleared to land` - without a clearance they go around at 0.5 NM. `continue approach` if the runway is not free yet, `go around` if it will not be. `vacate via E` asks for a particular exit.',
         'After vacating, arrivals report `runway vacated`: hand them to Ground with `contact ground 118.605`. Keep the vacate points free - Tower cannot use an exit whose vacate point is still occupied.',
         'Runway crossings (aircraft from or to the south apron) are yours: Ground hands them over at the runway holding point; `cross runway 25` only when nobody is landing or taking off, then `contact ground` once they report the runway vacated.',
@@ -673,16 +718,23 @@ export const EDDS: AirportData = {
       positions: ['DEL'],
       items: [
         'Every departure calls you about 10 minutes before off-block for its IFR clearance (about 4 in 10 crews request it by datalink instead - DCL in the request column). Phraseology: `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312`.',
-        'Clearance limit is the destination; the SID is the one of the runway in use that leads to the first fix of the flight plan (the aircraft menu lists it first). Initial climb 5000 ft (climb via SID; VATSIM Germany SOP). Squawk: the next free code (the menu picks one).',
+        'Clearance limit is the destination; the SID is the one of the runway in use that leads to the first fix of the flight plan (the aircraft menu lists it first). Flight plans go via the exit fix towards the destination - see the table. Initial climb 5000 ft (climb via SID; VATSIM Germany SOP). Squawk: the next free code (the menu picks one).',
         'Listen to the readback: now and then a crew reads back a wrong squawk. Correct it (`negative, squawk 2312`) - a missed error costs points; otherwise `readback correct`.',
         'Start-up: with A-CDM (Stuttgart has been a full A-CDM airport since 2014) the crew calls at its TSAT. `start-up approved`, then `contact ground 118.605` when it asks for the pushback frequency.',
         'CTOT: flights with an ATFM slot show it in the CTOT column; include it in the clearance (`..., CTOT 1435`). Take-off must be between CTOT -5 and +10 minutes; the TSAT already accounts for the taxi time.',
       ],
       table: {
-        head: ['Runway / first fix', 'SID (fixes and letters as in the VATSIM Germany SOP, numbers approximate)'],
+        head: ['Exit fix: SID 25 / 07', 'Used for'],
         rows: [
-          ['25: KRH / ETASA (north), SUL / ROTWE (south)', 'KRH4B / ETASA4B / SUL4B / ROTWE4B'],
-          ['07: KRH / ETASA (north), SUL / ROTWE (south)', 'KRH2H / ETASA2H / SUL2H / ROTWE2H'],
+          ['VESID: VESID4B / VESID2H', 'north-west: UK, Ireland, Benelux, Paris'],
+          ['OKIBA: OKIBA4B / OKIBA4H', 'north: Hamburg, Berlin, Scandinavia (min. FL200)'],
+          ['TAGIK: TAGIK4B / TAGIK2H', 'Duesseldorf, Cologne and the Ruhr area (via Frankfurt area, max. FL240)'],
+          ['ETASA: ETASA4B / ETASA2H', 'Frankfurt only'],
+          ['ABTAL: ABTAL4B / ABTAL4H', 'east: Munich, Vienna, Budapest, Poland, Romania'],
+          ['KUNOD: KUNOD2B / KUNOD2H', 'south-east: Italy, Balkans, Greece, Turkey, Egypt'],
+          ['ROTWE: ROTWE5B / ROTWE7H', 'south-west: Spain, Portugal, Canaries, southern France, Geneva'],
+          ['SUL: SUL3B / SUL3H', 'jets only to Zurich, Friedrichshafen, Lahr'],
+          ['KRH, DKB, GEBNO', 'only Saarbruecken / Karlsruhe (KRH), Nuremberg area (DKB), short flights below FL180 (GEBNO)'],
         ],
       },
     },
@@ -705,7 +757,7 @@ export const EDDS: AirportData = {
       positions: ['GND', 'TWR'],
       items: [
         'Full length: holding point A (runway 25), K north or Y south (runway 07).',
-        'Intersections: B, C, D (25) and I, H, W (07). Ask first: `advise able for departure from intersection D`. Wide-bodies normally need full length.',
+        'Take-off run available: runway 25 from A 3045 m (the 300 m behind the displaced threshold 07 do not count), B 2435, C 2175, D 1990, E 1665 m; runway 07 from K / Y 3345 m, I 3090, H 2515, W 2520, G 2210 m. Ask first: `advise able for departure from intersection C`. Smaller aircraft usually go from C (25) or G (07); wide-bodies need full length.',
         'Push so the aircraft ends up facing the way it will taxi: airliners cannot turn around on a taxiway (only with a tug when stuck). For runway 25 most departures from stands 9-19 push facing east.',
         'Drive-through stands 40-48 and 50-56 need no pushback: the aircraft calls `request taxi` and leaves forwards (40-48 to O, 50-56 to N).',
         'Mix the SIDs in the queue: two departures on the same first fix need 2 minutes, diverging ones 1 minute. Keep heavies apart (2 minutes behind a heavy).',
@@ -716,7 +768,7 @@ export const EDDS: AirportData = {
           ['Stands 9-36, 60-65, pushed facing east', '`taxi to holding point A via M, H, N`'],
           ['Stands 71-75 (pushed onto N facing east)', '`taxi to holding point A via N`'],
           ['Stands 40-48 / 50-56', '`taxi to holding point A via O, N` / `via N`'],
-          ['Apron South, pushed facing east', '`taxi to holding point A via V, W, H, N, cross runway 25`'],
+          ['Apron South, pushed facing west (crossing at K / Y only)', '`taxi to holding point A via V, Y, K, N, cross runway 25`'],
           ['Stands 9-19 (runway 07)', '`taxi to holding point K via M, L2` (facing east) / `via M, L3, O` (facing west)'],
           ['Stands 24-29 (runway 07), pushed facing west', '`taxi to holding point K via M, L2`'],
         ],
@@ -728,8 +780,8 @@ export const EDDS: AirportData = {
       items: [
         'Runway 25 exits: F and H (rapid), E, G, I (rapid), K; to the south W and Y. Runway 07 exits: D and B (rapid), G, E, C, A.',
         'Arrivals stop at the vacate point behind the exit and call you. Answer quickly: Tower will not use an exit whose vacate point is still occupied.',
-        'About 85 % vacate to the north. Aircraft vacating south (W, Y) need a runway crossing at W/H or Y/K to reach Apron North, unless they park on Apron South.',
-        'The suggested stand is shown in brackets in the arrival list; business jets go to 60-65, Apron South (100-107) is for cargo or overflow.',
+        'About 85 % vacate to the north. Aircraft vacating south (W, Y) need a runway crossing - only between K and Y - to reach Apron North, unless they park on Apron South.',
+        'The suggested stand is shown in brackets in the arrival list; business jets go to 60-65, Apron South (100-104, 206, 207) is for cargo or overflow.',
       ],
       table: {
         head: ['From', 'Typical instruction'],
@@ -737,7 +789,7 @@ export const EDDS: AirportData = {
           ['Vacated via F, G or E (25)', '`taxi to stand 14 via S, H, M` / `taxi to stand 72 via S, H, N`'],
           ['Vacated via H (25)', '`taxi to stand 33 via H, M`'],
           ['Vacated via D, B or C (07)', '`taxi to stand 30 via S, H, M`'],
-          ['Vacated via W (south)', '`taxi to stand 105 via V`'],
+          ['Vacated via W (south)', '`taxi to stand 206 via V`'],
         ],
       },
     },
@@ -746,12 +798,13 @@ export const EDDS: AirportData = {
       table: {
         head: ['Stands', 'Notes'],
         rows: [
-          ['9-19, 24-36', 'Terminal and handling stands on taxilane M, pushback, up to code C (wingspan below 36 m)'],
-          ['40-48, 50-56', 'Drive-through: in from M, out forwards (to O / to N)'],
-          ['60-65', 'Business jets, nose south, pushback onto M'],
+          ['9-19, 24-36', 'Terminal and handling stands on taxilane M, pushback, code C (36 m); 9 up to 60.5 m, 11 code D (52 m); jet bridges 9-16'],
+          ['9A, 24A, 26A, 28A', 'Wide-body positions (up to 65 m) overlapping 9, 24+25, 25+26 and 28: either side blocks the other'],
+          ['40-48, 50-56', 'Drive-through: in from M, out forwards (to O / to N); 48 up to 30 m, 51, 53, 55, 56 up to 45 m, 52 and 54 code D'],
+          ['60-65', 'Business jets, nose south, pushback onto M (65 up to 29 m)'],
           ['71-75', 'Pushback onto taxiway N'],
-          ['71A, 74A', 'Wide-body positions overlapping 71+72 and 74+75: a wide-body there blocks both, and either of them blocks the A position'],
-          ['100-107', 'Apron South (cargo), lane V; 105-107 take wide-bodies, but only every other one at a time'],
+          ['71A, 74A', 'Code E-F positions overlapping 71+72 and 74+75 (the only stands for an A380 diversion)'],
+          ['100-104, 206, 207', 'Apron South (cargo), lane V: 100-104 code D, 206 / 207 code E-F'],
           ['Taxilane M east of H', 'Code C only (stands 30-36 and 60-65): wide-bodies use N to 71A / 74A'],
         ],
       },
@@ -763,6 +816,7 @@ export const EDDS: AirportData = {
         'Taxilane M is a single lane used in both directions. Use `give way` or a conditional clearance (`behind the A320 passing left to right, push and start approved`) when arrivals are coming in on M.',
         'H crosses both N and S on its way from the apron to the runway: watch traffic on the parallels.',
         'F and G cross each other just north of the holding points; a waiting arrival there can block the other exit.',
+        'De-icing (winter scenarios): every pad is entered from N and left onto S - DP1 and DP3 westbound, DP2 and DP4 eastbound. DP1 takes up to 65 m, DP2 up to 80 m, DP3 and DP4 code C only.',
         'Two airliners nose to nose cannot sort it out themselves. Re-route one of them before it happens - after 30 s stuck they accept a tug turnaround.',
       ],
     },

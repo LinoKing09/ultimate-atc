@@ -60,6 +60,17 @@ export interface AirportData {
   wind?: { primaryShare: number; primary: [number, number]; secondary: [number, number] };
   /** IANA time zone of the airport (local time for airport rules), e.g. "Europe/Berlin". Default: UTC. */
   timeZone?: string;
+  /**
+   * Runway nodes where automatic routes (pilots without a `via` list, AI Ground, menu suggestions) cross a
+   * runway, e.g. only between two designated holding points; elsewhere only if there is no other way (a
+   * closed taxiway). Omitted = anywhere. Your own `via` lists are not restricted.
+   */
+  runwayCrossings?: string[];
+  /**
+   * Taxiways automatic routes use only if there is no other way, e.g. one reserved for military aircraft.
+   * Your own `via` lists may use them.
+   */
+  avoidTaxiways?: string[];
   /** Night flying restrictions (applied in scenarios with night rules, see core/night.ts). */
   nightRestrictions?: NightRestrictions;
 }
@@ -135,6 +146,11 @@ export interface RunwayEndData {
   /** Physical runway end (start of take-off run). Equals `threshold` if not displaced. */
   end: LatLon;
   elevationFt: number;
+  /**
+   * Published take-off run available from the runway end (metres), when it is shorter than the runway:
+   * the last part of the runway (in the take-off direction) does not count for take-offs in this direction.
+   */
+  toraM?: number;
 }
 
 export interface RunwayData {
@@ -246,6 +262,8 @@ export interface RunwayOpsData {
     holdingPoint: string;
     intersection: string;
     fullLength: boolean;
+    /** Published take-off run available from this entry (metres); default: measured on the runway geometry. */
+    toraM?: number;
     /**
      * The entry is used with a backtrack: the departure enters the runway, taxis on it to the runway
      * end, turns around there and departs from the full length (airports without a taxiway to the end).
@@ -287,4 +305,17 @@ export interface SidData {
   runway: string;
   /** First fix / exit point, used in the flight plan route. */
   fix: string;
+  /**
+   * Destinations this SID is filed for, as a range of initial great-circle bearings from the airport to
+   * the destination (degrees true, clockwise from the first to the second value, e.g. [190, 255] for the
+   * south-west). The traffic generator plans each flight via the SID towards its destination.
+   */
+  towards?: [number, number];
+  /**
+   * The SID is filed only for these destinations (ICAO codes), e.g. a fix that serves one nearby airport.
+   * Takes precedence over `towards`; an empty list means it is never planned automatically.
+   */
+  destinations?: string[];
+  /** Radar frequency departures on this SID contact after take-off (default: the APP station's frequency). */
+  frequency?: string;
 }

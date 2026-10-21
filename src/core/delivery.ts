@@ -1,5 +1,6 @@
 import type { Aircraft } from './aircraft';
-import { destinationName, resolveDestination } from '../data/destinations';
+import type { AirportData, SidData } from './airport/types';
+import { destinationBearing, destinationName, resolveDestination } from '../data/destinations';
 import type { Altitude, Command } from './phraseology/commands';
 import { formatAltitude, formatSidClimb } from './phraseology/format';
 import type { Simulation } from './simulation';
@@ -80,6 +81,40 @@ export function fromHhmm(sim: Simulation, s: string): number | undefined {
   let t = (d.getTime() - sim.startEpochMs) / 1000;
   if (t < sim.time - 12 * 3600) t += 24 * 3600;
   return t;
+}
+
+/** True if `bearing` lies in the sector from `range[0]` clockwise to `range[1]` (degrees). */
+function inSector(bearing: number, [from, to]: [number, number]): boolean {
+  const span = (to - from + 360) % 360;
+  return (bearing - from + 360) % 360 <= span;
+}
+
+/**
+ * The SIDs of a runway a flight to `destination` is planned on: those filed for that destination by
+ * name, else those whose sector contains the direction of the destination, else the SID whose sector
+ * lies closest to it. SIDs restricted to other destinations are never chosen for it. Airports without
+ * sectors in their data (or unknown destinations) get all SIDs of the runway.
+ */
+export function sidsForDestination(airport: AirportData, runway: string, destination: string): SidData[] {
+  const sids = airport.sids.filter((s) => s.runway === runway);
+  const dest = destination.toUpperCase();
+  const named = sids.filter((s) => s.destinations?.includes(dest));
+  if (named.length) return named;
+  const open = sids.filter((s) => !s.destinations);
+  const bearing = destinationBearing(airport.arp, dest);
+  const sectored = open.filter((s) => s.towards);
+  if (bearing === undefined || !sectored.length) return open.length ? open : sids;
+  const inside = sectored.filter((s) => inSector(bearing, s.towards!));
+  if (inside.length) return inside;
+  const off = (s: SidData) => Math.min(...s.towards!.map((b) => Math.abs(((bearing - b + 540) % 360) - 180)));
+  const best = Math.min(...sectored.map(off));
+  return sectored.filter((s) => off(s) === best);
+}
+
+/** Radar frequency a departure contacts after take-off: its SID's departure frequency, else Approach. */
+export function departureFrequency(sim: Simulation, ac: Aircraft): string | undefined {
+  const sid = sim.config.airport.sids.find((s) => s.name === ac.flightPlan.sid);
+  return sid?.frequency ?? sim.airport.station('APP')?.frequency;
 }
 
 /** First fix of the flight plan route (the SID must lead there). */

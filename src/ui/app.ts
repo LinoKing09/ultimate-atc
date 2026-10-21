@@ -5,7 +5,7 @@ import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { parseTransmission } from '../core/phraseology/parser';
 import { acknowledgeCatc, catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
-import { allocateSquawk, CTOT_EARLY_S, hhmm, initialClimb, sendDcl, suggestedSid } from '../core/delivery';
+import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, sendDcl, suggestedSid } from '../core/delivery';
 import { formatSidClimb } from '../core/phraseology/format';
 import { previewTaxi } from '../core/pilot';
 import type { SystemId } from '../core/systems';
@@ -1289,7 +1289,11 @@ export class App {
     }
     if (ac.phase === 'takeoff') items.push({ label: 'Stop immediately', action: () => this.say(ac, 'stop immediately') });
     // Every aircraft in the air (departures, go-arounds) can be handed to Radar.
-    if ((ac.phase === 'climb' || ac.phase === 'goAround') && radar) items.push({ label: `Contact ${radar.name} ${radar.frequency}`, hint: ac.request === 'radar' ? 'requested' : undefined, action: () => this.say(ac, `contact radar ${radar.frequency}`) });
+    if ((ac.phase === 'climb' || ac.phase === 'goAround') && radar) {
+      // Departures: the radar sector of their SID (e.g. the southern departures at Stuttgart).
+      const f = (ac.category === 'departure' && departureFrequency(this.sim, ac)) || radar.frequency;
+      items.push({ label: `Contact ${radar.name} ${f}`, hint: ac.request === 'radar' ? 'requested' : undefined, action: () => this.say(ac, `contact radar ${f}`) });
+    }
     if (ac.phase === 'approach') {
       items.push({
         label: `Cleared to land runway ${rwy}`,

@@ -100,7 +100,7 @@ export const EDDN: AirportData = {
   country: 'Germany',
   arp: { lat: 49.498699, lon: 11.078056 },
   elevationFt: 1046,
-  magneticVariation: 4.0,
+  magneticVariation: 4.3,
   timeZone: 'Europe/Berlin',
   // Runway 28 is preferred; westerly winds prevail (estimate).
   wind: { primaryShare: 0.65, primary: [230, 310], secondary: [50, 130] },
@@ -150,17 +150,21 @@ export const EDDN: AirportData = {
       exits: [exitVia(built, 'C', 'HP.1868560670'), exitVia(built, 'B', 'HP.1868560665'), exitVia(built, 'A', 'HP.1523471664')],
     },
   ],
-  // SIDs: designators from the VATSIM Germany SOP (G = runway 28, C = runway 10); numbers change with the AIRAC cycle.
-  sids: [
-    { name: 'BOLSI1G', runway: '28', fix: 'BOLSI' },
-    { name: 'ERETO1G', runway: '28', fix: 'ERETO' },
-    { name: 'RODIS1G', runway: '28', fix: 'RODIS' },
-    { name: 'SUKAD1G', runway: '28', fix: 'SUKAD' },
-    { name: 'BOLSI1C', runway: '10', fix: 'BOLSI' },
-    { name: 'ERETO1C', runway: '10', fix: 'ERETO' },
-    { name: 'RODIS1C', runway: '10', fix: 'RODIS' },
-    { name: 'SUKAD1C', runway: '10', fix: 'SUKAD' },
-  ],
+  // RNAV SIDs (G = runway 28, C = runway 10; VATSIM Germany SOP and the chart index): each flight is planned via
+  // the exit fix towards its destination - ERETO north-east, RODIS east / south-east, BOLSI south-west, SUKAD
+  // west, SULUS north-west (only for flights continuing on L604). Numbers change with the AIRAC cycle. The local
+  // training SID ERL and the conventional NUB SIDs (non-RNAV aircraft) are not modelled.
+  sids: (['28', '10'] as const).flatMap((runway) =>
+    (
+      [
+        ['BOLSI', [150, 250]],
+        ['ERETO', [0, 60]],
+        ['RODIS', [60, 150]],
+        ['SUKAD', [250, 320]],
+        ['SULUS', [320, 360]],
+      ] as [string, [number, number]][]
+    ).map(([fix, towards]) => ({ name: `${fix}1${runway === '28' ? 'G' : 'C'}`, runway, fix, towards })),
+  ),
   // Not an A-CDM airport; datalink clearances are offered.
   systems: ['surveillance', 'vehicles', 'rmca', 'catc', 'routing', 'dcl', 'loc', 'gp'],
   traffic: {

@@ -221,7 +221,7 @@ export const EDJA: AirportData = {
   country: 'Germany',
   arp: { lat: 47.988092, lon: 10.238248 },
   elevationFt: 2077,
-  magneticVariation: 3.9,
+  magneticVariation: 4.1,
   timeZone: 'Europe/Berlin',
   // Westerly winds prevail (runway 24); estimate.
   wind: { primaryShare: 0.65, primary: [200, 280], secondary: [20, 100] },
@@ -273,14 +273,17 @@ export const EDJA: AirportData = {
       exits: [{ ...exitVia(built, 'N', 'HP.10537053378'), backtrack: true }],
     },
   ],
-  // SIDs: designators from the VATSIM Germany SOP (A = runway 24, B = runway 06); numbers change with the AIRAC cycle.
+  // RNAV SIDs (A = runway 24, B = runway 06; VATSIM Germany SOP and the chart index; numbers change with the
+  // AIRAC cycle). Each flight is planned via the exit fix towards its destination: KPT (Kempten) south and east,
+  // UMTEX (towards Switzerland) south-west, LUPOL north-west and north. The conventional ALG SIDs (non-RNAV
+  // aircraft, training) are not modelled.
   sids: [
-    { name: 'KPT4A', runway: '24', fix: 'KPT' },
-    { name: 'LUPOL5A', runway: '24', fix: 'LUPOL' },
-    { name: 'UMTEX1A', runway: '24', fix: 'UMTEX' },
-    { name: 'KPT4B', runway: '06', fix: 'KPT' },
-    { name: 'LUPOL5B', runway: '06', fix: 'LUPOL' },
-    { name: 'UMTEX2B', runway: '06', fix: 'UMTEX' },
+    { name: 'KPT4A', runway: '24', fix: 'KPT', towards: [75, 200] },
+    { name: 'LUPOL5A', runway: '24', fix: 'LUPOL', towards: [280, 75] },
+    { name: 'UMTEX1A', runway: '24', fix: 'UMTEX', towards: [200, 280] },
+    { name: 'KPT4B', runway: '06', fix: 'KPT', towards: [75, 200] },
+    { name: 'LUPOL5B', runway: '06', fix: 'LUPOL', towards: [280, 75] },
+    { name: 'UMTEX2B', runway: '06', fix: 'UMTEX', towards: [200, 280] },
   ],
   // No A-CDM and no datalink clearances at Memmingen.
   systems: ['surveillance', 'vehicles', 'rmca', 'catc', 'routing', 'loc', 'gp'],

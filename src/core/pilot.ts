@@ -7,7 +7,7 @@ import { KT_TO_MS, distance, headingDiff, headingOf, normalize, scale, add, sub,
 import { Path } from './path';
 import type { Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './phraseology/commands';
 import { STATION_WORD, capitalize, formatCommand, formatDestination, formatHoldShort } from './phraseology/format';
-import { CLEARANCE_LEAD_S, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
+import { CLEARANCE_LEAD_S, departureFrequency, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
 import { destinationName } from '../data/destinations';
 import type { Simulation, TransmitResult } from './simulation';
 import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, locationOf, maybeStartTow } from './vehicles';
@@ -275,14 +275,21 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
 
 // ====================================================================== intersection departures
 
+/** "1 mile final", "4 miles final". */
+function milesFinal(nm: number): string {
+  return `${nm} ${nm === 1 ? 'mile' : 'miles'} final`;
+}
+
 /** Take-off run available from a holding point on the active runway, or undefined if it is not an entry. */
 export function takeoffRunAvailable(sim: Simulation, holdingPoint: string): number | undefined {
   const end = sim.airport.runwayEnd(sim.runway);
   const hp = sim.airport.holdingPoint(holdingPoint);
   const strip = hp?.edges.find((e) => e.kind === 'runwayStrip');
   if (!end || !hp || !strip || hp.holdingPoint?.runway !== end.runway) return undefined;
+  const published = sim.airport.runwayOps(sim.runway)?.departureEntries.find((e) => e.holdingPoint.toUpperCase() === holdingPoint.toUpperCase())?.toraM;
+  if (published !== undefined) return published;
   const rwyNode = strip.from === hp ? strip.to : strip.from;
-  return end.length - sim.airport.runwayCoordinates(end, rwyNode.pos).along;
+  return end.tora - sim.airport.runwayCoordinates(end, rwyNode.pos).along;
 }
 
 /** ", request backtrack" when the crew needs one from this holding point. */
@@ -1187,8 +1194,10 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   const tower = sim.stationFor('tower');
   // "Contact departure": at airports without a separate departure position that is Approach (Radar).
   if (type === 'DEP' && !sim.airport.station('DEP')) type = 'APP';
+  // Radar frequencies of the SIDs (e.g. a sector for the southern departures) belong to Approach too.
+  const radarFrequencies = new Set(sim.config.airport.sids.map((s) => s.frequency).filter((f): f is string => !!f));
   if (!type) {
-    if (frequency) type = sim.config.airport.stations.find((s) => s.frequency === frequency)?.type;
+    if (frequency) type = sim.config.airport.stations.find((s) => s.frequency === frequency)?.type ?? (radarFrequencies.has(frequency) ? 'APP' : undefined);
     // From Delivery the next station is Ground, from Ground it is Tower, from Tower Radar (departures) or Ground.
     if (!type && ac.frequency === tower && tower !== sim.stationFor('ground')) type = ac.onGround ? sim.stationFor('ground') : 'APP';
     if (!type && ac.category === 'departure') type = ac.frequency === sim.stationFor('delivery') && ac.frequency !== sim.stationFor('ground') ? sim.stationFor('ground') : tower;
@@ -1198,7 +1207,10 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   if (sim.userControls(type) && ac.frequency === type) return { unable: 'we are already on your frequency' };
   const station = sim.airport.station(type);
   if (!station) return { unable: 'say again station' };
-  if (frequency && frequency !== station.frequency) return { unable: `confirm frequency ${frequency} for ${STATION_WORD[type]}` };
+  const radarFrequency = type === 'APP' && frequency && radarFrequencies.has(frequency);
+  if (frequency && frequency !== station.frequency && !radarFrequency) return { unable: `confirm frequency ${frequency} for ${STATION_WORD[type]}` };
+  // Departures read back the frequency they were given, or (no frequency said) the one of their SID.
+  const said = frequency ?? (type === 'APP' && ac.category === 'departure' ? departureFrequency(sim, ac) : undefined) ?? station.frequency;
 
   const fromDelivery = ac.frequency === sim.stationFor('delivery') && type === sim.stationFor('ground') && type !== ac.frequency;
   if (fromDelivery && !ac.cleared) return { unable: 'negative, we have no clearance yet' };
@@ -1209,7 +1221,7 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
 
   const wasTower = ac.frequency === tower;
   return {
-    readback: `${STATION_WORD[type]} ${station.frequency}, goodbye`,
+    readback: `${STATION_WORD[type]} ${said}, goodbye`,
     answers: true,
     after: () => {
       ac.frequency = type!;
@@ -1494,7 +1506,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       frequency: `${stationName}, ${tel}, request frequency for pushback`,
       tow: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request tow to stand ${ac.tow?.to ?? ''}`,
       departure: `${stationName}, ${tel}, ${hpWords(ac)}, ready for departure${backtrackWords(sim, ac, ac.stoppedAt?.holdingPoint ?? (ac.routeDestination?.kind === 'holdingPoint' ? ac.routeDestination.name : undefined))}`,
-      landing: `${stationName}, ${tel}, ${Math.max(1, Math.round(sim.distanceToThresholdNm(ac)))} miles final runway ${ac.runway ?? sim.runway}`,
+      landing: `${stationName}, ${tel}, ${milesFinal(Math.max(1, Math.round(sim.distanceToThresholdNm(ac))))} runway ${ac.runway ?? sim.runway}`,
       vacated: `${stationName}, ${tel}, runway vacated, request taxi`,
       radar: `${stationName}, ${tel}, request frequency change`,
     };

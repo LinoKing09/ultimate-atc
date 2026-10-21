@@ -60,7 +60,7 @@ export const EDXW: AirportData = {
   country: 'Germany',
   arp: { lat: 54.9132, lon: 8.34047 },
   elevationFt: 51,
-  magneticVariation: 3.6,
+  magneticVariation: 3.9,
   timeZone: 'Europe/Berlin',
   // Westerly winds prevail at the North Sea coast (estimate): runway 32 most of the time.
   wind: { primaryShare: 0.65, primary: [250, 340], secondary: [70, 160] },

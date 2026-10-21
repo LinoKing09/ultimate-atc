@@ -2,7 +2,7 @@ import { AIRLINES } from '../data/airlines';
 import { destinationName } from '../data/destinations';
 import type { Aircraft } from './aircraft';
 import type { AirportData, StationType } from './airport/types';
-import { allocateSquawk, initialClimb, suggestedSid } from './delivery';
+import { allocateSquawk, departureFrequency, initialClimb, suggestedSid } from './delivery';
 import { formatSidClimb } from './phraseology/format';
 import type { SimConfig, Simulation } from './simulation';
 import { windWords } from './weather';
@@ -432,7 +432,10 @@ const TOWER: Tutorial = {
       title: 'Hand-off to Radar',
       text: 'Airborne: send it to Radar before 4000 ft.',
       focus: 'DLH5AB',
-      example: (sim) => `DLH5AB contact radar ${freq(sim, 'APP')}`,
+      example: (sim) => {
+        const a = ac(sim, 'DLH5AB');
+        return `DLH5AB contact radar ${(a && departureFrequency(sim, a)) || freq(sim, 'APP')}`;
+      },
       done: ({ sim }) => {
         const a = ac(sim, 'DLH5AB');
         return !a || a.frequency === 'APP';

@@ -172,20 +172,28 @@ describe('tower position', () => {
 
   it('runs an hour of traffic with a simple scripted Tower controller', () => {
     const sim = towerSim(3, true);
+    // Time of the last take-off or crossing clearance: the crew acts on it only after the read-back.
+    let lastRunwayClearance = -99;
     for (let t = 0; t < 3600; t++) {
       sim.tick(1);
       for (const ac of sim.aircraft) {
         if (ac.frequency !== 'TWR') continue;
         const eta = sim.tower.nextArrivalEta();
-        // Aircraft cleared to cross count as runway traffic too.
-        const busy = sim.tower.runwayBusy(ac) || sim.aircraft.some((o) => o !== ac && o.clearedToCross.size > 0 && o.crossingWithTower);
+        // Aircraft cleared to cross (or just cleared for take-off) count as runway traffic too.
+        const busy = sim.time - lastRunwayClearance < 15 || sim.tower.runwayBusy(ac) || sim.aircraft.some((o) => o !== ac && ((o.clearedToCross.size > 0 && o.crossingWithTower) || (o.takeoffCleared && o.phase === 'holding')));
         if (ac.phase === 'approach' && !ac.landingCleared && sim.distanceToThresholdNm(ac) < 4 && !sim.aircraft.some((o) => o.phase === 'lineup')) sim.transmit(`${ac.callsign} cleared to land`);
         if (!ac.request || sim.time - ac.lastCallAt < 3) continue;
         const slotOk = ac.ctot === undefined || sim.time >= ac.ctot - 300;
-        if (ac.request === 'departure' && ac.phase === 'holding' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) sim.transmit(`${ac.callsign} cleared for take-off`);
+        if (ac.request === 'departure' && ac.phase === 'holding' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) {
+          sim.transmit(`${ac.callsign} cleared for take-off`);
+          lastRunwayClearance = sim.time;
+        }
         if (ac.request === 'radar') sim.transmit(`${ac.callsign} contact radar`);
         if (ac.request === 'vacated') sim.transmit(`${ac.callsign} contact ground`);
-        if (ac.request === 'crossing' && !busy && eta > 90) sim.transmit(`${ac.callsign} cross runway 25`);
+        if (ac.request === 'crossing' && !busy && eta > 90) {
+          sim.transmit(`${ac.callsign} cross runway 25`);
+          lastRunwayClearance = sim.time;
+        }
       }
     }
     expect(sim.stats.collisions).toBe(0);
@@ -200,12 +208,13 @@ describe('combined positions with Tower', () => {
   it('Ground + Tower: a scripted controller works a busy hour on both frequencies', () => {
     const sim = new Simulation({ airport: EDDS, position: 'TWR', positions: ['GND', 'TWR'], runway: '25', density: 'medium', seed: 2, events: false });
     const said = new Map<string, number>();
+    let lastRunwayClearance = -99;
     for (let t = 0; t < 3600; t++) {
       sim.tick(1);
       for (const ac of sim.aircraft) {
         if (!sim.isOnMyFrequency(ac)) continue;
         const eta = sim.tower.nextArrivalEta();
-        const busy = sim.tower.runwayBusy(ac) || sim.aircraft.some((o) => o !== ac && o.clearedToCross.size > 0 && o.crossingWithTower);
+        const busy = sim.time - lastRunwayClearance < 15 || sim.tower.runwayBusy(ac) || sim.aircraft.some((o) => o !== ac && ((o.clearedToCross.size > 0 && o.crossingWithTower) || (o.takeoffCleared && o.phase === 'holding')));
         if (ac.frequency === 'TWR' && ac.phase === 'approach' && !ac.landingCleared && sim.distanceToThresholdNm(ac) < 4 && !sim.aircraft.some((o) => o.phase === 'lineup')) sim.transmit(`${ac.callsign} cleared to land`);
         if (!ac.request || sim.time - ac.lastCallAt < 3 || sim.time - (said.get(ac.callsign) ?? -99) < 8) continue;
         const n0 = sim.messages.length;
@@ -217,10 +226,16 @@ describe('combined positions with Tower', () => {
         if (r === 'handoff') sim.transmit(`${ac.callsign} contact tower`);
         if (r === 'tow' && clear) sim.transmit(`${ac.callsign} tow approved`);
         const slotOk = ac.ctot === undefined || sim.time >= ac.ctot - 300;
-        if (r === 'departure' && ac.phase === 'holding' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) sim.transmit(`${ac.callsign} cleared for take-off`);
+        if (r === 'departure' && ac.phase === 'holding' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) {
+          sim.transmit(`${ac.callsign} cleared for take-off`);
+          lastRunwayClearance = sim.time;
+        }
         if (r === 'radar') sim.transmit(`${ac.callsign} contact radar`);
         if (r === 'vacated') sim.transmit(`${ac.callsign} contact ground`);
-        if (r === 'crossing' && !busy && eta > 90) sim.transmit(`${ac.callsign} cross runway 25`);
+        if (r === 'crossing' && !busy && eta > 90) {
+          sim.transmit(`${ac.callsign} cross runway 25`);
+          lastRunwayClearance = sim.time;
+        }
         if (sim.messages.length > n0) said.set(ac.callsign, sim.time);
       }
     }

@@ -23,7 +23,9 @@ import { edgeVertices, isClosedEdge, otherEnd, type Airport, type TaxiEdge, type
  *
  * Closed taxiways (`airport.closedTaxiways`, a scenario option) and
  * permanently closed edges (`closed` in the airport data) are never used; a
- * `via` list naming a closed taxiway fails with "taxiway X closed".
+ * `via` list naming a closed taxiway fails with "taxiway X closed". Where the
+ * airport names its runway crossing points (`runwayCrossings`), automatic
+ * routes cross runways there and elsewhere only if there is no other way.
  */
 
 export interface RouteStart {
@@ -53,9 +55,15 @@ export interface RouteError {
 }
 
 const RUNWAY_CROSSING_PENALTY = 3000;
+/** Extra cost of crossing a runway away from the airport's designated crossing points (automatic routes). */
+const OTHER_CROSSING_PENALTY = 20000;
+/** Extra cost of a taxiway automatic routes avoid (reserved for other traffic). */
+const AVOID_PENALTY = 20000;
 const UTURN_PENALTY = 5000;
 /** Sharpest turn (degrees) an aircraft can make at a taxiway junction. */
 const MAX_TURN = 150;
+/** Sharpest turn onto or off the lead line of a de-icing pad. */
+const PAD_MAX_TURN = 100;
 const FREE_EDGE_PENALTY = 1.15;
 
 export interface RouteOptions {
@@ -145,7 +153,13 @@ export function findRoute(
     k: number;
     cost: number;
     dir?: Vec2;
+    /** The edge the state was reached by (a runway node reached via a strip: crossing). */
+    inEdge?: TaxiEdge;
   }
+  // Automatic routes cross runways where the airport designates it (e.g. only between K and Y), elsewhere only
+  // if there is no other way (e.g. a designated crossing is closed).
+  const crossings = auto && airport.data.runwayCrossings ? new Set(airport.data.runwayCrossings) : undefined;
+  const avoid = auto && airport.data.avoidTaxiways ? new Set(airport.data.avoidTaxiways.map((t) => t.toUpperCase())) : undefined;
   const dist = new Map<string, number>();
   const prev = new Map<string, { key: string; edge: TaxiEdge | null; seed?: Seed }>();
   const open: State[] = [];
@@ -175,19 +189,28 @@ export function findRoute(
       if (options.wingspanM !== undefined && options.wingspanM > e.maxWingspanM) continue;
       if (options.avoid && edgeNear(e, options.avoid)) continue;
       const nxt = otherEnd(e, cur.node);
-      // Stand lead-in lines may only be used to leave the start stand or to enter the destination stand.
-      if (e.kind === 'stand' && nxt !== destination && cur.node !== start.node) continue;
+      // Stand lead-in lines may only be used to leave the start stand or to enter the destination stand
+      // (a lead line of several segments is followed to its end).
+      if (e.kind === 'stand' && nxt !== destination && cur.node !== start.node && !(cur.inEdge?.kind === 'stand' && cur.inEdge.name === e.name)) continue;
       // Directions when leaving the node and when arriving at the next one (they differ on curved edges).
       const verts = e.from === cur.node ? edgeVertices(e) : edgeVertices(e).reverse();
       const out = unit(sub(verts[1], verts[0]));
       const arrive = unit(sub(verts[verts.length - 1], verts[verts.length - 2]));
-      if (cur.dir && turnAngle(cur.dir, out) > MAX_TURN) continue;
+      // Onto and off de-icing pads the lead lines allow no sharp turns (enter and leave the way they are painted).
+      const pad = airport.isDeicingLead(e) || (!!cur.inEdge && airport.isDeicingLead(cur.inEdge));
+      if (cur.dir && turnAngle(cur.dir, out) > (pad ? PAD_MAX_TURN : MAX_TURN)) continue;
 
       const name = e.name.toUpperCase();
       let k = cur.k;
       let cost = e.length;
       if (auto) {
         if (e.kind === 'runwayStrip') cost += RUNWAY_CROSSING_PENALTY / 2;
+        // Crossing a runway away from the designated crossing points: only if there is no other way.
+        if (crossings && cur.inEdge?.kind === 'runwayStrip' && e.kind === 'runwayStrip' && !crossings.has(cur.node.id) && cur.node.edges.some((x) => x.kind === 'runway')) {
+          cost += OTHER_CROSSING_PENALTY;
+        }
+        // Taxiways reserved for others (e.g. military): only if there is no other way.
+        if (avoid?.has(name)) cost += AVOID_PENALTY;
         const flow = options.flows?.get(name);
         if (flow && dot(flow, out) < -0.5) {
           if (options.strictFlows) continue;
@@ -211,7 +234,7 @@ export function findRoute(
       if (nc < (dist.get(nk) ?? Infinity)) {
         dist.set(nk, nc);
         prev.set(nk, { key: cur.key, edge: e });
-        open.push({ key: nk, node: nxt, k, cost: nc, dir: arrive });
+        open.push({ key: nk, node: nxt, k, cost: nc, dir: arrive, inEdge: e });
       }
     }
   }

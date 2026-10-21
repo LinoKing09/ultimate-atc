@@ -14,7 +14,7 @@ function runUntil(sim: Simulation, cond: () => boolean, max = 900): boolean {
 function headOnSetup(): { sim: Simulation; dep: Aircraft; arr: Aircraft } {
   const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'light', seed: 3, generateTraffic: false });
   const dep = sim.traffic.spawnDeparture(1, { stand: '72', callsign: 'DLH1AB', type: 'A320' }) as Aircraft;
-  const arr = sim.traffic.spawnDeparture(9999, { stand: '105', callsign: 'EWG2CD', type: 'A320' }) as Aircraft;
+  const arr = sim.traffic.spawnDeparture(9999, { stand: '206', callsign: 'EWG2CD', type: 'A320' }) as Aircraft;
   const node = sim.airport.node('N_E');
   Object.assign(arr, { pos: { ...node.pos }, heading: 254, phase: 'taxi', category: 'arrival', stand: undefined, assignedStand: '14' });
   runUntil(sim, () => dep.request === 'pushback');
@@ -57,7 +57,8 @@ describe('head-on conflicts (CATC)', () => {
     sim.transmit('DLH1AB taxi to holding point A via N');
     expect(runUntil(sim, () => !!catcAlert(sim, dep), 30)).toBe(true);
     expect(catcAlert(sim, dep)?.b.callsign).toBe('EWG2CD');
-    expect(sim.messages.some((m) => /CATC: DLH1AB and EWG2CD/.test(m.text))).toBe(true);
+    // The CATC message follows with the next periodic check.
+    expect(runUntil(sim, () => sim.messages.some((m) => /CATC: DLH1AB and EWG2CD/.test(m.text)), 10)).toBe(true);
     // One stops: no more flashing.
     sim.transmit('DLH1AB hold position');
     expect(runUntil(sim, () => !catcAlert(sim, dep) && !catcAlert(sim, arr), 30)).toBe(true);

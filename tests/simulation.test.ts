@@ -427,8 +427,9 @@ function runSession(sim: Simulation, reached: Map<string, number>, resolved: Map
 describe('stand allocation', () => {
   it('keeps wide-bodies off code C taxilanes and stands', () => {
     const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 42, generateTraffic: false });
+    // Taxilane M east of H is code C: no wide-body on 30-36 / 60-65; the wide-body positions on Apron North and South.
     const wide = sim.freeStands(60.3).map((s) => s.id).sort();
-    expect(wide).toEqual(['105', '106', '107', '71A', '74A']);
+    expect(wide).toEqual(['206', '207', '24A', '26A', '28A', '71A', '74A', '9', '9A']);
   });
 
   it('keeps the stand next to a wide-body free (wingtip clearance)', () => {

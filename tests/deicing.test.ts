@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Aircraft } from '../src/core/aircraft';
 import { findRoute, isRouteError } from '../src/core/airport/routing';
-import { DEICING_MAX_S, deicingActive, needsDeicing } from '../src/core/deicing';
+import { DEICING_MAX_S, deicingActive, freePads, needsDeicing } from '../src/core/deicing';
 import { parseTransmission } from '../src/core/phraseology/parser';
 import { formatScenarioCode, parseScenarioCode, scenarioSetup, type Scenario } from '../src/core/scenario';
 import { Simulation } from '../src/core/simulation';
@@ -96,8 +96,9 @@ describe('de-icing: operations', () => {
 
     sim.transmit('DLH5AB taxi to runway 25');
     expect(runUntil(sim, () => /we require de-icing first/i.test(lastPilotMessage(sim, 'DLH5AB')), 15)).toBe(true);
-    sim.transmit('DLH5AB taxi to de-icing pad DP2 via N');
-    expect(runUntil(sim, () => /taxi to de-icing pad DP2 via N/i.test(lastPilotMessage(sim, 'DLH5AB')), 15)).toBe(true);
+    // DP2 is entered from N eastbound: via L2 and the circle.
+    sim.transmit('DLH5AB taxi to de-icing pad DP2 via L2, N');
+    expect(runUntil(sim, () => /taxi to de-icing pad DP2 via L2, N/i.test(lastPilotMessage(sim, 'DLH5AB')), 15)).toBe(true);
     expect(runUntil(sim, () => ac.deicing === 'inProgress', 900)).toBe(true);
     expect(ac.deicingPad).toBe('DP2');
     expect(statusCode(ac)).toBe('DEICE');
@@ -126,10 +127,13 @@ describe('de-icing: operations', () => {
     expect(a.deicingPad).toBe('DP1');
   }, 30000);
 
-  it('aircraft too large for the pads are de-iced on the stand', () => {
+  it('wide-bodies fit only the large pads DP1 (code E) and DP2 (code F)', () => {
     const sim = simFor('EDDS-25-MB0-X-I-1', { generateTraffic: false });
-    const ac = sim.traffic.spawnDeparture(2, { stand: '105', callsign: 'UAE51', type: 'B788' }) as Aircraft;
-    expect(needsDeicing(sim, ac)).toBe(false);
+    const ac = sim.traffic.spawnDeparture(2, { stand: '206', callsign: 'UAE51', type: 'B788' }) as Aircraft;
+    expect(needsDeicing(sim, ac)).toBe(true);
+    expect(freePads(sim, ac).map((p) => p.name)).toEqual(['DP1', 'DP2']);
+    const narrow = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    expect(freePads(sim, narrow).map((p) => p.name)).toEqual(['DP1', 'DP2', 'DP3', 'DP4']);
   });
 
   it('without the option nothing changes', () => {

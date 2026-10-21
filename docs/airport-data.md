@@ -222,7 +222,7 @@ b.chain('G', 'taxiway', ['S_G', 'G']);
 const area = b.area('Apron South', [[-30, -215], [560, -215], [560, -375], [-30, -375]]);
 ```
 
-`b.nodes`, `b.edges` and the `area(...)` results go straight into the `AirportData`. See `edds.ts` for a complete example.
+`b.nodes`, `b.edges` and the `area(...)` results go straight into the `AirportData`. See `edds.ts` for a complete example; its buildings come from OpenStreetMap (`osm-import.mjs EDDS --buildings-only` writes `edds.buildings.ts`).
 
 ## Importing from OpenStreetMap
 
@@ -231,6 +231,7 @@ const area = b.area('Apron South', [[-30, -215], [560, -215], [560, -375], [-30,
 ```sh
 node scripts/osm-import.mjs EDJA --bbox 10.215,47.975,10.265,48.000   # downloads via the OSM API
 node scripts/osm-import.mjs EDJA --osm edja.osm                        # or from a saved .osm file
+node scripts/osm-import.mjs EDDS --osm map.osm,aerodrome.osm --buildings-only   # only the buildings (merged files)
 ```
 
 It writes `src/data/airports/<icao>.layout.ts` (do not edit by hand): the taxi graph of every way tagged `aeroway=taxiway`/`taxilane` connected to the runway centre line (`aeroway=runway` with a `ref` like `06/24`), reduced to junctions, ends, holding positions and shape points (Douglas-Peucker, `--simplify` metres, default 2.5); the runway holding positions (`aeroway=holding_position`); stands from `aeroway=parking_position` (the stand point and the lane points where the lead-in lines meet a taxiway; lanes off the graph are snapped onto the nearest taxiway); areas (aprons - ways and multipolygons -, paved taxiway areas `area:aeroway=taxiway`, helipads); buildings (every `building=*` inside the aerodrome boundary `aeroway=aerodrome` or within `--building-margin` metres - default 40 - of an apron or taxiway, multipolygons such as a terminal included, plus terminals, hangars and towers anywhere in the box; named after their `name` tag, unnamed ones get no label); and taxiways not connected to the runway as `pavement` lines (drawn only). Node ids are readable: `N.3` (third node on N), `N/W` (junction), `RWY.N` (where N meets the runway), `HP.<osm id>` (holding positions), `STAND_<id>`. The raw OSM data is not committed.

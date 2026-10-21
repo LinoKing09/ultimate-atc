@@ -24,6 +24,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 | Stand sizes, wide-body positions, pushback / taxi-out stands | AD 2 EDDS 2-7 (AMDT 10/26, code letter markings), the older **Aircraft Parking/Docking Chart** (AMDT 09/13), the stand data of the VATSIM Germany ground radar (EuroScope package `edgg-package`, 2026) - see [Stands](#stands) |
 | De-icing pads DP1-DP4 (position, lead lines, wingspan limits), take-off run available (TORA) from every entry, the current Apron South | VATSIM Germany EuroScope package (`edgg-package`, 2026): its ground radar maps are generated from the AIP data (AIXM). Used as a reference only - positions were read off and converted into the simulator's frame; no files or map content are included |
 | Holding bays P1 / P2 | [OpenStreetMap](https://www.openstreetmap.org/) (the two unnamed links between N and S at the 25 end) |
+| Buildings | [OpenStreetMap](https://www.openstreetmap.org/) - © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/): every building on the aerodrome (terminals 0-4, hangars, cargo, the tower ...), generated with `scripts/osm-import.mjs EDDS --buildings-only` into `edds.buildings.ts` (do not edit by hand) |
 | SIDs | Designators from a public chart index (2026) and the VATSIM Germany vSID configuration; destination restrictions and the radar sectors from the VATSIM Germany Delivery SOP; exit fix positions from public waypoint lists |
 | Frequencies | VATSIM Germany station data (`datahub`, matching the AIP values used before); ATIS from the VATSIM Germany vATIS profile |
 | Magnetic variation | NOAA World Magnetic Model (October 2026) |
@@ -38,9 +39,8 @@ The geometry was **digitised by hand**. Positions were measured on the charts, u
 - on Apron South (layout since AIRAC 2512) the small stands 300-303 and the new 105-107 between 206 and 207 (the simulator has 100-104, 206 and 207),
 - while a de-icing pad is in use, the real operation closes S next to it (I-H for DP1 / DP2, H-F for DP3 / DP4); the simulator does not,
 - the intersection geometry inside the "circle" (the hot spot west of N/S, chart note 1), reduced to one junction node,
-- building outlines, which are rough rectangles,
 - the SIDs: all exit fixes with their 2026 designators (B = runway 25, H = runway 07), but no routes or altitude restrictions; flight plans pick the SID by the direction of the destination (see [SIDs](#sids)). The local SIDs STG / TEDGO and the RNP K-SIDs (runway 07) are not modelled,
-- the initial climb in IFR clearances (5000 ft, `initialClimbFt`), as in the VATSIM Germany SOP (also the German transition altitude),
+- the initial climb in IFR clearances is the published SID altitude (5000 ft, `initialClimbFt`, AIP SID charts; also the transition altitude); the SID routes and their speed and level restrictions are not flown,
 - the squawk codes (a simulator range, not the real code allocation).
 
 

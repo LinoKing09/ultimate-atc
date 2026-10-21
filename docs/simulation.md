@@ -173,7 +173,7 @@ Source: `src/core/delivery.ts`.
 | ---- | ----- |
 | Clearance request | 10 min before the ready time (TOBT); immediately if the aircraft appears later than that. At session start staggered (see [Traffic generation](#traffic-generation)) |
 | DCL equipped | 40 % of the departures with an airline callsign (not German-registered `D-xxxx` aircraft), when DCL is on |
-| Initial climb | from the airport data (`initialClimbFt`, EDDS 5000 ft - a simulator value); 5000 ft if not set |
+| Initial climb | from the airport data (`initialClimbFt`: EDDS 5000 ft, the altitude of every published SID; Nuremberg and Memmingen FL70, Sylt 4000 ft); 5000 ft if not set |
 | Squawk codes | next free code from the octal blocks 2101-2177, 2201-2277, 2301-2377, 2401-2477 (codes ending in 0 skipped; a simulator range, not the real ORCAM allocation). Special codes 7500, 7600, 7700, 7000, 2000, 1000, 0000 are refused |
 | Readback error | 4 % of voice clearances: two digits of the squawk read back swapped. Caught with `squawk <correct code>` (+5); passed with `readback correct` or a hand-off it stays: the crew sets the wrong code (-10) |
 | Crew queries | missing or unknown clearance limit, wrong destination, missing or unknown SID, SID of the wrong runway (`information R says runway 25 in use`) or not leading to the first fix of the flight plan, wrong runway, missing initial climb, missing or invalid squawk |

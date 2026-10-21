@@ -54,7 +54,11 @@ ultimate-atc/
 │   │   └── airports/
 │   │       ├── index.ts       # AIRPORTS: the airports offered in the Connect dialog
 │   │       ├── builder.ts     # helper to author layouts in a runway-aligned frame
-│   │       └── edds.ts        # Stuttgart (layout, stands, runway operations, traffic, briefing)
+│   │       ├── osmLayout.ts   # buildLayout(): taxi graph, stands, pavement lines from an OSM layout
+│   │       ├── edds.ts        # Stuttgart (layout, stands, runway operations, traffic, briefing)
+│   │       ├── edds.buildings.ts  # Stuttgart buildings (generated from OpenStreetMap)
+│   │       ├── eddn.ts, edja.ts, edxw.ts  # Nuremberg, Memmingen, Sylt (options for buildLayout, operations, traffic, briefing)
+│   │       └── *.layout.ts    # layouts generated from OpenStreetMap by scripts/osm-import.mjs
 │   └── ui/                    # browser client
 │       ├── app.ts             # wires sim <-> scope, lists, messages, command line, menus
 │       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input, rotation (runway-aligned / north-up), styles (PHX night / day, classic)
@@ -150,7 +154,7 @@ The goal is any state at `(destination, len(via))`. With an empty `via` list, th
 
 **Closed taxiways** (scenario option): `Airport.closedTaxiways` holds the closed designators; `findRoute` skips every edge of them (taxiway and runway strip, so also their holding points) and fails a `via` list naming one with `taxiway X closed`. Because every caller uses the same `Airport`, AI routes, previews, conflict resolution and follow-me cars all respect it. `closureProblems()` (validate.ts) checks a closure with the same reachability rules as the airport data validation. **Permanently closed** edges (`closed: true` in the airport data, chart crosses) are skipped the same way (`isClosedEdge`); `Airport.outOfServiceTaxiways` lists the designators closed everywhere, so a `via` naming one fails with `taxiway X closed` too. `nearestEdge()` ignores closed edges.
 
-**Pavement drawing**: `core/airport/pavement.ts` joins the taxi edges into chains (through nodes where two edges of the same width meet), rounds them off with the same fillet as the aircraft paths (`Path`, 30 m) and adds junction fillets between neighbouring edges (larger where a taxiway meets the runway). The scope computes it once per session and draws the runway on top, so only the flare outside the runway edge shows.
+**Pavement drawing**: `core/airport/pavement.ts` joins the taxi edges into chains (through nodes where two edges of the same width meet), rounds them off with the same fillet as the aircraft paths (`Path`, 30 m) and adds junction fillets between neighbouring edges (larger where a taxiway meets the runway). The pavement lines of the airport data (paved surfaces outside the taxi graph, `AirportData.pavement`) become chains of their own; closed ones get crosses like closed taxi edges. The scope computes it once per session and draws the runway on top, so only the flare outside the runway edge shows. Building names are placed largest building first and left out where they would overlap.
 
 **Curved edges**: an edge may carry `shape` points. `Airport.polyline(nodes)` expands a node sequence (route, exit path) with them; every path an aircraft or vehicle follows is built that way, and the line-up path follows the shape of the holding point's runway strip. `projectOnEdge()` measures distances to the whole polyline.
 

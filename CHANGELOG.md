@@ -4,21 +4,34 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+Complete layouts for Sylt and Nuremberg and every airport checked against the DFS AIP (AIRAC 2026OCT01: text pages, aerodrome, ground movement, approach and SID charts - used as a reference only, facts read by hand).
+
 ### Added
 
-- **Sylt: every taxiway of the aerodrome chart** (AIP AMDT 06/26): besides A, C, D, I and P now **B** (5.7 t), **E**, **F**, **G** (to the glider site), **L**, **L1** (Apron 3), **L3** (Apron 4), **M** and the lanes of Apron 2, Apron 3 and Apron 4, with their holding points (B, G and L at runway 14/32; M, P, E and F at runway 06/24). Weight-limited taxiways (B, Apron 4: 5.7 t; I: 2 t) are for light aircraft, which the simulator does not have; business jets still use I and P to reach Apron 2.
-- **Nuremberg: the general aviation lanes** S3 (to Apron G2 / G2A), S4 west (FAI apron) and **T2** (aprons U1 / U2).
-- **Buildings and aprons**: the OSM importer now takes every building on the aerodrome (also buildings mapped as multipolygons, such as the Nuremberg terminal, and hangars just outside a boundary drawn too tightly), paved taxiway areas and helipads. Nuremberg shows the terminal, hangars 2-8, Halle A, the maintenance and Aero-Dienst buildings and 70 more; Sylt the Apron 3 and Apron 4 hangars and the general aviation buildings.
-- Airport data: **`pavement`** lines - paved surfaces outside the taxi graph, drawn like taxiways but never routed (links inside a runway strip that would bypass the holding points; closed taxiways that lead nowhere, drawn with crosses and refused by crews). `buildLayout()` options `drawOnly` and `keepNodes` for OSM layouts; taxiways not connected to the runway are drawn as pavement.
-- Airport data: **published approaches per runway end** (`approaches`). A runway without an ILS is flown as an RNP approach whatever the ILS switches say (Approach spaces such arrivals like non-precision approaches, the ATIS reports no ILS outage, the scope labels the centre line `RNP`). Sylt: runway 14 has an RNP approach only (it was flown as an ILS), 32 an ILS.
+- **Sylt: every taxiway of the aerodrome chart** (AMDT 06/26): besides A, C, D, I and P now **B** (5.7 t), **E**, **F**, **G** (to the glider site), **L**, **L1** (Apron 3), **L3** and **M**, the lanes of Apron 2, Apron 3 and Apron 4, with their holding points (B, G and L at runway 14/32; M, P, E and F at runway 06/24). Weight-limited taxiways (B, Apron 4: 5.7 t; I: 2 t) are for light aircraft, which the simulator does not have. **Apron 3** gets business jet positions N1-N3: general aviation from 15 t or 19 m wingspan must park there (AIP); arrivals 32 vacate via L, departures 14 line up from L.
+- **Nuremberg: the general aviation lanes** S3 (to Apron G2 / G2A), S4 west (FAI apron) and **T2** (aprons U1 / U2), code B.
+- **Buildings and aprons**: the OSM importer now takes every building on the aerodrome (also buildings mapped as multipolygons, such as the Nuremberg terminal, and hangars just outside a boundary drawn too tightly), paved taxiway areas and helipads. Nuremberg shows the terminal, hangars 2-8, Halle A, the maintenance and Aero-Dienst buildings and 70 more; Sylt the Apron 3 and Apron 4 hangars and the general aviation buildings; Memmingen 91 buildings instead of 35 (re-imported, the taxi graph is unchanged). **Stuttgart** gets the real building outlines from OpenStreetMap (141 buildings: terminals 0-4, hangars, cargo, the tower ...) instead of a few rough rectangles - `osm-import.mjs --buildings-only` for airports whose taxi graph is built by hand.
+- Airport data: **`pavement`** lines - paved surfaces outside the taxi graph, drawn like taxiways but never routed (links inside a runway strip that would bypass the holding points; closed taxiways that lead nowhere, drawn with crosses and refused by crews). `buildLayout()` options `drawOnly`, `keepNodes` and `edgeMaxWingspanM` (limits that change along a taxiway); taxiways not connected to the runway are drawn as pavement.
+- Airport data: **published approaches per runway end** (`approaches`). A runway without an ILS is flown as an RNP approach whatever the ILS switches say (Approach spaces such arrivals like non-precision approaches, the ATIS reports no ILS outage, the scope labels the centre line `RNP`); a localizer-only approach needs published localizer minima. Sylt: runway 14 has an RNP approach only (it was flown as an ILS). Stuttgart 07: the localizer approach is for aircraft up to 5.7 t, so airliners fly RNP when the ILS 07 fails.
+- Stuttgart: intersections **F** (2020 m) and **E** (1400 m) for runway 07; Nuremberg: intersection **D** (1900 m) for runway 10.
 
 ### Changed
 
+- **AIP declared distances** on every entry: Sylt C 1748 m; Nuremberg A / F 2700, B 1962, E 2300 m; Memmingen W 2630, R 2175, N 1570 m (06) and N 1070 m without the backtrack (24, the crew now says `1070 metres available from N`).
+- **Taxiway widths after the AIP** (AD 2.8): Sylt 15 m (C 12 m), Nuremberg 22.5-23 m (N2 18 m, N4 21 m, the GA lanes 10.5 m), Memmingen R 23 m, N / W 18 m, the south side 12 m, Stuttgart 30 m for the main taxiways (C, E, G, Y 23 m, W, Z 22.5 m).
+- Code letter limits from the AIP: Stuttgart G, E and C code D (52 m); Nuremberg J code C from F to M4 (code D / E only cross it between M3 and M4 / N4) and code B south of M4; Sylt: business jets of 19 m and more no longer use Apron 2 and the grass taxiway I.
+- Nuremberg: the link from the east end of the apron to A, B and N2 is **M2** (ground movement chart; was named A).
+- Memmingen: **P is closed west of P4** (crosses on the charts; it was open up to the 06 end), R meets the runway about 475 m from the 06 end (was 455 m).
+- Thresholds, elevations and reference points from the AIP: Sylt (elevation 52 ft, threshold 14 32 ft / 32 31 ft, the ARP on the 14/32 centre line), Nuremberg (1044 ft, thresholds 1020 / 1044 ft), Memmingen (2079 ft, threshold 24 2053 ft).
+- Stuttgart: de-icing pad **DP2** takes code E plus the B747-8 (68.5 m, AIP AD 2.20; was 80 m); KRH also for Pirmasens (ETIP).
 - Building names on the scope: largest buildings first, a name that would overlap another one is left out; unnamed buildings get no label.
+- Briefings and airport pages: approaches, declared distances, hot spots (Sylt M / P at the 06 end, Nuremberg M3 / M2), AIP sources.
 
 ### Fixed
 
-- Sylt: runway 06/24 is 45 m wide (was 30 m).
+- Sylt: runway 06/24 is 45 m wide (was 30 m); the threshold elevations of 14 and 32 were swapped.
+- Nuremberg briefing: the parallel taxiway lies south of the runway (it said north).
+- Memmingen briefing: stand 6 is a taxi-in / taxi-out position in the simulator (it said pushback).
 
 ## [1.2.0] - 2026-10-21
 

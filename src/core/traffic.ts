@@ -255,9 +255,9 @@ export class TrafficGenerator {
       ? preferred
       : this.sim.freeStands(type.wingspanM, (s) => use(s) !== 'cargo', except).concat(this.sim.freeStands(type.wingspanM, (s) => use(s) === 'cargo', except));
     if (!any.length) return undefined;
-    // Keep the wide-body stands (code E-F) available: aircraft up to code D take any stand up to code D,
-    // larger ones the smallest stand that fits.
-    const narrow = any.filter((s) => s.maxWingspanM <= NARROW_STAND_MAX_M);
+    // Keep the wide-body stands (code E-F) and the alternative positions (e.g. 40D over 40) available:
+    // aircraft up to code D take any other stand up to code D, larger ones the smallest stand that fits.
+    const narrow = any.filter((s) => s.maxWingspanM <= NARROW_STAND_MAX_M && !this.sim.airport.alternativeStands.has(s.id.toUpperCase()));
     if (type.wingspanM <= NARROW_STAND_MAX_M && narrow.length) return this.sim.rng.pick(narrow);
     const minSpan = Math.min(...any.map((s) => s.maxWingspanM));
     return this.sim.rng.pick(any.filter((s) => s.maxWingspanM === minSpan));

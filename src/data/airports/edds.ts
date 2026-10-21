@@ -32,7 +32,7 @@ import { RunwayFrameBuilder } from './builder';
  *      93   holding points K I H G F E D C B A (north)
  *       0   [=================== RUNWAY 07/25 ===================]
  *     -90   holding points Y, W (south)
- *    -262   taxiway R / V (Apron South, stands 100-107 at -327)
+ *    -262   taxiway R / V (Apron South, stands 100-104, 206, 207 at about -320)
  */
 
 const RWY_07_END = { lat: 48.685699462890625, lon: 9.200130462646484 };
@@ -485,7 +485,6 @@ export const EDDS: AirportData = {
   transitionAltitudeFt: 5000,
   // Initial climb used in clearances (simulator value, equal to the transition altitude).
   initialClimbFt: 5000,
-  // Stand sizes: code C on Apron North except the wide-body positions 71A / 74A; Apron South 105-107 wide-body.
   dataNotice:
     'Layout digitised by hand from the AIP Germany aerodrome charts (AD 2 EDDS 2-5 / 2-7, AMDT 10/26), accuracy about +-10 m; some areas simplified; holding bays P1/P2 and de-icing pads DP1-DP4 at estimated positions. Not for real-world navigation.',
   // De-icing pads DP1-DP4 (see the de-icing comment above).

@@ -73,6 +73,9 @@ export interface DeicingPad {
   maxWingspanM: number;
 }
 
+/** Stands whose centres are closer than this (m) share their space: the larger one is an alternative position. */
+const ALTERNATIVE_STAND_M = 25;
+
 const DEFAULT_WIDTH: Record<TaxiEdgeKind, number> = {
   taxiway: 23,
   taxilane: 20,
@@ -105,6 +108,11 @@ export class Airport {
   readonly outOfServiceTaxiways = new Set<string>();
   /** De-icing pads (empty if the airport has none). */
   readonly deicingPads: DeicingPad[];
+  /**
+   * Alternative positions: stands that overlap a smaller stand (e.g. the wide-body position 71A over 71
+   * and 72, or 40D over 40), used for aircraft that need them.
+   */
+  readonly alternativeStands = new Set<string>();
 
   constructor(readonly data: AirportData) {
     this.proj = new LocalProjection(data.arp);
@@ -179,6 +187,11 @@ export class Airport {
           widthM: rwy.widthM,
         });
       }
+    }
+
+    const stands = [...this.stands.values()];
+    for (const a of stands) {
+      if (stands.some((b) => b !== a && b.maxWingspanM < a.maxWingspanM && distance(a.pos, b.pos) < ALTERNATIVE_STAND_M)) this.alternativeStands.add(a.id.toUpperCase());
     }
 
     this.deicingPads = (data.deicingPads ?? []).map((p) => ({ ...p, node: this.node(p.node) }));

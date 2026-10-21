@@ -73,14 +73,16 @@ export function renderBriefing(sim: Simulation): HTMLElement {
     const pads = sim.airport.deicingPads;
     now.push([
       'De-icing',
-      `Every departure up to ${Math.max(...pads.map((p) => p.maxWingspanM))} m wingspan is de-iced on ${pads.map((p) => p.name).join(', ')} before take-off (${DEICING_MIN_S / 60}-${DEICING_MAX_S / 60} min, wide-bodies longer; larger aircraft on their stand). ` +
+      `Every departure up to ${Math.max(...pads.map((p) => p.maxWingspanM))} m wingspan is de-iced on ${pads.map((p) => `${p.name} (max. ${p.maxWingspanM} m)`).join(', ')} before take-off (${DEICING_MIN_S / 60}-${DEICING_MAX_S / 60} min, wide-bodies longer; larger aircraft on their stand). ` +
         `Taxi it to a pad first ("taxi to de-icing pad ${pads[0].name} via ..."); it reports "de-icing complete, ready for taxi". Crews refuse the runway before.`,
     ]);
   }
   if (sim.storm) now.push(['Weather', sim.storm.phase === 'overhead' ? 'Thunderstorm overhead: no pushbacks, no take-offs, windshear on final.' : 'Thunderstorm approaching.']);
   if (ops) {
-    const full = ops.departureEntries.filter((e) => e.fullLength).map((e) => e.holdingPoint);
-    const inter = ops.departureEntries.filter((e) => !e.fullLength).map((e) => e.holdingPoint);
+    // With the take-off run available where it is published.
+    const entry = (e: (typeof ops.departureEntries)[number]) => `${e.holdingPoint}${e.toraM !== undefined ? ` ${e.toraM} m` : ''}`;
+    const full = ops.departureEntries.filter((e) => e.fullLength).map(entry);
+    const inter = ops.departureEntries.filter((e) => !e.fullLength).map(entry);
     now.push(['Departures', `full length ${full.join(' / ') || '-'}${inter.length ? `; intersections ${inter.join(', ')} (ask "able" first)` : ''}`]);
     now.push(['Arrival exits', ops.exits.map((x) => `${x.name}${x.rapid ? ' (rapid)' : ''}`).join(', ')]);
     if (ops.flows?.length) now.push(['Taxi flows', ops.flows.map((f) => `${f.taxiway} ${f.direction}bound`).join(', ')]);

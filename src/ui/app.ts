@@ -5,7 +5,7 @@ import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { parseTransmission } from '../core/phraseology/parser';
 import { acknowledgeCatc, catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
-import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, sendDcl, suggestedSid } from '../core/delivery';
+import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, sendDcl, sidsForDestination, suggestedSid } from '../core/delivery';
 import { formatSidClimb } from '../core/phraseology/format';
 import { previewTaxi } from '../core/pilot';
 import type { SystemId } from '../core/systems';
@@ -19,7 +19,7 @@ import { minutesToHhmm } from '../core/time';
 import { windWords } from '../core/weather';
 import type { TutorialRunner } from '../core/tutorial';
 import { TutorialPanel } from './tutorialPanel';
-import { arrivalList, departureList, VehicleList } from './lists';
+import { arrivalList, departureList, VehicleList, type ListItem, type TrafficList } from './lists';
 import { vehicleTel, type Vehicle } from '../core/vehicles';
 import { PopupMenu, type MenuItem } from './menu';
 import { Scope, type TagItem } from './scope';
@@ -46,7 +46,7 @@ const VOICE_ENABLED = false;
 export class App {
   private readonly scope: Scope;
   private readonly menu = new PopupMenu();
-  private readonly lists: { el: HTMLElement; update(sim: Simulation, selected?: string): void }[];
+  private readonly lists: (TrafficList | VehicleList)[];
   private readonly messagesEl: HTMLElement;
   private readonly input: CommandInput;
   private readonly targetEl: HTMLElement;
@@ -203,6 +203,7 @@ export class App {
         if (pos) this.scope.centerOn(pos);
       },
       menu: (cs: string, x: number, y: number) => this.openMenu(cs, x, y),
+      cell: (cs: string, item: ListItem, x: number, y: number) => this.onListCell(cs, item, x, y),
     };
     this.lists = [departureList(listCb), arrivalList(listCb), new VehicleList(listCb)];
     for (const l of this.lists) this.main.append(l.el);
@@ -249,7 +250,7 @@ export class App {
     // ---------------------------------------------------------------- comms
     this.messagesEl = h('div.messages');
     this.targetEl = h('span.target');
-    this.input = new CommandInput('Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help');
+    this.input = new CommandInput('Type an instruction - F1 for help');
     this.previewEl = h('span.preview');
     this.micButton = h('button.mic', { text: 'MIC', title: 'Push-to-talk: hold MIC (or the ^ / ` key, Right Ctrl, Insert) while you speak - or tap MIC to start and tap again to stop' });
     const clearBtn = h('button.clear', { text: '\u00d7', title: 'Clear the command line', type: 'button', 'aria-label': 'Clear the command line' });
@@ -504,6 +505,10 @@ export class App {
       for (const l of this.lists) l.el.classList.toggle('collapsed', mobile && window.innerWidth < 900);
     }
     document.documentElement.style.setProperty('--ui-scale', String(s.uiScale));
+    // Scope style: PHX (VATSIM Germany ground radar) or classic; the lists follow with their ground states.
+    this.scope.setStyle(s.scopeStyle);
+    document.body.classList.toggle('phx', s.scopeStyle !== 'classic');
+    for (const l of this.lists) l.statusStyle = this.scope.statusStyle;
     this.scope.touchMode = mobile;
     this.scope.tagScale = s.tagScale * (mobile ? 1.25 : 1);
     this.scope.showAllRoutes = s.showRoutes;
@@ -516,14 +521,22 @@ export class App {
     this.voiceIn.lang = s.voiceLang;
     if (s.density !== this.densitySetting) this.sim.config.density = this.densitySetting = s.density;
     if (s.eventLevel !== this.eventsSetting) this.sim.config.eventLevel = this.eventsSetting = s.eventLevel;
-    this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : this.sim.userTower
-        ? 'Type an instruction, e.g. "DLH5AB line up and wait runway 25" - F1 for help'
-        : this.sim.userControls('GND')
-        ? 'Type an instruction, e.g. "DLH5AB taxi to holding point A via L2, S" - F1 for help'
-        : 'Type an instruction, e.g. "DLH5AB cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312" - F1 for help';
+    this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : `Type an instruction, e.g. "DLH5AB ${this.exampleInstruction()}" - F1 for help`;
     this.quickbarKey = '';
     this.updateQuickbar();
     requestAnimationFrame(() => this.scope.resize());
+  }
+
+  /** An example instruction for the command line, for this airport, runway and position. */
+  private exampleInstruction(): string {
+    const sim = this.sim;
+    if (sim.userTower) return `line up and wait runway ${sim.runway}`;
+    if (sim.userControls(sim.stationFor('ground'))) {
+      const hp = sim.airport.runwayOps(sim.runway)?.departureEntries.find((e) => e.fullLength)?.holdingPoint;
+      return hp ? `taxi to holding point ${hp}` : `taxi to runway ${sim.runway}`;
+    }
+    const sid = sidsForDestination(sim.config.airport, sim.runway, 'EDDF')[0]?.name ?? 'ETASA4B';
+    return `cleared to Frankfurt, ${sid} departure, flight planned route, ${formatSidClimb(initialClimb(sim))}, squawk 2312`;
   }
 
   /** Mobile mode: one-tap buttons for the most common instructions to the selected aircraft. */
@@ -896,11 +909,36 @@ export class App {
     return best;
   }
 
+  /** The aircraft is on your Delivery frequency (clearance, SID and squawk are yours). */
+  private onMyDelivery(ac: Aircraft): boolean {
+    const del = this.sim.stationFor('delivery');
+    return this.sim.isOnMyFrequency(ac) && ac.frequency === del && del !== this.sim.stationFor('ground');
+  }
+
+  /** EuroScope-style list cell functions: like the tag items, plus squawk and clearance flag (Delivery). */
+  private onListCell(cs: string, item: ListItem, x: number, y: number): void {
+    const ac = this.sim.find(cs);
+    if (!ac) {
+      if (this.sim.findVehicle(cs)) this.openMenu(cs, x, y);
+      return;
+    }
+    if (item === 'squawk' || item === 'clearance') {
+      if (this.onMyDelivery(ac)) this.menu.open(`${ac.callsign} - clearance`, this.deliveryItems(ac), x, y);
+      else this.menu.open(`${ac.callsign} - ${this.sim.tel(ac).toUpperCase()}`, this.flightPlanItems(ac), x, y);
+      return;
+    }
+    this.onTagItem(cs, item, x, y);
+  }
+
   /** EuroScope-style tag item functions. */
   private onTagItem(cs: string, item: TagItem, x: number, y: number): void {
     const ac = this.sim.find(cs);
     if (!ac) return;
-    if (item === 'callsign' || item === 'type') {
+    if (item === 'sid') {
+      // The SID: on your Delivery frequency the clearance menu, otherwise the flight plan.
+      if (this.onMyDelivery(ac)) this.menu.open(`${ac.callsign} - clearance`, this.deliveryItems(ac), x, y);
+      else this.menu.open(`${ac.callsign} - ${this.sim.tel(ac).toUpperCase()}`, this.flightPlanItems(ac), x, y);
+    } else if (item === 'callsign' || item === 'type') {
       this.menu.open(`${ac.callsign} - ${this.sim.tel(ac).toUpperCase()}`, this.flightPlanItems(ac), x, y);
     } else if (item === 'target') {
       if (!this.sim.isOnMyFrequency(ac)) return;

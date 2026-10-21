@@ -2,13 +2,31 @@ import type { Aircraft } from '../core/aircraft';
 import type { Simulation } from '../core/simulation';
 import { formatDuration, h } from './dom';
 import { hhmm } from '../core/delivery';
-import { clearedTo, requestLabel, statusCode } from './labels';
+import { clearedTo, requestLabel, statusCode, type StatusStyle } from './labels';
+import type { TagItem } from './scope';
+
+/** Cell functions of the lists: the tag items plus the squawk and the clearance flag. */
+export type ListItem = TagItem | 'squawk' | 'clearance';
+
+interface Column {
+  key: string;
+  label: string;
+  cls?: string;
+  /** Clicking the cell opens this function (EuroScope list items), e.g. the SID or the taxi menu. */
+  item?: ListItem;
+  get: (ac: Aircraft, sim: Simulation, style: StatusStyle) => string;
+}
 
 /**
- * EuroScope-style departure and arrival lists. Rows are clickable (select)
- * and double-clickable (centre the scope on the aircraft).
+ * EuroScope-style departure and arrival lists (column order as in the VATSIM Germany profile: the
+ * request with its waiting time first). Rows are clickable (select) and double-clickable (centre the
+ * scope on the aircraft); cells with a function (callsign, SID, squawk, clearance, taxi, status) open
+ * it like the items of a data tag.
  */
 export class TrafficList {
+  /** Ground state names (follows the scope style). */
+  statusStyle: StatusStyle = 'phx';
+
   readonly el: HTMLElement;
   private readonly tbody: HTMLTableSectionElement;
   private readonly countEl: HTMLElement;
@@ -16,7 +34,7 @@ export class TrafficList {
 
   constructor(
     title: string,
-    private readonly columns: { key: string; label: string; cls?: string; get: (ac: Aircraft, sim: Simulation) => string }[],
+    private readonly columns: Column[],
     private readonly filter: (ac: Aircraft) => boolean,
     private readonly cb: ListCallbacks,
     position: { left?: string; right?: string; top: string },
@@ -29,6 +47,7 @@ export class TrafficList {
     this.tbody = h('tbody');
     const table = h('table', {}, h('thead', {}, h('tr', {}, ...columns.map((c) => h('th', { text: c.label })))), this.tbody);
     this.el = h('div.panel', {}, titleBar, h('div.body', {}, table));
+    this.el.classList.add(title.toLowerCase());
     Object.assign(this.el.style, position);
     collapse.addEventListener('click', () => this.el.classList.toggle('collapsed'));
     makeDraggable(this.el, titleBar);
@@ -58,7 +77,7 @@ export class TrafficList {
         return {
           key: ac.callsign,
           cls: [ac.callsign === selected ? 'selected' : '', mine ? '' : 'other', req ? 'request' : '', late ? 'late' : ''].filter(Boolean).join(' '),
-          cells: this.columns.map((c) => ({ text: c.get(ac, sim), cls: c.cls ?? '' })),
+          cells: this.columns.map((c) => ({ text: c.get(ac, sim, this.statusStyle), cls: [c.cls, c.item ? 'fn' : ''].filter(Boolean).join(' '), item: c.item })),
         };
       }),
       this.cb,
@@ -66,7 +85,13 @@ export class TrafficList {
   }
 }
 
-type ListCallbacks = { select(cs: string): void; center(cs: string): void; menu(cs: string, x: number, y: number): void };
+type ListCallbacks = {
+  select(cs: string): void;
+  center(cs: string): void;
+  menu(cs: string, x: number, y: number): void;
+  /** A cell with a function was clicked. */
+  cell?(cs: string, item: ListItem, x: number, y: number): void;
+};
 
 /**
  * Updates table rows in place, keyed by callsign. Rows are never re-created
@@ -76,7 +101,7 @@ type ListCallbacks = { select(cs: string): void; center(cs: string): void; menu(
 function syncRows(
   tbody: HTMLTableSectionElement,
   rows: Map<string, HTMLTableRowElement>,
-  data: { key: string; cls: string; cells: { text: string; cls: string }[] }[],
+  data: { key: string; cls: string; cells: { text: string; cls: string; item?: ListItem }[] }[],
   cb: ListCallbacks,
 ): void {
   const keep = new Set(data.map((d) => d.key));
@@ -92,7 +117,11 @@ function syncRows(
     if (!tr) {
       const cs = d.key;
       tr = h('tr');
-      tr.addEventListener('click', () => cb.select(cs));
+      tr.addEventListener('click', (e) => {
+        cb.select(cs);
+        const item = (e.target as HTMLElement).closest<HTMLElement>('td[data-item]')?.dataset.item as ListItem | undefined;
+        if (item) cb.cell?.(cs, item, e.clientX, e.clientY);
+      });
       tr.addEventListener('dblclick', () => cb.center(cs));
       tr.addEventListener('contextmenu', (e) => {
         e.preventDefault();
@@ -107,6 +136,10 @@ function syncRows(
       const td = tr.cells[j] ?? tr.appendChild(h('td'));
       if (td.textContent !== c.text) td.textContent = c.text;
       if (td.className !== c.cls) td.className = c.cls;
+      if ((td.dataset.item ?? '') !== (c.item ?? '')) {
+        if (c.item) td.dataset.item = c.item;
+        else delete td.dataset.item;
+      }
     });
     if (tbody.children[i] !== tr) tbody.insertBefore(tr, tbody.children[i] ?? null);
   });
@@ -144,22 +177,24 @@ export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]):
   return new TrafficList(
     'DEPARTURES',
     [
-      { key: 'cs', label: 'C/S', cls: 'cs', get: csCell },
-      { key: 'type', label: 'TYPE', get: (a) => `${a.type.icao}/${a.type.wake}` },
-      { key: 'stand', label: 'STD', get: (a) => a.stand ?? '' },
-      { key: 'ades', label: 'ADES', get: (a) => a.flightPlan.destination },
-      { key: 'sid', label: 'SID', get: (a) => a.flightPlan.sid ?? '' },
-      { key: 'rwy', label: 'RWY', get: (a) => a.flightPlan.runway ?? '' },
-      { key: 'ifr', label: 'IFR', get: (a) => (a.cleared ? 'CLR' : '') },
-      { key: 'sq', label: 'SQ', get: (a) => a.flightPlan.squawk },
+      { key: 'req', label: 'REQ', cls: 'req', item: 'status', get: reqCell },
+      { key: 'cs', label: 'C/S', cls: 'cs', item: 'callsign', get: csCell },
+      { key: 'stand', label: 'STND', get: (a) => a.stand ?? '' },
       { key: 'tsat', label: 'TSAT', get: (a, sim) => (a.tsat !== undefined && sim.systemOn('acdm') ? hhmm(sim, a.tsat) : '') },
       { key: 'ctot', label: 'CTOT', cls: 'ctot', get: (a, sim) => (a.ctot !== undefined ? hhmm(sim, a.ctot) : '') },
-      { key: 'clr', label: 'TAXI', get: (a) => clearedTo(a) },
+      { key: 'type', label: 'ATYP', item: 'type', get: (a) => a.type.icao },
+      { key: 'wtc', label: 'W', get: (a) => a.type.wake },
+      { key: 'ades', label: 'ADES', get: (a) => a.flightPlan.destination },
+      { key: 'rwy', label: 'RWY', get: (a) => a.flightPlan.runway ?? '' },
+      { key: 'sid', label: 'SID', item: 'sid', get: (a) => a.flightPlan.sid ?? '' },
+      { key: 'sq', label: 'ASSR', item: 'squawk', get: (a) => a.flightPlan.squawk },
+      // Clearance flag (EuroScope "C"): the IFR clearance has been given.
+      { key: 'clr', label: 'C', cls: 'flag', item: 'clearance', get: (a) => (a.cleared ? '\u2713' : '') },
       // Earliest intersection the crew accepts (COORD: Ground asks every departure).
       { key: 'int', label: 'INT', get: (a) => a.earliestIntersection ?? '' },
-      { key: 'sts', label: 'STS', get: (a) => statusCode(a) },
+      { key: 'taxi', label: 'TAXI', item: 'target', get: (a) => clearedTo(a) },
+      { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, style) => statusCode(a, style) },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
-      { key: 'req', label: 'REQ', cls: 'req', get: reqCell },
     ],
     (a) => a.category === 'departure' && a.phase !== 'climb' && a.phase !== 'gone',
     cb,
@@ -192,6 +227,14 @@ export class VehicleList {
   }
 
   private readonly cb: ConstructorParameters<typeof TrafficList>[3];
+
+  get statusStyle(): StatusStyle {
+    return this.tows.statusStyle;
+  }
+
+  set statusStyle(style: StatusStyle) {
+    this.tows.statusStyle = style;
+  }
 
   update(sim: Simulation, selected?: string): void {
     this.tows.update(sim, selected);
@@ -230,14 +273,14 @@ function towList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList 
   return new TrafficList(
     'VEHICLES',
     [
-      { key: 'cs', label: 'C/S', cls: 'cs', get: csCell },
+      { key: 'req', label: 'REQ', cls: 'req', item: 'status', get: reqCell },
+      { key: 'cs', label: 'C/S', cls: 'cs', item: 'callsign', get: csCell },
       { key: 'acft', label: 'ACFT', get: (a) => a.tow?.aircraft ?? '' },
-      { key: 'type', label: 'TYPE', get: (a) => a.type.icao },
+      { key: 'type', label: 'ATYP', get: (a) => a.type.icao },
       { key: 'from', label: 'FROM', get: (a) => a.tow?.from ?? '' },
       { key: 'to', label: 'TO', get: (a) => a.tow?.to ?? '' },
-      { key: 'sts', label: 'STS', get: (a) => statusCode(a) },
+      { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, style) => statusCode(a, style) },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
-      { key: 'req', label: 'REQ', cls: 'req', get: reqCell },
     ],
     (a) => a.category === 'tow' && a.phase !== 'gone' && a.phase !== 'arrived',
     cb,
@@ -249,8 +292,10 @@ export function arrivalList(cb: ConstructorParameters<typeof TrafficList>[3]): T
   return new TrafficList(
     'ARRIVALS',
     [
-      { key: 'cs', label: 'C/S', cls: 'cs', get: csCell },
-      { key: 'type', label: 'TYPE', get: (a) => `${a.type.icao}/${a.type.wake}` },
+      { key: 'req', label: 'REQ', cls: 'req', item: 'status', get: reqCell },
+      { key: 'cs', label: 'C/S', cls: 'cs', item: 'callsign', get: csCell },
+      { key: 'type', label: 'ATYP', item: 'type', get: (a) => a.type.icao },
+      { key: 'wtc', label: 'W', get: (a) => a.type.wake },
       { key: 'adep', label: 'ADEP', get: (a) => a.flightPlan.departure },
       { key: 'rwy', label: 'RWY', get: (a) => a.runway ?? '' },
       { key: 'apch', label: 'APCH', get: (a, sim) => (a.phase === 'approach' ? sim.approachType : '') },
@@ -270,10 +315,9 @@ export function arrivalList(cb: ConstructorParameters<typeof TrafficList>[3]): T
         label: 'DIST',
         get: (a, sim) => (a.phase === 'approach' ? `${sim.distanceToThresholdNm(a).toFixed(1)}nm` : a.exitName ?? ''),
       },
-      { key: 'std', label: 'STD', get: (a) => (a.phase === 'arrived' ? a.stand ?? '' : clearedTo(a) || (a.assignedStand ? `(${a.assignedStand})` : '')) },
-      { key: 'sts', label: 'STS', get: (a) => statusCode(a) },
+      { key: 'std', label: 'STND', item: 'target', get: (a) => (a.phase === 'arrived' ? a.stand ?? '' : clearedTo(a) || (a.assignedStand ? `(${a.assignedStand})` : '')) },
+      { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, style) => statusCode(a, style) },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
-      { key: 'req', label: 'REQ', cls: 'req', get: reqCell },
     ],
     (a) => a.category === 'arrival' && a.phase !== 'gone' && a.phase !== 'goAround',
     cb,

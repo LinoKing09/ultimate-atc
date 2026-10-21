@@ -120,6 +120,15 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
             ['north', 'North up'],
           ], (v) => (settings.runwayAligned = v === 'runway')),
         ],
+        [
+          'Scope style',
+          select(settings.scopeStyle, [
+            ['phx-night', 'PHX night (VATSIM Germany)'],
+            ['phx-day', 'PHX day (VATSIM Germany)'],
+            ['classic', 'Classic'],
+          ], (v) => (settings.scopeStyle = v)),
+          'PHX: the EuroScope ground radar of VATSIM Germany, modelled on the DFS PHOENIX tower display - departures blue, arrivals yellow, radar returns with an SSR symbol and history dots, PHX ground states (SUG, PBG, TXG, TX, ALU, DEP, ONB)',
+        ],
         ['Show cleared routes', check('showRoutes')],
       ),
       ...(voice.hidden

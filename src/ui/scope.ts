@@ -4,14 +4,65 @@ import type { Aircraft } from '../core/aircraft';
 import { catcAlert } from '../core/conflicts';
 import { KT_TO_MS, M_PER_NM, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
 import type { Simulation } from '../core/simulation';
-import { clearedTo, statusCode } from './labels';
+import { clearedTo, statusCode, type StatusStyle } from './labels';
 
 /**
  * The ground radar scope: draws the aerodrome chart, aircraft symbols and
  * data tags, and handles panning, zooming, selection and tag dragging.
  */
 
-const C = {
+/** Colours of the scope. The PHX styles follow the VATSIM Germany ground radar maps (DFS PHOENIX look). */
+interface ScopeTheme {
+  /** PHX: radar returns with an SSR symbol, history dots, departures / arrivals in their colours, label boxes. */
+  phx: boolean;
+  background: string;
+  apron: string;
+  taxiway: string;
+  taxiwayEdge: string;
+  centreline: string;
+  standLine: string;
+  runway: string;
+  runwayMark: string;
+  building: string;
+  buildingEdge: string;
+  buildingLabel: string;
+  closedCross: string;
+  holdBar: string;
+  /** De-icing pads. */
+  deicing: string;
+  /** Taxiway designators. */
+  label: string;
+  labelBg: string;
+  standLabel: string;
+  scaleBar: string;
+  route: string;
+  routeOther: string;
+  previewOk: string;
+  previewErr: string;
+  centrelineActive: string;
+  centrelineOther: string;
+  followMe: string;
+  /** Targets and tags: on your frequency / not (classic), departures / arrivals / others (PHX). */
+  mine: string;
+  other: string;
+  departure: string;
+  arrival: string;
+  unknown: string;
+  /** Radar return (raw video) of the aircraft (PHX). */
+  rawVideo: string;
+  /** Background of a data tag (PHX) and of the selected one. */
+  tagBg: string;
+  tagBgSelected: string;
+  /** A request flashes between the tag colour and this one; late requests in `late`. */
+  request: string;
+  late: string;
+  danger: string;
+  emergency: string;
+  selected: string;
+}
+
+const CLASSIC: ScopeTheme = {
+  phx: false,
   background: '#26343a',
   apron: '#36444a',
   taxiway: '#4a5a60',
@@ -22,20 +73,29 @@ const C = {
   runwayMark: '#d9dcdc',
   building: '#5b5249',
   buildingEdge: '#7c7064',
+  buildingLabel: '#b3a797',
   closedCross: 'rgba(15, 18, 19, 0.85)',
   holdBar: '#e0b52a',
+  deicing: '#93a6ab',
   label: '#e3c548',
   labelBg: 'rgba(20, 24, 26, 0.85)',
   standLabel: '#93a6ab',
+  scaleBar: '#9fb0b5',
   route: 'rgba(111, 227, 255, 0.85)',
   routeOther: 'rgba(160, 190, 200, 0.45)',
   previewOk: 'rgba(123, 220, 143, 0.9)',
   previewErr: 'rgba(255, 90, 90, 0.9)',
-  mine: '#e8f0f0',
   centrelineActive: 'rgba(111, 227, 255, 0.55)',
   centrelineOther: 'rgba(160, 190, 200, 0.28)',
   followMe: '#f5d332',
+  mine: '#e8f0f0',
   other: '#8d9ba1',
+  departure: '#e8f0f0',
+  arrival: '#e8f0f0',
+  unknown: '#8d9ba1',
+  rawVideo: '#e8f0f0',
+  tagBg: 'rgba(0, 0, 0, 0)',
+  tagBgSelected: 'rgba(111, 227, 255, 0.12)',
   request: '#ffcf4d',
   late: '#ff7b54',
   danger: '#ff5a5a',
@@ -43,11 +103,102 @@ const C = {
   selected: '#6fe3ff',
 };
 
+/** VATSIM Germany PHX night palette (GRP maps: layout colours, label and raw video colours). */
+const PHX_NIGHT: ScopeTheme = {
+  phx: true,
+  background: 'rgb(18, 28, 20)',
+  apron: 'rgb(29, 29, 29)',
+  taxiway: 'rgb(53, 53, 53)',
+  taxiwayEdge: 'rgb(53, 53, 53)',
+  centreline: 'rgba(117, 111, 77, 0.95)',
+  standLine: 'rgba(117, 111, 77, 0.7)',
+  runway: 'rgb(78, 78, 78)',
+  runwayMark: 'rgb(150, 150, 150)',
+  building: 'rgb(43, 49, 50)',
+  buildingEdge: 'rgb(56, 63, 65)',
+  buildingLabel: 'rgb(150, 150, 150)',
+  closedCross: 'rgb(185, 59, 46)',
+  holdBar: 'rgb(193, 121, 4)',
+  deicing: 'rgb(90, 109, 156)',
+  label: 'rgb(220, 220, 220)',
+  labelBg: 'rgba(18, 28, 20, 0.6)',
+  standLabel: 'rgb(180, 180, 180)',
+  scaleBar: 'rgb(180, 180, 180)',
+  route: 'rgba(111, 227, 255, 0.85)',
+  routeOther: 'rgba(160, 190, 200, 0.45)',
+  previewOk: 'rgba(123, 220, 143, 0.9)',
+  previewErr: 'rgba(255, 90, 90, 0.9)',
+  centrelineActive: 'rgba(200, 200, 200, 0.55)',
+  centrelineOther: 'rgba(150, 150, 150, 0.28)',
+  followMe: '#f5d332',
+  mine: 'rgb(250, 250, 250)',
+  other: 'rgb(150, 150, 150)',
+  departure: 'rgb(72, 184, 251)',
+  arrival: 'rgb(244, 202, 3)',
+  unknown: 'rgb(0, 181, 27)',
+  rawVideo: 'rgb(161, 192, 76)',
+  tagBg: 'rgba(24, 24, 24, 0.78)',
+  tagBgSelected: 'rgba(50, 50, 50, 0.95)',
+  request: 'rgb(255, 255, 255)',
+  late: 'rgb(255, 120, 0)',
+  danger: '#ff5a5a',
+  emergency: '#ff5cf0',
+  selected: 'rgb(255, 255, 255)',
+};
+
+/** VATSIM Germany PHX day palette. */
+const PHX_DAY: ScopeTheme = {
+  ...PHX_NIGHT,
+  background: 'rgb(169, 199, 170)',
+  apron: 'rgb(210, 210, 210)',
+  taxiway: 'rgb(195, 195, 195)',
+  taxiwayEdge: 'rgb(195, 195, 195)',
+  centreline: 'rgba(167, 163, 116, 0.95)',
+  standLine: 'rgba(167, 163, 116, 0.8)',
+  runway: 'rgb(180, 180, 180)',
+  runwayMark: 'rgb(235, 235, 235)',
+  building: 'rgb(185, 185, 185)',
+  buildingEdge: 'rgb(160, 160, 160)',
+  buildingLabel: 'rgb(80, 80, 80)',
+  closedCross: 'rgb(127, 72, 72)',
+  holdBar: 'rgb(176, 82, 0)',
+  label: 'rgb(30, 30, 30)',
+  labelBg: 'rgba(210, 210, 210, 0.6)',
+  standLabel: 'rgb(80, 80, 80)',
+  scaleBar: 'rgb(60, 60, 60)',
+  route: 'rgba(0, 110, 160, 0.85)',
+  routeOther: 'rgba(60, 80, 90, 0.5)',
+  previewOk: 'rgba(20, 140, 50, 0.9)',
+  previewErr: 'rgba(200, 30, 30, 0.9)',
+  centrelineActive: 'rgba(60, 60, 60, 0.6)',
+  centrelineOther: 'rgba(80, 80, 80, 0.3)',
+  mine: 'rgb(20, 20, 20)',
+  other: 'rgb(90, 90, 90)',
+  departure: 'rgb(48, 81, 163)',
+  arrival: 'rgb(91, 94, 1)',
+  unknown: 'rgb(12, 89, 25)',
+  rawVideo: 'rgb(107, 143, 155)',
+  tagBg: 'rgba(235, 235, 235, 0.8)',
+  tagBgSelected: 'rgba(255, 255, 255, 0.95)',
+  request: 'rgb(255, 113, 8)',
+  late: 'rgb(200, 0, 0)',
+  danger: 'rgb(200, 0, 0)',
+  emergency: 'rgb(166, 0, 61)',
+  selected: 'rgb(0, 0, 0)',
+};
+
+export type ScopeStyle = 'phx-night' | 'phx-day' | 'classic';
+const THEMES: Record<ScopeStyle, ScopeTheme> = { 'phx-night': PHX_NIGHT, 'phx-day': PHX_DAY, classic: CLASSIC };
+
+/** Number of history dots behind a moving target (PHX) and the time between them (simulation seconds). */
+const HISTORY_DOTS = 5;
+const HISTORY_INTERVAL_S = 2;
+
 /** Clickable items of a data tag (EuroScope style). */
 /** Distance between repeated designators along long taxiways (metres). */
 const LABEL_REPEAT_SPACING = 600;
 
-export type TagItem = 'callsign' | 'type' | 'target' | 'status';
+export type TagItem = 'callsign' | 'type' | 'target' | 'status' | 'sid';
 
 export interface ScopeCallbacks {
   onSelect(callsign: string | undefined): void;
@@ -92,6 +243,12 @@ export class Scope {
   touchMode = false;
   /** Size factor of the data tags. */
   tagScale = 1;
+  /** Colours (see `setStyle`). */
+  private t: ScopeTheme = PHX_NIGHT;
+  /** Ground state names in the tags. */
+  statusStyle: StatusStyle = 'phx';
+  /** Recent positions of the targets (PHX history dots), newest last, with the time of the last sample. */
+  private readonly history = new Map<string, { at: number; points: Vec2[] }>();
 
   private drag?: {
     mode: 'pan' | 'tag';
@@ -156,6 +313,16 @@ export class Scope {
 
   get runwayAligned(): boolean {
     return this.viewHeading !== 0;
+  }
+
+  /** Scope style: the PHX palettes (VATSIM Germany) or the classic one. */
+  setStyle(style: ScopeStyle): void {
+    this.t = THEMES[style] ?? PHX_NIGHT;
+    this.statusStyle = this.t.phx ? 'phx' : 'euroscope';
+  }
+
+  get isPhx(): boolean {
+    return this.t.phx;
   }
 
   resetView(): void {
@@ -425,7 +592,7 @@ export class Scope {
       const n = { x: -out.y, y: out.x };
       const a = this.toScreen(end.threshold);
       const b = this.toScreen(add(end.threshold, scale(out, lengthNm * M_PER_NM)));
-      ctx.strokeStyle = active ? C.centrelineActive : C.centrelineOther;
+      ctx.strokeStyle = active ? this.t.centrelineActive : this.t.centrelineOther;
       ctx.lineWidth = 1;
       ctx.setLineDash(active ? [] : [6, 6]);
       ctx.beginPath();
@@ -445,7 +612,7 @@ export class Scope {
       }
       if (active && !this.sim.systemOn('loc')) {
         // No localizer: label the line so nobody takes it for an ILS course.
-        ctx.fillStyle = C.centrelineOther;
+        ctx.fillStyle = this.t.centrelineOther;
         ctx.font = '10px Consolas, Menlo, monospace';
         const lbl = this.toScreen(add(end.threshold, scale(out, 3 * M_PER_NM)));
         ctx.fillText('LOC U/S', lbl.x + 6, lbl.y - 6);
@@ -476,7 +643,7 @@ export class Scope {
     const ctx = this.ctx;
     const z = this.zoom;
     ctx.save();
-    ctx.strokeStyle = C.closedCross;
+    ctx.strokeStyle = this.t.closedCross;
     ctx.lineWidth = Math.max(1, Math.min(2.5, 3 * z));
     ctx.lineCap = 'round';
     const half = Math.max(2.5, 9 * z);
@@ -560,7 +727,7 @@ export class Scope {
       }
     };
 
-    for (const a of ap.areas) poly(a.polygon, C.apron);
+    for (const a of ap.areas) poly(a.polygon, this.t.apron);
 
     // Taxiways: rounded chains and junction fillets (see core/airport/pavement.ts), edge colour first.
     ctx.lineCap = 'round';
@@ -569,7 +736,7 @@ export class Scope {
     for (const pass of [0, 1]) {
       for (const st of strokes) {
         this.polylinePath(st.points);
-        ctx.strokeStyle = pass === 0 ? C.taxiwayEdge : C.taxiway;
+        ctx.strokeStyle = pass === 0 ? this.t.taxiwayEdge : this.t.taxiway;
         ctx.lineWidth = Math.max(pass === 0 ? 3 : 2, st.widthM * z + (pass === 0 ? 2 : 0));
         ctx.stroke();
       }
@@ -582,7 +749,7 @@ export class Scope {
       const w = end.widthM / 2;
       const a = end.start;
       const b = end.farEnd;
-      poly([add(a, scale(n, w)), add(b, scale(n, w)), sub(b, scale(n, w)), sub(a, scale(n, w))], C.runway);
+      poly([add(a, scale(n, w)), add(b, scale(n, w)), sub(b, scale(n, w)), sub(a, scale(n, w))], this.t.runway);
     }
     this.drawExtendedCentrelines();
 
@@ -591,13 +758,13 @@ export class Scope {
     // Centre lines and stand lead-in lines
     if (z > 0.25) {
       ctx.lineWidth = 1;
-      ctx.strokeStyle = C.centreline;
+      ctx.strokeStyle = this.t.centreline;
       for (const st of this.pavement.chains) {
         if (st.closed) continue;
         this.polylinePath(st.points);
         ctx.stroke();
       }
-      ctx.strokeStyle = C.standLine;
+      ctx.strokeStyle = this.t.standLine;
       for (const e of ap.edges) {
         if (e.kind !== 'stand') continue;
         this.edgePath(e);
@@ -609,7 +776,7 @@ export class Scope {
     for (const end of ap.runwayEnds.values()) {
       const u = headingVector(end.heading);
       const n = { x: -u.y, y: u.x };
-      ctx.strokeStyle = C.runwayMark;
+      ctx.strokeStyle = this.t.runwayMark;
       // centre line dashes, drawn once per runway
       if (end.name < (ap.oppositeEnd(end.name)?.name ?? '')) {
         ctx.setLineDash([Math.max(2, 30 * z), Math.max(2, 20 * z)]);
@@ -640,7 +807,7 @@ export class Scope {
       ctx.translate(p.x, p.y);
       // text "up" points along the landing direction, as painted on the runway
       ctx.rotate(this.screenAngle(end.heading));
-      ctx.fillStyle = C.runwayMark;
+      ctx.fillStyle = this.t.runwayMark;
       ctx.font = `bold ${Math.max(10, Math.min(28, 22 * z))}px Consolas, monospace`;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
@@ -649,7 +816,7 @@ export class Scope {
     }
 
     // Buildings
-    for (const b of ap.buildings) poly(b.polygon, C.building, C.buildingEdge);
+    for (const b of ap.buildings) poly(b.polygon, this.t.building, this.t.buildingEdge);
 
     // Holding points
     ctx.font = `${Math.max(9, Math.min(12, 11 * z))}px Consolas, monospace`;
@@ -667,7 +834,7 @@ export class Scope {
       const half = 13;
       const a = this.toScreen(add(node.pos, scale(n, half)));
       const b = this.toScreen(sub(node.pos, scale(n, half)));
-      ctx.strokeStyle = C.holdBar;
+      ctx.strokeStyle = this.t.holdBar;
       ctx.lineWidth = Math.max(2, 2.5 * z);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
@@ -675,7 +842,7 @@ export class Scope {
       ctx.stroke();
       if (z > 0.18) {
         const lp = this.toScreen(add(node.pos, scale(n, half + 14)));
-        this.labelBox(node.holdingPoint!.name, lp.x, lp.y, C.holdBar);
+        this.labelBox(node.holdingPoint!.name, lp.x, lp.y, this.t.holdBar);
       }
     }
 
@@ -687,7 +854,7 @@ export class Scope {
       for (const s of ap.stands.values()) {
         const v = headingVector(s.heading);
         const p = this.toScreen(add(s.pos, scale(v, 22)));
-        ctx.fillStyle = C.standLabel;
+        ctx.fillStyle = this.t.standLabel;
         ctx.fillText(s.id, p.x, p.y);
         const q = this.toScreen(s.pos);
         ctx.fillRect(q.x - 1, q.y - 1, 2, 2);
@@ -702,11 +869,11 @@ export class Scope {
       for (const pad of ap.deicingPads) {
         const p = this.toScreen(pad.node.pos);
         const half = Math.max(4, 18 * z);
-        ctx.strokeStyle = C.standLabel;
+        ctx.strokeStyle = this.t.deicing;
         ctx.lineWidth = 1;
         ctx.strokeRect(p.x - half, p.y - half, half * 2, half * 2);
         if (z > 0.25) {
-          ctx.fillStyle = C.standLabel;
+          ctx.fillStyle = this.t.standLabel;
           ctx.fillText(pad.name, p.x + half + 14, p.y);
         }
       }
@@ -721,14 +888,14 @@ export class Scope {
         // Closed taxiways: designator in red.
         // Closed taxiways: designator in red (session closure) or grey (permanently closed).
         const u = l.name.toUpperCase();
-        this.labelBox(l.name, p.x, p.y, ap.closedTaxiways.has(u) ? '#ff6b6b' : ap.outOfServiceTaxiways.has(u) ? C.standLabel : C.label);
+        this.labelBox(l.name, p.x, p.y, ap.closedTaxiways.has(u) ? '#ff6b6b' : ap.outOfServiceTaxiways.has(u) ? this.t.standLabel : this.t.label);
       }
     }
 
     // Building names
     if (z > 0.3) {
       ctx.font = `${Math.max(9, Math.min(12, 10 * z))}px Consolas, monospace`;
-      ctx.fillStyle = '#b3a797';
+      ctx.fillStyle = this.t.buildingLabel;
       ctx.textAlign = 'center';
       for (const b of ap.buildings) {
         if (b.name === 'Tower') continue;
@@ -745,7 +912,7 @@ export class Scope {
     ctx.textBaseline = 'middle';
     const w = ctx.measureText(text).width + 6;
     const h = 14;
-    ctx.fillStyle = C.labelBg;
+    ctx.fillStyle = this.t.labelBg;
     ctx.fillRect(x - w / 2, y - h / 2, w, h);
     ctx.fillStyle = color;
     ctx.fillText(text, x, y + 1);
@@ -753,19 +920,53 @@ export class Scope {
 
   // ------------------------------------------------------------------ dynamic
 
+  /** Tag colour: PHX by category (departures blue, arrivals yellow, others green), classic by frequency. */
+  private baseColor(ac: Aircraft): string {
+    if (!this.t.phx) return this.sim.isOnMyFrequency(ac) ? this.t.mine : this.t.other;
+    return ac.category === 'departure' ? this.t.departure : ac.category === 'arrival' ? this.t.arrival : this.t.unknown;
+  }
+
   private colorFor(ac: Aircraft, now: number): string {
-    if (ac.incident) return C.danger;
-    if (ac.emergency) return Math.floor(now / 400) % 2 === 0 ? C.emergency : C.mine;
+    const base = this.baseColor(ac);
+    if (ac.incident) return this.t.danger;
+    if (ac.emergency) return Math.floor(now / 400) % 2 === 0 ? this.t.emergency : base;
     // A-SMGCS CATC: aircraft routed head-on flash red - only conflicts that involve your traffic, until acknowledged.
-    if (catcAlert(this.sim, ac)) return Math.floor(now / 350) % 2 === 0 ? C.danger : C.mine;
+    if (catcAlert(this.sim, ac)) return Math.floor(now / 350) % 2 === 0 ? this.t.danger : base;
     const mine = this.sim.isOnMyFrequency(ac);
     // Acknowledged requests ("roger", "standby") do not flash.
     if (mine && ac.request && !ac.requestAck) {
       const late = this.sim.time - ac.requestSince > 60;
       const blink = Math.floor(now / 500) % 2 === 0;
-      return blink ? (late ? C.late : C.request) : C.mine;
+      return blink ? (late ? this.t.late : this.t.request) : base;
     }
-    return mine ? C.mine : C.other;
+    return base;
+  }
+
+  /** PHX: traffic that is not on your frequency is drawn dimmed. */
+  private dimmed(ac: Aircraft): boolean {
+    return this.t.phx && !this.sim.isOnMyFrequency(ac);
+  }
+
+  /** PHX history dots: samples the target positions every few seconds (simulation time). */
+  private updateHistory(list: Aircraft[]): void {
+    const now = this.sim.time;
+    for (const ac of list) {
+      const h = this.history.get(ac.callsign);
+      if (!h) {
+        this.history.set(ac.callsign, { at: now, points: [{ ...ac.pos }] });
+        continue;
+      }
+      if (now - h.at < HISTORY_INTERVAL_S) continue;
+      h.at = now;
+      const last = h.points[h.points.length - 1];
+      if (Math.hypot(ac.pos.x - last.x, ac.pos.y - last.y) < 2) continue;
+      h.points.push({ ...ac.pos });
+      if (h.points.length > HISTORY_DOTS + 1) h.points.shift();
+    }
+    if (this.history.size > list.length + 20) {
+      const live = new Set(list.map((a) => a.callsign));
+      for (const cs of this.history.keys()) if (!live.has(cs)) this.history.delete(cs);
+    }
   }
 
   private drawRoutes(): void {
@@ -785,7 +986,7 @@ export class Scope {
         const p = this.toScreen(pts[i]);
         ctx.lineTo(p.x, p.y);
       }
-      ctx.strokeStyle = sel ? C.route : C.routeOther;
+      ctx.strokeStyle = sel ? this.t.route : this.t.routeOther;
       ctx.lineWidth = sel ? 2 : 1;
       ctx.setLineDash(sel ? [] : [4, 4]);
       ctx.stroke();
@@ -794,7 +995,7 @@ export class Scope {
       for (const st of ac.stops) {
         if (st.s < start) continue;
         const p = this.toScreen(ac.path.pointAt(st.s));
-        ctx.fillStyle = st.kind === 'runway' ? C.danger : st.kind === 'holdShort' ? C.request : sel ? C.route : C.routeOther;
+        ctx.fillStyle = st.kind === 'runway' ? this.t.danger : st.kind === 'holdShort' ? this.t.request : sel ? this.t.route : this.t.routeOther;
         ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
       }
     }
@@ -805,7 +1006,7 @@ export class Scope {
         if (i === 0) ctx.moveTo(s.x, s.y);
         else ctx.lineTo(s.x, s.y);
       });
-      ctx.strokeStyle = this.preview.ok ? C.previewOk : C.previewErr;
+      ctx.strokeStyle = this.preview.ok ? this.t.previewOk : this.t.previewErr;
       ctx.lineWidth = 3;
       ctx.setLineDash([8, 5]);
       ctx.stroke();
@@ -851,13 +1052,15 @@ export class Scope {
     ctx.lineTo(-fw, -L / 2 + 6);
     ctx.quadraticCurveTo(-fw, -L / 2 + 2, 0, -L / 2);
     ctx.closePath();
-    ctx.fillStyle = color;
-    ctx.globalAlpha = ac.onGround ? 0.9 : 0.75;
+    // PHX: the radar return (raw video) in its own colour; the SSR symbol carries the tag colour.
+    ctx.fillStyle = this.t.phx ? this.t.rawVideo : color;
+    ctx.globalAlpha = this.t.phx ? 0.8 : ac.onGround ? 0.9 : 0.75;
     ctx.fill();
     ctx.restore();
+    if (this.t.phx) this.drawSsrSymbol(ac, p, color);
 
     if (ac.callsign === this.selected) {
-      ctx.strokeStyle = C.selected;
+      ctx.strokeStyle = this.t.selected;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.arc(p.x, p.y, Math.max(12, (S * k) / 2 + 4), 0, Math.PI * 2);
@@ -879,6 +1082,26 @@ export class Scope {
   }
 
   /**
+   * PHX target: history dots behind a moving aircraft and the SSR symbol (a small square) at its
+   * position - only with A-SMGCS surveillance (cooperative targets); without it just the raw video.
+   */
+  private drawSsrSymbol(ac: Aircraft, p: Vec2, color: string): void {
+    if (!this.sim.systemOn('surveillance')) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.fillStyle = color;
+    if (this.dimmed(ac)) ctx.globalAlpha = 0.55;
+    const dots = this.history.get(ac.callsign)?.points ?? [];
+    for (let i = 0; i < dots.length - 1; i++) {
+      const d = this.toScreen(dots[i]);
+      if (Math.hypot(d.x - p.x, d.y - p.y) < 3) continue;
+      ctx.fillRect(d.x - 1, d.y - 1, 2, 2);
+    }
+    ctx.fillRect(p.x - 3, p.y - 3, 6, 6);
+    ctx.restore();
+  }
+
+  /**
    * The follow-me cars (with a label if vehicle tracking is on). Tugs are not drawn: at the nose of
    * the aircraft they move they merge with its return on the ground radar.
    */
@@ -894,11 +1117,11 @@ export class Scope {
       const heading = v.prevHeading + turn * f;
       // A driver waiting for your answer flashes like an aircraft with a request.
       const label = labels ? `${v.name}${v.request ? ' *' : ''}${v.holding ? ' HOLD' : ''}` : undefined;
-      this.drawVehicle(pos, heading, 4.6, 1.9, v.request && blink ? C.request : C.followMe, label);
+      this.drawVehicle(pos, heading, 4.6, 1.9, v.request && blink ? this.t.request : this.t.followMe, label);
       const p = this.toScreen(pos);
       this.symbolHits.push({ callsign: v.callsign, x: p.x, y: p.y, r: 12 });
       if (v.callsign === this.selected) {
-        this.ctx.strokeStyle = C.selected;
+        this.ctx.strokeStyle = this.t.selected;
         this.ctx.lineWidth = 1.5;
         this.ctx.beginPath();
         this.ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
@@ -928,6 +1151,11 @@ export class Scope {
     }
   }
 
+  /**
+   * Data tag, laid out like the VATSIM Germany ground labels: callsign and runway (departures) or stand
+   * (arrivals); type, wake category and ground state; SID (departures) and where the aircraft is cleared
+   * to, with speed and queue information. Airborne: callsign and type; altitude and speed; runway or SID.
+   */
   private drawTag(ac: Aircraft, color: string): void {
     const ctx = this.ctx;
     const p = this.toScreen(ac.pos);
@@ -935,25 +1163,36 @@ export class Scope {
     const mine = this.sim.isOnMyFrequency(ac);
     const compact = (ac.phase === 'parked' && !ac.request) || ac.phase === 'arrived';
     const hovered = this.hover?.callsign === ac.callsign;
+    const dep = ac.category === 'departure';
     // Each line is a list of items; items are clickable.
     type Part = { text: string; item?: TagItem; color?: string };
     const lines: Part[][] = [];
     const head: Part[] = [{ text: ac.callsign, item: 'callsign' }];
-    if (ac.emergency) head.push({ text: ' PAN', color: C.emergency });
+    if (!compact && ac.onGround) {
+      const where = dep ? ac.runway ?? ac.flightPlan.runway : ac.category === 'arrival' ? ac.stand ?? ac.assignedStand : undefined;
+      if (where) head.push({ text: ` ${where}`, item: dep ? undefined : 'target' });
+    }
+    if (ac.emergency) head.push({ text: ' PAN', color: this.t.emergency });
     if (mine && ac.request) head.push({ text: ' *' });
     lines.push(head);
     // Hovering the callsign shows the radiotelephony callsign (e.g. "SPEEDBIRD 947").
-    if (hovered && this.hover?.item === 'callsign') lines.push([{ text: this.sim.tel(ac).toUpperCase(), color: C.selected }]);
+    if (hovered && this.hover?.item === 'callsign') lines.push([{ text: this.sim.tel(ac).toUpperCase(), color: this.t.selected }]);
     if (!compact) {
+      const kt = Math.round(ac.speed / KT_TO_MS);
       if (ac.onGround) {
-        const target = clearedTo(ac) || (ac.assignedStand ? `>${ac.assignedStand}` : ac.stand ?? '');
-        lines.push([{ text: ac.type.icao, item: 'type' }, { text: ' ' }, { text: target || '---', item: 'target' }]);
+        lines.push([{ text: `${ac.type.icao} ${ac.type.wake}`, item: 'type' }, { text: ' ' }, { text: statusCode(ac, this.statusStyle), item: 'status' }]);
+        const target = clearedTo(ac) || (!dep && ac.assignedStand ? `>${ac.assignedStand}` : '');
+        const third: Part[] = [];
+        if (dep && ac.flightPlan.sid) third.push({ text: ac.flightPlan.sid, item: 'sid' }, { text: ' ' });
+        third.push({ text: target || '---', item: 'target' });
         const seq = ac.sequence ? ` #${ac.sequence.number}` : '';
-        const int = ac.category === 'departure' && ac.earliestIntersection ? ` INT ${ac.earliestIntersection}` : '';
-        lines.push([{ text: statusCode(ac), item: 'status' }, { text: ` ${Math.round(ac.speed / KT_TO_MS)}${seq}${int}` }]);
+        const int = dep && ac.earliestIntersection ? ` INT ${ac.earliestIntersection}` : '';
+        third.push({ text: `${kt > 1 ? ` ${kt}` : ''}${seq}${int}` });
+        lines.push(third);
       } else {
-        lines.push([{ text: ac.type.icao, item: 'type' }, { text: ` ${ac.category === 'arrival' ? 'ARR' : ac.flightPlan.destination}` }]);
-        lines.push([{ text: `A${String(Math.round(ac.altitudeFt / 100)).padStart(3, '0')} ${Math.round(ac.speed / KT_TO_MS)}` }]);
+        lines.push([{ text: `${ac.type.icao} ${ac.type.wake}`, item: 'type' }]);
+        lines.push([{ text: `A${String(Math.round(ac.altitudeFt / 100)).padStart(3, '0')} ${kt}` }]);
+        lines.push(dep ? [{ text: ac.flightPlan.sid ?? ac.flightPlan.destination, item: 'sid' }] : [{ text: `${this.sim.approachType} ${ac.runway ?? ''}`.trim() }]);
       }
     }
     const k = this.tagScale;
@@ -964,20 +1203,29 @@ export class Scope {
     const hgt = lines.length * lh + 2;
     const tx = p.x + off.x;
     const ty = p.y + off.y;
+    const selected = ac.callsign === this.selected;
+    ctx.save();
+    if (this.dimmed(ac) && !selected) ctx.globalAlpha = 0.55;
     // leader line
     ctx.strokeStyle = color;
-    ctx.globalAlpha = 0.6;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(p.x, p.y);
     const lx = Math.min(Math.max(p.x, tx), tx + w);
     const ly = Math.min(Math.max(p.y, ty), ty + hgt);
     ctx.lineTo(lx, ly);
+    const alpha = ctx.globalAlpha;
+    ctx.globalAlpha = alpha * 0.6;
     ctx.stroke();
-    ctx.globalAlpha = 1;
-    if (ac.callsign === this.selected || hovered) {
-      ctx.fillStyle = ac.callsign === this.selected ? 'rgba(111, 227, 255, 0.12)' : 'rgba(255, 255, 255, 0.05)';
+    ctx.globalAlpha = alpha;
+    // PHX: every label on a box (selected: lighter box with a frame); classic: only selected / hovered.
+    if (this.t.phx || selected || hovered) {
+      ctx.fillStyle = selected ? this.t.tagBgSelected : hovered && !this.t.phx ? 'rgba(255, 255, 255, 0.05)' : this.t.tagBg;
       ctx.fillRect(tx, ty, w, hgt);
+      if (selected && this.t.phx) {
+        ctx.strokeStyle = color;
+        ctx.strokeRect(tx + 0.5, ty + 0.5, w - 1, hgt - 1);
+      }
     }
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
@@ -998,13 +1246,14 @@ export class Scope {
         x += pw;
       }
     });
+    ctx.restore();
     this.tagRects.push({ callsign: ac.callsign, x: tx, y: ty, w, h: hgt, items });
   }
 
   render(now: number): void {
     const ctx = this.ctx;
     ctx.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    ctx.fillStyle = C.background;
+    ctx.fillStyle = this.t.background;
     ctx.fillRect(0, 0, this.width, this.height);
     this.drawChart();
     this.drawRoutes();
@@ -1014,6 +1263,7 @@ export class Scope {
     const list = [...this.sim.aircraft].filter((a) => a.phase !== 'gone' && (a.onGround || this.sim.distanceToThresholdNm(a) < 13 || a.altitudeFt < this.sim.airport.data.elevationFt + 5000));
     // selected last so its tag is on top
     list.sort((a, b) => (a.callsign === this.selected ? 1 : 0) - (b.callsign === this.selected ? 1 : 0));
+    if (this.t.phx) this.updateHistory(list);
     for (const ac of list) this.drawAircraft(ac, this.colorFor(ac, now));
     this.drawVehicles();
     for (const ac of list) {
@@ -1040,7 +1290,7 @@ export class Scope {
     const px = nice * this.zoom;
     const x = 12;
     const y = this.height - 14;
-    ctx.strokeStyle = '#9fb0b5';
+    ctx.strokeStyle = this.t.scaleBar;
     ctx.lineWidth = 1;
     ctx.beginPath();
     ctx.moveTo(x, y - 4);
@@ -1048,7 +1298,7 @@ export class Scope {
     ctx.lineTo(x + px, y);
     ctx.lineTo(x + px, y - 4);
     ctx.stroke();
-    ctx.fillStyle = '#9fb0b5';
+    ctx.fillStyle = this.t.scaleBar;
     ctx.font = '10px Consolas, monospace';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'bottom';

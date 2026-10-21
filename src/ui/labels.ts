@@ -1,7 +1,25 @@
 import type { Aircraft } from '../core/aircraft';
 
-/** Short status code shown in tags and lists (EuroScope ground-state style). */
-export function statusCode(ac: Aircraft): string {
+/**
+ * Ground states: 'euroscope' uses the EuroScope names (ST-UP, PUSH, TAXI, DEPA), 'phx' those of the DFS
+ * PHOENIX tower display as used by VATSIM Germany (SUG start-up given, PBG pushback given, TXG taxi out,
+ * TX taxi in, ALU line-up, DEP departed, ONB on blocks).
+ */
+export type StatusStyle = 'euroscope' | 'phx';
+
+/** PHX names of the EuroScope-style codes (the others are the same in both). */
+const PHX_STATES: Record<string, string> = { 'ST-UP': 'SUG', PUSH: 'PBG', 'L/U': 'ALU', DEPA: 'DEP', PARK: 'ONB' };
+
+/** Short status code shown in tags and lists (ground state). */
+export function statusCode(ac: Aircraft, style: StatusStyle = 'euroscope'): string {
+  const code = euroscopeStatus(ac);
+  if (style !== 'phx') return code;
+  // Taxi out (departures) and taxi in (arrivals) are separate states in PHX.
+  if (code === 'TAXI') return ac.category === 'arrival' ? 'TX' : 'TXG';
+  return PHX_STATES[code] ?? code;
+}
+
+function euroscopeStatus(ac: Aircraft): string {
   switch (ac.phase) {
     case 'parked':
       if (ac.startupApproved) return 'ST-UP';

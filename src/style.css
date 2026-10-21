@@ -235,6 +235,55 @@ button:disabled {
   padding: 4px 6px;
 }
 
+/* List cells with a function (EuroScope list items): click opens it. */
+.panel td.fn:hover {
+  text-decoration: underline;
+}
+.panel td.flag {
+  text-align: center;
+  color: var(--ok);
+}
+
+/* PHX style (VATSIM Germany ground radar windows): light grey title bar, dark window, callsigns in the
+   departure / arrival colours of the tags. */
+body.phx .panel {
+  background: rgba(24, 24, 24, 0.94);
+  border-color: #4a4a4a;
+}
+body.phx .panel .title {
+  background: rgb(160, 160, 160);
+  color: rgb(25, 25, 25);
+}
+body.phx .panel .title .count {
+  color: rgb(60, 60, 60);
+}
+body.phx .panel .title button {
+  background: rgb(190, 190, 190);
+  border-color: rgb(110, 110, 110);
+  color: rgb(25, 25, 25);
+}
+body.phx .panel th {
+  background: rgb(30, 30, 30);
+  color: rgb(160, 160, 160);
+  border-bottom-color: #4a4a4a;
+}
+body.phx .panel td {
+  color: rgb(250, 250, 250);
+}
+body.phx .panel.departures td.cs {
+  color: rgb(72, 184, 251);
+}
+body.phx .panel.arrivals td.cs {
+  color: rgb(244, 202, 3);
+}
+body.phx .panel tr.other td,
+body.phx .panel tr.other td.cs {
+  opacity: 0.55;
+}
+body.phx .panel tr.selected td {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 @keyframes blink {
   to {
     visibility: hidden;

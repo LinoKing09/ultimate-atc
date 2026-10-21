@@ -233,7 +233,7 @@ const TOWER_REFERENCE: [string, string][] = [
   ['vacate via E', 'The exit the arrival should take after landing (if it can still reach it; not over a closed taxiway).'],
   ['backtrack runway 24, line up and wait', 'Backtrack (airports without a taxiway to the runway end, e.g. Memmingen N for 24): the departure taxis along the runway to its end, turns around on it and lines up for the full length. Also "enter runway 24 and backtrack" or with "cleared for take-off". The runway is occupied all that time.'],
   ['backtrack, vacate via N', 'An arrival that has rolled past its exit turns around on the runway and backtracks to it (Memmingen runway 06: N).'],
-  ['contact radar 119.200 / contact ground 118.605', 'Departures to Langen Radar after take-off, arrivals to Ground once they have vacated.'],
+  ['contact radar 125.050 / contact ground 118.605', 'Departures to Radar after take-off (the take-off menu offers the frequency of the SID: at Stuttgart the southern departures go to 119.200), arrivals to Ground once they have vacated.'],
   ['cross runway 25', 'Runway crossing for an aircraft Ground handed over at the runway holding point; it reports the runway vacated.'],
 ];
 
@@ -360,7 +360,14 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
           h('table.ref', {}, ...KEYS.map(([a, b]) => h('tr', {}, h('td', {}, h('kbd', { text: a })), h('td', { text: b })))),
           h('h2', { text: 'Colours' }),
           h('p', {
-            text: 'White: on your frequency. Grey: other controller (Tower, or an AI Delivery / Ground). Flashing yellow: waiting for your answer (orange after one minute). Magenta "PAN": emergency. Red: incident.',
+            text: 'PHX scope style (default, SETTINGS): departures blue, arrivals yellow, vehicles green; dimmed: on another frequency (Tower, or an AI Delivery / Ground). The aircraft shape is the radar return, the small square the transponder (SSR) symbol with history dots behind it. Classic style: white on your frequency, grey on another. Both: flashing (white / yellow) = waiting for your answer, orange after one minute; flashing red = CATC head-on alert; magenta "PAN" = emergency; red = incident.',
+          }),
+          h('h2', { text: 'Tags and lists' }),
+          h('p', {
+            text: 'Tag: callsign + runway (departures) or stand (arrivals); type, wake category and ground state; SID and where the aircraft is cleared to, speed. Click the items: callsign / type = flight plan, SID = clearance (Delivery) or flight plan, cleared-to = taxi menu, ground state = aircraft menu. List cells with a function (C/S, ATYP, SID, ASSR, C, TAXI / STND, STS, REQ) open it with a click, like in EuroScope.',
+          }),
+          h('p', {
+            text: 'Ground states (PHX / EuroScope): SUG / ST-UP start-up given, PBG / PUSH pushback, TXG / TAXI taxi out, TX / TAXI taxi in, H/P at the holding point, ALU / L/U lined up, DEP / DEPA departing, ONB / PARK on blocks; also RQST, CLRD, DEICE, HOLD, HS-R, VAC, VACD, APP, LAND, G/A.',
           }),
           h('p', {}, 'Full documentation: ', h('a', { href: REPO_URL, target: '_blank', rel: 'noopener', text: REPO_URL })),
         ),

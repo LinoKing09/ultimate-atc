@@ -162,7 +162,7 @@ function arrival(sim: Simulation, callsign: string, distanceNm: number): void {
   sim.traffic.spawnArrival(distanceNm, { callsign, type: 'A320', airline: airline(callsign.slice(0, 3)), medical: false });
 }
 
-/** "cleared to Frankfurt, KRH4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2101" */
+/** "cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2101" */
 function clearance(sim: Simulation, a: Aircraft): string {
   return `cleared to ${destinationName(a.flightPlan.destination)}, ${suggestedSid(sim, a)} departure, flight planned route, ${formatSidClimb(initialClimb(sim))}, squawk ${a.clearance?.squawk || allocateSquawk(sim)}`;
 }

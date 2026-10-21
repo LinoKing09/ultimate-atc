@@ -29,6 +29,12 @@ export interface Settings {
   ttsRate: number;
   /** Language/accent the speech recogniser listens for. */
   voiceLang: string;
+  /**
+   * Look of the scope: 'phx-night' / 'phx-day' as the VATSIM Germany EuroScope ground radar (modelled on
+   * the DFS PHOENIX tower display: departures blue, arrivals yellow, PHX ground states), 'classic' the
+   * earlier Ultimate ATC colours with the EuroScope ground states.
+   */
+  scopeStyle: 'phx-night' | 'phx-day' | 'classic';
 }
 
 const KEY = 'ultimate-atc.settings.v1';
@@ -48,6 +54,7 @@ const DEFAULTS: Settings = {
   tagScale: 1,
   ttsRate: 1,
   voiceLang: 'en-US',
+  scopeStyle: 'phx-night',
 };
 
 /** Default device mode: touch screens without a fine pointer start in mobile mode. */

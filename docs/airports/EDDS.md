@@ -6,9 +6,9 @@
 | Location           | Stuttgart / Leinfelden-Echterdingen, Germany                                |
 | Reference point    | 48°41'23.56"N 009°13'19.07"E                                                |
 | Elevation          | 1276 ft                                                                     |
-| Magnetic variation | 3.5° E (simulation value)                                                   |
+| Magnetic variation | 3.9° E (World Magnetic Model, 2026)                                         |
 | Transition altitude | 5000 ft                                                                    |
-| Runway             | **07/25**, 3345 m x 45 m, true heading 074° / 254°; landing threshold 07 displaced by 300 m (984 ft); threshold elevations 1267 ft (07) / 1181 ft (25) |
+| Runway             | **07/25**, 3345 m x 45 m, true heading 074° / 254°; landing threshold 07 displaced by 300 m (984 ft); threshold elevations 1267 ft (07) / 1181 ft (25). Take-off run available 07: 3345 m, **25: 3045 m** (the 300 m behind the displaced threshold 07 do not count for take-offs 25) |
 | Data file          | [`src/data/airports/edds.ts`](../../src/data/airports/edds.ts)              |
 
 The simulator shows a condensed version of this page as the **airport briefing** (`BRIEFING` in the toolbar, data in `briefing` in `edds.ts`). Keep both consistent.
@@ -20,41 +20,52 @@ The simulator shows a condensed version of this page as the **airport briefing**
 | Runway end coordinates                       | [OurAirports](https://ourairports.com/) (public domain)                 |
 | ARP, elevations, frequencies, taxiway designators, holding points, stand numbers, layout | AIP Germany, **AD 2 EDDS 2-5 Aerodrome Chart** and **AD 2 EDDS 2-7 Aerodrome Ground Movement Chart** (AMDT 10/26) |
 | Night flying restrictions, time zone          | Flughafen Stuttgart (published night flying restrictions); applied only in scenarios with night rules, see [scenarios](../scenarios.md#start-time-and-night-flying-restrictions) |
-| Stand sizes, wide-body positions, pushback / taxi-out stands | AD 2 EDDS 2-7 (AMDT 10/26, code letter markings), the older **Aircraft Parking/Docking Chart** (AMDT 09/13), [VATSIM Germany knowledge base](https://knowledgebase.vatsim-germany.org/books/airports-langen-fir-edgg/page/general-4ph) (secondary) - see [Stands](#stands) |
+| Stand sizes, wide-body positions, pushback / taxi-out stands | AD 2 EDDS 2-7 (AMDT 10/26, code letter markings), the older **Aircraft Parking/Docking Chart** (AMDT 09/13), the stand data of the VATSIM Germany ground radar (EuroScope package `edgg-package`, 2026) - see [Stands](#stands) |
+| De-icing pads DP1-DP4 (position, lead lines, wingspan limits), take-off run available (TORA) from every entry, the current Apron South | VATSIM Germany EuroScope package (`edgg-package`, 2026): its ground radar maps are generated from the AIP data (AIXM). Used as a reference only - positions were read off and converted into the simulator's frame; no files or map content are included |
+| Holding bays P1 / P2 | [OpenStreetMap](https://www.openstreetmap.org/) (the two unnamed links between N and S at the 25 end) |
+| SIDs | Designators from a public chart index (2026) and the VATSIM Germany vSID configuration; destination restrictions and the radar sectors from the VATSIM Germany Delivery SOP; exit fix positions from public waypoint lists |
+| Frequencies | VATSIM Germany station data (`datahub`, matching the AIP values used before); ATIS from the VATSIM Germany vATIS profile |
+| Magnetic variation | NOAA World Magnetic Model (October 2026) |
 
 The geometry was **digitised by hand**. Positions were measured on the charts, using the 3345 m runway as scale and the 300 m displaced threshold as a check, and converted into the simulator's runway-aligned frame. The accuracy is roughly ±10 m. Only facts are used (topology, designators, approximate positions); no chart graphics are reproduced or distributed.
 
+**Checked on 2026-10-21** against OpenStreetMap and the VATSIM Germany ground radar data: all runway holding positions lie within 10 m of the OSM positions, the stands within 20 m of the ground radar stand positions; the published take-off run from every entry matches the simulator's geometry within 100 m (the published values are used).
+
 **Simplified or not modelled:**
 
-- the **holding bays P1/P2** and the **de-icing pads DP1-DP4** are modelled at **estimated positions** (not measured on the chart, see [Holding bays and de-icing pads](#holding-bays-and-de-icing-pads)); the run-up areas are not modelled,
-- the general aviation apron (EXIT 1-3), the US Army airfield, helicopter routes,
-- the "A" stands that overlap others (9A, 24A, 26A, 28A; 71A and 74A are modelled) and stands 206, 207, 300-303,
+- the run-up areas, the general aviation apron (GAT exits 1-3), the US Army airfield, helipads and helicopter routes,
+- on Apron South (layout since AIRAC 2512) the small stands 300-303 and the new 105-107 between 206 and 207 (the simulator has 100-104, 206 and 207),
+- while a de-icing pad is in use, the real operation closes S next to it (I-H for DP1 / DP2, H-F for DP3 / DP4); the simulator does not,
 - the intersection geometry inside the "circle" (the hot spot west of N/S, chart note 1), reduced to one junction node,
 - building outlines, which are rough rectangles,
-- the SIDs: first fixes (KRH, ETASA north; SUL, ROTWE south) and designator letters (B = runway 25, H = runway 07) as in the VATSIM Germany SOP, the numbers are approximations (they change with the AIRAC cycle); only four SIDs per runway are used,
+- the SIDs: all exit fixes with their 2026 designators (B = runway 25, H = runway 07), but no routes or altitude restrictions; flight plans pick the SID by the direction of the destination (see [SIDs](#sids)). The local SIDs STG / TEDGO and the RNP K-SIDs (runway 07) are not modelled,
 - the initial climb in IFR clearances (5000 ft, `initialClimbFt`), as in the VATSIM Germany SOP (also the German transition altitude),
 - the squawk codes (a simulator range, not the real code allocation).
 
 
 **Never use this simulator for real-world navigation.**
 
-### Reference data (research 2026-10-11)
+### Reference data (research 2026-10-11, checked again 2026-10-21)
 
 Facts collected from public sources to bring the simulation closer to reality. Confidence: **certain** = official body or the airport operator; **likely** = VATSIM Germany SOP or another secondary source (modelled on the real operation, but not the real procedures); **estimate** = derived. Values marked open were not found. The official source for most of them is the AIP Germany AD 2 EDDS (sections 2.13, 2.20, 2.22), which still has to be checked.
 
 | Topic | Value | Confidence / source | In the simulator |
 | ----- | ----- | ------------------- | ---------------- |
 | Control zone | class D, GND - 3500 ft AMSL; extent roughly 15 NM east-west, 10 NM north-south along the runway axis | likely (VATGER Tower SOP); extent estimate | departures leave the scope at 10 NM |
-| Approach / Director | Langen Radar 119.200 and 125.050, Stuttgart Director 119.850 | likely (SkyVector) | Langen Radar 119.200 |
+| Approach / Director | Langen Radar 125.050 (sector Stuttgart), 119.200 (sector Reutlingen), Stuttgart Arrival / Director 119.850 | likely (VATSIM Germany station data, SkyVector) | Langen Radar 125.050; southern departures (ROTWE, SUL, KUNOD, ABTAL) 119.200 |
 | Approach -> Tower hand-off | no fixed value; typically when established on the ILS, about 8-10 NM | estimate | 8-10 NM |
-| Departure hand-off | VATSIM: auto hand-off (crews call Langen Radar when airborne); north SIDs to sector Stuttgart, south SIDs to sector Reutlingen | likely (VATGER) | you hand departures to Radar (`contact radar`) |
-| Frequencies | ATIS 126.130, Delivery 121.915, Ground 118.605 (one Ground frequency, no Apron), Tower 118.805 | likely (several sources agree) | as listed |
+| Departure hand-off | VATSIM: auto hand-off (crews call Langen Radar when airborne); north SIDs to sector Stuttgart, south SIDs (ROTWE, SUL, KUNOD, ABTAL) to sector Reutlingen 119.200 | likely (VATGER) | you hand departures to Radar (`contact radar`); the crew reads back the frequency of its SID's sector |
+| SIDs | exit fixes ABTAL, DKB, ETASA, GEBNO, KRH, KUNOD, OKIBA, ROTWE, STG, SUL, TAGIK, TEDGO, VESID; restrictions: ETASA only Frankfurt area, KRH only EDDR / EDRZ / EDSB / ETAR, SUL jets only EDTL / EDNY / LSZH / LSZR, DKB only via N869 or EDDN / EDTY, GEBNO via Z76 max FL180, TAGIK via ABUMO / ASKIK max FL240, OKIBA min FL200 | likely (VATGER Delivery SOP, chart index) | all but STG / TEDGO; flight plans by destination direction and these restrictions |
+| Frequencies | ATIS 126.130, Delivery 121.915, Ground 118.605 (one Ground frequency, no Apron), Tower 118.805 (VFR Tower 119.055) | likely (several sources and the VATSIM Germany station data agree) | as listed |
 | Runway | 3345 m, threshold 07 displaced 300 m (LDA 07 3045 m) | likely (BAV briefing) | modelled |
-| Intersection departures | crews are asked for every intersection; smaller aircraft usually C (25) or G (07) | likely (VATGER) | `advise able for departure from intersection ...`; take-off run per type and flight |
+| Intersection departures | crews are asked for every intersection; smaller aircraft usually C (25) or G (07) | likely (VATGER) | `advise able for departure from intersection ...`; take-off run per type and flight; E (25) and G (07) are entries since 1.2 |
+| Take-off run available | 25: A 3045, B 2435, C 2175, D 1990, E 1665 m; 07: K / Y 3345, I 3090, H 2515, W 2520, G 2210, F 2020, E 1400 m | likely (VATGER ground radar map, from the AIP) | the published values (F and E are no entries for 07 in the simulator) |
 | Taxi flows | N against the runway direction, S the other way: runway 25 N eastbound / S westbound, runway 07 N westbound / S eastbound | likely (VATGER Ground SOP) | modelled (07 changed on 2026-10-11) |
-| Holding bays / de-icing | bypass P1/P2 (max B739/A321); de-icing only on DP1-DP4 (in from N, out via S) | DP1-DP4 certain (A-CDM briefing), rest likely | modelled since 1.1 at estimated positions; de-icing as the scenario option `I` |
-| Runway crossings | only between K and Y | likely (VATGER) | crossings where the routes need them |
+| Holding bays / de-icing | bypass P1/P2 (max B739/A321); de-icing only on DP1-DP4, all entered from N and left via S (DP1 / DP3 westbound, DP2 / DP4 eastbound); DP1 code E, DP2 code F, DP3 / DP4 code C; S closed next to a pad in use | DP1-DP4 certain (A-CDM briefing), rest likely (VATGER SOP and ground radar map) | P1/P2 at the OSM positions; DP1-DP4 at the map positions with these limits since 1.2 (S stays open); de-icing as the scenario option `I` |
+| Runway crossings | only between K and Y | likely (VATGER) | automatic routes cross only between K and Y (elsewhere only if K / Y is closed) |
+| Taxiway Z | west of Y, reserved for military aircraft | likely (VATGER) | automatic routes avoid it |
 | Taxi-out stands | 40-56 taxi out; 61-64 only with the opposite stand free; jet bridges only at 9-16 | likely (VATGER) | 40-48, 50-56 taxi out |
+| Stand sizes | 9 up to 60.5 m (9A 60.5-65 m), 11 code D, 24A / 26A / 28A code D-E, 48 30 m, 51 / 53 / 55 / 56 45 m, 52 / 54 code D, 65 29 m, 71A / 74A code E-F (A380 diversions), Apron South 100-104 code D, 206 / 207 code E-F | likely (VATGER ground radar stand data) | modelled since 1.2 |
 | Simultaneous pushbacks | at least two stands between them | likely (VATGER) | AI Ground: nothing taxiing within 250 m |
 | Initial climb / transition | climb via SID to 5000 ft; transition altitude 5000 ft, transition level in the ATIS | likely (VATGER) | 5000 ft; TL from the QNH: FL60 from 1013 hPa, FL70 below (the lowest flight level at least 1000 ft above the transition altitude) |
 | Capacity | max. 48 movements/h (40 departures without arrivals; 40 arrivals with max. 8 departures), 14 in LVP | likely (VATGER) | traffic densities below that |
@@ -76,7 +87,7 @@ Sources: [VATSIM Germany EDDS SOPs](https://knowledgebase.vatsim-germany.org/boo
 | **EDDS_DEL** | **Stuttgart Delivery** | **121.915** | **You** (since v0.6), or AI: clearances are then issued before the aircraft calls Ground |
 | **EDDS_GND** | **Stuttgart Ground** | **118.605** | **You**, or AI Ground when you only staff Delivery |
 | EDDS_TWR    | Stuttgart Tower       | 118.805 (also 119.055) | AI Tower |
-| EDDS_APP    | Langen Radar          | 119.200   | (not simulated)  |
+| EDDS_APP    | Langen Radar          | 125.050 (sector Stuttgart); 119.200 for the southern departures (sector Reutlingen) | (not simulated) |
 | EDDS_ATIS   | Stuttgart Information | 126.130   | You (ATIS editor) |
 
 ## Systems and procedures
@@ -103,7 +114,7 @@ The layout uses a runway-aligned frame, the same orientation as the aerodrome ch
     93           K   I        H        G   F      E      D   C      B          A    (north holding points)
      0   [07]====|===|========|========|===|======|======|===|======|==========|==[25]
    -90           Y            W                                                     (south holding points)
-  -262   Z --- R --- V ------(stands 100-107, Apron South)--- W
+  -262   Z --- R --- V ------(stands 100-104, 206, 207, Apron South)--- W
 ```
 
 ### Taxiways
@@ -126,10 +137,9 @@ The layout uses a runway-aligned frame, the same orientation as the aerodrome ch
 | **C**   | Perpendicular from S; shares the junction with D (holding point C)                                |
 | **B**   | Angled: rapid exit for 07, intersection entry for 25 (holding point B)                            |
 | **A**   | At the 25 end, where N and S end (holding point A, full length for 25)                            |
-| **Z / R / V** | South: Z runs from L3/O around the 07 end to R; R to Y; V along Apron South to W            |
-
+| **Z / R / V** | South: Z runs from L3/O around the 07 end to R (reserved for military aircraft - automatic routes avoid it); R to Y; V along Apron South to W |
 | **P1 / P2** | Holding bays at the 25 end: angled links from N down to S just before A (code C, wingspan up to 36 m) |
-| **DP1-DP4** | De-icing pads between N and S (between G and E), see below |
+| **DP1-DP4** | De-icing pads between N and S: DP1 / DP2 between I and H, DP3 / DP4 between H and F, see below |
 
 Holding points carry the name of their taxiway (`holding point A`, `holding point K`, ...). The 07 end has K (north) and Y (south); H and W share one runway entry.
 
@@ -137,10 +147,8 @@ Holding points carry the name of their taxiway (`holding point A`, `holding poin
 
 ### Holding bays and de-icing pads
 
-Both are known from the VATSIM Germany Tower SOP and the STR A-CDM flight crew briefing, but their exact positions were not measured; they are **estimates** that fit the published descriptions:
-
-- **P1 / P2** (bypass): two angled links from N to S at the 25 end, 3020-3090 m and 3130-3200 m from the 07 end, limited to code C (36 m wingspan; the SOP says max. B739 / A321). A departure that is not ready can wait on P1 or P2 while the next one passes it via S to A (re-sequencing), or use them as `taxi to holding point A via N, P1, S`.
-- **DP1-DP4** (de-icing pads): four drive-through bays between N and S, centred 1330, 1470, 1610 and 1750 m from the 07 end, each with lead lines to N and S on both sides (55 m before and after the pad). Taking aircraft up to 52 m wingspan (code D - there is no room for wider ones between N and S with traffic on both taxiways); wide-bodies are de-iced on their stand. The lead lines are only used to enter or leave a pad, never as a short cut between N and S. Used in the scenario option [de-icing](../scenarios.md#de-icing).
+- **P1 / P2** (bypass): two angled links from N down to S at the 25 end - P1 from N 2998 m to S 3123 m, P2 from N 3104 m to S 3230 m from the 07 end (OpenStreetMap) - limited to code C (36 m wingspan; the SOP says max. B739 / A321). A departure that is not ready can wait on P1 or P2 while the next one passes it via S to A (re-sequencing), or use them as `taxi to holding point A via N, P1, S`.
+- **DP1-DP4** (de-icing pads, positions from the VATSIM Germany ground radar map): drive-through bays between N and S, **all entered from N and left onto S** along their painted lead lines - DP1 (N 246 m -> S 124 m from the 07 end) and DP3 (N 767 m -> S 717 m) lead west, DP2 (N 364 m -> S 450 m) and DP4 (N 793 m -> S 885 m) east. Wingspan limits: **DP1 65 m** (code E, no B747), **DP2 80 m** (code F), **DP3 and DP4 36 m** (code C) - every aircraft in the simulator fits DP1 or DP2. The lead lines allow no sharp turn: eastbound on N (from the circle) DP2 and DP4 lie ahead to the right, DP1 is entered westbound (from H or M). After the pad, runway 25 departures from DP2 / DP4 continue on S towards A; runway 07 departures from DP1 / DP3 on S towards K (from DP2 the sharp left onto H and N, from DP4 via F and N). In reality S is closed next to the pads in use (I-H for DP1 / DP2, H-F for DP3 / DP4); the simulator keeps it open. Used in the scenario option [de-icing](../scenarios.md#de-icing).
 
 ### Standard taxi flows
 
@@ -157,35 +165,57 @@ The directions follow the VATSIM Germany SOP (modelled on the real operation, no
 
 | Runway | Departure holding points                                  | Arrival exits (from the threshold onwards)                                |
 | ------ | --------------------------------------------------------- | ------------------------------------------------------------------------- |
-| **25** | **A** (full length); B, C, D (intersections)              | F (rapid), E, G, H (rapid), W (south), I (rapid), K, Y (south)            |
-| **07** | **K** / **Y** (full length, north / south); I, H, W (intersections) | G, E, D (rapid), C, B (rapid), A                                |
+| **25** | **A** (full length); B, C, D, E (intersections)           | F (rapid), E, G, H (rapid), W (south), I (rapid), K, Y (south)            |
+| **07** | **K** / **Y** (full length, north / south); I, H, W, G (intersections) | G, E, D (rapid), C, B (rapid), A                             |
 
 **Vacate points** (where an arrival stops after leaving the runway and waits for your taxi instruction) lie between the runway holding position and the next taxiway. Behind F and G they are on the short connector before the F/G junction, clear of taxiway S, so a waiting arrival does not block traffic on S (approximation of the real geometry).
 
-**Take-off run available** from the 25 intersections (simulator values, measured from the point where the aircraft enters the runway): B about 2700 m, C about 2450 m, D about 2200 m; full length from A about 3300 m. This decides the pilots' answer to `advise able for departure from intersection ...`.
+**Take-off run available** (published values): runway 25 from A **3045 m** (the 300 m behind the displaced threshold 07 do not count for take-offs 25), B 2435 m, C 2175 m, D 1990 m, E 1665 m; runway 07 from K / Y 3345 m, I 3090 m, H 2515 m, W 2520 m, G 2210 m. This decides the pilots' answer to `advise able for departure from intersection ...`. Smaller aircraft usually depart from C (25) or G (07).
 
-About 85% of arrivals vacate to the north. On runway 25 the others vacate to the south via W or Y. They then need a **runway crossing** (at W/H or Y/K) to reach Apron North, unless they park on Apron South.
+About 85% of arrivals vacate to the north. On runway 25 the others vacate to the south via W or Y. They then need a **runway crossing** to reach Apron North, unless they park on Apron South - **only between K and Y** (VATSIM Germany SOP): automatic routes cross there (elsewhere only if K or Y is closed); your own `via` list may cross elsewhere.
 
 ### Stands
 
 | Apron / area   | Stands        | Max. wingspan | Type                                  | Lane |
 | -------------- | ------------- | ------------- | ------------------------------------- | ---- |
-| Apron North    | 9-19          | 36 m          | nose-in, pushback                     | M    |
+| Apron North    | 9-19          | 36 m; **9 60.5 m**, **11 52 m** | nose-in, pushback (jet bridges 9-16) | M    |
+| Apron North    | **9A**        | 65 m          | wide-body position overlapping 9      | M    |
 | Apron North    | 24-29         | 36 m          | nose-in, pushback                     | M    |
+| Apron North    | **24A, 26A, 28A** | 65 m      | code D-E positions overlapping 24+25, 25+26, 28 | M |
 | Apron North    | 30-36         | 36 m          | nose-in, pushback                     | M (code C section) |
-| Apron North    | 60-65         | 36 m          | nose-in (nose south), pushback        | M (code C section) |
+| Apron North    | 60-65         | 36 m (65: 29 m) | nose-in (nose south), pushback      | M (code C section) |
 | Apron North    | 71-75         | 36 m          | nose-in, pushback onto N              | N    |
-| Apron North    | **71A, 74A**  | 65 m          | wide-body positions overlapping 71+72 / 74+75, pushback onto N | N |
-| Apron North    | 40-43, 45-48  | 36 m          | **drive-through**: in from M, out forwards to O | M -> O |
-| Apron North    | 50-56         | 36 m          | **drive-through**: in from M, out forwards to N | M -> N |
-| Apron South    | 100-104       | 36 m          | nose-in (nose south), pushback (cargo) | V   |
-| Apron South    | 105-107       | 65 m          | nose-in, pushback (cargo wide-bodies)  | V    |
+| Apron North    | **71A, 74A**  | 80 m          | code E-F positions overlapping 71+72 / 74+75, pushback onto N (A380 diversions) | N |
+| Apron North    | 40-48         | 36 m (48: 30 m) | **drive-through**: in from M, out forwards to O | M -> O |
+| Apron North    | 50-56         | 50: 36 m, 51 / 53 / 55 / 56: 45 m, 52 / 54: 52 m | **drive-through**: in from M, out forwards to N | M -> N |
+| Apron South    | 100-104       | 52 m          | nose-in (nose south), pushback (cargo) | V   |
+| Apron South    | **206, 207**  | 80 m          | nose-in, pushback (cargo wide-bodies; the former 105 / 106) | V |
 
-**Stand sizes - sources.** The current ground movement chart (AMDT 10/26) marks taxilane M east of the H junction as *max. code letter C* (wingspan below 36 m) and shows the alternative positions 9A, 24A, 26A, 28A, 71A and 206/207 (overlapping their neighbours). The VATSIM Germany knowledge base (a secondary source for simulator controllers) lists 71A, 74A, 105 and 106 as the stands for the largest aircraft. The older aircraft parking/docking chart (AMDT 09/13) confirms that nose-in positions 9-36 and 105-106 are left by pushback and 40-56 are taxi-out positions. From this the simulator uses: all terminal and apron north stands up to code C, wide-bodies on 71A/74A and 105-107. The exact per-stand type limits are not published in these charts, so this is an approximation.
+**Stand sizes - sources.** The current ground movement chart (AMDT 10/26) marks taxilane M east of the H junction as *max. code letter C* (wingspan below 36 m) and shows the alternative positions 9A, 24A, 26A, 28A, 71A and 206/207 (overlapping their neighbours). The per-stand limits come from the stand data of the VATSIM Germany ground radar (2026), which follows the airport's stand allocation: code letters or wingspan ranges per stand, the overlapping positions and the AIRAC 2512 changes on Apron South (100-104 moved, 105 / 106 renamed 206 / 207). The older aircraft parking/docking chart (AMDT 09/13) confirms that nose-in positions 9-36 and 100-107 are left by pushback and 40-56 are taxi-out positions. Stand 44 exists again (it was missing before 1.2); stands 45-48 are currently blocked by construction works in reality (AIP SUP until 30 October 2026), which the simulator ignores.
 
-**Wide-bodies block their neighbours** (wingtip clearance, see [simulation model](../simulation.md)): a wide-body on 71A blocks 71 and 72 (and an aircraft on 71 or 72 blocks 71A), likewise 74A with 74/75; on Apron South only every other one of 105-107 can take a wide-body at the same time. The other "A" positions (9A, 24A, 26A, 28A) and 206/207 are not modelled.
+**Alternative positions block their neighbours** (wingtip clearance, see [simulation model](../simulation.md)): a wide-body on 71A blocks 71 and 72 (and an aircraft on 71 or 72 blocks 71A), likewise 74A with 74/75, 9A with 9, 24A with 24 and 25, 26A with 25 and 26, 28A with 28. Narrow-bodies use them only when nothing else is free.
 
 Departures on drive-through stands don't need a pushback: they call `request taxi` and leave forwards. The stand allocation prefers Apron North; business jets go to stands 60-65. Apron South is only used when Apron North is full, but you can taxi any aircraft there.
+
+## SIDs
+
+Every flight plan is filed via the exit fix towards its destination (great-circle bearing from Stuttgart); fixes restricted to a few destinations are only used for them. The designators are those of 2026 (B = runway 25, H = runway 07; the numbers change with the AIRAC cycle):
+
+| Exit fix | Runway 25 / 07 | Used for (simulator) | Radar after take-off |
+| -------- | -------------- | -------------------- | -------------------- |
+| VESID    | VESID4B / VESID2H | destinations 255-340° (UK, Ireland, Benelux, Paris) | Langen Radar 125.050 |
+| OKIBA    | OKIBA4B / OKIBA4H | 340-045° (Hamburg, Bremen, Berlin, Scandinavia; min. FL200) | 125.050 |
+| TAGIK    | TAGIK4B / TAGIK2H | Duesseldorf, Cologne, Moenchengladbach, Paderborn, Dortmund, Muenster (via Frankfurt area, max. FL240) | 125.050 |
+| ETASA    | ETASA4B / ETASA2H | Frankfurt (EDDF, EDFE, EDFC, ETOU) | 125.050 |
+| KRH      | KRH5B / KRH2H     | Saarbruecken, Karlsruhe / Baden-Baden, Ramstein (EDDR, EDRZ, EDSB, ETAR) | 125.050 |
+| DKB      | DKB9B / DKB4H     | Nuremberg area (EDDN, EDTY) | 125.050 |
+| GEBNO    | GEBNO7B / GEBNO6H | short flights via Z76 below FL180 - not used by the generated traffic | 125.050 |
+| ABTAL    | ABTAL4B / ABTAL4H | 045-110° (Munich, Vienna, Budapest, Poland, Romania) | sector Reutlingen 119.200 |
+| KUNOD    | KUNOD2B / KUNOD2H | 110-190° (Italy, Balkans, Greece, Turkey, Egypt) | 119.200 |
+| ROTWE    | ROTWE5B / ROTWE7H | 190-255° (Spain, Portugal, Canaries, southern France, Geneva, Morocco) | 119.200 |
+| SUL      | SUL3B / SUL3H     | jets to Zurich, Friedrichshafen, Lahr, Altenrhein (LSZH, EDNY, EDTL, LSZR) | 119.200 |
+
+The restrictions (ETASA, KRH, SUL, DKB, GEBNO, TAGIK, OKIBA) are those of the VATSIM Germany Delivery SOP; the sectors in between are the simulator's approximation of the route network. Delivery checks that the cleared SID leads to the first fix of the flight plan. Not modelled: the local IFR SIDs STG and TEDGO and the RNP K-SIDs of runway 07.
 
 ## Traffic
 
@@ -219,10 +249,10 @@ The busiest destinations in 2025 were Palma (639,000 passengers), Antalya (571,0
 | Stands 71-75 (pushed onto N facing east) | `taxi to holding point A via N`                             |
 | Stands 40-48 (drive-through)          | `taxi to holding point A via O, N`                             |
 | Stands 50-56 (drive-through)          | `taxi to holding point A via N`                                |
-| Apron South, pushed facing east       | `taxi to holding point A via V, W, H, N, cross runway 25`      |
+| Apron South, pushed facing west       | `taxi to holding point A via V, Y, K, N, cross runway 25` (crossings only between K and Y) |
 | Arrival vacated via F, G or E         | `taxi to stand 14 via S, H, M` / `taxi to stand 72 via S, H, N` |
 | Arrival vacated via H                 | `taxi to stand 33 via H, M`                                    |
-| Arrival vacated via W (south)         | `taxi to stand 105 via V`                                      |
+| Arrival vacated via W (south)         | `taxi to stand 206 via V`                                      |
 
 **Runway 07**
 

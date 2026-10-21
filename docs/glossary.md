@@ -23,7 +23,7 @@ Terms used in the simulator and in this documentation. Real-world terms are expl
 | **Radio discipline** | Only one station talks at a time; after an instruction the addressed station reads back before anyone else calls. |
 | **RMCA** | Runway monitoring and conflict alerting: A-SMGCS alert for aircraft approaching an occupied runway. |
 | **RNP approach** | Approach with satellite navigation (no ILS needed). |
-| **SID** | Standard instrument departure: the published departure route from the runway to the first fix of the flight plan (placeholder names in the simulator). |
+| **SID** | Standard instrument departure: the published departure route from the runway to the first fix (exit fix) of the flight plan. The simulator uses the real designators; each flight plan goes via the exit fix towards its destination. |
 | **Squawk** | The four-digit transponder code (octal digits 0-7) assigned in the IFR clearance. |
 | **Stand** | Aircraft parking position. |
 | **Tow** | Moving an aircraft without its own engines by a tug, e.g. from a contact stand to a remote stand. The tug driver talks to Ground: "request tow ... from stand 14 to stand 45" - "tow approved via ...". |

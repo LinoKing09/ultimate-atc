@@ -6,7 +6,7 @@
 | Location           | Memmingerberg, Bavaria, Germany                                             |
 | Reference point    | 47°59'17"N 010°14'18"E (OurAirports)                                        |
 | Elevation          | 2077 ft                                                                     |
-| Magnetic variation | 3.9° E (simulation value)                                                   |
+| Magnetic variation | 4.1° E (World Magnetic Model, 2026)                                         |
 | Transition altitude | 5000 ft; initial climb of the SIDs FL70                                    |
 | Runway             | **06/24**, 45 m wide, true heading 059° / 239°. 2630 m (AIP aerodrome chart; 2620 m between the runway ends in the OSM geometry); the threshold 24 is displaced by about 230 m, runway 06 starts at the threshold (the area west of W is a stopway) |
 | Data files         | [`src/data/airports/edja.ts`](../../src/data/airports/edja.ts), layout [`edja.layout.ts`](../../src/data/airports/edja.layout.ts) (generated) |
@@ -20,7 +20,8 @@ The simulator shows a condensed version of this page as the **airport briefing**
 | Taxiway R, the western part of P, P4, Apron 4, the pad south of P near E, all closed parts (crosses) | Digitised by hand from the AIP aerodrome chart (AD 2 EDJA 2-5, used as a reference only; no chart content is included). Approximate: the chart was aligned to the OSM runway ends, positions are good to a few tens of metres |
 | Runway, taxiways, holding positions, stands, aprons, buildings | [OpenStreetMap](https://www.openstreetmap.org/) - © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/). Imported with `scripts/osm-import.mjs` (see [airport data](../airport-data.md#importing-from-openstreetmap)); the derived layout is available under the ODbL |
 | Reference point, elevation | [OurAirports](https://ourairports.com/) (public domain) |
-| Frequencies, SIDs, taxiway restrictions, backtracks, stand use, de-icing on stands | VATSIM Germany Memmingen SOP (facts only; a simulation resource, not an official source) |
+| Frequencies, SIDs, taxiway restrictions, backtracks, stand use, de-icing on stands | VATSIM Germany Memmingen SOP (facts only; a simulation resource, not an official source); frequencies checked against the VATSIM Germany station data and vATIS profile (2026-10-21), SID designators against a public chart index |
+| Direction of the exit fixes (for the SID choice), magnetic variation | public waypoint lists and the VATSIM Germany letters of agreement (UMTEX is the transfer point to Switzerland); NOAA World Magnetic Model (October 2026) |
 | Checked against | AIP Germany AD 2 EDJA 2-5 (aerodrome chart) and 2-7 (ground movement chart), used only as a reference: runway length, stand designators P11 / P12, the position of holding point W (before the turn towards the runway), the taxiway topology and the closed parts. The OSM intersections match the chart's take-off distances within a few metres: N 1057 m from the 06 end (chart: 2630 - 1570 = 1060 m), C 878 m (880 m), D 1055 m (1060 m), E 627 m from the 24 end (625 m), threshold 24 displaced by 227 m (229 m). No chart content is included |
 
 Accuracy: the OSM parts as good as the OSM mapping (usually a few metres), the hand-digitised parts a few tens of metres. Holding point names are the taxiway names (OSM has no references for them).
@@ -35,7 +36,7 @@ Accuracy: the OSM parts as good as the OSM mapping (usually a few metres), the h
 - the hot spot at holding point W (chart: HS) is mentioned in the briefing, not drawn,
 - stands from OSM, named after the AIP chart: P11 and P12 at the terminal (Apron 1, OSM refs 1 and 2) with pushback, 3-6 on Apron 2 as taxi-in / taxi-out positions (the SOP has a pushback on 6; in the OSM layout its lane ends at the stand),
 - no Delivery: Memmingen Ground gives the IFR clearances (the Delivery position is not offered),
-- SIDs: designators from the SOP (KPT, LUPOL, UMTEX; A = runway 24, B = runway 06), the numbers change with the AIRAC cycle,
+- SIDs: KPT, LUPOL and UMTEX (A = runway 24, B = runway 06; the numbers change with the AIRAC cycle), each flight planned via the fix towards its destination: **KPT** (Kempten) 075-200° - Italy, the Balkans, Greece, Turkey, Romania, Bulgaria, Georgia; **UMTEX** (towards Switzerland) 200-280° - Spain, Portugal, France, Morocco, the Canaries; **LUPOL** 280-075° - UK, Ireland, Benelux, Germany north, Scandinavia, Poland. All contact München Radar 129.450 after take-off. The conventional ALG SIDs (non-RNAV aircraft, training) are not modelled,
 - traffic: Ryanair, Wizz Air and a few others with estimated shares, about a third of Stuttgart's movements per density step (`rateFactor` 0.35),
 - low visibility procedures (ILS CAT I only), helicopters, VFR traffic.
 

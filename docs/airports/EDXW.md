@@ -6,7 +6,7 @@
 | Location           | Westerland, Sylt, Schleswig-Holstein, Germany                               |
 | Reference point    | 54°54'48"N 008°20'26"E (OurAirports)                                        |
 | Elevation          | 51 ft                                                                       |
-| Magnetic variation | 3.6° E (simulation value)                                                   |
+| Magnetic variation | 3.9° E (World Magnetic Model, 2026)                                         |
 | Transition altitude | 5000 ft; initial climb of the SIDs 4000 ft                                 |
 | Runways            | **14/32**, 2120 m x 45 m, true heading 145° / 325° (all simulated traffic); **06/24**, 1696 m x 30 m, true heading 060° / 240° (light aircraft only, not used - crossed by departures 32) |
 | Data files         | [`src/data/airports/edxw.ts`](../../src/data/airports/edxw.ts), layout [`edxw.layout.ts`](../../src/data/airports/edxw.layout.ts) (generated) |
@@ -19,7 +19,8 @@ The simulator shows a condensed version of this page as the **airport briefing**
 | ---- | ------ |
 | Runways, taxiways, holding points, aprons, buildings | [OpenStreetMap](https://www.openstreetmap.org/) - © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/). Imported with `scripts/osm-import.mjs`; the derived layout is available under the ODbL |
 | Reference point, elevations | [OurAirports](https://ourairports.com/) (public domain) |
-| Frequencies, SIDs, runway use, taxiway restrictions, stands | VATSIM Germany Sylt SOP (facts only; a simulation resource, not an official source) |
+| Frequencies, SIDs, runway use, taxiway restrictions, stands | VATSIM Germany Sylt SOP (facts only; a simulation resource, not an official source); frequencies checked against the VATSIM Germany station data and vATIS profile, the SIDs and their initial climb (4000 ft) against the VATSIM Germany vSID configuration (2026-10-21) |
+| Magnetic variation | NOAA World Magnetic Model (October 2026) |
 
 **Simplified or not modelled:**
 

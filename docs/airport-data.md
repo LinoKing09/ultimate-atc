@@ -21,13 +21,15 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 | `buildings`            | `AreaData[]`      | Building polygons (drawn above aprons)                                   |
 | `stations`             | `StationData[]`   | ATC stations (callsign, type, radio name, frequency). Positions the airport lacks are not offered; without GND / DEL the Tower does their work (Sylt) |
 | `runwayOps`            | `RunwayOpsData[]` | Per runway end: departure entries and arrival exits                      |
-| `sids`                 | `SidData[]`       | Sample SIDs per runway end, used in generated flight plans               |
+| `sids`                 | `SidData[]`       | SIDs per runway end, used in generated flight plans and clearances (see [SIDs](#sids)) |
 | `briefing`             | `BriefingSection[]` | Optional airport briefing shown in the help window (see [Airport briefing](#airport-briefing)) |
 | `traffic`              | `AirportTraffic`  | Optional operator mix of the airport (see [Traffic](#traffic))           |
 | `initialClimbFt`       | number            | Optional initial climb of the SIDs, used in IFR clearances (default 5000 ft) |
 | `systems`              | `SystemId[]`      | Optional: the [systems](systems.md) the airport has (`surveillance`, `rmca`, `catc`, `routing`, `acdm`, `dcl`, `loc`, `gp`). Omitted = all. Missing systems are off and cannot be switched on |
 | `timeZone`             | string            | Optional IANA time zone (`"Europe/Berlin"`) for local-time rules and scenario start times. Default UTC |
-| `deicingPads`          | `DeicingPadData[]` | Optional de-icing pads: `name` (`"DP1"`), `node` (taxi node of the pad, reached by lead lines of kind `stand`), `maxWingspanM`. Used with the scenario option [de-icing](scenarios.md#de-icing); the data check requires every pad to be reachable from a stand and to reach a full-length entry of every runway. EDDS: DP1-DP4, 52 m |
+| `deicingPads`          | `DeicingPadData[]` | Optional de-icing pads: `name` (`"DP1"`), `node` (taxi node of the pad, reached by one-way lead lines of kind `stand` named like the pad; a lead line may have several segments), `maxWingspanM`. Routes turn onto and off a lead line by at most 100°. Used with the scenario option [de-icing](scenarios.md#de-icing); the data check requires every pad to be reachable from a stand and to reach a full-length entry of every runway. EDDS: DP1 65 m, DP2 80 m, DP3 / DP4 36 m, entered from N, left onto S |
+| `runwayCrossings`      | string[]          | Optional runway nodes where automatic routes cross a runway (elsewhere only if there is no other way, e.g. a closed taxiway). EDDS: `['RWY_K']` - crossings only between K and Y. Your own `via` lists are not restricted |
+| `avoidTaxiways`        | string[]          | Optional taxiways automatic routes use only if there is no other way (e.g. reserved for military aircraft). EDDS: `['Z']` |
 | `nightRestrictions`    | `NightRestrictions` | Optional night flying restrictions, local minutes after midnight: `jetDepartures: {from, until}`, `landings: {from, until}`, `delayedLandingsUntil`, `source`. EDDS: jets 1380-360, landings 1410-360, delayed until 1440. Applied only in scenarios with night rules (see [scenarios](scenarios.md#start-time-and-night-flying-restrictions)) |
 
 ## Runways
@@ -47,6 +49,7 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 - `end` is the physical end of the runway (start of the take-off run from this end).
 - `threshold` is the landing threshold. It differs from `end` if the threshold is displaced.
 - The runway heading and length are computed from the two `end` positions.
+- `toraM` (optional) is the published take-off run available from this end when it is shorter than the runway: the far part does not count for take-offs in this direction (EDDS 25: 3045 m, the 300 m behind the displaced threshold 07). Entries can publish their own TORA (`departureEntries[].toraM`).
 
 ## Taxi graph
 
@@ -100,6 +103,8 @@ Rules:
 
 Stand ids are numbers with an optional suffix letter (`14`, `71A`) or a letter followed by digits (`G1`, spoken `stand golf 1`).
 
+**Alternative positions** - a stand whose centre lies within 25 m of a smaller stand, like EDDS 71A over 71 or Nuremberg 40D over 40 - are found automatically. The stand allocation gives aircraft up to code D (52 m) any free stand up to 52 m that is not an alternative position, so wide-body stands and alternative positions stay free; larger aircraft get the smallest stand that fits.
+
 `maxWingspanM` is the largest aircraft the stand itself is rated for. Neighbouring stands are checked automatically: an aircraft only gets a stand if the stand centres leave enough wingtip clearance to the aircraft on the stands next to it (4.5 m between code C aircraft, 7.5 m if one is code D or larger). So stands that can only take a wide-body when the neighbour is empty (like the EDDS wide-body positions 71A and 74A, which overlap 71+72 and 74+75) need no special data.
 
 There must also be a node `STAND_<id>` at `pos`, connected to `laneNode` by an edge `{ name: '<id>', kind: 'stand' }`. A pushback moves the aircraft from the stand to `laneNode`, then 45 m (or 90% of the edge length, whichever is shorter) along a taxilane or taxiway edge leaving `laneNode`. The edge is picked by the requested facing.
@@ -126,12 +131,26 @@ runwayOps: [
 ]
 ```
 
-- `departureEntries` drive `taxi to runway 25` (full-length entries are preferred) and the *Taxi to* menu.
+- `departureEntries` drive `taxi to runway 25` (full-length entries are preferred) and the *Taxi to* menu. `toraM` (optional) is the published take-off run available from the entry; it decides whether a crew accepts the intersection (default: measured from where the strip meets the runway to the far end, or the runway end's `toraM`).
 - `exits[].path` is the node sequence from the runway centre line, through the holding point, to the vacate stop point. Its second node must be the holding point; the Tower uses it to detect "vacated". The last node is where the aircraft stops. Exits whose edges are too narrow for an aircraft (`maxWingspanM`) are not used by it.
 - `departureEntries[].backtrack: true`: the entry is used with a **backtrack** - the departure enters the runway there, taxis to the runway end and turns around (airports without a taxiway to the runway end, e.g. Memmingen N for 24). The AI Tower backtracks automatically; crews ask for it.
 - `exits[].backtrack: true`: arrivals that cannot make an exit ahead turn around on the runway and backtrack to this exit (Memmingen N for 06).
 - `arrivalSpacingNm` (optional): minimum spacing Approach provides between arrivals on this runway, e.g. where arrivals can only vacate at the far end (Sylt: 6 NM).
 - `flows` (optional) are the **standard taxi flows** while this runway is in use. `east` / `west` mean towards the higher / lower runway coordinate of the lower-numbered runway end (for 07/25: east = towards the 25 end). Automatic routes avoid taxiing against them.
+
+## SIDs
+
+```ts
+{ name: 'ROTWE5B', runway: '25', fix: 'ROTWE', towards: [190, 255], frequency: '119.200' },
+{ name: 'ETASA4B', runway: '25', fix: 'ETASA', destinations: ['EDDF', 'EDFE', 'EDFC', 'ETOU'] },
+```
+
+- `fix` is the exit fix; the generated flight plan route starts with it (`ROTWE DCT LEPA`), and Delivery checks that the cleared SID leads there.
+- `towards` (optional): the range of destination bearings (degrees true from the airport, clockwise from the first to the second value) the SID is planned for. The generator plans each departure via the SID whose sector contains the direction of its destination (positions in `src/data/destinations.ts`), or the nearest sector.
+- `destinations` (optional): the SID is planned only for these destinations (a fix restricted to a few airports); it takes precedence over the sectors. An empty list: never planned automatically.
+- `frequency` (optional): the radar frequency departures on this SID contact after take-off (EDDS southern departures: 119.200); default the `APP` station.
+
+The data check requires a SID for every destination of the airport's traffic on every runway, and a position for every destination when sectors are used.
 
 ## Stations
 
@@ -185,7 +204,7 @@ The wind at session start comes from `wind` (optional): `{ primaryShare: 0.65, p
 
 ## Data checks
 
-`validateAirport()` (`src/core/airport/validate.ts`) checks an airport for mistakes: duplicate or dangling nodes, stands without nodes, invalid frequencies, runway operations that reference unknown holding points or nodes, flows on unknown taxiways, stands that cannot reach a full-length entry of every runway with an aircraft of their size, exits that lead to no stand, de-icing pads that no stand reaches or that reach no full-length entry, unknown operators or aircraft types in the traffic, types that fit no stand, and unknown holding points or stands named in the briefing. `tests/airports.test.ts` runs it for every airport in `src/data/airports/index.ts`, so a new airport cannot be merged with broken data.
+`validateAirport()` (`src/core/airport/validate.ts`) checks an airport for mistakes: duplicate or dangling nodes, stands without nodes, invalid frequencies, runway operations that reference unknown holding points or nodes, flows on unknown taxiways, stands that cannot reach a full-length entry of every runway with an aircraft of their size, exits that lead to no stand, de-icing pads that no stand reaches or that reach no full-length entry, unknown operators or aircraft types in the traffic, types that fit no stand, unknown holding points or stands named in the briefing, runway crossings that are not runway nodes, implausible published TORAs, SIDs for unknown runways or with invalid sectors or frequencies, and traffic destinations without a SID or a position. `tests/airports.test.ts` runs it for every airport in `src/data/airports/index.ts`, so a new airport cannot be merged with broken data.
 
 ## Authoring with `RunwayFrameBuilder`
 
@@ -231,4 +250,4 @@ Derived layouts are available under the ODbL: credit OpenStreetMap in `dataNotic
 
 ### Licensing of source data
 
-Only use data you are allowed to redistribute. Public-domain sources (OurAirports) and openly licensed sources (OpenStreetMap, ODbL, which requires attribution) are fine. Official AIP charts and commercial or community sector files must not be copied. They may be used as a **reference to digitise facts** (designators, topology, approximate positions) by hand, as done for EDDS; cite the chart in the airport page and in `dataNotice`, and never commit the chart files themselves. If you derive a layout from OpenStreetMap, credit "© OpenStreetMap contributors" in the airport's documentation page and in `dataNotice`.
+Only use data you are allowed to redistribute. Public-domain sources (OurAirports) and openly licensed sources (OpenStreetMap, ODbL, which requires attribution) are fine. Official AIP charts and commercial or community sector files (EuroScope packages, ground radar maps) must not be copied. They may be used as a **reference to digitise facts** (designators, topology, approximate positions, published distances) by hand, as done for EDDS (the de-icing pads and stand sizes after the VATSIM Germany ground radar data); cite the source in the airport page and in `dataNotice`, and never commit the files themselves. If you derive a layout from OpenStreetMap, credit "© OpenStreetMap contributors" in the airport's documentation page and in `dataNotice`.

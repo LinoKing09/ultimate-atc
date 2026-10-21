@@ -142,14 +142,15 @@ What you do: broadcast a new ATIS (the editor is pre-filled with the gusts), cha
 
 ## De-icing
 
-Winter operations (option `I`): frost on the wings, every departure has to be de-iced on one of the **de-icing pads** before take-off. Stuttgart has four, **DP1-DP4**, between taxiways N and S (between G and E); each pad is a drive-through bay with lead lines to N and S on both sides, so a departure keeps the direction of the taxi flow (runway 25: in and out on N eastbound; runway 07: in from S eastbound, out onto N westbound). The positions are estimates - see [EDDS](airports/EDDS.md).
+Winter operations (option `I`): frost on the wings, every departure has to be de-iced on one of the **de-icing pads** before take-off. Stuttgart has four, **DP1-DP4**, between taxiways N and S - DP1 / DP2 between I and H, DP3 / DP4 between H and F. Every pad is a drive-through bay **entered from N and left onto S** along its lead line: DP1 and DP3 lead west, DP2 and DP4 east, so DP2 / DP4 are entered eastbound on N (e.g. from the circle via L2) and DP1 westbound (from H or M). After the pad: runway 25 departures from DP2 / DP4 continue on S towards A, runway 07 departures from DP1 / DP3 on S towards K. See [EDDS](airports/EDDS.md#holding-bays-and-de-icing-pads).
 
 - The crew asks for it: `ready for taxi, request de-icing` (the ATIS says `de-icing in progress on the de-icing pads`, the briefing has a *De-icing* row).
-- **Taxi it to a pad**: `taxi to de-icing pad DP2 via N` (also `de-icing position 2`, `delta papa 2`; without a pad the crew takes the free pad nearest to it). The *Taxi to* menu lists the pads first, occupied ones greyed out. A pad is taken from the taxi clearance until the aircraft has left it; crews refuse an occupied pad (`de-icing pad DP2 is occupied, request another pad`).
+- **Taxi it to a pad**: `taxi to de-icing pad DP2 via L2, N` (also `de-icing position 2`, `delta papa 2`; without a pad the crew takes the free pad nearest to it). The *Taxi to* menu lists the pads first, occupied ones greyed out. A pad is taken from the taxi clearance until the aircraft has left it; crews refuse an occupied pad (`de-icing pad DP2 is occupied, request another pad`).
 - On the pad the status shows `DEICE` for **6-10 minutes** (3 more for aircraft over 40 m wingspan). A taxi instruction meanwhile: `negative, de-icing in progress, about 4 more minutes`.
 - Then: `de-icing complete on DP2, ready for taxi` - taxi it to the runway as usual.
 - **Before the de-icing** crews refuse the runway or a holding point: `negative, we require de-icing first`.
-- The pads take aircraft up to **52 m wingspan** (code D; there is no room for more between N and S). Wide-bodies are de-iced on their stand and taxi straight to the runway.
+- Pad sizes: **DP1 up to 65 m** wingspan (code E), **DP2 up to 80 m** (code F), **DP3 and DP4 up to 36 m** (code C) - wide-bodies use DP1 or DP2. An aircraft too large for every pad would be de-iced on its stand (none at Stuttgart).
+- Not modelled: in reality S is closed next to the pads in use (I-H for DP1 / DP2, H-F for DP3 / DP4).
 - The AI Ground does the same: it keeps a departure on its stand while all pads are busy, taxis it to a free pad, and on to the runway afterwards.
 - Not modelled: holdover times (a de-iced aircraft stays de-iced), de-icing fluid types, snow on the taxiways, braking action.
 

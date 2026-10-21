@@ -4,6 +4,40 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-10-21
+
+Real-world overhaul and EuroScope fidelity: every airport and procedure checked against real data (OpenStreetMap, OurAirports, VATSIM Germany data, published charts as a reference only), SIDs by destination, Stuttgart TORA, de-icing pads and stands as published, and a PHX scope style modelled on the VATSIM Germany ground radar.
+
+### Added
+
+- **PHX scope style** (settings: *Scope style*, default *PHX night*; also *PHX day* and *Classic*): the look of the VATSIM Germany EuroScope ground radar, modelled on the DFS PHOENIX tower display - its map colours (grass, aprons, taxiways, holding points, de-icing pads), **departures blue, arrivals yellow**, radar returns drawn as raw video with an SSR symbol and **history dots**, label boxes, the PHX ground states (`SUG`, `PBG`, `TXG` / `TX`, `ALU`, `DEP`, `ONB`) and list windows with grey title bars. *Classic* keeps the previous colours and EuroScope states. See [user guide](docs/user-guide.md#colours).
+- **SIDs by destination**: flight plans are filed via the SID towards the destination (new SID fields `towards` - a sector of initial great-circle bearings - and `destinations` for fixes that serve only certain airports), with positions of all destinations from OurAirports (`data/destinations.ts`). The data validation checks that every destination has a SID.
+- **Stuttgart: all real exit fixes** with their current designators - 25: ABTAL4B, DKB9B, ETASA4B, GEBNO7B, KRH5B, KUNOD2B, OKIBA4B, ROTWE5B, SUL3B, TAGIK4B, VESID4B; 07: the H SIDs - with the VATSIM Germany Delivery restrictions (ETASA only to Frankfurt and nearby, KRH to Saarbruecken, Karlsruhe / Baden-Baden and nearby, SUL to Zurich, Friedrichshafen and nearby, DKB to Nuremberg and Schwaebisch Hall, GEBNO not planned automatically).
+- Stuttgart: southern departures (ROTWE, SUL, KUNOD, ABTAL) contact **sector Reutlingen 119.200**, the others **Langen Radar 125.050** (new SID field `frequency`); crews read back the frequency of their sector.
+- Stuttgart: **published TORA per entry** (new fields `toraM` on runway ends and departure entries) - 25: A 3045, B 2435, C 2175, D 1990, **E 1665 (new)**; 07: K / Y 3345, I 3090, W 2520, H 2515, **G 2210 (new)** - shown in the briefing and used by the crews.
+- Airport data: `runwayCrossings` (automatic routes cross a runway only there) and `avoidTaxiways` (used by automatic routes only if there is no other way); Stuttgart crosses only between **K and Y** and keeps off the military taxiway **Z**.
+- Stuttgart: stand **44**, wide-body positions **9A, 24A, 26A, 28A** and the **Apron South layout since AIRAC 2512** (100-104 code D, 206 / 207 code E-F).
+- Nuremberg: SID **SULUS** (north-west).
+- Departure / arrival lists: cells with a function (callsign, type, SID, squawk, clearance flag, cleared-to point, state) open it with a click, like the tag items.
+
+### Changed
+
+- **Tags** laid out like the VATSIM Germany ground labels: callsign with runway (departures) or stand (arrivals), type and wake category with the ground state, SID (clickable) and the cleared-to point; airborne aircraft show altitude, speed and SID or approach.
+- **Lists** in the VATSIM Germany column order: departures REQ, C/S, STND, TSAT, CTOT, ATYP, W, ADES, RWY, SID, ASSR, C, INT, TAXI, STS, FRQ; arrivals REQ, C/S, ATYP, W, ADEP, RWY, APCH, SEQ, LND, DIST, STND, STS, FRQ.
+- Stuttgart **de-icing pads DP1-DP4** at their real positions: entered from N and left onto S in their direction (DP1 / DP3 westbound, DP2 / DP4 eastbound), wingspan limits DP1 65 m, DP2 80 m, DP3 / DP4 36 m.
+- Stuttgart stand sizes after the stand data: 9 up to 60.5 m (9A up to 65 m), 11 code D, 48 30 m, 51 / 53 / 55 / 56 45 m, 52 / 54 code D, 65 29 m, 71A / 74A code E-F (80 m, the only stands for an A380 diversion); the holding bays P1 / P2 follow OpenStreetMap.
+- **Magnetic variation** of all airports from the World Magnetic Model (2026): Stuttgart 3.9°, Nuremberg 4.3°, Memmingen 4.1°, Sylt 3.9°.
+- Nuremberg and Memmingen SIDs are planned by the direction of the destination (Memmingen: UMTEX south-west, KPT east and south, LUPOL west and north).
+- **Stand allocation**: narrow-bodies are spread over all stands up to code D (52 m) instead of always the smallest one that fits; **alternative stand positions** (a larger stand overlapping a smaller one, e.g. 9A, 71A) stay free for the aircraft that need them.
+- The command line placeholder shows an example for the airport and position.
+- Briefing: TORA of every entry and the wingspan limit of every de-icing pad.
+
+### Fixed
+
+- Sylt: the runway rotation (`ROT`) aligns the scope with the main runway 14/32 instead of 06/24.
+- Phraseology: "1 mile final" instead of "1 miles final".
+- Stuttgart: TORA 25 was measured from the runway geometry (3345 m); the published value is 3045 m.
+
 ## [1.1.1] - 2026-10-14
 
 ### Added

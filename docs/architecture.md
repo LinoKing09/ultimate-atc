@@ -57,15 +57,15 @@ ultimate-atc/
 │   │       └── edds.ts        # Stuttgart (layout, stands, runway operations, traffic, briefing)
 │   └── ui/                    # browser client
 │       ├── app.ts             # wires sim <-> scope, lists, messages, command line, menus
-│       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input, rotation (runway-aligned / north-up)
-│       ├── lists.ts           # departure / arrival lists
+│       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input, rotation (runway-aligned / north-up), styles (PHX night / day, classic)
+│       ├── lists.ts           # departure / arrival lists (clickable cells)
 │       ├── menu.ts            # popup menus
 │       ├── dialogs.ts         # connect dialog, help window (tabs), ATIS editor
 │       ├── briefing.ts        # airport briefing (data facts + the airport's briefing sections)
 │       ├── scenarioBuilder.ts # scenario builder dialog (presets, events, code and link)
 │       ├── tutorialPanel.ts   # tutorial step panel on the scope
 │       ├── levelSlider.ts     # slider over named steps (dialogs)
-│       ├── labels.ts          # status codes for tags and lists
+│       ├── labels.ts          # ground states for tags and lists (EuroScope / PHX names)
 │       ├── voice.ts           # text-to-speech and speech recognition
 │       ├── settings.ts        # localStorage-backed preferences
 │       ├── settingsDialog.ts  # in-game settings menu (device mode, sizes, voice, traffic)

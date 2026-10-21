@@ -6,7 +6,7 @@
 | Location           | Nuremberg, Bavaria, Germany                                                 |
 | Reference point    | 49°29'55"N 011°04'41"E (OurAirports)                                        |
 | Elevation          | 1046 ft                                                                     |
-| Magnetic variation | 4.0° E (simulation value)                                                   |
+| Magnetic variation | 4.3° E (World Magnetic Model, 2026)                                         |
 | Transition altitude | 5000 ft; initial climb of the RNAV SIDs FL70                               |
 | Runway             | **10/28**, 2700 m x 45 m, true heading 099° / 279°; **28 preferred**        |
 | Data files         | [`src/data/airports/eddn.ts`](../../src/data/airports/eddn.ts), layout [`eddn.layout.ts`](../../src/data/airports/eddn.layout.ts) (generated) |
@@ -20,7 +20,8 @@ The simulator shows a condensed version of this page as the **airport briefing**
 | Runway, taxiways, holding points (names from the OSM tags "Rollhalt Alpha" ...), stands, aprons, buildings | [OpenStreetMap](https://www.openstreetmap.org/) - © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/). Imported with `scripts/osm-import.mjs`; the derived layout is available under the ODbL |
 | Taxiway widths | OSM `width` tags: A, B, C, D and F 20 m; the others keep the simulator default (23 m, taxilanes 20 m) |
 | Reference point, elevations | [OurAirports](https://ourairports.com/) (public domain) |
-| Frequencies, SIDs, stand use, taxiway restrictions, preferred runway, exits, intersections | VATSIM Germany Nürnberg SOP (facts only; a simulation resource, not an official source) |
+| Frequencies, SIDs, stand use, taxiway restrictions, preferred runway, exits, intersections | VATSIM Germany Nürnberg SOP (facts only; a simulation resource, not an official source); frequencies checked against the VATSIM Germany station data and vATIS profile (2026-10-21), SID designators against a public chart index |
+| Exit fix positions (for the SID choice), magnetic variation | public waypoint lists; NOAA World Magnetic Model (October 2026) |
 
 **Simplified or not modelled:**
 
@@ -30,7 +31,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 - code D / E aircraft taxi without follow-me (real: "Higher Code Letter Aircraft" procedure),
 - the unnamed link from the east end of the apron to A / B / N2 is part of A in the simulator,
 - terminal buildings mapped as multipolygons in OSM are not drawn,
-- SIDs: designators from the SOP (BOLSI, ERETO, RODIS, SUKAD; G = runway 28, C = runway 10), the numbers change with the AIRAC cycle,
+- SIDs: the RNAV SIDs BOLSI, ERETO, RODIS, SUKAD and SULUS (G = runway 28, C = runway 10; the numbers change with the AIRAC cycle), see [SIDs](#sids); the local training SID ERL and the conventional NUB SIDs for non-RNAV aircraft are not modelled,
 - traffic: estimated operator shares, about 60 % of Stuttgart's movements per density step (`rateFactor` 0.6).
 
 **Never use this simulator for real-world navigation.**
@@ -74,6 +75,18 @@ Taxiways B, C, E and N2 are limited to code C (36 m), D to code D (52 m), S3 / S
 - **Departures**: 28 from A (full length), small aircraft from intersection B; 10 from F, small aircraft from E. C is not used for departures.
 - **Arrivals vacate not earlier than C** (a departure may be waiting at B or E): runway 28 via C, D, E or F (end), runway 10 via C, B or A (end).
 - Fill the remote stands 30-35 and 40-44 from the far end: N2 and N4 are blocked by the aircraft parked on them.
+
+## SIDs
+
+Each flight plan is filed via the exit fix towards its destination (great-circle bearing from Nuremberg, a simulator approximation of the route network). After take-off all departures contact München Radar 129.525.
+
+| Exit fix | Runway 28 / 10 | Used for (simulator) |
+| -------- | -------------- | -------------------- |
+| ERETO    | ERETO1G / ERETO1C | 000-060° (Berlin, Leipzig, Dresden, Scandinavia) |
+| RODIS    | RODIS1G / RODIS1C | 060-150° (Prague, Vienna, Budapest, Balkans, Greece, Turkey, Egypt) |
+| BOLSI    | BOLSI1G / BOLSI1C | 150-250° (Munich, Italy, Switzerland, Spain, Portugal, Canaries) |
+| SUKAD    | SUKAD1G / SUKAD1C | 250-320° (Frankfurt, Rhine-Ruhr, Paris, Benelux, UK, Ireland) |
+| SULUS    | SULUS1G / SULUS1C | 320-360° (Hamburg, Bremen, Hannover; only for flights continuing on L604) |
 
 ## Traffic
 

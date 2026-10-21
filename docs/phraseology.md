@@ -112,7 +112,7 @@ If the route is impossible, the pilot replies `unable to follow route via S, say
 | --------------------------------------------------------------- | ---------------------------------------------------------- |
 | `advise able for departure from intersection D` / `are you able intersection D` / `confirm able to depart from D` | `Affirm, able intersection D, ...` or `Negative, we require full length, ...` |
 
-The crew compares the take-off run available from that intersection with what their aircraft needs today (a figure per type, e.g. A320 about 2100 m, A330 about 2800 m, Citation about 1200 m, varied per flight by -10 % / +15 %). An aircraft that is not able replies `unable intersection D, we require full length` when you send it to that holding point anyway. Asking for a holding point that is not an entry to the runway in use gets `confirm intersection X, it is not an entry to runway 25`. The aircraft menu has *Able intersection?* for the intersections of the runway in use.
+The crew compares the take-off run available from that intersection (the published value where the airport data has one, e.g. Stuttgart 25 from C 2175 m) with what their aircraft needs today (a figure per type, e.g. A320 about 2100 m, A330 about 2800 m, Citation about 1200 m, varied per flight by -10 % / +15 %). An aircraft that is not able replies `unable intersection D, we require full length` when you send it to that holding point anyway. Asking for a holding point that is not an entry to the runway in use gets `confirm intersection X, it is not an entry to runway 25`. The aircraft menu has *Able intersection?* for the intersections of the runway in use.
 
 **Stand assignments**: the crew knows from its stand charts whether its aircraft fits (`unable, stand 22 is too small for us`), but not whether the stand is free - it accepts the instruction and only finds out when it sees the stand. About 150 m before it, it stops and calls: `Stuttgart Ground, Eurowings 7TK, stand 14 is occupied, request another stand` (or `stand 72 is blocked, not enough wingtip clearance to the A332 on stand 71A, request another stand`). An aircraft just pushing back from the stand (or taxiing onto the one next door) is waited for without a call. You can see it before: the preview warns in orange (`-- stand 14 taken by DLH5AB`).
 
@@ -221,7 +221,7 @@ A follow-me only drives onto the taxiways after your `proceed`; the aircraft wai
 | `vacate via E` | The exit to take after landing (used if it can still be reached; an exit marked for backtracking behind the aircraft is reached by turning around on the runway) |
 | `backtrack runway 24, line up and wait` / `backtrack runway 24` / `enter runway 24 and backtrack` / `backtrack runway 24, cleared for take-off` | **Backtrack**: the departure enters the runway at an intersection, taxis along it against the take-off direction to the runway end, turns around on the runway and lines up for a full-length departure. The runway is occupied all the time. From a holding point at the runway end: `unable to backtrack from W, we are at the runway end`. Where the airport uses an entry with a backtrack (Memmingen N for 24) the crew asks for it (`holding point N, ready for departure, request backtrack`) and refuses a plain line-up if the runway ahead is too short (`unable, we require a backtrack for departure, 1009 metres available from N`) |
 | `backtrack, vacate via N` | Arrival: after landing turn around on the runway and backtrack to N (the exit is behind it) |
-| `contact radar [119.200]` / `contact Langen Radar 119.200` / `contact departure` | Departure to Radar after take-off (`confirm contact Radar, we are not airborne yet` on the ground) |
+| `contact radar [125.050]` / `contact Langen Radar 119.200` / `contact departure` | Departure to Radar after take-off (`confirm contact Radar, we are not airborne yet` on the ground). Every radar frequency of the airport is accepted (Stuttgart: 125.050, and 119.200 for the southern SIDs); without a frequency the crew reads back the one of its SID |
 | `contact ground [118.605]` | Arrival to Ground - from touchdown on (it calls Ground once vacated) - or a crossing aircraft once it has vacated |
 | `cross runway 25` | Crossing for an aircraft Ground handed over at the runway holding point |
 
@@ -231,7 +231,7 @@ A wrong runway is queried: `confirm runway 07, we are departing runway 25`. A de
 
 | You say | Effect |
 | ------- | ------ |
-| `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312` | IFR clearance (German form; the short form `cleared to Frankfurt via KRH4B departure, climb 5000 feet, squawk 2312` works too). Clearance limit: destination name (`Frankfurt`, `Paris Charles de Gaulle`) or ICAO code (`EDDF`). SID: designator, also spelled (`kilo romeo hotel four bravo`). Optional: `runway 25`, `CTOT 1435`. Altitude: `5000 feet`, `five thousand feet`, `flight level 70`, also after `maintain`. Also `..., KRH4B departure, ...` without `via`. |
+| `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312` | IFR clearance (German form; the short form `cleared to Frankfurt via ETASA4B departure, climb 5000 feet, squawk 2312` works too). Clearance limit: destination name (`Frankfurt`, `Paris Charles de Gaulle`) or ICAO code (`EDDF`). SID: designator, also spelled (`echo tango alpha sierra alpha four bravo`). Optional: `runway 25`, `CTOT 1435`. Altitude: `5000 feet`, `five thousand feet`, `flight level 70`, also after `maintain`. Also `..., ETASA4B departure, ...` without `via`. |
 | `readback correct` / `read back correct` | Confirms a readback |
 | `squawk 2312` / `negative, squawk 2312` | Assigns (or corrects) a squawk code (octal digits 0-7) |
 | `CTOT 1435` / `slot 1435` | Tells the crew its calculated take-off time |
@@ -276,7 +276,7 @@ Several instructions can be sent in one transmission, in any order:
 DLH5AB push and start approved facing east
 EWG7TK taxi to holding point A via L2, S, hold short of taxiway H
 THY1734 hold position, give way to DLH5AB
-CFG123 cross runway 25, taxi to stand 105 via W, V
+CFG123 cross runway 25, taxi to stand 206 via Y, V
 ```
 
 The pilot reads back all instructions in one transmission. If one of them can't be executed, that part is answered with the reason (for example `unable ...`), and the others are still executed.
@@ -303,11 +303,11 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | `maintain 160 knots until 4 miles`                  | `160 knots until 4 miles, Eurowings 7TK`                            |
 | `cleared for immediate take-off`                    | `Cleared for immediate take-off runway 25, Lufthansa 5AB`           |
 | `hold position, cancel take-off`                    | `Holding position, take-off cancelled, Lufthansa 5AB`               |
-| `contact radar 119.200`                             | `Radar 119.200, goodbye, Lufthansa 5AB`                             |
+| `contact radar 125.050`                             | `Radar 125.050, goodbye, Lufthansa 5AB`                             |
 | `tow approved` (to a tug)                           | `Tow approved to stand 45, Tug 5`                                   |
 | `follow the follow-me` (just vacated)               | `Follow the follow-me to stand 14, DCEEO`                           |
 | `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312` | `Cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2312[, CTOT 1435], Lufthansa 5AB` - now and then with a **wrong squawk**: correct it |
-| IFR clearance with a missing or wrong part          | `Confirm KRH2H departure, information R says runway 25 in use, ...` / `Confirm clearance limit, our destination is Frankfurt` / `Request squawk` / `Confirm initial climb` |
+| IFR clearance with a missing or wrong part          | `Confirm ETASA2H departure, information R says runway 25 in use, ...` / `Confirm clearance limit, our destination is Frankfurt` / `Request squawk` / `Confirm initial climb` |
 | `squawk 2312`                                       | `Squawk 2312, Lufthansa 5AB`                                        |
 | `readback correct`                                  | *(no read-back)*                                                    |
 | `start-up approved` without a clearance             | `Negative, we have no clearance yet, Lufthansa 5AB`                 |

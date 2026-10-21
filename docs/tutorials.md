@@ -32,7 +32,7 @@ Position: Stuttgart Delivery 121.915 (Ground and Tower by the simulator). About 
 | ---- | --------- |
 | Welcome | What Delivery does |
 | A clearance request | Selecting an aircraft (DLH5AB, stand 14) |
-| IFR clearance | `cleared to Athens, SUL4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2101` - destination, SID by the first fix of the route, initial climb, free squawk |
+| IFR clearance | `cleared to Athens, KUNOD2B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2101` - destination, SID by the first fix of the route (towards the destination), initial climb, free squawk |
 | Check the readback | Listen to the squawk; `readback correct` |
 | Start-up | `start-up approved` at the TSAT (A-CDM) |
 | Hand-off to Ground | `contact ground 118.605` |
@@ -69,7 +69,7 @@ Position: Stuttgart Tower 118.805 (Delivery and Ground by the simulator). About 
 | Vacated: to Ground | `contact ground 118.605` |
 | Line up | `line up and wait runway 25` (DLH5AB, handed over by Ground) |
 | Take-off | `wind 250 degrees 8 knots, runway 25, cleared for take-off`; departure spacing |
-| Hand-off to Radar | `contact radar 119.200` |
+| Hand-off to Radar | `contact radar 125.050` (the frequency of the departure's SID sector) |
 | Well done | Conditional line-up, immediate take-off, go around, vacate via, speed control, crossings, COORD |
 
 ## After the tutorial

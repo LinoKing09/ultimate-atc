@@ -70,7 +70,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `1x 2x 4x 8x`         | Simulation rate. Pilots and Tower run faster too; text-to-speech gets slightly faster.          |
 | `TTS`                 | Pilots read their transmissions aloud (text-to-speech). *Hidden in this version, see [Voice](#9-voice).* |
 | `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
-| `ROT`                 | Rotates the scope: **runway horizontal** like the aerodrome chart (default, runway 07 on the left) or north-up. |
+| `ROT`                 | Rotates the scope: the main runway **horizontal** like the aerodrome chart (default; Stuttgart 07 on the left, Sylt 14) or north-up. |
 | `BRIEFING`            | Opens the [airport briefing](#airport-briefing).                                               |
 | `SYSTEMS`             | Opens the [systems window](#systems-window) (also **F3**). Reads `SYSTEMS (n OFF)` in orange while systems are off. |
 | `COORD`               | **Coordination** by landline with the positions the simulator runs: *Langen Radar: no more arrivals* (Approach releases no new arrivals onto the final; those already on final continue) and *Stuttgart Ground: hold all departures* (no more pushbacks; aircraft already taxiing continue; only while the simulator runs Ground). Use it to make room, e.g. to clear a queue or a blocked runway. Each costs **2 points per minute** while it is on. A third switch (no cost) has Ground ask every departure for the **earliest intersection** it accepts: shown as `INT D` (or `INT FULL`) in the tag and in the `INT` column of the departure list; the button reads `COORD (ARR+DEP HOLD)` in orange. Click again to resume. |
@@ -117,6 +117,7 @@ Every airport added in the future comes with its own briefing.
 | Interface size           | Size of the text and buttons (80-160 %)                                                    |
 | Tag size                 | Size of the aircraft data tags on the scope (80-200 %)                                     |
 | Scope orientation        | Runway horizontal (like the chart) or north-up - the same as `ROT`                         |
+| Scope style              | **PHX night** (default), **PHX day** or **Classic** - see [Scope styles](#scope-styles)     |
 | Show cleared routes      | The same as `ROUTES`                                                                       |
 | Pilot voices (TTS)       | The same as `TTS`                                                                          |
 | Voice volume / speed     | Volume and speaking rate of the pilot voices                                               |
@@ -149,20 +150,27 @@ Mobile mode is made for touch screens, above all the **iPad** (a phone screen is
 
 ## 3. The scope
 
-The scope is a ground radar showing the aerodrome chart. By default it is rotated like the official aerodrome chart, with the runway horizontal; **ROT** switches to north-up:
+The scope is a ground radar showing the aerodrome chart. By default it is rotated like the official aerodrome chart, with the runway horizontal; **ROT** switches to north-up.
 
-| Element                                | Drawn as                                                                       |
+### Scope styles
+
+*Scope style* in the [settings](#settings) chooses the look:
+
+- **PHX night** (default) and **PHX day**: like the EuroScope ground radar of VATSIM Germany, which is modelled on the **DFS PHOENIX** tower display used at German airports - a dark green-black background (day: light green), dark grey aprons, grey taxiways, a lighter grey runway, amber holding points, white taxiway designators; aircraft as **radar returns** (olive green) with a small **SSR symbol** (the transponder square) and five **history dots** behind moving targets; tags in boxes, **departures blue, arrivals yellow**, vehicles green, traffic on other frequencies dimmed; the PHX ground states (`SUG`, `PBG`, `TXG` ...). The lists get the PHX window colours (light grey title bars).
+- **Classic**: the colours of Ultimate ATC before 1.2 (blue-grey background, black runway, white / grey silhouettes) with the EuroScope ground states (`ST-UP`, `PUSH`, `TAXI` ...).
+
+| Element                                | Drawn as (PHX; classic in brackets)                                            |
 | -------------------------------------- | ------------------------------------------------------------------------------ |
-| Runway                                 | Black strip with a dashed centre line, threshold bars and designators          |
+| Runway                                 | Grey strip (classic: black) with a dashed centre line, threshold bars and designators |
 | Taxiways and taxilanes                 | Grey bands in their real width (where the airport data has it) with a thin yellow centre line; bends are rounded like the taxiway centre lines, junctions and runway entries have fillets (widened corners) |
-| Taxiway designators                    | Yellow letters in dark boxes (`N`, `S`, `R`, `D` ...). Long taxiways (N, S, M) repeat their designator about every 600 m when you zoom in |
+| Taxiway designators                    | White (classic: yellow) letters in dark boxes (`N`, `S`, `R`, `D` ...). Long taxiways (N, S, M) repeat their designator about every 600 m when you zoom in |
 | Closed taxiways                        | Red, hatched, designator in red (scenario option, see [closed taxiways](scenarios.md#closed-taxiways)) |
 | Permanently closed taxiway parts       | Grey pavement with black crosses, as on the aerodrome chart; a taxiway closed everywhere has a grey designator (Memmingen S, the loops around the runway ends) |
-| De-icing pads                          | Outlined squares with the pad name (`DP1` ... `DP4`), with thin lead lines to N and S |
-| Runway holding positions               | Thick yellow bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
+| De-icing pads                          | Outlined squares (PHX: blue) with the pad name (`DP1` ... `DP4`), with thin lead lines from N to S |
+| Runway holding positions               | Thick amber bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
 | Stands                                 | Thin yellow lead-in line plus the stand number                                 |
-| Aprons                                 | Slightly lighter areas                                                         |
-| Buildings                              | Brown areas with names                                                         |
+| Aprons                                 | Dark grey areas (classic: slightly lighter than the background)                |
+| Buildings                              | Dark blue-grey (classic: brown) areas with names                               |
 | Scale bar                              | Bottom left                                                                    |
 
 Details appear and disappear depending on zoom: centre lines and stand numbers only show when zoomed in.
@@ -182,12 +190,12 @@ Details appear and disappear depending on zoom: centre lines and stand numbers o
 
 ## 4. Aircraft tags and colours
 
-Every aircraft is drawn as a top-down silhouette at real size (with a minimum size, so it stays visible when zoomed out) and carries a data tag:
+Every aircraft is drawn as a top-down shape at real size (with a minimum size, so it stays visible when zoomed out) - in the PHX styles as the radar return with the SSR symbol - and carries a data tag laid out like the ground labels of VATSIM Germany:
 
 ```
-DLH5AB PAN *    callsign; "PAN" = emergency, "*" = waiting for your answer
-A320 A          aircraft type + where it is cleared to (A = holding point, S14 = stand 14, HS F = hold short of F, >14 = suggested stand)
-TAXI 15 #2      ground status + ground speed in knots + queue number you gave ("number 2 for ...")
+DLH5AB 25 PAN *    callsign + departure runway (arrivals: stand); "PAN" = emergency, "*" = waiting for your answer
+A320 M TXG         aircraft type + wake category + ground state
+ROTWE5B A 15 #2    SID (departures) + where it is cleared to (A = holding point, S14 = stand 14, HS F = hold short of F, >14 = suggested stand) + ground speed in knots + queue number ("number 2 for ...")
 ```
 
 Like in EuroScope, **the tag items are clickable**. Hovered items are highlighted:
@@ -196,12 +204,13 @@ Like in EuroScope, **the tag items are clickable**. Hovered items are highlighte
 | ----------------------------- | ----------------------------------------------------------------------- |
 | Callsign                      | Flight plan card: **radiotelephony callsign** (e.g. `SPEEDBIRD 947`), type, route, SID, runway, squawk, stand, frequency |
 | Aircraft type                 | Same flight plan card                                                   |
-| Cleared-to (`A`, `S14`, `---`) | Taxi menu: holding points for departures, stands for arrivals         |
-| Status (`TAXI`, `RQST`, ...)  | The full [aircraft menu](#7-aircraft-menu)                              |
+| SID                           | On your Delivery frequency the clearance menu (IFR clearance with the SID, squawk, start-up), otherwise the flight plan card |
+| Cleared-to (`A`, `S14`, `---`), arrival stand | Taxi menu: holding points for departures, stands for arrivals |
+| Ground state (`TXG`, `RQST`, ...) | The full [aircraft menu](#7-aircraft-menu)                          |
 
 **Hovering over the callsign** adds a line with the radiotelephony callsign below it, so you know how to address the aircraft. The selected aircraft's telephony is also shown in front of the command line (`[BAW947 SPEEDBIRD 947]`).
 
-Airborne aircraft (arrivals on final, departures after take-off) show altitude in hundreds of feet and speed, for example `A034 140`, plus a speed vector line.
+Airborne aircraft (arrivals on final, departures after take-off) show callsign, type and wake category, altitude in hundreds of feet and speed (`A034 140`), and the approach and runway (`ILS 25`) or the SID, plus a speed vector line.
 
 To keep the apron readable, parked aircraft with no pending request only get a tag when you zoom in or select them. **Drag a tag** with the mouse to move it; *Reset tag position* in the aircraft menu puts it back.
 
@@ -211,77 +220,85 @@ From each runway threshold an extended centreline runs 15 NM outwards with a tic
 
 ### Ground status codes
 
-| Code    | Meaning                                                     |
-| ------- | ----------------------------------------------------------- |
-| `----`  | Parked on the stand, no IFR clearance yet                   |
-| `CLRD`  | Parked, IFR clearance received                              |
-| `RQST`  | Parked, with a request (clearance, start-up, pushback, taxi) |
-| `PUSH`  | Pushback in progress                                        |
-| `ST-UP` | Start-up approved, or pushback complete and starting engines |
-| `TAXI`  | Taxiing                                                     |
-| `DEICE` | Being de-iced on a de-icing pad (scenario option [de-icing](scenarios.md#de-icing)) |
-| `HOLD`  | Holding position on your instruction                        |
-| `HS-R`  | Holding short of a runway, waiting for a crossing clearance |
-| `H/P`   | At the runway holding point (destination)                   |
-| `L/U`   | Lined up on the runway (Tower)                              |
-| `DEPA`  | Departing (take-off roll and climb)                         |
-| `APP`   | On final approach                                           |
-| `LAND`  | Landing roll                                                |
-| `VAC`   | Vacating the runway                                         |
-| `VACD`  | Vacated, waiting for taxi instructions                      |
-| `PARK`  | Arrived on the stand                                        |
-| `G/A`   | Going around                                                |
+The PHX styles use the ground states of the DFS PHOENIX display (as in the VATSIM Germany EuroScope profile), the classic style the EuroScope names:
+
+| PHX     | Classic | Meaning                                                     |
+| ------- | ------- | ----------------------------------------------------------- |
+| `----`  | `----`  | Parked on the stand, no IFR clearance yet                   |
+| `CLRD`  | `CLRD`  | Parked, IFR clearance received                              |
+| `RQST`  | `RQST`  | Parked, with a request (clearance, start-up, pushback, taxi) |
+| `PBG`   | `PUSH`  | Pushback in progress (pushback given)                       |
+| `SUG`   | `ST-UP` | Start-up given, or pushback complete and starting engines   |
+| `TXG`   | `TAXI`  | Taxiing out (departure)                                     |
+| `TX`    | `TAXI`  | Taxiing in (arrival, tow)                                   |
+| `DEICE` | `DEICE` | Being de-iced on a de-icing pad (scenario option [de-icing](scenarios.md#de-icing)) |
+| `HOLD`  | `HOLD`  | Holding position on your instruction                        |
+| `HS-R`  | `HS-R`  | Holding short of a runway, waiting for a crossing clearance |
+| `H/P`   | `H/P`   | At the runway holding point (destination)                   |
+| `ALU`   | `L/U`   | Lined up on the runway (Tower)                              |
+| `DEP`   | `DEPA`  | Departing (take-off roll and climb)                         |
+| `APP`   | `APP`   | On final approach                                           |
+| `LAND`  | `LAND`  | Landing roll                                                |
+| `VAC`   | `VAC`   | Vacating the runway                                         |
+| `VACD`  | `VACD`  | Vacated, waiting for taxi instructions                      |
+| `ONB`   | `PARK`  | Arrived on the stand (on blocks)                            |
+| `G/A`   | `G/A`   | Going around                                                |
 
 ### Colours
 
-| Colour                       | Meaning                                                         |
+| Colour (PHX; classic)        | Meaning                                                         |
 | ---------------------------- | --------------------------------------------------------------- |
-| White                        | On your frequency                                               |
-| Grey                         | On another frequency (Tower, or a position run by the simulator) |
+| Blue tag (classic: white)    | Departure on your frequency                                     |
+| Yellow tag (classic: white)  | Arrival on your frequency                                       |
+| Green tag (classic: white)   | Tow (an aircraft moved by a tug) on your frequency              |
+| Dimmed (classic: grey)       | On another frequency (Tower, or a position run by the simulator) |
+| Olive shape + small square   | PHX: the radar return and the SSR (transponder) symbol; the dots behind a moving target are its last positions (every 2 s). Without A-SMGCS surveillance only the radar return is shown |
 | Flashing red                 | A-SMGCS CATC: two aircraft rolling towards each other on cleared routes that meet head-on (not when one of them stands still; see [Resolve conflict](#7-aircraft-menu)); *Acknowledge CATC alert* in the aircraft menu (`ACK` in the quick-action bar) stops the flashing when you know they will not meet |
-| Flashing yellow              | Waiting for your answer (a request is pending); `roger` / `standby` (or ROGER in the sidebar) stops it until the pilot calls again |
+| Flashing white (classic: yellow) | Waiting for your answer (a request is pending); `roger` / `standby` (or ROGER in the sidebar) stops it until the pilot calls again |
 | Flashing orange              | Waiting for more than a minute                                  |
 | Flashing magenta, `PAN`      | Emergency (medical) - give priority                             |
 | Red                          | Involved in a collision                                         |
-| Cyan circle                  | Selected aircraft                                               |
+| Framed tag, light box (classic: cyan circle) | Selected aircraft                               |
 | Yellow box `FOLLOW-ME 1`     | Follow-me car (the label needs vehicle tracking in the [systems window](#systems-window)) |
 
 ## 5. Departure and arrival lists
 
-The lists work like EuroScope's departure and arrival lists. Aircraft waiting for you are sorted to the top, the longest-waiting first. Drag a list by its title bar; the `_` button collapses it.
+The lists work like EuroScope's departure and arrival lists, with the columns in the order of the VATSIM Germany profile (the request and its waiting time first). Aircraft waiting for you are sorted to the top, the longest-waiting first. Drag a list by its title bar; the `_` button collapses it. **Cells with a function** (underlined when the mouse is over them) open it with a click, like the items of a data tag: `REQ` and `STS` the aircraft menu, `C/S` and `ATYP` the flight plan card, `SID`, `ASSR` and `C` the clearance menu (on your Delivery frequency; otherwise the flight plan card), `TAXI` / `STND` the taxi menu.
 
 **DEPARTURES**
 
 | Column | Content                                                                            |
 | ------ | ---------------------------------------------------------------------------------- |
-| C/S    | Callsign                                                                           |
-| TYPE   | ICAO aircraft type / wake category (L, M, H)                                       |
-| STD    | Stand (empty once pushed back)                                                     |
-| ADES   | Destination                                                                        |
-| SID    | Standard instrument departure from the flight plan, or the one you cleared (placeholder names) |
-| RWY    | Departure runway                                                                   |
-| IFR    | `CLR` once the crew has its IFR clearance                                          |
-| SQ     | Assigned squawk                                                                    |
+| REQ    | Pending request and how long the pilot has been waiting                            |
+| C/S    | Callsign (PHX: in the departure colour)                                            |
+| STND   | Stand (empty once pushed back)                                                     |
 | TSAT   | Target start-up approval time from the A-CDM sequencer (empty with A-CDM off)      |
 | CTOT   | Calculated take-off time (ATFM slot) if the flight has one                         |
+| ATYP   | ICAO aircraft type                                                                 |
+| W      | Wake turbulence category (L, M, H)                                                 |
+| ADES   | Destination                                                                        |
+| RWY    | Departure runway                                                                   |
+| SID    | Standard instrument departure of the flight plan (towards the destination), or the one you cleared |
+| ASSR   | Assigned squawk                                                                    |
+| C      | `✓` once the crew has its IFR clearance (EuroScope clearance flag)                 |
+| INT    | Earliest intersection the crew accepts (when Ground asks, see `COORD`)             |
 | TAXI   | Where the aircraft is cleared to taxi (holding point)                              |
-| STS    | Ground status (see above)                                                          |
+| STS    | Ground state (see above)                                                           |
 | FRQ    | Frequency the pilot is on: `DEL`, `GND` or `TWR`                                   |
-| REQ    | Pending request and how long the pilot has been waiting                            |
 
 **ARRIVALS**
 
 | Column | Content                                                                            |
 | ------ | ---------------------------------------------------------------------------------- |
-| C/S, TYPE | as above                                                                        |
+| REQ, C/S, ATYP, W | as above (C/S in the arrival colour)                                    |
 | ADEP   | Origin airport                                                                     |
 | RWY    | Landing runway                                                                     |
+| APCH   | Approach procedure while on final: `ILS`, `LOC` (localizer only) or `RNP` - see the [systems window](#systems-window) |
 | SEQ    | Position in the arrival sequence on final (1 = next to land)                       |
 | LND    | `CLR` once the arrival is cleared to land (Tower)                                   |
-| APCH   | Approach procedure while on final: `ILS`, `LOC` (localizer only) or `RNP` - see the [systems window](#systems-window) |
 | DIST   | Distance to the threshold while on final; afterwards the exit used                 |
-| STD    | Cleared stand, or the **suggested stand in brackets** (from the stand allocation)  |
-| STS, FRQ, REQ | as above                                                                    |
+| STND   | Cleared stand, or the **suggested stand in brackets** (from the stand allocation)  |
+| STS, FRQ | as above                                                                         |
 
 Request codes in the `REQ` column:
 
@@ -396,7 +413,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Item                            | Sends                                                                                  | Available when                         |
 | ------------------------------- | -------------------------------------------------------------------------------------- | -------------------------------------- |
 | Send DCL (datalink) -> SID       | Datalink clearance (no voice), squawk shown in the hint                                | The crew requested its clearance by DCL |
-| IFR clearance -> SID             | `cleared to Frankfurt, KRH4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2101[, CTOT 1435]`. The SID of the flight plan's first fix is listed first; the squawk is the next free code | Departure on Delivery frequency (*Amend IFR clearance* once cleared) |
+| IFR clearance -> SID             | `cleared to Frankfurt, ETASA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2101[, CTOT 1435]`. The SID of the flight plan's first fix is listed first; the squawk is the next free code | Departure on Delivery frequency (*Amend IFR clearance* once cleared) |
 | Readback correct                | `readback correct`                                                                     | Cleared                                |
 | Squawk -> ...                    | `negative, squawk 2101` (correct a wrong readback) or a new code                       | Cleared                                |
 | Start-up approved               | `start-up approved` (the hint shows the TSAT)                                          | Cleared, still on the stand            |
@@ -468,7 +485,7 @@ Responsibilities in this simulator:
 Clearance Delivery (EDDS: `Stuttgart Delivery` 121.915) gives departures their IFR clearance, a squawk and the start-up, then hands them to Ground. If you don't staff Ground, the simulator runs it (pushback, taxi, hand-off to Tower).
 
 1. **Clearance request**: about 10 minutes before off-block (TOBT) the crew calls: `Stuttgart Delivery, Eurowings 51WM, A319, stand 45, information R, request clearance to Berlin`. Crews of datalink-equipped aircraft (about 4 in 10, airline flights only) request it silently: the list shows `DCL` in the REQ column.
-2. **IFR clearance**: clearance limit (the destination), SID, initial climb, squawk: `cleared to Berlin, KRH4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2101`. Pick the SID of the **runway in use** that leads to the **first fix of the flight plan** (the aircraft menu lists it first). If something is missing or wrong, the crew queries it (`confirm KRH2H departure, information R says runway 25 in use`). For a DCL request use *Send DCL* in the aircraft menu: no voice, no readback, the crew answers WILCO.
+2. **IFR clearance**: clearance limit (the destination), SID, initial climb, squawk: `cleared to Berlin, OKIBA4B departure, flight planned route, climb via SID to altitude 5000 feet, squawk 2101`. Pick the SID of the **runway in use** that leads to the **first fix of the flight plan** (the aircraft menu lists it first; flight plans go via the exit fix towards the destination, see [EDDS SIDs](airports/EDDS.md#sids)). If something is missing or wrong, the crew queries it (`confirm OKIBA4H departure, information R says runway 25 in use`). For a DCL request use *Send DCL* in the aircraft menu: no voice, no readback, the crew answers WILCO.
 3. **Readback**: listen to it. About 4 % of crews read back a wrong squawk (two digits swapped). Correct it with `negative, squawk 2101`; otherwise say `readback correct`. A wrong readback that you let pass costs 10 points, a caught one gives 5.
 4. **CTOT**: flights with an ATFM slot show it in the CTOT column. Include it in the clearance (`..., CTOT 1435`) or tell the crew separately (`CTOT 1435`). The aircraft must take off between CTOT -5 and +10 minutes; Tower holds it at the holding point until it fits. A missed slot gives a new CTOT 20 to 40 minutes later and -10 points.
 5. **Start-up**: with A-CDM the crew calls at its TSAT (`ready for start-up, TSAT 1452`): `start-up approved`. Without A-CDM it calls when ready. Start-up needs the clearance first.
@@ -482,7 +499,7 @@ Stuttgart Tower (118.805) owns runway 07/25. When you staff Tower, Ground and De
 
 1. **Departures** reach the holding point with the AI Ground and call: `Stuttgart Tower, Lufthansa 5AB, holding point A, ready for departure`. Give `line up and wait runway 25` (it lines up and waits) or straight away `wind 250 degrees 8 knots, runway 25, cleared for take-off`. Line up behind landing traffic with `behind landing EWG7TK, line up and wait behind`. A crew with a take-off clearance does not roll while someone is on the runway in front of it.
 2. **Spacing**: 2 minutes behind a heavy (3 from an intersection), 2 minutes behind a departure on the same SID fix, 1 minute on diverging SIDs - counted from the previous departure being airborne. Taking off earlier counts as a separation loss (-10). The take-off menu shows how long you still have to wait. CTOT flights may only go from CTOT -5 minutes: the take-off menu warns you, but a crew you clear earlier takes off and it counts as a slot violation (-10).
-3. **After take-off** the crew asks for a frequency change: `contact radar 119.200` (+10). If it leaves the control zone (4000 ft above the airport) still on your frequency, it costs 5 points.
+3. **After take-off** the crew asks for a frequency change: `contact radar 125.050` (+10) - at Stuttgart the southern departures (ROTWE, SUL, KUNOD, ABTAL) go to 119.200; the take-off menu offers the right frequency. If it leaves the control zone (4000 ft above the airport) still on your frequency, it costs 5 points.
 4. **Arrivals** call on final: `Stuttgart Tower, Eurowings 7TK, ILS approach runway 25` (or LOC / RNP if the ILS is switched off). Clear them in time: `wind 250 degrees 8 knots, runway 25, cleared to land`. Without a landing clearance the crew goes around at 0.5 NM (an incident, -15); `continue approach` tells it the clearance comes later; `go around` sends it around (-5). `vacate via E` asks for a particular exit.
 5. **After landing** the crew reports `runway 25 vacated via E`: `contact ground 118.605` (+10). Until then it waits at the vacate point - and Tower cannot use an exit whose vacate point is occupied. You can also hand it over earlier, right after touchdown (*Contact Ground* in the menu, `GND` in the quick-action bar): it then calls Ground itself once it has vacated.
 6. **Runway crossings**: Ground hands aircraft that must cross the runway over at the runway holding point (`holding short runway 25 at W, request crossing`). `cross runway 25` only when nobody is landing or taking off; after crossing the crew reports the runway vacated, then `contact ground`.

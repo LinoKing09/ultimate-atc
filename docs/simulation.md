@@ -303,7 +303,7 @@ These are the Stuttgart figures. Smaller airports scale them with their `rateFac
 - **New arrivals** follow the same kind of process. A new arrival is only released onto the final (at 12 NM) when the distance to the previous arrival is at least the **required spacing**, which is the larger of:
   - the **wake turbulence minimum**: 3 NM normally; 4 NM heavy behind heavy, 5 NM medium behind heavy, 6 NM light behind heavy, 5 NM light behind medium (larger values behind an A380, category J),
   - the **runway spacing**: 4 NM when no departures are waiting, **6 NM** when at least one departure is holding or taxiing to a holding point, **8 NM** with four or more. These are the "departure gaps" Approach gives on request,
-  - **5 NM** for non-precision approaches (localizer only or RNP, when the ILS glide path or localizer is switched off in the [systems window](systems.md); simulator value),
+  - **5 NM** for non-precision approaches (localizer only or RNP, when the ILS glide path or localizer is switched off in the [systems window](systems.md), or the runway has no ILS - Sylt 14; simulator value),
   - **8 NM** while a [thunderstorm](scenarios.md#thunderstorm) is active (the arrival rate is halved too),
   - **10 NM** on a runway where landing aircraft backtrack to their exit, **8 NM** where departures backtrack (Memmingen).
   - the runway's own minimum where the airport sets one (`arrivalSpacingNm`; Sylt **6 NM**, arrivals vacate only at the far end).

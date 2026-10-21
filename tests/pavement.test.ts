@@ -24,14 +24,14 @@ describe('taxiway pavement geometry', () => {
     });
   }
 
-  it('Memmingen: widths after the chart, fillets where taxiways meet the runway', () => {
+  it('Memmingen: widths after the AIP, fillets where taxiways meet the runway', () => {
     const ap = new Airport(EDJA);
     const width = (name: string) => ap.edges.find((e) => e.name === name && e.kind === 'taxiway')!.widthM;
-    expect(width('N')).toBe(23);
-    expect(width('R')).toBe(27);
-    expect(width('P')).toBe(15);
+    expect(width('N')).toBe(18);
+    expect(width('R')).toBe(23);
+    expect(width('P')).toBe(12);
     const g = pavementGeometry(ap);
     const rwyR = ap.node('RWY.R').pos;
-    expect(g.fillets.filter((f) => f.widthM === 27 && Math.hypot(f.points[0].x - rwyR.x, f.points[0].y - rwyR.y) < 120).length).toBe(2);
+    expect(g.fillets.filter((f) => f.widthM === 23 && Math.hypot(f.points[0].x - rwyR.x, f.points[0].y - rwyR.y) < 120).length).toBe(2);
   });
 });

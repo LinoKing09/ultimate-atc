@@ -339,7 +339,7 @@ Pilots on your frequency call on their own:
 | Arrival has vacated the runway (first contact)          | `Stuttgart Ground, Eurowings 7TK, vacated runway 25 via E` (crews unfamiliar with the airport add `, request follow-me to the stand`) |
 | (Tower) Departure handed over on the way to the holding point | `Stuttgart Tower, Lufthansa 5AB, approaching holding point A, ready for departure` |
 | (Tower) Departure at the holding point (if not called before) | `Stuttgart Tower, Lufthansa 5AB, holding point A, ready for departure` |
-| (Tower) Arrival on final (first contact)                 | `Stuttgart Tower, Eurowings 7TK, ILS approach runway 25` (LOC / RNP when the ILS is off); reminder `2 miles final runway 25` |
+| (Tower) Arrival on final (first contact)                 | `Stuttgart Tower, Eurowings 7TK, ILS approach runway 25` (LOC / RNP when the ILS is off or the runway has none, e.g. Sylt 14); reminder `2 miles final runway 25` |
 | (Tower) No landing clearance at 0.5 NM                   | `Eurowings 7TK, going around, no landing clearance received` |
 | (Tower) Arrival has vacated                              | `Eurowings 7TK, runway 25 vacated via E` |
 | (Tower) Crossing handed over by Ground                   | `Stuttgart Tower, Condor 11, holding short runway 25 at W, request crossing`; afterwards `Condor 11, runway 25 vacated` |

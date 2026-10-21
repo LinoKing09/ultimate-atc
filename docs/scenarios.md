@@ -149,7 +149,7 @@ Winter operations (option `I`): frost on the wings, every departure has to be de
 - On the pad the status shows `DEICE` for **6-10 minutes** (3 more for aircraft over 40 m wingspan). A taxi instruction meanwhile: `negative, de-icing in progress, about 4 more minutes`.
 - Then: `de-icing complete on DP2, ready for taxi` - taxi it to the runway as usual.
 - **Before the de-icing** crews refuse the runway or a holding point: `negative, we require de-icing first`.
-- Pad sizes: **DP1 up to 65 m** wingspan (code E), **DP2 up to 80 m** (code F), **DP3 and DP4 up to 36 m** (code C) - wide-bodies use DP1 or DP2. An aircraft too large for every pad would be de-iced on its stand (none at Stuttgart).
+- Pad sizes: **DP1 up to 65 m** wingspan (code E), **DP2 up to 68.5 m** (code E, also the B747-8), **DP3 and DP4 up to 36 m** (code C) - wide-bodies use DP1 or DP2. An aircraft too large for every pad would be de-iced on its stand (none at Stuttgart).
 - Not modelled: in reality S is closed next to the pads in use (I-H for DP1 / DP2, H-F for DP3 / DP4).
 - The AI Ground does the same: it keeps a departure on its stand while all pads are busy, taxis it to a free pad, and on to the runway afterwards.
 - Not modelled: holdover times (a de-iced aircraft stays de-iced), de-icing fluid types, snow on the taxiways, braking action.

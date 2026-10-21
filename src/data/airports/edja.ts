@@ -11,8 +11,9 @@ import { buildLayout, exitVia } from './osmLayout';
  * of N, C, D, E and the displaced threshold match the chart's intersection take-off distances within
  * a few metres. What OSM does not have was digitised by hand from the chart (approximate positions,
  * a few tens of metres): taxiway R, the western part of P with P4 and Apron 4, the pad south of P near
- * E, and the closed parts (chart crosses) - S, P east of E, the loops around both runway ends and the
- * branches to Apron 4.
+ * E, and the closed parts (chart crosses) - S (the OpenStreetMap name; unnamed on the chart), P west of
+ * P4 and east of E, the loops around both runway ends and the branches to Apron 4. Runway data, declared
+ * distances, approaches and taxiway widths: AIP AD 2 EDJA (AIRAC 2026OCT01, facts only).
  * Procedures and restrictions: VATSIM Germany Memmingen SOP (taxiway use, backtracks, SIDs,
  * frequencies, stands), see docs/airports/EDJA.md.
  *
@@ -86,9 +87,9 @@ const built = buildLayout(EDJA_LAYOUT, {
   taxilanes: [''],
   // South side: small aircraft only (P: outer main gear wheel span up to 6 m).
   maxWingspanM: { P: 24, P4: 24, C: 24, D: 24, E: 24, '': 24 },
-  // Pavement widths estimated from the proportions on the aerodrome chart: R wider than N / W, the south
-  // side and S about two thirds of N, the GA lanes narrower still.
-  widthM: { N: 23, W: 23, R: 27, S: 15, P: 15, P4: 15, C: 15, D: 15, E: 15, '': 12 },
+  // Pavement widths: AIP AD 2.8 (R 23 m, N / W 18 m, C / D / E / P 12 m, P4 11 m); S and the GA lanes are not
+  // published (S like P, the GA lanes like P4).
+  widthM: { N: 18, W: 18, R: 23, S: 12, P: 12, P4: 11, C: 12, D: 12, E: 12, '': 11 },
   dropEdges: [
     // The western part of S (OSM) is gone on the current chart (R was built there).
     'S.4>HP.1183356701',
@@ -109,10 +110,10 @@ const built = buildLayout(EDJA_LAYOUT, {
     // Displaced part of runway 24 (beyond its threshold, usable for the take-off run 24).
     ['RWY.24END', 47.9953372, 10.2559803],
     // Digitised from the aerodrome chart (approximate).
-    // R: runway node 455 m from the 06 end (chart: take-off run 06 from R 2175 m).
-    ['RWY.R', 47.985389, 10.230921],
-    ['R.1', 47.9867993, 10.2297394],
-    ['HP.R', 47.9861157, 10.2302681],
+    // R: meets the runway about 475 m from the 06 end (ground movement chart; take-off run 06 from R 2175 m).
+    ['RWY.R', 47.985472, 10.231097],
+    ['R.1', 47.986816, 10.229913],
+    ['HP.R', 47.986191, 10.230472],
     ['S.N', 47.9885516, 10.2339606],
     ['S.8', 47.9881258, 10.2341257],
     ['X06.1', 47.9840037, 10.2245724],
@@ -127,6 +128,8 @@ const built = buildLayout(EDJA_LAYOUT, {
     ['X06.9', 47.9819767, 10.2249276],
     ['X06.J', 47.9822313, 10.225688],
     ['X06.R', 47.983069, 10.22581],
+    // P is closed west of a cross next to the glide path antenna 06 (chart).
+    ['P.X', 47.984103, 10.230216],
     ['P.W1', 47.9825587, 10.2263848],
     ['P.W2', 47.9830698, 10.2276464],
     ['P.W3', 47.9835954, 10.2289082],
@@ -163,11 +166,12 @@ const built = buildLayout(EDJA_LAYOUT, {
     ['N.10', 'R.1', 'R', 'taxiway'],
     ['R.1', 'HP.R', 'R', 'taxiway'],
     ['HP.R', 'RWY.R', 'R', 'taxiway'],
-    // P west of the OSM part, P4 to Apron 4, the pad south of P.
-    ['?/P', 'P.W4', 'P', 'taxiway'],
-    ['P.W4', 'P.W3', 'P', 'taxiway'],
-    ['P.W3', 'P.W2', 'P', 'taxiway'],
-    ['P.W2', 'P.W1', 'P', 'taxiway'],
+    // P west of the OSM part (closed beyond P.X), P4 to Apron 4, the pad south of P.
+    ['?/P', 'P.X', 'P', 'taxiway'],
+    ['P.X', 'P.W4', 'P', 'taxiway', true],
+    ['P.W4', 'P.W3', 'P', 'taxiway', true],
+    ['P.W3', 'P.W2', 'P', 'taxiway', true],
+    ['P.W2', 'P.W1', 'P', 'taxiway', true],
     ['?.8', 'P4.1', 'P4', 'taxiway'],
     ['P4.1', 'P4.2', 'P4', 'taxiway'],
     ['P4.2', 'P4.3', 'P4', 'taxiway'],
@@ -178,7 +182,7 @@ const built = buildLayout(EDJA_LAYOUT, {
     ['P.PAD', 'PAD.1', '', 'taxilane'],
     ...CLOSED.map(([from, to, name]): [string, string, string, 'taxiway', boolean] => [from, to, name, 'taxiway', true]),
   ],
-  keepNodes: ['RWY.24END', 'P.W1', 'P4.5', 'PAD.1', '?.12', '?.16'],
+  keepNodes: ['RWY.24END', 'P.X', 'P4.5', 'PAD.1', '?.12', '?.16'],
   // Stands: Apron 1 (terminal, P11 / P12 after the AIP ground movement chart, OSM refs 1 / 2; pushback) and
   // Apron 2 (3-6, taxi in / out; the SOP has a pushback on 6, but its lane ends there).
   stands: [
@@ -219,8 +223,9 @@ export const EDJA: AirportData = {
   name: 'Memmingen',
   city: 'Memmingen',
   country: 'Germany',
-  arp: { lat: 47.988092, lon: 10.238248 },
-  elevationFt: 2077,
+  // AIP AD 2.2.
+  arp: { lat: 47.988822, lon: 10.239483 },
+  elevationFt: 2079,
   magneticVariation: 4.1,
   timeZone: 'Europe/Berlin',
   // Westerly winds prevail (runway 24); estimate.
@@ -229,24 +234,26 @@ export const EDJA: AirportData = {
   // Initial climb FL70 (SOP), said as a flight level above the transition altitude.
   initialClimbFt: 7000,
   dataNotice:
-    'Layout from OpenStreetMap (© OpenStreetMap contributors, ODbL), checked against the AIP aerodrome chart; taxiway R, the western part of P, P4, Apron 4 and the closed taxiways (crosses) digitised by hand from the chart (approximate). Procedures after the VATSIM Germany SOP. Not for real-world navigation.',
+    'Layout from OpenStreetMap (© OpenStreetMap contributors, ODbL), checked against the AIP charts; taxiway R, the western part of P, P4, Apron 4 and the closed taxiways (crosses, P west of P4 included) digitised by hand from the charts (approximate); taxiway widths, declared distances and elevations from the AIP (facts only). Procedures after the VATSIM Germany SOP. Not for real-world navigation.',
   runways: [
     {
       name: '06/24',
       widthM: 45,
       lengthM: 2630,
       ends: [
-        { name: '06', threshold: THR_06, end: THR_06, elevationFt: 2077 },
-        { name: '24', threshold: THR_24, end: END_24, elevationFt: 2077 },
+        // AIP: ILS CAT I or LOC both ways (also RNP and NDB); threshold elevations AD 2.12.
+        { name: '06', threshold: THR_06, end: THR_06, elevationFt: 2079, approaches: ['ILS', 'LOC', 'RNP'] },
+        { name: '24', threshold: THR_24, end: END_24, elevationFt: 2053, approaches: ['ILS', 'LOC', 'RNP'] },
       ],
     },
   ],
   taxiNodes: built.taxiNodes,
   // The closed loops (unnamed) are as wide as P, not like the GA lanes.
-  taxiEdges: built.taxiEdges.map((e) => (e.closed && !e.name ? { ...e, widthM: 15 } : e)),
+  taxiEdges: built.taxiEdges.map((e) => (e.closed && !e.name ? { ...e, widthM: 12 } : e)),
   stands: built.stands,
   areas: [...built.areas, { name: 'Apron 4', polygon: APRON_4 }, { name: 'Stopway 06', polygon: STOPWAY_06 }],
   buildings: built.buildings,
+  pavement: built.pavement,
   stations: [
     { callsign: 'EDJA_GND', type: 'GND', name: 'Memmingen Ground', frequency: '121.680' },
     { callsign: 'EDJA_TWR', type: 'TWR', name: 'Memmingen Tower', frequency: '126.855' },
@@ -257,17 +264,18 @@ export const EDJA: AirportData = {
     {
       runway: '24',
       // From N with a backtrack to the runway end 24 (no taxiway to it for airliners).
-      departureEntries: [{ holdingPoint: 'N', intersection: 'N', fullLength: true, backtrack: true }],
+      // Take-off run from N without the backtrack: 1070 m (AIP AD 2.13).
+      departureEntries: [{ holdingPoint: 'N', intersection: 'N', fullLength: true, backtrack: true, toraM: 1070 }],
       // R (on pilot request, SOP) lies between N and the runway end.
       exits: [exitVia(built, 'N', 'HP.10537053378'), exitVia(built, 'R', 'HP.R'), exitVia(built, 'W', 'HP.2892627177')],
     },
     {
       runway: '06',
       departureEntries: [
-        { holdingPoint: 'W', intersection: 'W', fullLength: true },
-        // Chart: take-off run from R 2175 m, from N 1570 m.
-        { holdingPoint: 'R', intersection: 'R', fullLength: false },
-        { holdingPoint: 'N', intersection: 'N', fullLength: false },
+        // Declared distances (AIP AD 2.13).
+        { holdingPoint: 'W', intersection: 'W', fullLength: true, toraM: 2630 },
+        { holdingPoint: 'R', intersection: 'R', fullLength: false, toraM: 2175 },
+        { holdingPoint: 'N', intersection: 'N', fullLength: false, toraM: 1570 },
       ],
       // Landing 06: vacate via N - most aircraft roll past it, turn around on the runway and backtrack.
       exits: [{ ...exitVia(built, 'N', 'HP.10537053378'), backtrack: true }],
@@ -302,13 +310,13 @@ export const EDJA: AirportData = {
     {
       title: 'Memmingen in short',
       items: [
-        'A former air force base: one runway 06/24. Airliners use **W** (to the runway 06 end), **N** (from the aprons to the middle of the runway) and **R** (between them, on pilot request). The south side - P, P4, C, D, E, Apron 3 (GA) and Apron 4 - is for small aircraft only (24 m wingspan in the simulator). Parts marked with crosses are closed: S, P east of E and the loops around both runway ends.',
-        'Runway 24 departures enter at N and **backtrack** to the runway end: `backtrack runway 24, line up and wait`, then `cleared for take-off`. The turn loops at the runway ends are closed - the aircraft turns on the runway. Runway 06 departures line up at W (full length), R (2175 m) or N (1570 m).',
+        'A former air force base: one runway 06/24. Airliners use **W** (to the runway 06 end), **N** (from the aprons to the middle of the runway) and **R** (between them, on pilot request). The south side - P, P4, C, D, E, Apron 3 (GA) and Apron 4 - is for small aircraft only (24 m wingspan in the simulator). Parts marked with crosses are closed: S, P west of P4 and east of E, and the loops around both runway ends.',
+        'Runway 24 departures enter at N and **backtrack** to the runway end: `backtrack runway 24, line up and wait`, then `cleared for take-off`. The turn loops at the runway ends are closed - the aircraft turns on the runway. Runway 06 departures line up at W (full length, 2630 m), R (2175 m) or N (1570 m); runway 24 from N without the backtrack would have 1070 m.',
         'Landing 06, aircraft roll past N, **turn around on the runway** and backtrack to N (`backtrack, vacate via N`). Landing 24, they vacate via N, R or at the end via W.',
-        'Holding point W lies before the turn towards the runway, in a hot spot: check that aircraft hold there.',
+        'Holding point W lies before the turn towards the runway (marked on the chart: "holding points located before turn towards the runway"): check that aircraft hold there.',
         'During a backtrack the runway is occupied for a long time - plan landings with more space.',
         'Memmingen Ground also gives the IFR clearances (there is no Delivery). De-icing is done on the stands.',
-        'Stands P11 / P12 (Apron 1, terminal) and 6 need a pushback; 3-5 on Apron 2 are taxi-in / taxi-out positions.',
+        'Stands P11 / P12 (Apron 1, terminal) need a pushback; 3-6 on Apron 2 are taxi-in / taxi-out positions (the SOP pushes back from 6).',
       ],
     },
   ],

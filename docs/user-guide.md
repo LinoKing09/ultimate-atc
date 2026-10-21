@@ -216,7 +216,7 @@ To keep the apron readable, parked aircraft with no pending request only get a t
 
 ### Extended centrelines
 
-From each runway threshold an extended centreline runs 15 NM outwards with a tick every NM and a longer tick every 5 NM (like the approach path / ILS localizer course lines on a EuroScope map). The runway in use is drawn solid and brighter, the other dashed. With the localizer switched off in the systems window, the line is marked `LOC U/S`. Zoom out to see the arrivals on final.
+From each runway threshold an extended centreline runs 15 NM outwards with a tick every NM and a longer tick every 5 NM (like the approach path / ILS localizer course lines on a EuroScope map). The runway in use is drawn solid and brighter, the other dashed. With the localizer switched off in the systems window, the line is marked `LOC U/S`; a runway without an ILS (Sylt 14) is marked with its approach, `RNP`. Zoom out to see the arrivals on final.
 
 ### Ground status codes
 
@@ -293,7 +293,7 @@ The lists work like EuroScope's departure and arrival lists, with the columns in
 | REQ, C/S, ATYP, W | as above (C/S in the arrival colour)                                    |
 | ADEP   | Origin airport                                                                     |
 | RWY    | Landing runway                                                                     |
-| APCH   | Approach procedure while on final: `ILS`, `LOC` (localizer only) or `RNP` - see the [systems window](#systems-window) |
+| APCH   | Approach procedure while on final: `ILS`, `LOC` (localizer only) or `RNP` (ILS switched off, or none published for the runway, e.g. Sylt 14) - see the [systems window](#systems-window) |
 | SEQ    | Position in the arrival sequence on final (1 = next to land)                       |
 | LND    | `CLR` once the arrival is cleared to land (Tower)                                   |
 | DIST   | Distance to the threshold while on final; afterwards the exit used                 |

@@ -37,6 +37,13 @@ export function validateAirport(data: AirportData): string[] {
   for (const st of data.stations) {
     if (!/^1[1-3]\d\.\d{2,3}$/.test(st.frequency)) add(`station ${st.callsign} has an invalid frequency ${st.frequency}`);
   }
+  for (const l of data.pavement ?? []) {
+    if (l.points.length < 2) add(`pavement line ${l.name ?? ''} needs at least two points`.replace('  ', ' '));
+    if (l.widthM !== undefined && !(l.widthM > 0)) add(`pavement line ${l.name ?? ''} has an invalid width`.replace('  ', ' '));
+  }
+  for (const end of data.runways.flatMap((r) => r.ends)) {
+    if (end.approaches && !end.approaches.length) add(`runway ${end.name} lists no approach (omit approaches for the default ILS)`);
+  }
   if (problems.length) return problems; // the rest needs a consistent graph
 
   let airport: Airport;

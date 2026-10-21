@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Sylt: every taxiway of the aerodrome chart** (AIP AMDT 06/26): besides A, C, D, I and P now **B** (5.7 t), **E**, **F**, **G** (to the glider site), **L**, **L1** (Apron 3), **L3** (Apron 4), **M** and the lanes of Apron 2, Apron 3 and Apron 4, with their holding points (B, G and L at runway 14/32; M, P, E and F at runway 06/24). Weight-limited taxiways (B, Apron 4: 5.7 t; I: 2 t) are for light aircraft, which the simulator does not have; business jets still use I and P to reach Apron 2.
+- **Nuremberg: the general aviation lanes** S3 (to Apron G2 / G2A), S4 west (FAI apron) and **T2** (aprons U1 / U2).
+- **Buildings and aprons**: the OSM importer now takes every building on the aerodrome (also buildings mapped as multipolygons, such as the Nuremberg terminal, and hangars just outside a boundary drawn too tightly), paved taxiway areas and helipads. Nuremberg shows the terminal, hangars 2-8, Halle A, the maintenance and Aero-Dienst buildings and 70 more; Sylt the Apron 3 and Apron 4 hangars and the general aviation buildings.
+- Airport data: **`pavement`** lines - paved surfaces outside the taxi graph, drawn like taxiways but never routed (links inside a runway strip that would bypass the holding points; closed taxiways that lead nowhere, drawn with crosses and refused by crews). `buildLayout()` options `drawOnly` and `keepNodes` for OSM layouts; taxiways not connected to the runway are drawn as pavement.
+- Airport data: **published approaches per runway end** (`approaches`). A runway without an ILS is flown as an RNP approach whatever the ILS switches say (Approach spaces such arrivals like non-precision approaches, the ATIS reports no ILS outage, the scope labels the centre line `RNP`). Sylt: runway 14 has an RNP approach only (it was flown as an ILS), 32 an ILS.
+
+### Changed
+
+- Building names on the scope: largest buildings first, a name that would overlap another one is left out; unnamed buildings get no label.
+
+### Fixed
+
+- Sylt: runway 06/24 is 45 m wide (was 30 m).
+
 ## [1.2.0] - 2026-10-21
 
 Real-world overhaul and EuroScope fidelity: every airport and procedure checked against real data (OpenStreetMap, OurAirports, VATSIM Germany data, published charts as a reference only), SIDs by destination, Stuttgart TORA, de-icing pads and stands as published, and a PHX scope style modelled on the VATSIM Germany ground radar.

@@ -1,5 +1,5 @@
 import { LocalProjection, distance, type LatLon } from '../../core/geo';
-import type { AreaData, ExitData, StandData, TaxiEdgeData, TaxiEdgeKind, TaxiNodeData } from '../../core/airport/types';
+import type { AreaData, ExitData, PavementLineData, StandData, TaxiEdgeData, TaxiEdgeKind, TaxiNodeData } from '../../core/airport/types';
 
 /**
  * Airport layouts imported from OpenStreetMap by `scripts/osm-import.mjs` (files `<icao>.layout.ts`),
@@ -17,6 +17,8 @@ export interface OsmLayout {
   stands: { id: string; pos: [number, number]; heading: number; lanes: string[]; spacingM: number }[];
   areas: { name: string; polygon: [number, number][] }[];
   buildings: { name: string; polygon: [number, number][] }[];
+  /** Taxiways not connected to the runway (drawn only): [lat, lon] points. */
+  pavement?: { name: string; points: [number, number][]; widthM?: number }[];
 }
 
 export interface StandSpec {
@@ -55,10 +57,17 @@ export interface LayoutOptions {
   taxiways?: string[];
   /** Largest wingspan per taxiway (default: none). */
   maxWingspanM?: Record<string, number>;
+  /** Largest wingspan of single edges ("from>to"), where a taxiway has different limits along its length. */
+  edgeMaxWingspanM?: Record<string, number>;
   /** Pavement width per taxiway in metres, also for its runway strip (default: the OSM `width` tag, else by kind: taxiway 23, taxilane 20). */
   widthM?: Record<string, number>;
   /** Edges to leave out ("from>to"), e.g. service roads tagged as taxiway. */
   dropEdges?: string[];
+  /**
+   * Edges drawn as pavement only, never part of the taxi graph ("from>to"): links inside a runway strip
+   * that would bypass the holding points, the second fillet of a junction, lanes no simulated aircraft uses.
+   */
+  drawOnly?: string[];
   /** Extra edges [from, to, name, kind, closed?]. */
   addEdges?: [string, string, string, TaxiEdgeKind, boolean?][];
   /**
@@ -74,6 +83,8 @@ export interface LayoutOptions {
   stands: StandSpec[];
   /** Buildings / aprons to keep: only those within this distance (m) of the taxiways and stands. Default 300. */
   areaRadiusM?: number;
+  /** Leave out the imported taxiways that are not connected to the runway (drawn as pavement by default). */
+  dropLoosePavement?: boolean;
 }
 
 export interface BuiltLayout {
@@ -82,6 +93,8 @@ export interface BuiltLayout {
   stands: StandData[];
   areas: AreaData[];
   buildings: AreaData[];
+  /** Imported edges drawn as pavement only (`drawOnly`), and the imported taxiways not connected to the runway. */
+  pavement: PavementLineData[];
   /** Runway node where the strip of a holding point meets the runway, by holding point name. */
   runwayNodeOf: Record<string, string>;
 }
@@ -95,6 +108,8 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   const proj = new LocalProjection(pos.values().next().value as LatLon);
   const p = (id: string) => proj.toLocal(pos.get(id)!);
   const drop = new Set(o.dropEdges ?? []);
+  const drawOnly = new Set(o.drawOnly ?? []);
+  const pavement: PavementLineData[] = [];
   const taxilanes = new Set(o.taxilanes ?? []);
 
   type E = { from: string; to: string; name: string; kind: TaxiEdgeKind; oneWay?: boolean; closed?: boolean; shape?: LatLon[]; widthM?: number };
@@ -102,6 +117,10 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   let edges: E[] = [];
   for (const [from, to, rawName, kind, oneWay, widthM] of layout.edges) {
     if (drop.has(key(from, to)) || drop.has(key(to, from))) continue;
+    if (drawOnly.has(key(from, to)) || drawOnly.has(key(to, from))) {
+      pavement.push({ points: [pos.get(from)!, pos.get(to)!], ...(widthM ? { widthM } : {}) });
+      continue;
+    }
     let name = o.edgeNames?.[key(from, to)] ?? o.edgeNames?.[key(to, from)] ?? rawName;
     if (kind !== 'runway') name = o.taxiwayNames?.[name || '?'] ?? name;
     const k: TaxiEdgeKind = kind === 'runway' ? 'runway' : taxilanes.has(name) ? 'taxilane' : 'taxiway';
@@ -214,7 +233,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
 
   // Wingspan limits and widths
   for (const e of edges) {
-    const lim = o.maxWingspanM?.[e.name];
+    const lim = o.edgeMaxWingspanM?.[key(e.from, e.to)] ?? o.edgeMaxWingspanM?.[key(e.to, e.from)] ?? o.maxWingspanM?.[e.name];
     if (lim) (e as TaxiEdgeData).maxWingspanM = lim;
     const w = e.kind === 'stand' || e.kind === 'runway' ? undefined : o.widthM?.[e.name];
     if (w) (e as TaxiEdgeData).widthM = w;
@@ -249,6 +268,14 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     stands,
     areas: layout.areas.filter((a) => near(a.polygon)).map(toArea),
     buildings: layout.buildings.filter((a) => near(a.polygon)).map(toArea),
+    pavement: [
+      ...pavement,
+      ...(o.dropLoosePavement ? [] : (layout.pavement ?? [])).map((l) => ({
+        ...(l.name ? { name: l.name } : {}),
+        points: l.points.map(([lat, lon]) => ({ lat, lon })),
+        ...(l.widthM ? { widthM: l.widthM } : {}),
+      })),
+    ],
     runwayNodeOf,
   };
 }

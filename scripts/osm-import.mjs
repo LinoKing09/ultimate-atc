@@ -8,15 +8,15 @@
  * (entries, exits, flows), names and procedures are added by hand in `<icao>.ts`.
  *
  *   node scripts/osm-import.mjs EDJA --bbox 10.215,47.975,10.265,48.000 [--osm file.osm]
- *        [--exclude-ways 123,456] [--simplify 2.5]
+ *        [--exclude-ways 123,456] [--simplify 2.5] [--building-margin 40]
  *
  * The output is derived from OpenStreetMap data (© OpenStreetMap contributors) and is available
  * under the Open Database License (ODbL 1.0); credit it in `dataNotice` and in docs/airports/<ICAO>.md.
  *
  * What it does:
  * - keeps the ways tagged aeroway=taxiway/taxilane/runway (runway centre lines with a "06/24" ref)
- *   that are connected to the runway; other components (closed military areas, isolated lines)
- *   are dropped,
+ *   that are connected to the runway; taxiways in other components (closed military areas, isolated
+ *   lines) become `pavement` lines (drawn only),
  * - takes the pavement width of taxiways from their `width` tag (metres) where mapped,
  * - reduces every way to its important nodes (junctions, ends, holding positions) plus shape
  *   points (Douglas-Peucker, `--simplify` metres),
@@ -25,7 +25,12 @@
  *   the lead-in lines meet a taxiway; lane points that are not on the graph are snapped onto the
  *   nearest taxiway edge,
  * - node ids are readable: "N.3" (third shape node on taxiway N), "N/W" (junction of N and W),
- *   "RWY.D" (where D meets the runway), "HP.<osm id>" for holding positions, "STAND_<id>".
+ *   "RWY.D" (where D meets the runway), "HP.<osm id>" for holding positions, "STAND_<id>",
+ * - areas: aprons (ways and multipolygons), paved taxiway areas (area:aeroway=taxiway) and helipads,
+ * - buildings: every building inside the aerodrome boundary (aeroway=aerodrome; ways and multipolygons,
+ *   e.g. a terminal mapped as a multipolygon) or within `--building-margin` metres of an apron or taxiway
+ *   (hangars just outside a boundary drawn too tightly), plus terminals, hangars and towers anywhere in the box.
+ *   Named after their `name` tag; unnamed ones get no label (except "Terminal" / "Tower").
  */
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -44,6 +49,7 @@ const bbox = opt('bbox');
 const osmFile = opt('osm');
 const excludeWays = new Set((opt('exclude-ways', '') ?? '').split(',').filter(Boolean));
 const tolerance = Number(opt('simplify', '2.5'));
+const buildingMargin = Number(opt('building-margin', '40'));
 
 let xml;
 if (osmFile) xml = readFileSync(osmFile, 'utf8');
@@ -65,6 +71,13 @@ for (const m of xml.matchAll(/<node\b([^>]*?)(\/>|>([\s\S]*?)<\/node>)/g)) {
 }
 for (const m of xml.matchAll(/<way\b([^>]*?)>([\s\S]*?)<\/way>/g)) {
   ways.push({ id: attr(m[1], 'id'), nds: [...m[2].matchAll(/<nd ref="(\d+)"/g)].map((x) => x[1]), tags: tagsOf(m[2]) });
+}
+const relations = []; // multipolygons: { id, tags, outer: [way ids] }
+for (const m of xml.matchAll(/<relation\b([^>]*?)>([\s\S]*?)<\/relation>/g)) {
+  const tags = tagsOf(m[2]);
+  if (tags.type !== 'multipolygon') continue;
+  const outer = [...m[2].matchAll(/<member type="way" ref="(\d+)" role="outer"\s*\/>/g)].map((x) => x[1]);
+  relations.push({ id: attr(m[1], 'id'), tags, outer });
 }
 
 // ------------------------------------------------------------------ local projection (metres around the first runway)
@@ -265,6 +278,53 @@ for (const id of graphIds) {
 
 // ------------------------------------------------------------------ areas
 const polygon = (w) => w.nds.map((id) => nodes.get(id)).filter(Boolean);
+const wayById = new Map(ways.map((w) => [w.id, w]));
+/** Outer rings of a multipolygon, as pseudo-ways (member ways joined end to end). */
+function outerRings(rel) {
+  const parts = rel.outer.map((id) => wayById.get(id)?.nds).filter((nds) => nds && nds.every((id) => nodes.has(id))).map((nds) => [...nds]);
+  const rings = [];
+  while (parts.length) {
+    let ring = parts.shift();
+    for (let joined = true; joined && ring[0] !== ring[ring.length - 1]; ) {
+      joined = false;
+      for (let i = 0; i < parts.length; i++) {
+        const p = parts[i];
+        const end = ring[ring.length - 1];
+        if (p[0] === end) ring = [...ring, ...p.slice(1)];
+        else if (p[p.length - 1] === end) ring = [...ring, ...[...p].reverse().slice(1)];
+        else continue;
+        parts.splice(i, 1);
+        joined = true;
+        break;
+      }
+    }
+    if (ring.length > 3 && ring[0] === ring[ring.length - 1]) rings.push({ id: rel.id, nds: ring, tags: rel.tags });
+  }
+  return rings;
+}
+const polygonWays = [...ways, ...relations.flatMap(outerRings)];
+// Aerodrome boundary (for the buildings).
+const aerodrome = polygonWays.filter((w) => w.tags.aeroway === 'aerodrome' && w.nds.length > 3).map(polygon);
+const insideRing = (ring, p) => {
+  let c = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const a = ring[i];
+    const b = ring[j];
+    if (a.y > p.y !== b.y > p.y && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) c = !c;
+  }
+  return c;
+};
+const segDist = (p, a, b) => {
+  const L2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2 || 1e-9;
+  const t = Math.max(0, Math.min(1, ((p.x - a.x) * (b.x - a.x) + (p.y - a.y) * (b.y - a.y)) / L2));
+  return Math.hypot(p.x - a.x - t * (b.x - a.x), p.y - a.y - t * (b.y - a.y));
+};
+const paved = polygonWays.filter((w) => w.tags.aeroway === 'apron' || w.tags.aeroway === 'taxiway').map(polygon);
+const onAerodrome = (pts) => {
+  const c = { x: pts.reduce((s, p) => s + p.x, 0) / pts.length, y: pts.reduce((s, p) => s + p.y, 0) / pts.length };
+  if (!aerodrome.length || aerodrome.some((ring) => insideRing(ring, c))) return true;
+  return paved.some((line) => line.some((p, i) => i > 0 && segDist(c, line[i - 1], p) < buildingMargin));
+};
 const simplifyPoly = (pts) => {
   // Douglas-Peucker on a temporary node table. A closed ring (first = last point) is split at the point
   // farthest from its start, so the two halves keep their shape.
@@ -280,10 +340,16 @@ const simplifyPoly = (pts) => {
   for (const [id] of tmp) nodes.delete(id);
   return out;
 };
-const areas = ways.filter((w) => w.tags.aeroway === 'apron' && w.nds.length > 3).map((w) => ({ name: w.tags.name ?? (w.tags.ref ? `Apron ${w.tags.ref}` : 'Apron'), pts: simplifyPoly(polygon(w)) }));
-const buildings = ways
-  .filter((w) => (w.tags.aeroway === 'terminal' || w.tags.aeroway === 'hangar' || w.tags.aeroway === 'tower' || ['terminal', 'hangar'].includes(w.tags.building)) && w.nds.length > 3)
-  .map((w) => ({ name: w.tags.name ?? (w.tags.aeroway === 'tower' ? 'Tower' : w.tags.aeroway === 'hangar' || w.tags.building === 'hangar' ? 'Hangar' : 'Terminal'), pts: simplifyPoly(polygon(w)) }));
+const areaName = (t) =>
+  t.aeroway === 'apron' ? t.name ?? (t.ref ? `Apron ${t.ref}` : 'Apron') : t.aeroway === 'helipad' ? t.ref ?? t.name ?? 'Helipad' : t['area:aeroway'] === 'taxiway' ? t.ref ?? '' : '';
+const areas = polygonWays
+  .filter((w) => (w.tags.aeroway === 'apron' || w.tags.aeroway === 'helipad' || w.tags['area:aeroway'] === 'taxiway') && w.nds.length > 3)
+  .map((w) => ({ name: areaName(w.tags), pts: simplifyPoly(polygon(w)) }));
+const aerowayBuilding = (t) => t.aeroway === 'terminal' || t.aeroway === 'hangar' || t.aeroway === 'tower' || ['terminal', 'hangar'].includes(t.building);
+const buildings = polygonWays
+  .filter((w) => w.nds.length > 3 && ((w.tags.building && w.tags.building !== 'no') || aerowayBuilding(w.tags)))
+  .filter((w) => aerowayBuilding(w.tags) || onAerodrome(polygon(w)))
+  .map((w) => ({ name: w.tags.name ?? (w.tags.aeroway === 'tower' ? 'Tower' : w.tags.aeroway === 'terminal' || w.tags.building === 'terminal' ? 'Terminal' : ''), pts: simplifyPoly(polygon(w)) }));
 
 // ------------------------------------------------------------------ output
 const f6 = (v) => Number(v.toFixed(7));
@@ -322,6 +388,11 @@ lines.push(...polyOut(areas));
 lines.push('  ],');
 lines.push('  buildings: [');
 lines.push(...polyOut(buildings));
+lines.push('  ],');
+// Taxiways not connected to the runway: drawn only.
+const loose = dropped.filter((w) => w.kind === 'taxiway').map((w) => ({ name: w.name, width: parseFloat(w.tags.width ?? '') || undefined, pts: simplifyPoly(polygon(w)) }));
+lines.push('  pavement: [');
+for (const l of loose) lines.push(`    { name: ${q(l.name)}, points: [${l.pts.map((p) => `[${f6(p.lat)}, ${f6(p.lon)}]`).join(', ')}]${l.width ? `, widthM: ${l.width}` : ''} },`);
 lines.push('  ],');
 lines.push('};');
 const out = `src/data/airports/${icao.toLowerCase()}.layout.ts`;

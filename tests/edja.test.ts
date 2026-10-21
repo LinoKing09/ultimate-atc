@@ -19,12 +19,13 @@ describe('Memmingen (EDJA) layout after the aerodrome chart', () => {
     for (const e of ap.edges.filter((x) => x.closed)) {
       expect(runwayNodes.has(e.from) || runwayNodes.has(e.to)).toBe(false);
     }
-    // From the P / E junction westwards along P: the closed part east of E is not used.
-    const r = findRoute(ap, { node: ap.holdingPoint('E')! }, ap.node('P.W1'));
+    // From the P / E junction westwards along P (open up to the cross west of P4): the closed part east of E is not used.
+    const r = findRoute(ap, { node: ap.holdingPoint('E')! }, ap.node('P.X'));
     expect(isRouteError(r)).toBe(false);
     if (!isRouteError(r)) expect(r.edges.some((e) => e.closed)).toBe(false);
-    // Into the closed loop around the runway 24 end: no route.
+    // Into the closed loop around the runway 24 end or the closed western part of P: no route.
     expect(isRouteError(findRoute(ap, { node: ap.holdingPoint('E')! }, ap.node('X24.PAD')))).toBe(true);
+    expect(isRouteError(findRoute(ap, { node: ap.holdingPoint('E')! }, ap.node('P.W1')))).toBe(true);
     const viaS = findRoute(ap, { node: ap.stand('P11')!.node }, ap.holdingPoint('N')!, ['S']);
     expect(isRouteError(viaS) && viaS.error).toBe('taxiway S closed');
   });

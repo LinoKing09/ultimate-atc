@@ -317,12 +317,12 @@ for (const [name, onN, onS] of BYPASS) {
 // De-icing only on DP1-DP4 (STR A-CDM briefing). The pads lie between N and S, DP1 / DP2 between I and H,
 // DP3 / DP4 between H and F (positions from the VATSIM Germany ground radar maps, built from the AIP data).
 // Every pad is entered from N and left onto S: DP1 and DP3 westbound, DP2 and DP4 eastbound (VATSIM Germany
-// Ground SOP). Wingspan limits: DP1 code E (65 m), DP2 code F (80 m), DP3 / DP4 code C (36 m).
+// Ground SOP). Wingspan limits: DP1 code E (65 m), DP2 code E plus B747-8 / C-5 (68.5 m), DP3 / DP4 code C (36 m).
 // [pad, along on N, pad centre (along, lateral), shape points of the lead line, along on S, max wingspan]: the lead
 // lines follow the painted taxilines, so aircraft join S in the pad's direction.
 const DEICING: [string, number, [number, number], [number, number][], number, number][] = [
   ['DP1', 246, [197, 234], [[171, 208]], 124, 65],
-  ['DP2', 363.9, [399, 234], [[418, 206]], 450, 80],
+  ['DP2', 363.9, [399, 234], [[418, 206]], 450, 68.5],
   ['DP3', 767, [761.5, 234], [[739, 201]], 717, 36],
   ['DP4', 792.8, [833, 232], [[853, 206]], 885, 36],
 ];
@@ -399,16 +399,17 @@ n('G', 1142, 93, 'G');
 n('G_CLR', 1142, 118);
 n('F', 1240, 100, 'F');
 n('F_CLR', 1187.4, 122);
-b.chain('G', 'taxiway', ['N_G', 'S_G', 'FG_X', 'G_CLR', 'G']);
-b.chain('G', 'runwayStrip', ['G', 'RWY_G']);
+// G, E and C: max. code letter D (aerodrome chart).
+b.chain('G', 'taxiway', ['N_G', 'S_G', 'FG_X', 'G_CLR', 'G'], { maxWingspanM: 52 });
+b.chain('G', 'runwayStrip', ['G', 'RWY_G'], { maxWingspanM: 52 });
 b.chain('F', 'taxiway', ['N_F', 'S_F', 'FG_X', 'F_CLR', 'F']);
 b.chain('F', 'runwayStrip', ['F', 'RWY_F']);
 
 // E (perpendicular)
 n('E_CLR', 1956, 140);
 n('E', 1956, 93, 'E');
-b.chain('E', 'taxiway', ['N_E', 'S_E', 'E_CLR', 'E']);
-b.chain('E', 'runwayStrip', ['E', 'RWY_E']);
+b.chain('E', 'taxiway', ['N_E', 'S_E', 'E_CLR', 'E'], { maxWingspanM: 52 });
+b.chain('E', 'runwayStrip', ['E', 'RWY_E'], { maxWingspanM: 52 });
 
 // D (angled exit for 07 / entry for 25) and C (perpendicular) both start at S_D
 n('D_CLR', 2413.6, 140);
@@ -417,8 +418,8 @@ n('C_CLR', 2464, 140);
 n('C', 2464, 93, 'C');
 b.chain('D', 'taxiway', ['N_D', 'S_D', 'D_CLR', 'D']);
 b.chain('D', 'runwayStrip', ['D', 'RWY_D']);
-b.chain('C', 'taxiway', ['S_D', 'C_CLR', 'C']);
-b.chain('C', 'runwayStrip', ['C', 'RWY_C']);
+b.chain('C', 'taxiway', ['S_D', 'C_CLR', 'C'], { maxWingspanM: 52 });
+b.chain('C', 'runwayStrip', ['C', 'RWY_C'], { maxWingspanM: 52 });
 
 // B (angled exit for 07 / entry for 25)
 n('B_CLR', 2859, 140);
@@ -448,7 +449,7 @@ const SID_FIXES: [string, string, string, Pick<SidData, 'towards' | 'destination
   ['DKB', '9B', '4H', { destinations: ['EDDN', 'EDTY'] }],
   ['ETASA', '4B', '2H', { destinations: ['EDDF', 'EDFE', 'EDFC', 'ETOU'] }],
   ['GEBNO', '7B', '6H', { destinations: [] }],
-  ['KRH', '5B', '2H', { destinations: ['EDDR', 'EDRZ', 'EDSB', 'ETAR'] }],
+  ['KRH', '5B', '2H', { destinations: ['EDDR', 'EDRZ', 'EDSB', 'ETAR', 'ETIP'] }],
   ['KUNOD', '2B', '2H', { towards: [110, 190] }],
   ['OKIBA', '4B', '4H', { towards: [340, 45] }],
   ['ROTWE', '5B', '7H', { towards: [190, 255] }],
@@ -462,6 +463,14 @@ const SOUTH_FIXES = ['ROTWE', 'SUL', 'KUNOD', 'ABTAL'];
 // ======================================================================== runway operations
 function exit(name: string, path: string[], rapid = false): ExitData {
   return { name, path, rapid };
+}
+
+// Pavement widths (AIP AD 2.8): 30 m for the main taxiways, C, E, G and Y 23 m (the default), W and Z 22.5 m;
+// L2, L3, M, P1, P2 and R are not published (default).
+const TAXIWAY_WIDTH_M: Record<string, number> = { A: 30, B: 30, D: 30, F: 30, H: 30, I: 30, K: 30, N: 30, O: 30, S: 30, V: 30, W: 22.5, Z: 22.5 };
+for (const e of b.edges) {
+  const w = TAXIWAY_WIDTH_M[e.name];
+  if (w && (e.kind === 'taxiway' || e.kind === 'taxilane' || e.kind === 'runwayStrip') && e.widthM === undefined) e.widthM = w;
 }
 
 export const EDDS: AirportData = {
@@ -495,9 +504,11 @@ export const EDDS: AirportData = {
       widthM: 45,
       lengthM: 3345,
       ends: [
-        { name: '07', threshold: b.ll(THR_07_DISPLACEMENT * K, 0), end: b.ll(0, 0), elevationFt: 1267 },
+        // AIP: ILS CAT II / III both ways; the localizer-only approach 07 is for aircraft up to 5.7 t, so airliners
+        // fly the RNP approach when the ILS 07 fails.
+        { name: '07', threshold: b.ll(THR_07_DISPLACEMENT * K, 0), end: b.ll(0, 0), elevationFt: 1267, approaches: ['ILS', 'RNP'] },
         // TORA 25 is 3045 m: the 300 m behind the displaced threshold 07 do not count for take-offs 25.
-        { name: '25', threshold: b.ll(L, 0), end: b.ll(L, 0), elevationFt: 1181, toraM: 3045 },
+        { name: '25', threshold: b.ll(L, 0), end: b.ll(L, 0), elevationFt: 1181, toraM: 3045, approaches: ['ILS', 'LOC', 'RNP'] },
       ],
     },
   ],
@@ -626,6 +637,8 @@ export const EDDS: AirportData = {
         { holdingPoint: 'W', intersection: 'W', fullLength: false, toraM: 2520 },
         // Small aircraft usually depart from G.
         { holdingPoint: 'G', intersection: 'G', fullLength: false, toraM: 2210 },
+        { holdingPoint: 'F', intersection: 'F', fullLength: false, toraM: 2020 },
+        { holdingPoint: 'E', intersection: 'E', fullLength: false, toraM: 1400 },
       ],
       exits: [
         exit('G', ['RWY_G', 'G', 'G_CLR']),
@@ -815,7 +828,7 @@ export const EDDS: AirportData = {
         'Taxilane M is a single lane used in both directions. Use `give way` or a conditional clearance (`behind the A320 passing left to right, push and start approved`) when arrivals are coming in on M.',
         'H crosses both N and S on its way from the apron to the runway: watch traffic on the parallels.',
         'F and G cross each other just north of the holding points; a waiting arrival there can block the other exit.',
-        'De-icing (winter scenarios): every pad is entered from N and left onto S - DP1 and DP3 westbound, DP2 and DP4 eastbound. DP1 takes up to 65 m, DP2 up to 80 m, DP3 and DP4 code C only.',
+        'De-icing (winter scenarios): every pad is entered from N and left onto S - DP1 and DP3 westbound, DP2 and DP4 eastbound. DP1 takes up to 65 m, DP2 up to 68.5 m, DP3 and DP4 code C only.',
         'Two airliners nose to nose cannot sort it out themselves. Re-route one of them before it happens - after 30 s stuck they accept a tug turnaround.',
       ],
     },

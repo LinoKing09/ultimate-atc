@@ -269,6 +269,8 @@ export class Scope {
 
   /** Taxiway designators; `repeat` labels are extra copies along long taxiways, shown when zoomed in. */
   private readonly taxiwayLabels: { name: string; pos: Vec2; repeat: boolean }[] = [];
+  /** Buildings with a name (not the tower), largest first, with the centre of their outline. */
+  private readonly namedBuildings: { name: string; centre: Vec2 }[];
   /** Rounded taxiway pavement, computed once. */
   private readonly pavement: PavementGeometry;
 
@@ -279,6 +281,10 @@ export class Scope {
   ) {
     this.ctx = canvas.getContext('2d')!;
     this.computeLabels();
+    this.namedBuildings = this.sim.airport.buildings
+      .filter((b) => b.name && b.name !== 'Tower' && b.polygon.length >= 3)
+      .map((b) => ({ name: b.name, ...polygonCentre(b.polygon) }))
+      .sort((a, b) => b.area - a.area);
     this.pavement = pavementGeometry(this.sim.airport);
     this.bindEvents();
     this.resize();
@@ -555,6 +561,17 @@ export class Scope {
       cur.total += e.length;
       byName.set(e.name, cur);
     }
+    // Named pavement lines (closed taxiways outside the taxi graph), segment by segment.
+    for (const l of this.sim.airport.pavementLines) {
+      if (!l.name || this.sim.airport.edges.some((e) => e.name === l.name)) continue;
+      const cur = byName.get(l.name) ?? { edges: [], total: 0 };
+      for (let i = 0; i < l.points.length - 1; i++) {
+        const len = Math.hypot(l.points[i + 1].x - l.points[i].x, l.points[i + 1].y - l.points[i].y);
+        cur.edges.push({ a: l.points[i], b: l.points[i + 1], len });
+        cur.total += len;
+      }
+      byName.set(l.name, cur);
+    }
     for (const [name, t] of byName) {
       const edges = [...t.edges].sort((p, q) => q.len - p.len);
       const main = edges[0];
@@ -610,12 +627,12 @@ export class Scope {
         ctx.lineTo(t2.x, t2.y);
         ctx.stroke();
       }
-      if (active && !this.sim.systemOn('loc')) {
-        // No localizer: label the line so nobody takes it for an ILS course.
+      if (active && (!this.sim.systemOn('loc') || !this.sim.hasIls(end.name))) {
+        // No localizer (out of service, or none published): label the line so nobody takes it for an ILS course.
         ctx.fillStyle = this.t.centrelineOther;
         ctx.font = '10px Consolas, Menlo, monospace';
         const lbl = this.toScreen(add(end.threshold, scale(out, 3 * M_PER_NM)));
-        ctx.fillText('LOC U/S', lbl.x + 6, lbl.y - 6);
+        ctx.fillText(this.sim.hasIls(end.name) ? 'LOC U/S' : this.sim.approachTypeFor(end.name), lbl.x + 6, lbl.y - 6);
       }
     }
     ctx.restore();
@@ -649,18 +666,23 @@ export class Scope {
     const half = Math.max(2.5, 9 * z);
     const spacing = 60; // metres between crosses
     ctx.beginPath();
-    for (const e of ap.edges) {
-      if (!e.closed) continue;
-      const n = Math.max(1, Math.round(e.length / spacing));
-      for (let i = 0; i < n; i++) {
-        const t = (i + 0.5) / n;
-        const p = this.toScreen({ x: e.from.pos.x + (e.to.pos.x - e.from.pos.x) * t, y: e.from.pos.y + (e.to.pos.y - e.from.pos.y) * t });
-        ctx.moveTo(p.x - half, p.y - half);
-        ctx.lineTo(p.x + half, p.y + half);
-        ctx.moveTo(p.x - half, p.y + half);
-        ctx.lineTo(p.x + half, p.y - half);
+    const crossesAlong = (pts: Vec2[]) => {
+      for (let k = 0; k < pts.length - 1; k++) {
+        const a = pts[k];
+        const b = pts[k + 1];
+        const n = Math.max(1, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / spacing));
+        for (let i = 0; i < n; i++) {
+          const t = (i + 0.5) / n;
+          const p = this.toScreen({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+          ctx.moveTo(p.x - half, p.y - half);
+          ctx.lineTo(p.x + half, p.y + half);
+          ctx.moveTo(p.x - half, p.y + half);
+          ctx.lineTo(p.x + half, p.y - half);
+        }
       }
-    }
+    };
+    for (const e of ap.edges) if (e.closed) crossesAlong([e.from.pos, e.to.pos]);
+    for (const l of ap.pavementLines) if (l.closed) crossesAlong(l.points);
     ctx.stroke();
     ctx.restore();
   }
@@ -897,11 +919,17 @@ export class Scope {
       ctx.font = `${Math.max(9, Math.min(12, 10 * z))}px Consolas, monospace`;
       ctx.fillStyle = this.t.buildingLabel;
       ctx.textAlign = 'center';
-      for (const b of ap.buildings) {
-        if (b.name === 'Tower') continue;
-        const c = b.polygon.reduce((acc, p) => add(acc, scale(p, 1 / b.polygon.length)), { x: 0, y: 0 });
-        const p = this.toScreen(c);
-        ctx.fillText(b.name.toUpperCase(), p.x, p.y);
+      ctx.textBaseline = 'middle';
+      // Largest buildings first; a name that would overlap one already drawn is left out.
+      const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
+      for (const b of this.namedBuildings) {
+        const p = this.toScreen(b.centre);
+        const text = b.name.toUpperCase();
+        const w = ctx.measureText(text).width / 2 + 2;
+        const box = { x0: p.x - w, x1: p.x + w, y0: p.y - 7, y1: p.y + 7 };
+        if (placed.some((q) => box.x0 < q.x1 && q.x0 < box.x1 && box.y0 < q.y1 && q.y0 < box.y1)) continue;
+        placed.push(box);
+        ctx.fillText(text, p.x, p.y);
       }
     }
   }
@@ -1308,4 +1336,21 @@ export class Scope {
 
 export function defaultTagOffset(): Vec2 {
   return { x: 16, y: -42 };
+}
+
+/** Area (m²) and centroid of a polygon (vertex average for a degenerate one). */
+function polygonCentre(pts: Vec2[]): { area: number; centre: Vec2 } {
+  let a2 = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < pts.length; i++) {
+    const p = pts[i];
+    const q = pts[(i + 1) % pts.length];
+    const cross = p.x * q.y - q.x * p.y;
+    a2 += cross;
+    cx += (p.x + q.x) * cross;
+    cy += (p.y + q.y) * cross;
+  }
+  if (Math.abs(a2) < 1e-6) return { area: 0, centre: pts.reduce((acc, p) => add(acc, scale(p, 1 / pts.length)), { x: 0, y: 0 }) };
+  return { area: Math.abs(a2) / 2, centre: { x: cx / (3 * a2), y: cy / (3 * a2) } };
 }

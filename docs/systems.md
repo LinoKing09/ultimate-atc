@@ -16,7 +16,7 @@ The toolbar button reads `SYSTEMS (n OFF)` in orange while any system is off. Ev
 | Navigation aids | **ILS localizer (LOC)**                    | Lateral guidance of the ILS for the runway in use; with the glide path, arrivals fly ILS approaches | No ILS: arrivals fly **RNP** (satellite) approaches, spaced at least 5 NM |
 | Navigation aids | **ILS glide path (GP)**                    | Vertical guidance of the ILS                                                                  | **Localizer** (non-precision) approaches, spaced at least 5 NM |
 
-Switching the ILS changes the approach procedure: the ATIS text includes it (`RNP approach runway 25, ILS runway 25 out of service`) once you broadcast a new ATIS, and the arrivals list shows the procedure in the `APCH` column (`ILS`, `LOC`, `RNP`).
+Switching the ILS changes the approach procedure: the ATIS text includes it (`RNP approach runway 25, ILS runway 25 out of service`) once you broadcast a new ATIS, and the arrivals list shows the procedure in the `APCH` column (`ILS`, `LOC`, `RNP`). A runway end without a published ILS (Sylt 14: RNP only; airport data `approaches`) is always flown as an RNP approach - the ILS switches do not change it and the ATIS does not report an ILS outage there.
 
 ## Background: what real airports use
 

@@ -9,9 +9,9 @@ import { buildLayout, exitVia, type StandSpec } from './osmLayout';
  * (eddn.layout.ts). Procedures, stand use and taxiway restrictions: VATSIM Germany Nürnberg SOP,
  * see docs/airports/EDDN.md.
  *
- * Simplifications: the general aviation aprons (G1-G3, U1, U2, FAI, Aerodienst) and helipads are
- * not modelled (only the GA stands 81-86); the CAT II/III holding points on J, F/C and B are plain
- * junctions (no low visibility operations).
+ * Simplifications: the general aviation aprons (G1-G3, U1, U2, FAI, Aerodienst) and helipads are drawn,
+ * but have no parking positions (only the GA stands 81-86); the CAT II/III holding points on J, F/C and B
+ * are plain junctions (no low visibility operations).
  */
 
 const AIRLINE = (id: string, lanes: string[], maxWingspanM = 36, pushback = true): StandSpec => ({ id, apron: 'Main apron', maxWingspanM, pushback, lanes });
@@ -27,18 +27,23 @@ const built = buildLayout(EDDN_LAYOUT, {
     'HP.1868560665': 'B',
     'HP.1523471664': 'A',
   },
-  // The unnamed link from the east end of the apron (M1 / M2) to B and N2 is part of A.
-  taxiwayNames: { '?': 'A' },
-  // The short piece between A and the apron link is A as well (B starts at the A / B junction).
-  edgeNames: { 'A/B>?/B/N2': 'A' },
-  // GA taxiway T2 is not modelled (its dead end is pruned).
-  dropEdges: ['T2.2>S4/T2'],
-  // SOP: B, C, E, J and N2 code C only, D code D; GA lanes S3 / S4 code B. J is not limited here: larger
-  // aircraft cross it between M3 and M4 / N4, and the simulator does not split J into parts.
-  maxWingspanM: { B: 36, C: 36, E: 36, N2: 36, D: 52, S3: 24, S4: 24 },
-  // Pavement widths: OSM `width` tags (A, B, C, D, F: 20 m); the others keep the default.
-  widthM: { A: 20, B: 20, C: 20, D: 20, F: 20 },
-  taxilanes: ['M1', 'M2', 'M3', 'M4', 'N2', 'N4', 'S3', 'S4'],
+  // The unnamed link from the east end of the apron (M1 / M2) north to A, B and N2 is M2 (ground movement chart),
+  // up to the A / B junction where A begins.
+  taxiwayNames: { '?': 'M2' },
+  edgeNames: { 'A/B>?/B/N2': 'M2' },
+  // The GA lanes end at their aprons: S3 at Apron G2 / G2A, S4 at the FAI apron, T2 at aprons U1 / U2.
+  keepNodes: ['S3.5', 'S4.10', 'T2.1'],
+  // SOP: B, C, E and N2 code C only, D code D. AIP AD 2.20: S3, S4 and T2 code A / B; J code C from F to M4
+  // (code D / E only cross it between M3 and M4 / N4), code A / B from M4 to the GA entry.
+  maxWingspanM: { B: 36, C: 36, E: 36, N2: 36, D: 52, S3: 24, S4: 24, T2: 24 },
+  edgeMaxWingspanM: {
+    'F/J>J.1': 36, 'J.1>J.2': 36, 'J.2>J.3': 36, 'J.3>HP.1868560660': 36,
+    'F/J.2>J.4': 36, 'J.4>J.5': 36, 'J.5>J.6': 36, 'J.6>HP.1868560660': 36, 'HP.1868560660>J/M3': 36,
+    'J/M4>J/M4.2': 24, 'J/M4.2>J/S3/S4': 24,
+  },
+  // Pavement widths: AIP AD 2.8.
+  widthM: { A: 22.5, B: 22.5, C: 22.5, D: 23, E: 22.5, F: 22.5, J: 22.5, M1: 23, M2: 23, M3: 23, M4: 23, N2: 18, N4: 21, S3: 10.5, S4: 10.5, T2: 10.5 },
+  taxilanes: ['M1', 'M2', 'M3', 'M4', 'N2', 'N4', 'S3', 'S4', 'T2'],
   stands: [
     // Terminal stands, nose south (jet bridges 10-13), taxi in and push back.
     AIRLINE('01', ['M1.4'], 30),
@@ -89,17 +94,17 @@ const built = buildLayout(EDDN_LAYOUT, {
   ],
 });
 
-/** Runway ends from the OSM runway centre line (the paved stopways beyond are not part of it). */
-const END_10 = { lat: 49.5005453, lon: 11.0591528 };
-const END_28 = { lat: 49.4969237, lon: 11.096002 };
+/** Thresholds: AIP AD 2.12 (not displaced; the paved areas beyond them are tagged stopway in OSM, the AIP lists none). */
+const END_10 = { lat: 49.5005506, lon: 11.05917 };
+const END_28 = { lat: 49.4969253, lon: 11.0960247 };
 
 export const EDDN: AirportData = {
   icao: 'EDDN',
   name: 'Nuremberg',
   city: 'Nuremberg',
   country: 'Germany',
-  arp: { lat: 49.498699, lon: 11.078056 },
-  elevationFt: 1046,
+  arp: { lat: 49.4987, lon: 11.078008 },
+  elevationFt: 1044,
   magneticVariation: 4.3,
   timeZone: 'Europe/Berlin',
   // Runway 28 is preferred; westerly winds prevail (estimate).
@@ -108,15 +113,16 @@ export const EDDN: AirportData = {
   // Initial climb FL70 on the RNAV SIDs (SOP).
   initialClimbFt: 7000,
   dataNotice:
-    'Layout from OpenStreetMap (© OpenStreetMap contributors, ODbL); general aviation aprons simplified. Procedures after the VATSIM Germany SOP. Not for real-world navigation.',
+    'Layout from OpenStreetMap (© OpenStreetMap contributors, ODbL), checked against the AIP charts; general aviation aprons without parking positions. Procedures after the VATSIM Germany SOP. Not for real-world navigation.',
   runways: [
     {
       name: '10/28',
       widthM: 45,
       lengthM: 2700,
       ends: [
-        { name: '10', threshold: END_10, end: END_10, elevationFt: 1022 },
-        { name: '28', threshold: END_28, end: END_28, elevationFt: 1046 },
+        // AIP: ILS CAT I or LOC 10 (also VOR, RNP), ILS CAT II / III or LOC Z 28 (also LOC Y, RNP).
+        { name: '10', threshold: END_10, end: END_10, elevationFt: 1020, approaches: ['ILS', 'LOC', 'RNP'] },
+        { name: '28', threshold: END_28, end: END_28, elevationFt: 1044, approaches: ['ILS', 'LOC', 'RNP'] },
       ],
     },
   ],
@@ -125,6 +131,7 @@ export const EDDN: AirportData = {
   stands: built.stands,
   areas: built.areas,
   buildings: built.buildings,
+  pavement: built.pavement,
   stations: [
     { callsign: 'EDDN_GND', type: 'GND', name: 'Nuernberg Ground', frequency: '121.760' },
     { callsign: 'EDDN_TWR', type: 'TWR', name: 'Nuernberg Tower', frequency: '118.305' },
@@ -134,18 +141,21 @@ export const EDDN: AirportData = {
   runwayOps: [
     {
       runway: '28',
+      // Declared distances (AIP AD 2.13). C (1289 m) is published but not used for departures (SOP).
       departureEntries: [
-        { holdingPoint: 'A', intersection: 'A', fullLength: true },
-        { holdingPoint: 'B', intersection: 'B', fullLength: false },
+        { holdingPoint: 'A', intersection: 'A', fullLength: true, toraM: 2700 },
+        { holdingPoint: 'B', intersection: 'B', fullLength: false, toraM: 1962 },
       ],
       // Not earlier than C (a departure may be waiting at B).
       exits: [exitVia(built, 'C', 'HP.1868560670'), exitVia(built, 'D', 'HP.249666665'), exitVia(built, 'E', 'HP.249666656'), exitVia(built, 'F', 'HP.249666646')],
     },
     {
       runway: '10',
+      // Declared distances (AIP AD 2.13). D on request (SOP); C (1461 m) is published but not used for departures.
       departureEntries: [
-        { holdingPoint: 'F', intersection: 'F', fullLength: true },
-        { holdingPoint: 'E', intersection: 'E', fullLength: false },
+        { holdingPoint: 'F', intersection: 'F', fullLength: true, toraM: 2700 },
+        { holdingPoint: 'E', intersection: 'E', fullLength: false, toraM: 2300 },
+        { holdingPoint: 'D', intersection: 'D', fullLength: false, toraM: 1900 },
       ],
       exits: [exitVia(built, 'C', 'HP.1868560670'), exitVia(built, 'B', 'HP.1868560665'), exitVia(built, 'A', 'HP.1523471664')],
     },
@@ -190,12 +200,13 @@ export const EDDN: AirportData = {
     {
       title: 'Nuremberg in short',
       items: [
-        'One runway 10/28 (2700 m), **28 preferred** - the direction changes only with more than 5 kt tailwind. One parallel taxiway north of it: **F** (west part) and **A** (east part); the exits A-F run between it and the runway, J and C lead from the apron to F.',
+        'One runway 10/28 (2700 m), **28 preferred** - the direction changes only with more than 5 kt tailwind. One parallel taxiway south of it, between the runway and the aprons: **F** (west part, up to the C / M2 / N2 junction) and **A** (east part, from the M2 / B junction); the exits A-F run between it and the runway, J and C lead from the apron to F, M2 from the east end of the apron to A and B.',
+        'Approaches: **ILS 28** (CAT II / III) and **ILS 10** (CAT I). Hot spot: the junction where M3 joins M2 (C, F, H4) - check the taxi clearance.',
         'Nuernberg Ground also gives the IFR clearances (datalink clearances are common); Nuremberg is not an A-CDM airport.',
-        'Departures 28 at **A** (full length), small aircraft from intersection B; departures 10 at **F**, small aircraft from E. Intersection C is not used for departures.',
+        'Departures 28 at **A** (full length, 2700 m) or intersection **B** (1962 m); departures 10 at **F** (2700 m), intersection **E** (2300 m) or **D** (1900 m). Aircraft up to 2 t are normally cleared from B / E. Intersection C is not used for departures.',
         'Landing aircraft vacate **not earlier than C** (a departure may be waiting at B / E); 28: C, D, E or F at the end; 10: C, B or A at the end.',
         'Stands 01-16 at the terminal are pushback stands (nose south). The remote stands 30-35 are entered via N2 and left via M2, 40-44 via N4 and M4 - taxiing behind parked aircraft on N2 / N4 is usually not possible, so fill them from the far end. Cargo 26-28 (nose north, out via A).',
-        'Taxiways B, C, E, J and N2 are for code C (36 m) only, D for code D (52 m).',
+        'Taxiways B, C, E and N2 are for code C (36 m) only, D for code D (52 m); J is code C from F to M4 (code D / E only cross it between M3 and M4 / N4) and code B south of M4. The GA lanes S3, S4 and T2 are code B.',
       ],
     },
   ],

@@ -42,6 +42,14 @@ export interface TaxiEdge {
   shape: Vec2[];
 }
 
+/** A paved line drawn on the scope only (AirportData.pavement), in local metres. */
+export interface PavementLine {
+  name: string;
+  points: Vec2[];
+  widthM: number;
+  closed: boolean;
+}
+
 export interface RunwayEnd {
   name: string;
   /** Name of the physical runway, e.g. "07/25". */
@@ -73,6 +81,9 @@ export interface DeicingPad {
   maxWingspanM: number;
 }
 
+/** Default width of a pavement line (m). */
+const PAVEMENT_LINE_WIDTH = 15;
+
 /** Stands whose centres are closer than this (m) share their space: the larger one is an alternative position. */
 const ALTERNATIVE_STAND_M = 25;
 
@@ -97,6 +108,8 @@ export class Airport {
   readonly runwayEnds = new Map<string, RunwayEnd>();
   readonly areas: { name: string; polygon: Vec2[] }[];
   readonly buildings: { name: string; polygon: Vec2[] }[];
+  /** Paved lines outside the taxi graph (drawing only). */
+  readonly pavementLines: PavementLine[];
   /** All taxiway designators known at this airport (upper case). */
   readonly taxiwayNames = new Set<string>();
   /**
@@ -154,6 +167,20 @@ export class Airport {
     for (const name of this.taxiwayNames) {
       const own = this.edges.filter((e) => e.kind !== 'stand' && e.kind !== 'runway' && e.name.toUpperCase() === name);
       if (own.length && own.every((e) => e.closed)) this.outOfServiceTaxiways.add(name);
+    }
+
+    this.pavementLines = (data.pavement ?? []).map((l) => ({
+      name: l.name ?? '',
+      points: l.points.map((p) => this.proj.toLocal(p)),
+      widthM: l.widthM ?? PAVEMENT_LINE_WIDTH,
+      closed: l.closed ?? false,
+    }));
+    // A closed taxiway that exists only as pavement is known by name (crews answer "taxiway G closed").
+    for (const l of this.pavementLines) {
+      const name = l.name.toUpperCase();
+      if (!l.closed || !name || this.taxiwayNames.has(name)) continue;
+      this.taxiwayNames.add(name);
+      this.outOfServiceTaxiways.add(name);
     }
 
     for (const s of data.stands) {

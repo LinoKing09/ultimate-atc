@@ -132,6 +132,6 @@ describe('Stuttgart runway data', () => {
     // Eastbound on N (from the circle) DP2 is ahead to the right; DP1 cannot be entered that way.
     expect(isRouteError(findRoute(ap, { node: ap.node('L2_B') }, ap.node('DP2'), ['L2', 'N'], { wingspanM: 35.8 }))).toBe(false);
     expect(isRouteError(findRoute(ap, { node: ap.node('L2_B') }, ap.node('DP1'), ['L2', 'N'], { wingspanM: 35.8 }))).toBe(true);
-    expect(ap.deicingPads.map((p) => `${p.name}:${p.maxWingspanM}`)).toEqual(['DP1:65', 'DP2:80', 'DP3:36', 'DP4:36']);
+    expect(ap.deicingPads.map((p) => `${p.name}:${p.maxWingspanM}`)).toEqual(['DP1:65', 'DP2:68.5', 'DP3:36', 'DP4:36']);
   });
 });

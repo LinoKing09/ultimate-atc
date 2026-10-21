@@ -589,14 +589,26 @@ export class Simulation {
     this.system(`ATIS information ${a.letter} is now current: ${this.atisText()}`);
   }
 
-  /** Approach procedure flown with the navigation aids that are on. */
+  /** Approach procedure flown to the runway in use with the navigation aids that are on. */
   get approachType(): ApproachType {
-    return approachType(this.systems);
+    return this.approachTypeFor(this.runway);
+  }
+
+  /** Approach procedure flown to a runway end: the published ones (airport data) with the navigation aids that are on. */
+  approachTypeFor(runway: string): ApproachType {
+    const end = this.config.airport.runways.flatMap((r) => r.ends).find((e) => e.name === runway);
+    return approachType(this.systems, end?.approaches);
+  }
+
+  /** Whether a runway end has a published ILS (omitted in the airport data: yes). */
+  hasIls(runway = this.runway): boolean {
+    const end = this.config.airport.runways.flatMap((r) => r.ends).find((e) => e.name === runway);
+    return !end?.approaches || end.approaches.includes('ILS');
   }
 
   /** "ILS approach runway 25", "localizer approach runway 25", "RNP approach runway 25". */
   approachName(runway = this.runway): string {
-    const t = this.approachType;
+    const t = this.approachTypeFor(runway);
     return `${t === 'ILS' ? 'ILS' : t === 'LOC' ? 'localizer' : 'RNP'} approach runway ${runway}`;
   }
 
@@ -615,7 +627,7 @@ export class Simulation {
   atisText(): string {
     const a = this.atis;
     const hhmm = this.utc().toISOString().slice(11, 16).replace(':', '');
-    const navaids = !this.systems.loc ? `, ILS runway ${a.runway} out of service` : !this.systems.gp ? `, glide path runway ${a.runway} out of service` : '';
+    const navaids = !this.hasIls(a.runway) ? '' : !this.systems.loc ? `, ILS runway ${a.runway} out of service` : !this.systems.gp ? `, glide path runway ${a.runway} out of service` : '';
     const closed = [...this.airport.closedTaxiways].sort();
     const taxiways = closed.length ? `, taxiway${closed.length > 1 ? 's' : ''} ${closed.join(' and ')} closed` : '';
     const deicing = deicingActive(this) ? ', de-icing in progress on the de-icing pads' : '';

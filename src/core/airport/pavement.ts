@@ -90,6 +90,10 @@ export function pavementGeometry(airport: Airport): PavementGeometry {
     for (const e of es) if (!used.has(e)) emit(node, walk(node, e));
   }
   for (const e of edges) if (!used.has(e)) emit(e.from, walk(e.from, e));
+  // Paved lines outside the taxi graph (links inside runway strips, closed taxiways).
+  for (const l of airport.pavementLines) {
+    if (l.points.length >= 2) chains.push({ points: new Path(l.points, [], CHAIN_RADIUS).points, widthM: l.widthM, closed: l.closed });
+  }
 
   // ---- junction fillets
   const fillets: PavementStroke[] = [];

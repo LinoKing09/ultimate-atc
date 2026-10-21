@@ -96,10 +96,16 @@ export const SYSTEMS: SystemInfo[] = [
 
 export type ApproachType = 'ILS' | 'LOC' | 'RNP';
 
-/** Approach procedure flown with the given navigation aids. */
-export function approachType(states: SystemStates): ApproachType {
-  if (!states.loc) return 'RNP';
-  return states.gp ? 'ILS' : 'LOC';
+/**
+ * Approach procedure flown with the given navigation aids, among the approaches published for the runway
+ * end (omitted: an ILS with its localizer-only and RNP fallbacks). A localizer approach needs published
+ * localizer minima (Stuttgart 07: only for aircraft up to 5.7 t, so airliners fly RNP when the ILS fails).
+ */
+export function approachType(states: SystemStates, published?: ApproachType[]): ApproachType {
+  const has = (t: ApproachType) => !published || published.includes(t);
+  if (states.loc && states.gp && has('ILS')) return 'ILS';
+  if (states.loc && has('LOC')) return 'LOC';
+  return 'RNP';
 }
 
 /** Minimum arrival spacing on final for non-precision approaches (NM; simulator value). */

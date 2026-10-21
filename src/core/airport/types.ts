@@ -1,5 +1,5 @@
 import type { LatLon } from '../geo';
-import type { SystemId } from '../systems';
+import type { ApproachType, SystemId } from '../systems';
 
 /**
  * Serializable airport description. Everything a position (Delivery, Ground,
@@ -30,6 +30,12 @@ export interface AirportData {
   areas: AreaData[];
   /** Buildings, drawn on top of aprons. */
   buildings: AreaData[];
+  /**
+   * Paved lines outside the taxi graph, drawn like taxiways but never used by routes: links inside a
+   * runway strip that would bypass the holding points, or permanently closed taxiways (`closed`) that
+   * lead nowhere in the simulator.
+   */
+  pavement?: PavementLineData[];
 
   /** ATC stations available at this airport. */
   stations: StationData[];
@@ -147,6 +153,12 @@ export interface RunwayEndData {
   end: LatLon;
   elevationFt: number;
   /**
+   * Published instrument approaches to this runway end that airliners may fly. Without 'ILS' arrivals fly
+   * the RNP (or localizer) approach whatever the ILS switches say; with the glide path off they fly the
+   * localizer approach only if 'LOC' is listed. Omitted = ILS, LOC and RNP.
+   */
+  approaches?: ApproachType[];
+  /**
    * Published take-off run available from the runway end (metres), when it is shorter than the runway:
    * the last part of the runway (in the take-off direction) does not count for take-offs in this direction.
    */
@@ -240,8 +252,20 @@ export interface StandData {
 export type Compass = 'north' | 'east' | 'south' | 'west';
 
 export interface AreaData {
+  /** Shown on the scope for buildings (empty: no label). */
   name: string;
   polygon: LatLon[];
+}
+
+/** A paved line drawn on the scope only (see AirportData.pavement). */
+export interface PavementLineData {
+  /** Taxiway designator (labelled when closed and not part of the taxi graph); omitted = unnamed. */
+  name?: string;
+  points: LatLon[];
+  /** Pavement width in metres (default 15). */
+  widthM?: number;
+  /** Permanently closed: drawn with crosses; crews refuse instructions via it. */
+  closed?: boolean;
 }
 
 export type StationType = 'DEL' | 'GND' | 'TWR' | 'APP' | 'DEP' | 'CTR' | 'ATIS';

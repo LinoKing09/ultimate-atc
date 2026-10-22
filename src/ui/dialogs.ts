@@ -54,12 +54,16 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
         h('span.pi-arrow', { text: '▸' }),
       );
     };
-    const picker = airportPicker(airports, (icao) => {
-      selected = icao;
-      closePicker();
-      renderAirportField();
-      update();
-    });
+    const picker = airportPicker(
+      airports,
+      (icao) => {
+        selected = icao;
+        closePicker();
+        renderAirportField();
+        update();
+      },
+      () => [form],
+    );
     const closePicker = () => {
       picker.close();
       airportBtn.classList.remove('open');

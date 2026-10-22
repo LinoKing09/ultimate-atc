@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- Airport menu: it always starts with the continents (it opened with the way to the selected airport expanded); each column slides in with a short animation after a choice in the previous one, its entries fade in one after another, and the dialog and the open columns glide to their new centred place. The selected airport is marked in its column. No animation with the system setting *reduce motion*.
+
 ## [1.3.0] - 2026-10-22
 
 The airport menu of the Connect dialog: continent, country and FIR, airport - with the runways and the traffic level of each airport.

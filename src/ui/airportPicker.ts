@@ -41,18 +41,22 @@ interface Column {
 export interface AirportPicker {
   /** The columns; placed to the right of the Connect dialog. */
   el: HTMLElement;
-  /** Opens the menu with the way to this airport expanded. */
+  /** Opens the menu with the continents; this airport is marked when its column is reached. */
   open(icao: string): void;
   close(): void;
   isOpen(): boolean;
 }
 
+const EASE = 'cubic-bezier(0.2, 0.7, 0.3, 1)';
+
 /**
  * Airport menu of the Connect dialog: columns that open to the right of each other - continent, country
  * (with its FIR), the FIRs of a country that has several (Germany), airports - so an earlier choice can
- * still be changed while the later columns are open.
+ * still be changed while the later columns are open. It always starts with the continents; each column
+ * slides in after a choice in the previous one. `companions` are the elements beside the menu (the dialog):
+ * the row is centred, so they move when a column opens or closes, and they slide there too.
  */
-export function airportPicker(airports: AirportData[], onPick: (icao: string) => void): AirportPicker {
+export function airportPicker(airports: AirportData[], onPick: (icao: string) => void, companions: () => HTMLElement[] = () => []): AirportPicker {
   // Airports whose FIR is not in REGIONS are listed under "Other".
   const others = airports.filter((a) => !regionOf(a.fir));
   const continents: ContinentInfo[] = others.length ? [...REGIONS, { name: 'Other', countries: [{ name: 'Other airports', firs: [{ icao: '', name: 'Other airports' }] }] }] : REGIONS;
@@ -113,7 +117,34 @@ export function airportPicker(airports: AirportData[], onPick: (icao: string) =>
   /** Open columns and their items. */
   let cols: { el: HTMLElement; items: { b: HTMLButtonElement; it: Item }[] }[] = [];
   const meta = new WeakMap<HTMLElement, { depth: number; it: Item }>();
+  /** The airport selected in the dialog, marked in its airport column. */
+  let current = '';
 
+  /**
+   * Changes the columns (`change` returns a column it added) and animates the result: whatever moved because
+   * the row is re-centred slides from its old place, a new column slides in with the row and its items
+   * fade in one after another.
+   */
+  const animated = (change: () => HTMLElement | undefined) => {
+    const tracked = [...companions(), ...cols.map((c) => c.el)];
+    // Where everything is now on screen (also halfway through an earlier animation, which stops here).
+    const before = tracked.map((e) => e.getBoundingClientRect().left);
+    for (const e of tracked) for (const a of e.getAnimations?.() ?? []) a.cancel();
+    const added = change();
+    if (typeof el.animate !== 'function' || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    let shift = 0;
+    tracked.forEach((e, i) => {
+      if (!e.isConnected) return;
+      const dx = before[i] - e.getBoundingClientRect().left;
+      if (i === 0) shift = dx;
+      if (Math.abs(dx) > 0.5) e.animate([{ transform: `translateX(${dx}px)` }, { transform: 'none' }], { duration: 240, easing: EASE });
+    });
+    if (!added) return;
+    added.animate([{ opacity: 0, transform: `translateX(${shift - 18}px)` }, { opacity: 1, transform: 'none' }], { duration: 260, easing: EASE });
+    added.querySelectorAll('.picker-item, .picker-empty').forEach((x, i) => {
+      x.animate([{ opacity: 0, transform: 'translateX(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 180, delay: 60 + i * 35, easing: EASE, fill: 'backwards' });
+    });
+  };
   const truncate = (depth: number) => {
     for (const c of cols.splice(depth + 1)) c.el.remove();
   };
@@ -122,11 +153,18 @@ export function airportPicker(airports: AirportData[], onPick: (icao: string) =>
       onPick(it.icao);
       return;
     }
-    truncate(depth);
-    for (const x of cols[depth].items) x.b.classList.toggle('on', x.b === b);
-    if (it.next) push(it.next(), focusNext);
+    // Already open: keep the column instead of rebuilding it.
+    if (b.classList.contains('on') && cols.length > depth + 1) {
+      if (focusNext) cols[depth + 1].items.find((x) => !x.b.disabled)?.b.focus();
+      return;
+    }
+    animated(() => {
+      truncate(depth);
+      for (const x of cols[depth].items) x.b.classList.toggle('on', x.b === b);
+      return it.next ? push(it.next(), focusNext) : undefined;
+    });
   };
-  const push = (col: Column, focus = false) => {
+  const push = (col: Column, focus = false): HTMLElement => {
     const depth = cols.length;
     const list = h('div.picker-items');
     const colEl = h(`div.picker-col.${col.cls}`, {}, h('div.ptitle', { text: col.title }), list);
@@ -138,6 +176,7 @@ export function airportPicker(airports: AirportData[], onPick: (icao: string) =>
         it.side ?? null,
         it.next ? h('span.pi-arrow', { text: '▸' }) : null,
       );
+      if (it.icao && it.icao === current) b.classList.add('current');
       b.addEventListener('click', () => activate(depth, b, it));
       meta.set(b, { depth, it });
       list.append(b);
@@ -149,6 +188,7 @@ export function airportPicker(airports: AirportData[], onPick: (icao: string) =>
     el.append(colEl);
     colEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     if (focus) items.find((x) => !x.b.disabled)?.b.focus();
+    return colEl;
   };
 
   // Keyboard: up / down within a column, right opens the next column, left goes back.
@@ -165,29 +205,23 @@ export function airportPicker(airports: AirportData[], onPick: (icao: string) =>
     e.preventDefault();
   });
 
-  const close = () => {
+  const reset = () => {
     truncate(-1);
     el.hidden = true;
   };
   return {
     el,
     open(icao) {
-      close();
-      el.hidden = false;
-      push(continentColumn());
-      // Expand the way to the current airport and mark it.
-      const a = airports.find((x) => x.icao === icao);
-      const r = regionOf(a?.fir);
-      const keys = r ? [r.continent.name, r.country.name, ...(r.country.firs.length > 1 ? [r.fir.icao] : [])] : a ? ['Other', 'Other airports'] : [];
-      keys.forEach((k, depth) => {
-        const x = cols[depth]?.items.find((y) => y.it.key === k);
-        if (x) activate(depth, x.b, x.it);
+      reset();
+      current = icao;
+      // Always the first column only: the way to an airport is chosen step by step.
+      animated(() => {
+        el.hidden = false;
+        return push(continentColumn());
       });
-      const cur = cols.at(-1)?.items.find((y) => y.it.key === icao);
-      cur?.b.classList.add('current');
-      (cur?.b ?? cols[0].items[0]?.b)?.focus();
+      cols[0].items.find((x) => !x.b.disabled)?.b.focus();
     },
-    close,
+    close: () => animated(() => (reset(), undefined)),
     isOpen: () => !el.hidden,
   };
 }

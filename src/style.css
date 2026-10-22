@@ -697,7 +697,6 @@ button.mic.listening {
   background: var(--panel);
   border: 1px solid #56636a;
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
-  animation: picker-in 0.12s ease-out;
 }
 .picker-col.continents {
   width: 190px;
@@ -752,6 +751,7 @@ button.mic.listening {
 .picker-item:disabled {
   opacity: 0.45;
   cursor: default;
+  border-color: transparent;
 }
 .picker-item.dim .pi-label {
   color: var(--text-dim);
@@ -844,17 +844,6 @@ body.mobile .picker-item {
   .login-row > .dialog .positions button {
     min-width: 0;
     flex: 1 1 30%;
-  }
-}
-@keyframes picker-in {
-  from {
-    opacity: 0;
-    transform: translateX(-6px);
-  }
-}
-@media (prefers-reduced-motion: reduce) {
-  .picker-col {
-    animation: none;
   }
 }
 

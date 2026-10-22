@@ -336,7 +336,7 @@ Click a row to select the aircraft, double-click to centre the scope on it, righ
 
 ### Sidebar
 
-Right of the message window, from the top: a large **SEND** button, **ROGER** (acknowledges the call of the selected aircraft, or of the pilot who called last: no read-back, the aircraft stops flashing and the pilot waits 4 minutes before calling again - for example the departures queuing at the holding point), **STANDBY** (the same, 2 minutes) and **ALL STN** - broadcasts to all stations: `information B is now current, QNH 1013`, `runway 25 in use`, `standby` (puts every open request on hold) and `expect delays`. Nobody reads a broadcast back. On the desktop ALL STN opens a menu; in mobile mode the quick-action bar shows the broadcasts as phrase buttons (pick one or more, then SEND). Tab still selects the next aircraft with a pending request.
+Right of the message window, from the top: a large **SEND** button, **ROGER** (acknowledges the call of the selected aircraft, or of the pilot who called last: no read-back, the aircraft stops flashing and the pilot waits 4 minutes before calling again - for example the departures queuing at the holding point), **SAY AGAIN** (the selected aircraft, or the pilot who called last, repeats its last transmission - `standby` is in the aircraft menu and on the command line) and **ALL STN** - broadcasts to all stations: `information B is now current, QNH 1013`, `runway 25 in use`, `standby` (puts every open request on hold) and `expect delays`. Nobody reads a broadcast back. On the desktop ALL STN opens a menu; in mobile mode the quick-action bar shows the broadcasts as phrase buttons (pick one or more, then SEND). Tab still selects the next aircraft with a pending request.
 
 ### Message window
 

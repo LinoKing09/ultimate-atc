@@ -20,7 +20,7 @@ The parser lives in [`src/core/phraseology/parser.ts`](../src/core/phraseology/p
 - **Case and punctuation don't matter.** `DLH5AB Taxi To Holding Point A, via L2, S.` and `dlh5ab taxi to holding point a via l2 s` are the same.
 - **Filler words are ignored:** `roger`, `please`, `thanks`, `good day`, `bye`, `correction`, `the`, `and` ...
 - **Words that are not understood** are listed in the preview (`ignored: ...`). If nothing at all is understood, the pilot replies `Say again, <callsign>?` (-2 points).
-- **Designators** can be typed (`A`, `L2`, `25`, `118.805`) or spelled in words (`alpha`, `lima two`, `two five`, `one one eight decimal eight zero five`).
+- **Designators** can be typed (`A`, `L2`, `25`, `118.805`) or spelled in words (`alpha`, `lima two`, `two five`, `one one eight decimal eight zero five`). Taxilanes with a dot (Leipzig `Z4.1`) are typed `z4.1` or said `zulu 4 point 1`.
 
 ## Callsigns
 

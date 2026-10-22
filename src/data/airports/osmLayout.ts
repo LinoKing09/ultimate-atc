@@ -232,6 +232,18 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     changed = edges.length !== before;
   }
 
+  // A pushback stand at the dead end of a taxilane is pushed back from the node before it: from the dead end
+  // itself the aircraft could only be pushed out facing the dead end.
+  for (const s of stands) {
+    if (!s.pushback) continue;
+    const taxi = edges.filter((e) => (e.kind === 'taxiway' || e.kind === 'taxilane') && (e.from === s.laneNode || e.to === s.laneNode));
+    if (taxi.length !== 1) continue;
+    const before = taxi[0].from === s.laneNode ? taxi[0].to : taxi[0].from;
+    const lead = edges.find((e) => e.kind === 'stand' && e.from === s.laneNode && e.to === `STAND_${s.id}`)!;
+    lead.from = before;
+    s.laneNode = before;
+  }
+
   // Wingspan limits and widths
   for (const e of edges) {
     const lim = o.edgeMaxWingspanM?.[key(e.from, e.to)] ?? o.edgeMaxWingspanM?.[key(e.to, e.from)] ?? o.maxWingspanM?.[e.name];

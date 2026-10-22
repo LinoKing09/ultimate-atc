@@ -24,8 +24,7 @@ import { buildLayout, exitVia, layoutEdges } from './osmLayout';
 const C = 36;
 /**
  * Stands: [designator, apron, largest wingspan (m), pushback, lane node(s) (taxi in, taxi out), lat, lon, use] - the
- * position is the AIP AD 2.8 checkpoint (stands at the dead end of an apron 4 taxilane push back from the node before it,
- * so the aircraft faces the exit). 101-111 are taxi-out positions (in from L, out onto N); apron 4 after the
+ * position is the AIP AD 2.8 checkpoint. 101-111 are taxi-out positions (in from L, out onto N); apron 4 after the
  * VATSIM Germany bays (A 401-412 52 m, B 421-436 36 m, C 441-452 52 m, D 461-478 52 m, E 481-487 80 m).
  */
 const STANDS: [string, string, number, boolean, string[], number, number, ('ga' | 'cargo')?][] = [
@@ -89,8 +88,8 @@ const STANDS: [string, string, number, boolean, string[], number, number, ('ga' 
   ['306', '3', 80, true, ['F.S306'], 51.4256083, 12.2328139, 'cargo'],
   ['307', '3', 80, true, ['?/F.2'], 51.4256694, 12.2340667, 'cargo'],
   ['308', '3', 80, true, ['?/F'], 51.4257278, 12.2353222, 'cargo'],
-  ['401', '4', 52, true, ['Z1.1 ORANGE.5'], 51.4067278, 12.2308583, 'cargo'],
-  ['402', '4', 52, true, ['Z1.2 BLUE.2'], 51.4068972, 12.2344722, 'cargo'],
+  ['401', '4', 52, true, ['Z1.1 ORANGE.6'], 51.4067278, 12.2308583, 'cargo'],
+  ['402', '4', 52, true, ['Z1.2 BLUE.1'], 51.4068972, 12.2344722, 'cargo'],
   ['403', '4', 52, true, ['Z1.1 ORANGE.5'], 51.4072361, 12.2307972, 'cargo'],
   ['404', '4', 52, true, ['Z1.2 BLUE.2'], 51.4074056, 12.2344111, 'cargo'],
   ['405', '4', 52, true, ['Z1.1 ORANGE.4'], 51.4077417, 12.2307361, 'cargo'],
@@ -101,8 +100,8 @@ const STANDS: [string, string, number, boolean, string[], number, number, ('ga' 
   ['410', '4', 52, true, ['Z1.2 BLUE.5'], 51.4089222, 12.2342306, 'cargo'],
   ['411', '4', 52, true, ['Z1.1 ORANGE.1'], 51.4092611, 12.2305556, 'cargo'],
   ['412', '4', 52, true, ['Z1.2 BLUE.6'], 51.4094306, 12.2341694, 'cargo'],
-  ['421', '4', 36, true, ['Z2.1 ORANGE.7'], 51.4068694, 12.2354778, 'cargo'],
-  ['422', '4', 36, true, ['Z2.2 BLUE.14'], 51.4070444, 12.2392556, 'cargo'],
+  ['421', '4', 36, true, ['Z2.1 ORANGE.8'], 51.4068694, 12.2354778, 'cargo'],
+  ['422', '4', 36, true, ['Z2.2 BLUE.15'], 51.4070444, 12.2392556, 'cargo'],
   ['423', '4', 36, true, ['Z2.1 ORANGE.7'], 51.40725, 12.2354333, 'cargo'],
   ['424', '4', 36, true, ['Z2.2 BLUE.14'], 51.4074278, 12.2392111, 'cargo'],
   ['425', '4', 36, true, ['Z2.1 ORANGE.6'], 51.4076333, 12.2353889, 'cargo'],
@@ -117,8 +116,8 @@ const STANDS: [string, string, number, boolean, string[], number, number, ('ga' 
   ['434', '4', 36, true, ['Z2.2 BLUE.9'], 51.4093333, 12.2389833, 'cargo'],
   ['435', '4', 36, true, ['Z2.1 ORANGE.1'], 51.4095389, 12.2351611, 'cargo'],
   ['436', '4', 36, true, ['Z2.2 BLUE.8'], 51.4097167, 12.2389389, 'cargo'],
-  ['441', '4', 52, true, ['Z3.1 ORANGE.2'], 51.4071667, 12.2402444, 'cargo'],
-  ['442', '4', 52, true, ['Z3.2 BLUE.5'], 51.4073361, 12.2438583, 'cargo'],
+  ['441', '4', 52, true, ['Z3.1 ORANGE.1'], 51.4071667, 12.2402444, 'cargo'],
+  ['442', '4', 52, true, ['Z3.2 BLUE.6'], 51.4073361, 12.2438583, 'cargo'],
   ['443', '4', 52, true, ['Z3.1 ORANGE.3'], 51.4076722, 12.2401861, 'cargo'],
   ['444', '4', 52, true, ['Z3.2 BLUE.5'], 51.4078417, 12.2438, 'cargo'],
   ['445', '4', 52, true, ['Z3.1 ORANGE.6'], 51.4081806, 12.240125, 'cargo'],
@@ -129,10 +128,10 @@ const STANDS: [string, string, number, boolean, string[], number, number, ('ga' 
   ['450', '4', 52, true, ['Z3.2 BLUE.2'], 51.4093611, 12.2436167, 'cargo'],
   ['451', '4', 52, true, ['Z3.1 ORANGE.13'], 51.4097, 12.2399444, 'cargo'],
   ['452', '4', 52, true, ['Z3.2 BLUE.1'], 51.4098694, 12.2435583, 'cargo'],
-  ['461', '4', 52, true, ['Z4.1 ORANGE.2'], 51.4073917, 12.2450528, 'cargo'],
-  ['462', '4', 52, true, ['Z4.3 BLUE.2'], 51.4075611, 12.2486667, 'cargo'],
-  ['463', '4', 52, true, ['Z4.2.2'], 51.4076361, 12.2448667, 'cargo'],
-  ['464', '4', 52, true, ['Z4.2.2'], 51.4078056, 12.2484444, 'cargo'],
+  ['461', '4', 52, true, ['Z4.1 ORANGE.1'], 51.4073917, 12.2450528, 'cargo'],
+  ['462', '4', 52, true, ['Z4.3 BLUE.1'], 51.4075611, 12.2486667, 'cargo'],
+  ['463', '4', 52, true, ['Z4.2.1'], 51.4076361, 12.2448667, 'cargo'],
+  ['464', '4', 52, true, ['Z4.2.1'], 51.4078056, 12.2484444, 'cargo'],
   ['465', '4', 52, true, ['Z4.1 ORANGE.2'], 51.4078972, 12.2449917, 'cargo'],
   ['466', '4', 52, true, ['Z4.3 BLUE.2'], 51.4080667, 12.2486083, 'cargo'],
   ['467', '4', 52, true, ['Z4.1 ORANGE.3'], 51.4084056, 12.2449333, 'cargo'],
@@ -147,7 +146,7 @@ const STANDS: [string, string, number, boolean, string[], number, number, ('ga' 
   ['476', '4', 52, true, ['Z4.2.3'], 51.4098306, 12.2482028, 'cargo'],
   ['477', '4', 52, true, ['Z4.1 ORANGE.6'], 51.4099222, 12.2447528, 'cargo'],
   ['478', '4', 52, true, ['Z4.3 BLUE.10'], 51.4100917, 12.2483667, 'cargo'],
-  ['481', '4', 80, true, ['Z5.2.3'], 51.4077333, 12.2497944, 'cargo'],
+  ['481', '4', 80, true, ['Z5.2.4'], 51.4077333, 12.2497944, 'cargo'],
   ['483', '4', 80, true, ['Z5.2.3'], 51.4085083, 12.2497, 'cargo'],
   ['485', '4', 80, true, ['Z5.2.2'], 51.4092861, 12.2496083, 'cargo'],
   ['487', '4', 80, true, ['Z5.2.1'], 51.4100611, 12.2495167, 'cargo'],
@@ -244,8 +243,6 @@ const built = buildLayout(EDDP_LAYOUT, {
     ['A2.214', 'V ORANGE.5', 'V ORANGE', 'taxilane'],
   ],
   dropEdges: ['?/F.2>F.1'],
-  // The dead ends of the apron 4 taxilanes, room for the pushbacks from the last stands.
-  keepNodes: ['Z1.1 ORANGE.6', 'Z1.2 BLUE.1', 'Z2.1 ORANGE.8', 'Z2.2 BLUE.15', 'Z3.1 ORANGE.1', 'Z3.2 BLUE.6', 'Z4.1 ORANGE.1', 'Z4.3 BLUE.1', 'Z4.2.1', 'Z5.2.4'],
   // The orange guide line between stands 101-111 is for follow-me guidance only (AIP AD 2.20 8).
   drawOnly: layoutEdges(EDDP_LAYOUT, { names: ['L ORANGE'] }),
   maxWingspanM: { L: C, M: C },

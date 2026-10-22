@@ -319,7 +319,7 @@ const REFERENCE: [string, string][] = [
   ['follow the follow-me [to stand 14]', 'A follow-me car comes and leads the aircraft (crews unfamiliar with the airport ask for one).'],
   ['standby', 'Acknowledge a request; the pilot waits two minutes before calling again.'],
   ['expedite taxi', 'Taxi a bit faster.'],
-  ['say again', 'The pilot repeats the last transmission.'],
+  ['SAY AGAIN (sidebar) / say again', 'The selected aircraft (or the last caller) repeats its last transmission.'],
   ['Aircraft menu: Acknowledge CATC alert', 'You have checked the head-on alert and the aircraft will not meet (e.g. one stops or turns off before): the flashing stops until that conflict is over.'],
   ['Aircraft menu: Resolve conflict with ...', 'Two aircraft face each other on a taxiway (A-SMGCS CATC alert: flashing red while both roll towards each other): turn one off via a junction, or order a tug (several minutes).'],
 ];

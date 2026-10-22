@@ -15,7 +15,9 @@ import { edgeVertices, isClosedEdge, otherEnd, type Airport, type TaxiEdge, type
  *  - before the first via taxiway: stand lead-in lines, apron taxilanes and the
  *    taxiway the aircraft is currently on,
  *  - after the last via taxiway: stand lead-in lines, taxilanes and the
- *    taxiway the destination lies on.
+ *    taxiway the destination lies on,
+ *  - anywhere: short unnamed links (the fillets of a junction mapped as ways of
+ *    their own), which have no name a controller could say.
  *
  * With an empty `via` list the router returns the shortest overall route
  * (used by the UI's "auto route" and by AI traffic) and avoids crossing
@@ -65,6 +67,8 @@ const MAX_TURN = 150;
 /** Sharpest turn onto or off the lead line of a de-icing pad. */
 const PAD_MAX_TURN = 100;
 const FREE_EDGE_PENALTY = 1.15;
+/** Unnamed edges up to this length (m) are junction links a `via` list never names. */
+const UNNAMED_LINK_M = 150;
 
 export interface RouteOptions {
   /** Points the route must keep away from (e.g. another aircraft standing on a taxiway), with a radius in metres. */
@@ -226,6 +230,8 @@ export function findRoute(
         cost *= FREE_EDGE_PENALTY;
       } else if (k === m && destNames.has(name)) {
         cost *= FREE_EDGE_PENALTY;
+      } else if (!name && e.kind !== 'stand' && e.length <= UNNAMED_LINK_M) {
+        cost *= FREE_EDGE_PENALTY;
       } else {
         continue;
       }
@@ -262,7 +268,8 @@ export function findRoute(
 
   const taxiways: string[] = [];
   for (const e of edges) {
-    if (e.kind === 'stand') continue;
+    // Unnamed links (junction fillets, runway entries) are not part of a route a controller says.
+    if (e.kind === 'stand' || !e.name) continue;
     if (taxiways[taxiways.length - 1] !== e.name) taxiways.push(e.name);
   }
 

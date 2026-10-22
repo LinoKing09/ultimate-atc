@@ -19,12 +19,19 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- Sidebar: **SAY AGAIN** instead of STANDBY - the selected aircraft (or the pilot who called last) repeats its last transmission. `standby` stays in the aircraft menu and on the command line.
 - **Compact data tags when zoomed out**: with the whole airport in view (the typical Tower picture, e.g. on an iPad) tags show only the callsign, `*` for a request and `PAN`; the selected (tapped) aircraft and the one under the mouse get the full tag. *Settings -> Data tags -> Always full* keeps the full tags.
 - Pushback: without a `facing`, a direction that would need a 180 degree turn afterwards (towards the dead end of a taxilane) is only taken if there is no other.
 - Landing: an arrival does not take an exit where a departure is holding at the holding point (an exit that is also a departure entry); it waited on the runway for good.
 - Automatic routes keep the taxi flows only if that does not mean crossing a runway more often (a detour round the other side of the airport).
 - AI Ground: crossings of a runway that is not in use are cleared with that runway's name (it named the runway in use, which the crew refused); the Ground and Tower menus offer `Cross runway` with the runway the aircraft holds short of.
 - OSM importer: a guide line colour is no longer appended twice when the ref already names it (`L orange`).
+
+### Fixed
+
+- **Taxi instructions at Cologne/Bonn (and Bremen, Leipzig/Halle)**: every taxi instruction of the aircraft menu got `unable`. OpenStreetMap maps the fillets of many junctions as short unnamed ways; the proposed route listed them as empty via taxiways and the router did not allow unnamed edges between two via taxiways. Short unnamed links (up to 150 m) are now allowed anywhere on a via route and never listed in it. A test sends the menu's taxi instruction to every departure and arrival at every airport and runway direction.
+- Parser: taxilane names with a dot (`Z4.1`, said `zulu 4 point 1`) are understood.
+- OSM layouts: a pushback stand at the dead end of a taxilane (Cologne/Bonn D30, Leipzig/Halle apron 4) is pushed back from the node before it; it was pushed out facing the dead end.
 
 ## [1.3.1] - 2026-10-22
 

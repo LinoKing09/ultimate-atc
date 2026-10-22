@@ -278,7 +278,7 @@ export class App {
       sendBtn,
       this.micButton,
       side('ROGER', 'Roger - acknowledge the call of the selected aircraft (or the last caller): it stops flashing', toSelected('roger')),
-      side('STANDBY', 'Standby - to the selected aircraft (or the last caller)', toSelected('standby')),
+      side('SAY AGAIN', 'Say again - the selected aircraft (or the last caller) repeats its last transmission', toSelected('say again')),
       allBtn,
     );
     if (!VOICE_ENABLED) this.micButton.remove();

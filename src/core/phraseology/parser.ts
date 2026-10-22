@@ -318,6 +318,15 @@ function readStand(c: Cursor): string | undefined {
 function readDesignator(c: Cursor): string | undefined {
   const t = c.peek();
   if (!t) return undefined;
+  // Apron taxilanes with a sub-number: "z4.1", "zulu 4 point 1" (Leipzig Z4.1).
+  if (/^[a-z]\d{1,2}\.\d$/.test(t)) {
+    c.next();
+    return t.toUpperCase();
+  }
+  if (/^[a-z]$/.test(t) && /^\d{1,2}\.\d$/.test(c.peek(1) ?? '')) {
+    c.next();
+    return `${t}${c.next()}`.toUpperCase();
+  }
   if (/^[a-z]\d{0,2}$/.test(t)) {
     c.next();
     let s = t;

@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Changed
+
+- Project rules: before every release the user is asked for the version number (patch, minor or major), with a suggestion; minor and patch releases are no longer published without asking.
+
 ## [1.3.0] - 2026-10-22
 
 Complete layouts for Sylt and Nuremberg and every airport checked against the DFS AIP (AIRAC 2026OCT01: text pages, aerodrome, ground movement, approach and SID charts - used as a reference only, facts read by hand).

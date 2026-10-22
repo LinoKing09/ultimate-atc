@@ -480,6 +480,7 @@ export const EDDS: AirportData = {
   name: 'Stuttgart',
   city: 'Stuttgart',
   country: 'Germany',
+  fir: 'EDGG',
   arp: ARP,
   elevationFt: 1276,
   magneticVariation: 3.9,

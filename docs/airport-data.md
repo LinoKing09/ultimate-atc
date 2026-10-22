@@ -8,6 +8,7 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 | ---------------------- | ----------------- | ------------------------------------------------------------------------ |
 | `icao`                 | string            | ICAO code, e.g. `"EDDS"`                                                 |
 | `name`, `city`, `country` | string         | Display names                                                            |
+| `fir`                  | string            | ICAO code of the flight information region (US: the ARTCC), e.g. `"EDGG"`. Places the airport in the airport menu of the Connect dialog: continent, country and FIR come from `REGIONS` in `src/data/regions.ts` (a country with several FIRs - Germany - gets a FIR column) |
 | `arp`                  | `{lat, lon}`      | Airport reference point. Also the origin of the local metric frame.      |
 | `elevationFt`          | number            | Airport elevation                                                        |
 | `magneticVariation`    | number            | Degrees, east positive (used for wind)                                   |
@@ -244,7 +245,7 @@ Derived layouts are available under the ODbL: credit OpenStreetMap in `dataNotic
 
 1. Create `src/data/airports/<icao>.ts` exporting an `AirportData`. Use real runway end coordinates; [OurAirports](https://ourairports.com/data/) (`runways.csv`) is a convenient public-domain source.
    - **Digitising from an aerodrome chart** (how EDDS was made): render the chart at high resolution with a coordinate grid. Measure the runway ends to get the scale, and check it against a known distance (e.g. a displaced threshold). Then read every junction, holding point and stand position into the runway frame (`along`, `lateral`). The EDDS file shows how chart coordinates map to the builder.
-2. Register it in `AIRPORTS` in `src/data/airports/index.ts`, and remove it from `PLANNED_AIRPORTS` in `src/ui/dialogs.ts` if it is listed there. The [data checks](#data-checks) then run for it automatically.
+2. Register it in `AIRPORTS` in `src/data/airports/index.ts`, set its `fir` (add the FIR, country or continent to `REGIONS` in `src/data/regions.ts` if it is new) and remove it from `PLANNED_AIRPORTS` there if it is listed. The [data checks](#data-checks) then run for it automatically (`tests/regions.test.ts` checks the FIR and the country). The traffic bars of the airport menu follow `traffic.rateFactor`.
 3. Add tests (copy the "EDDS data" block in `tests/routing.test.ts`): every stand must reach every departure holding point, and every exit path must exist.
 4. Describe the airport's [traffic](#traffic) (operators, shares, destinations); add missing operators to `src/data/airlines.ts`.
 5. Write the airport **briefing** (see [Airport briefing](#airport-briefing)).

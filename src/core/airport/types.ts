@@ -11,6 +11,11 @@ export interface AirportData {
   name: string;
   city: string;
   country: string;
+  /**
+   * ICAO code of the flight information region (US: the ARTCC), e.g. "EDGG" (Langen FIR). Places the airport
+   * in the airport menu of the Connect dialog (continents, countries and FIRs in `data/regions.ts`).
+   */
+  fir?: string;
   /** Airport reference point; also the origin of the local metric frame. */
   arp: LatLon;
   elevationFt: number;

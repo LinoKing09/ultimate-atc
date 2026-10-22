@@ -51,6 +51,7 @@ ultimate-atc/
 │   │   ├── aircraftTypes.ts   # dimensions and performance per ICAO type
 │   │   ├── airlines.ts        # operators, telephony, fleets, destinations
 │   │   ├── destinations.ts    # spoken names of destination airports (clearance limits)
+│   │   ├── regions.ts         # continents, countries and FIRs of the airport menu, planned airports, traffic level
 │   │   └── airports/
 │   │       ├── index.ts       # AIRPORTS: the airports offered in the Connect dialog
 │   │       ├── builder.ts     # helper to author layouts in a runway-aligned frame
@@ -65,6 +66,7 @@ ultimate-atc/
 │       ├── lists.ts           # departure / arrival lists (clickable cells)
 │       ├── menu.ts            # popup menus
 │       ├── dialogs.ts         # connect dialog, help window (tabs), ATIS editor
+│       ├── airportPicker.ts   # airport menu of the connect dialog (continent, country / FIR, airport columns)
 │       ├── briefing.ts        # airport briefing (data facts + the airport's briefing sections)
 │       ├── scenarioBuilder.ts # scenario builder dialog (presets, events, code and link)
 │       ├── tutorialPanel.ts   # tutorial step panel on the scope
@@ -176,7 +178,7 @@ A `Path` (`core/path.ts`) is the route's polyline with corners replaced by curve
 
 ### Adding an airport
 
-See [airport-data.md](airport-data.md). In short: create `src/data/airports/<icao>.ts` exporting an `AirportData`, add it to `AIRPORTS` in `src/data/airports/index.ts` (the data checks in `tests/airports.test.ts` then run for it), describe its traffic and briefing, and document it in `docs/airports/<ICAO>.md`.
+See [airport-data.md](airport-data.md). In short: create `src/data/airports/<icao>.ts` exporting an `AirportData`, add it to `AIRPORTS` in `src/data/airports/index.ts` (the data checks in `tests/airports.test.ts` then run for it), set its `fir` (see `src/data/regions.ts`), describe its traffic and briefing, and document it in `docs/airports/<ICAO>.md`.
 
 ### Adding a position (Approach, Center)
 

@@ -223,6 +223,7 @@ export const EDJA: AirportData = {
   name: 'Memmingen',
   city: 'Memmingen',
   country: 'Germany',
+  fir: 'EDMM',
   // AIP AD 2.2.
   arp: { lat: 47.988822, lon: 10.239483 },
   elevationFt: 2079,

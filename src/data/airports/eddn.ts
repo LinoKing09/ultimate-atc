@@ -123,6 +123,7 @@ export const EDDN: AirportData = {
   name: 'Nuremberg',
   city: 'Nuremberg',
   country: 'Germany',
+  fir: 'EDMM',
   arp: { lat: 49.4987, lon: 11.078008 },
   elevationFt: 1044,
   magneticVariation: 4.3,

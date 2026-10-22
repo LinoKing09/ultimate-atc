@@ -5,20 +5,14 @@ import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
 import { levelSlider } from './levelSlider';
 import { TUTORIAL_AIRPORT, TUTORIALS, type TutorialId } from '../core/tutorial';
 import type { Density, Simulation } from '../core/simulation';
+import { regionOf } from '../data/regions';
+import { airportPicker, runwayList, trafficBars } from './airportPicker';
 import { h } from './dom';
 import { renderBriefing } from './briefing';
 import { showScenarioBuilder } from './scenarioBuilder';
 import type { Settings } from './settings';
 
 export const REPO_URL = 'https://github.com/linoking09/ultimate-atc';
-
-/** Airports offered in the login dialog. Only those with data are selectable. */
-const PLANNED_AIRPORTS = [
-  { icao: 'EDDF', name: 'Frankfurt' },
-  { icao: 'EGLL', name: 'London Heathrow' },
-  { icao: 'KLAX', name: 'Los Angeles' },
-  { icao: 'KSAN', name: 'San Diego' },
-];
 
 const POSITIONS: { type: StationType; label: string; available: boolean }[] = [
   { type: 'DEL', label: 'Delivery', available: true },
@@ -46,10 +40,38 @@ export interface LoginResult {
 /** EuroScope-like "connect" dialog: pick airport, position and traffic. The runway follows the wind (ATIS). */
 export function showLogin(airports: AirportData[], settings: Settings, initialScenario?: string): Promise<LoginResult> {
   return new Promise((resolve) => {
-    const airportSel = h('select');
-    for (const a of airports) airportSel.append(h('option', { value: a.icao, text: `${a.icao} - ${a.name}` }));
-    for (const a of PLANNED_AIRPORTS) airportSel.append(h('option', { value: a.icao, disabled: true, text: `${a.icao} - ${a.name} (planned)` }));
-    airportSel.value = airports.some((a) => a.icao === settings.airport) ? settings.airport : airports[0].icao;
+    // The airport: from a shared scenario link, else the last one used.
+    const shared = initialScenario ? parseScenarioCode(initialScenario) : undefined;
+    let selected = shared && !('error' in shared) && airports.some((a) => a.icao === shared.airport) ? shared.airport : airports.some((a) => a.icao === settings.airport) ? settings.airport : airports[0].icao;
+    // The airport field opens the airport menu to the right of the dialog (continent, country, FIR, airport).
+    const airportBtn = h('button.airport-field', { type: 'button', title: 'Choose the airport: continent, country and FIR, airport', 'aria-haspopup': 'true' });
+    const renderAirportField = () => {
+      const ap = airport();
+      const r = regionOf(ap.fir);
+      airportBtn.replaceChildren(
+        h('span.pi-text', {}, h('span.pi-label', { text: `${ap.icao} - ${ap.name}` }), h('span.pi-detail', { text: `${r ? `${r.country.name}, ${r.fir.name} (${r.fir.icao})` : ap.country} - RWY ${runwayList(ap)}` })),
+        trafficBars(ap),
+        h('span.pi-arrow', { text: '▸' }),
+      );
+    };
+    const picker = airportPicker(airports, (icao) => {
+      selected = icao;
+      closePicker();
+      renderAirportField();
+      update();
+    });
+    const closePicker = () => {
+      picker.close();
+      airportBtn.classList.remove('open');
+      airportBtn.focus();
+    };
+    airportBtn.addEventListener('click', () => {
+      if (picker.isOpen()) closePicker();
+      else {
+        airportBtn.classList.add('open');
+        picker.open(selected);
+      }
+    });
 
     // Several positions can be staffed together (combined positions, e.g. Delivery + Ground).
     const positions = new Set<StationType>((settings.positions?.length ? (settings.positions as StationType[]) : [settings.position as StationType]).filter((t) => POSITIONS.some((p) => p.type === t && p.available)));
@@ -84,7 +106,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     const combined = h('div.combined');
     const notice = h('div.notice');
 
-    const airport = () => airports.find((a) => a.icao === airportSel.value)!;
+    const airport = () => airports.find((a) => a.icao === selected)!;
     /** The seed field takes a plain number (seed) or a scenario code. */
     const readSeedField = (): { seed?: number; scenario?: Scenario; error?: string } => {
       const v = seedInput.value.trim();
@@ -147,7 +169,6 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       combined.textContent = many ? 'Combined Position' : 'Single Position';
       notice.textContent = ap.dataNotice;
     };
-    airportSel.addEventListener('change', update);
 
     const connect = h('button.primary', { type: 'submit', text: 'Connect' });
     // Tutorials: a guided first session for each position (fixed traffic, step by step).
@@ -174,7 +195,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
           'div.grid',
           {},
           h('label', { text: 'Airport' }),
-          airportSel,
+          airportBtn,
           h('label', { text: 'Position' }),
           h('div.positions', {}, ...posButtons),
           h('span'),
@@ -197,7 +218,18 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
         h('div.actions', {}, h('a', { href: `${REPO_URL}#readme`, target: '_blank', rel: 'noopener', text: 'Documentation' }), connect),
       ),
     );
-    const overlay = h('div.overlay', {}, form);
+    // The dialog and the airport menu next to it, centred together.
+    const row = h('div.login-row', {}, form, picker.el);
+    const overlay = h('div.overlay', {}, row);
+    overlay.addEventListener('click', (e) => {
+      if (picker.isOpen() && (e.target === overlay || e.target === row || e.target === picker.el)) closePicker();
+    });
+    overlay.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && picker.isOpen()) {
+        e.preventDefault();
+        closePicker();
+      }
+    });
     form.addEventListener('submit', (e) => {
       e.preventDefault();
       const r = readSeedField();
@@ -215,6 +247,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       });
     });
     document.body.append(overlay);
+    renderAirportField();
     update();
     connect.focus();
   });

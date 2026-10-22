@@ -131,6 +131,7 @@ export const EDXW: AirportData = {
   name: 'Sylt',
   city: 'Westerland',
   country: 'Germany',
+  fir: 'EDWW',
   // AIP AD 2.2: on the 14/32 centre line, 180 m SSE of the runway intersection.
   arp: { lat: 54.911636, lon: 8.342386 },
   elevationFt: 52,

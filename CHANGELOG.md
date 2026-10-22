@@ -4,7 +4,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Airport menu** in the Connect dialog: the airport field opens columns to the right of the dialog, each next to the previous one so an earlier choice can still be changed - continent (Europe, North America, South America, Asia), country with its FIR, for Germany the FIRs (Bremen EDWW, Langen EDGG, München EDMM), airport with its runways and traffic bars (1-4, from the movements per hour at medium traffic). The dialog and the menu are centred together; picking an airport closes the menu. Keyboard: arrow keys, Enter, Escape. Planned airports are listed but cannot be selected.
+- Airport data: `fir` (ICAO code of the FIR), continents, countries and FIRs in `src/data/regions.ts`.
+
 ### Changed
+
+- A shared scenario link selects the airport of its scenario in the Connect dialog (it showed an error until the airport was picked by hand).
+- Phones: the Connect dialog puts the labels above the fields, so nothing is cut off at the right edge.
 
 - Project rules: before every release the user is asked for the version number (patch, minor or major), with a suggestion; minor and patch releases are no longer published without asking.
 

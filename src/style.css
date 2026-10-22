@@ -647,6 +647,217 @@ button.mic.listening {
   color: var(--accent);
 }
 
+/* ------------------------------------------------------------------ connect: airport menu */
+/* The Connect dialog and the airport menu columns to its right, centred together. */
+.login-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 100%;
+  max-width: 100%;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+.login-row > .dialog {
+  flex: none;
+  width: min(560px, calc(100vw - 32px));
+}
+.dialog .airport-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  text-align: left;
+  background: #1c2326;
+  border: 1px solid var(--panel-border);
+  padding: 4px 8px;
+}
+.dialog .airport-field:hover,
+.dialog .airport-field.open {
+  border-color: var(--accent);
+}
+.dialog .airport-field.open {
+  background: #22343b;
+}
+.picker {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.picker[hidden] {
+  display: none;
+}
+.picker-col {
+  flex: none;
+  display: flex;
+  flex-direction: column;
+  width: 200px;
+  max-height: calc(100vh - 32px);
+  max-height: calc(100dvh - 32px);
+  background: var(--panel);
+  border: 1px solid #56636a;
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  animation: picker-in 0.12s ease-out;
+}
+.picker-col.continents {
+  width: 190px;
+}
+.picker-col.countries {
+  width: 220px;
+}
+.picker-col.airports {
+  width: 260px;
+}
+.picker-col .ptitle {
+  background: #33404a;
+  padding: 6px 10px;
+  color: #fff;
+}
+.picker-items {
+  overflow-y: auto;
+  padding: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.picker-item,
+.dialog .airport-field {
+  color: var(--text);
+}
+.picker-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: 1px solid transparent;
+  padding: 5px 8px;
+}
+.picker-item:hover:not(:disabled),
+.picker-item:focus-visible {
+  background: var(--panel-2);
+  border-color: var(--panel-border);
+  outline: none;
+}
+.picker-item.on {
+  background: #2e5866;
+  border-color: var(--accent);
+  color: #fff;
+}
+.picker-item.current {
+  border-color: var(--accent);
+  box-shadow: inset 3px 0 0 var(--accent);
+}
+.picker-item:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.picker-item.dim .pi-label {
+  color: var(--text-dim);
+}
+.pi-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.pi-label {
+  white-space: pre;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.picker-item.on .pi-label,
+.dialog .airport-field .pi-label {
+  color: #fff;
+}
+.pi-detail {
+  font-size: 11px;
+  color: var(--text-dim);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.picker-item.on .pi-detail {
+  color: #b9e9f5;
+}
+.pi-arrow {
+  color: var(--text-dim);
+}
+.picker-item.on .pi-arrow,
+.dialog .airport-field.open .pi-arrow {
+  color: var(--accent);
+}
+/* Traffic level as signal bars (1-4). */
+.traffic {
+  flex: none;
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 12px;
+}
+.traffic i {
+  width: 3px;
+  background: #46535a;
+}
+.traffic i:nth-child(1) {
+  height: 4px;
+}
+.traffic i:nth-child(2) {
+  height: 6px;
+}
+.traffic i:nth-child(3) {
+  height: 9px;
+}
+.traffic i:nth-child(4) {
+  height: 12px;
+}
+.traffic i.on {
+  background: var(--ok);
+}
+.picker-empty {
+  padding: 10px 8px;
+  color: var(--text-dim);
+}
+.picker-legend {
+  border-top: 1px solid var(--panel-border);
+  padding: 5px 10px;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+body.mobile .picker-item {
+  padding: 9px 10px;
+}
+/* Phones: the Connect dialog puts the labels above the fields. */
+@media (max-width: 520px) {
+  .login-row > .dialog .grid {
+    grid-template-columns: 1fr;
+    gap: 4px 10px;
+  }
+  .login-row > .dialog .grid > label {
+    margin-top: 6px;
+  }
+  .login-row > .dialog .combined {
+    grid-column: 1;
+    margin-top: 0;
+  }
+  .login-row > .dialog .positions button {
+    min-width: 0;
+    flex: 1 1 30%;
+  }
+}
+@keyframes picker-in {
+  from {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .picker-col {
+    animation: none;
+  }
+}
+
 /* ------------------------------------------------------------------ toasts */
 .toast {
   position: absolute;

@@ -7,6 +7,11 @@ All notable changes to this project are documented in this file. The format is b
 ### Changed
 
 - Airport menu: it always starts with the continents (it opened with the way to the selected airport expanded); each column slides in with a short animation after a choice in the previous one, its entries fade in one after another, and the dialog and the open columns glide to their new centred place. The selected airport is marked in its column. No animation with the system setting *reduce motion*.
+- Airport menu: *Coming soon* wherever there is no airport yet (continents, countries, FIRs, the planned airports) instead of the number of planned airports; the airport column ends with a lit stop bar and *END OF LIST* instead of the legend of the traffic bars (their meaning is in the tooltip).
+
+### Fixed
+
+- Tests: the one-hour sessions at Nuremberg and Sylt get a 30 s time limit like the other long simulation tests (with all test files running in parallel, the Nuremberg one could exceed the default 5 s).
 
 ## [1.3.0] - 2026-10-22
 

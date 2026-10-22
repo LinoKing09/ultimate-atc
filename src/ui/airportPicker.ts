@@ -33,10 +33,12 @@ interface Column {
   title: string;
   cls: string;
   items: Item[];
-  /** Shown when the column has no items. */
-  empty?: string;
-  legend?: string;
+  /** The last column: ends with a stop bar ("end of list"). */
+  end?: boolean;
 }
+
+/** Shown wherever there is no airport yet: a continent, country or FIR without one, a planned airport, an empty column. */
+const COMING_SOON = 'Coming soon';
 
 export interface AirportPicker {
   /** The columns; placed to the right of the Connect dialog. */
@@ -62,12 +64,9 @@ export function airportPicker(airports: AirportData[], onPick: (icao: string) =>
   const continents: ContinentInfo[] = others.length ? [...REGIONS, { name: 'Other', countries: [{ name: 'Other airports', firs: [{ icao: '', name: 'Other airports' }] }] }] : REGIONS;
   const available = (fir: string) => (fir ? airports.filter((a) => a.fir === fir) : others);
   const planned = (fir: string) => PLANNED_AIRPORTS.filter((p) => p.fir === fir);
-  const count = (firs: FirInfo[]) => ({
-    n: firs.reduce((s, f) => s + available(f.icao).length, 0),
-    planned: firs.reduce((s, f) => s + planned(f.icao).length, 0),
-  });
-  const countText = (c: { n: number; planned: number }) =>
-    [c.n ? `${c.n} airport${c.n > 1 ? 's' : ''}` : '', c.planned ? `${c.planned} planned` : ''].filter(Boolean).join(', ') || 'No airports yet';
+  /** Available airports in these FIRs. */
+  const count = (firs: FirInfo[]) => firs.reduce((s, f) => s + available(f.icao).length, 0);
+  const countText = (n: number) => (n ? `${n} airport${n > 1 ? 's' : ''}` : COMING_SOON);
 
   const airportColumn = (fir: FirInfo): Column => ({
     title: fir.icao ? `Airports - ${fir.icao}` : 'Airports',
@@ -81,14 +80,14 @@ export function airportPicker(airports: AirportData[], onPick: (icao: string) =>
         title: `${a.name} (${a.city}): runways ${runwayList(a)}, about ${trafficLevel(a).perHour} movements per hour at medium traffic`,
         icao: a.icao,
       })),
-      ...planned(fir.icao).map((p) => ({ key: p.icao, label: `${p.icao}  ${p.name}`, detail: 'Planned for a later version', disabled: true })),
+      ...planned(fir.icao).map((p) => ({ key: p.icao, label: `${p.icao}  ${p.name}`, detail: COMING_SOON, disabled: true })),
     ],
-    legend: 'Bars: traffic (4 = busiest)',
+    end: true,
   });
   const firColumn = (country: CountryInfo): Column => ({
     title: `FIR - ${country.name}`,
     cls: 'firs',
-    items: country.firs.map((f) => ({ key: f.icao, label: `${f.name} (${f.icao})`, detail: countText(count([f])), dim: !count([f]).n, next: () => airportColumn(f) })),
+    items: country.firs.map((f) => ({ key: f.icao, label: `${f.name} (${f.icao})`, detail: countText(count([f])), dim: !count([f]), next: () => airportColumn(f) })),
   });
   const countryColumn = (continent: ContinentInfo): Column => ({
     title: 'Country',
@@ -97,19 +96,18 @@ export function airportPicker(airports: AirportData[], onPick: (icao: string) =>
       key: c.name,
       label: c.name,
       // A country with one FIR shows it here; one with several (Germany) lists them in a column of their own.
-      detail: c.firs.length > 1 ? c.firs.map((f) => f.icao).join(' / ') : c.firs[0].icao ? `${c.firs[0].name} (${c.firs[0].icao})` : countText(count(c.firs)),
-      title: countText(count(c.firs)),
-      dim: !count(c.firs).n,
+      detail: !count(c.firs) ? COMING_SOON : c.firs.length > 1 ? c.firs.map((f) => f.icao).join(' / ') : c.firs[0].icao ? `${c.firs[0].name} (${c.firs[0].icao})` : countText(count(c.firs)),
+      title: c.firs.map((f) => (f.icao ? `${f.name} (${f.icao})` : f.name)).join(', '),
+      dim: !count(c.firs),
       next: () => (c.firs.length > 1 ? firColumn(c) : airportColumn(c.firs[0])),
     })),
-    empty: 'No airports yet',
   });
   const continentColumn = (): Column => ({
     title: 'Continent',
     cls: 'continents',
     items: continents.map((c) => {
-      const k = count(c.countries.flatMap((x) => x.firs));
-      return { key: c.name, label: c.name, detail: countText(k), dim: !k.n, next: () => countryColumn(c) };
+      const n = count(c.countries.flatMap((x) => x.firs));
+      return { key: c.name, label: c.name, detail: countText(n), dim: !n, next: () => countryColumn(c) };
     }),
   });
 
@@ -141,7 +139,7 @@ export function airportPicker(airports: AirportData[], onPick: (icao: string) =>
     });
     if (!added) return;
     added.animate([{ opacity: 0, transform: `translateX(${shift - 18}px)` }, { opacity: 1, transform: 'none' }], { duration: 260, easing: EASE });
-    added.querySelectorAll('.picker-item, .picker-empty').forEach((x, i) => {
+    added.querySelectorAll('.picker-item, .picker-empty, .picker-end').forEach((x, i) => {
       x.animate([{ opacity: 0, transform: 'translateX(-6px)' }, { opacity: 1, transform: 'none' }], { duration: 180, delay: 60 + i * 35, easing: EASE, fill: 'backwards' });
     });
   };
@@ -182,8 +180,9 @@ export function airportPicker(airports: AirportData[], onPick: (icao: string) =>
       list.append(b);
       return { b, it };
     });
-    if (!items.length) list.append(h('div.picker-empty', { text: col.empty ?? 'No airports yet' }));
-    if (col.legend) colEl.append(h('div.picker-legend', { text: col.legend }));
+    if (!items.length) list.append(h('div.picker-empty', { text: COMING_SOON }));
+    // A lit stop bar - red lights across the taxiway: no further.
+    if (col.end) colEl.append(h('div.picker-end', { title: 'Stop bar: end of the list' }, h('span.stopbar', {}, ...Array.from({ length: 7 }, () => h('i'))), h('span', { text: 'END OF LIST' })));
     cols.push({ el: colEl, items });
     el.append(colEl);
     colEl.scrollIntoView({ block: 'nearest', inline: 'nearest' });

@@ -819,11 +819,31 @@ button.mic.listening {
   padding: 10px 8px;
   color: var(--text-dim);
 }
-.picker-legend {
+/* End of the airport list: a lit stop bar (a row of red lights) and the words END OF LIST. */
+.picker-end {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   border-top: 1px solid var(--panel-border);
-  padding: 5px 10px;
-  font-size: 11px;
+  padding: 6px 10px;
+  font-size: 10px;
+  letter-spacing: 2px;
   color: var(--text-dim);
+}
+.stopbar {
+  display: inline-flex;
+  gap: 3px;
+  padding: 2px 4px;
+  border-top: 2px solid #c9a227;
+  border-bottom: 2px solid #c9a227;
+}
+.stopbar i {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: #ff3b30;
+  box-shadow: 0 0 4px #ff3b30;
 }
 body.mobile .picker-item {
   padding: 9px 10px;

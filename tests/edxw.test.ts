@@ -30,7 +30,7 @@ describe('Sylt (EDXW)', () => {
       // Nobody is left waiting on the ground for a clearance the bot could not give.
       expect(sim.aircraft.filter((a) => a.onGround && a.request === 'vacated' && sim.time - a.requestSince > 300)).toEqual([]);
     }
-  });
+  }, 30000);
 
   it('parses lettered stands (Apron 2)', () => {
     const r = parseTransmission('DCABC taxi to stand golf 1 via D', { callsigns: ['DCABC'], taxiways: new Set(['D']), sids: [] });

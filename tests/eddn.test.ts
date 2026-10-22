@@ -22,7 +22,7 @@ describe('Nuremberg (EDDN)', () => {
       expect(sim.stats.departuresAirborne).toBeGreaterThan(4);
       expect(sim.stats.arrivalsParked).toBeGreaterThan(4);
     }
-  });
+  }, 30000);
 
   it('crews read back the full-length holding points and the clearance at FL70', () => {
     const sim = new Simulation({ airport: EDDN, position: 'GND', runway: '28', density: 'medium', seed: 5, events: false, generateTraffic: false });

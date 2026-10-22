@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-10-22
+
+The airport menu of the Connect dialog: continent, country and FIR, airport - with the runways and the traffic level of each airport.
+
 ### Added
 
 - **Airport menu** in the Connect dialog: the airport field opens columns to the right of the dialog, each next to the previous one so an earlier choice can still be changed - continent (Europe, North America, South America, Asia), country with its FIR, for Germany the FIRs (Bremen EDWW, Langen EDGG, München EDMM), airport with its runways and traffic bars (1-4, from the movements per hour at medium traffic). The dialog and the menu are centred together; picking an airport closes the menu. Keyboard: arrow keys, Enter, Escape. Planned airports are listed but cannot be selected.
@@ -13,12 +17,11 @@ All notable changes to this project are documented in this file. The format is b
 
 - A shared scenario link selects the airport of its scenario in the Connect dialog (it showed an error until the airport was picked by hand).
 - Phones: the Connect dialog puts the labels above the fields, so nothing is cut off at the right edge.
-
 - Project rules: before every release the user is asked for the version number (patch, minor or major), with a suggestion; minor and patch releases are no longer published without asking.
 
-## [1.3.0] - 2026-10-22
+## [1.2.1] - 2026-10-22
 
-Complete layouts for Sylt and Nuremberg and every airport checked against the DFS AIP (AIRAC 2026OCT01: text pages, aerodrome, ground movement, approach and SID charts - used as a reference only, facts read by hand).
+Complete layouts for Sylt and Nuremberg and every airport checked against the DFS AIP (AIRAC 2026OCT01: text pages, aerodrome, ground movement, approach and SID charts - used as a reference only, facts read by hand). Published as 1.3.0 at first and renumbered to 1.2.1; 1.3.0 is the airport menu above.
 
 ### Added
 

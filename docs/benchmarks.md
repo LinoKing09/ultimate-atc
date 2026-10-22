@@ -47,7 +47,8 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 1.1.0 (2026-10-14) | 14.0 | 7.2 | 0 | 0 | 0 | 11.3 | 3.0 s |
 | 1.1.1 (2026-10-14) | 11.7 | 6.6 | 0 | 0 | 0 | 11.1 | 4.3 s |
 | 1.2.0 (2026-10-21) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 3.7 s |
-| 1.3.0 (2026-10-22) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 4.0 s |
+| 1.2.1 (2026-10-22) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 4.0 s |
+| 1.3.0 (2026-10-22) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 4.1 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -71,7 +72,9 @@ The second part of 1.1.0 (Nuremberg, Memmingen, Sylt, runway backtracking; relea
 
 **1.2.0** (real-world overhaul, PHX scope style): 13.1 instead of 11.7 departures per hour, arrivals unchanged at 6.6, 9.8 instead of 11.1 deadlock calls per hour; Tower benchmark 11.7 / 9.9 (11.3 / 10.2). Benchmarked on the data commit and on the release: the scope, tag and list changes do not change a single number, the differences come from the data. Flight plans are now drawn destination first and filed via the SID towards it, so the 20 sessions get a different random traffic sample; departures after one another still fly the same exit fix (2 minutes spacing instead of 1) as often as before, a quarter of the time, so the SIDs themselves do not speed up the flow. Automatic routes cross the runway only between K and Y and keep off Z, the stand allocation spreads narrow-bodies over all stands up to code D (without that rule: 13.0 / 6.8, so it is not the cause), and the published TORA values and the new intersections E / G change which entries crews accept. No collisions, incursions or go-arounds. Soak test (1.2.0): 12.1 departures and 7.5 arrivals per hour, no collisions, no incursions, **no go-arounds** (1.1.0: 2, from one rejected take-off that the new traffic sample no longer contains), 11.3 deadlock calls per hour.
 
-**1.3.0** (complete Sylt and Nuremberg layouts, buildings, AIP check of all airports): the Ground and Tower results are identical to 1.2.0 (13.1 / 6.6 and 11.7 / 9.9 per hour, no collisions, incursions or go-arounds); benchmarked on the data commit and on the release. At Stuttgart the buildings are scenery, the published approaches only matter when the ILS fails (never in the benchmark, which has no special events), and the widths, code letter limits and the intersections F / E for runway 07 do not change a single number. The computing time of 4.0 s instead of 3.7 s is within the variation of the machine (3.8 s on the data commit). Soak test (1.3.0): 12.0 departures and 7.5 arrivals per hour (1.2.0: 12.1 / 7.5), no collisions, no incursions, no go-arounds, 11.1 deadlock calls per hour (11.3); it has more wide-bodies than the benchmark, and these now keep off G, E and C (code D after the AIP). Sylt and Nuremberg are covered by their own tests (routes on the new taxiways, the light-aircraft limits, the published approaches) and by the one-hour sessions per runway direction that the test suite runs at every airport.
+**1.2.1** (complete Sylt and Nuremberg layouts, buildings, AIP check of all airports; published as 1.3.0 at first): the Ground and Tower results are identical to 1.2.0 (13.1 / 6.6 and 11.7 / 9.9 per hour, no collisions, incursions or go-arounds); benchmarked on the data commit and on the release. At Stuttgart the buildings are scenery, the published approaches only matter when the ILS fails (never in the benchmark, which has no special events), and the widths, code letter limits and the intersections F / E for runway 07 do not change a single number. The computing time of 4.0 s instead of 3.7 s is within the variation of the machine (3.8 s on the data commit). Soak test (1.2.1): 12.0 departures and 7.5 arrivals per hour (1.2.0: 12.1 / 7.5), no collisions, no incursions, no go-arounds, 11.1 deadlock calls per hour (11.3); it has more wide-bodies than the benchmark, and these now keep off G, E and C (code D after the AIP). Sylt and Nuremberg are covered by their own tests (routes on the new taxiways, the light-aircraft limits, the published approaches) and by the one-hour sessions per runway direction that the test suite runs at every airport.
+
+**1.3.0** (airport menu in the Connect dialog): the simulation is unchanged, the Ground and Tower results are identical to 1.2.1 (13.1 / 6.6 and 11.7 / 9.9 per hour, no collisions, incursions or go-arounds; 4.1 s computing time per simulated hour). Soak test (1.3.0): 12.0 departures and 7.5 arrivals per hour, no collisions, no incursions, no go-arounds, 11.1 deadlock calls per hour.
 
 ### Tower benchmark (since 0.7)
 
@@ -86,6 +89,7 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 | 1.1.0 (2026-10-14) | 11.2 | 10.6 | 0 | 0 | 0 | 0 | 0 |
 | 1.1.1 (2026-10-14) | 11.3 | 10.2 | 0 | 0 | 0 | 0 | 0 |
 | 1.2.0 (2026-10-21) | 11.7 | 9.9 | 0 | 0 | 0 | 0 | 0 |
+| 1.2.1 (2026-10-22) | 11.7 | 9.9 | 0 | 0 | 0 | 0 | 0 |
 | 1.3.0 (2026-10-22) | 11.7 | 9.9 | 0 | 0 | 0 | 0 | 0 |
 
 Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
@@ -132,9 +136,12 @@ How many hours of traffic have been simulated while developing and testing the s
 | 1.2.0: release benchmark, two comparison runs (data commit, data commit without the stand pool) and the soak test | 140 h | measured: 3 runs of 2 x 20 h and one soak run of 20 h |
 | 1.2.0: test-suite runs and diagnostics (scripted controllers on several seeds, stand allocation, de-icing routes) | ~350 h | estimate: about 10 runs of 35 h each |
 | **Total up to 1.2.0** | **~4950 h** | of which 2220 h exactly measured |
-| 1.3.0: release benchmark and soak test, and the same on the data commit | 120 h | measured: 2 runs of 2 x 20 h and 2 soak runs of 20 h |
-| 1.3.0: test-suite runs (layouts, routes on the new taxiways, approaches) | ~300 h | estimate: about 8 runs of 36 h each |
-| **Total up to 1.3.0** | **~5370 h** | of which 2340 h exactly measured |
+| 1.2.1: release benchmark and soak test, and the same on the data commit | 120 h | measured: 2 runs of 2 x 20 h and 2 soak runs of 20 h |
+| 1.2.1: test-suite runs (layouts, routes on the new taxiways, approaches) | ~300 h | estimate: about 8 runs of 36 h each |
+| **Total up to 1.2.1** | **~5370 h** | of which 2340 h exactly measured |
+| 1.3.0: release benchmark and soak test | 60 h | measured: 2 x 20 h and one soak run of 20 h |
+| 1.3.0: test-suite runs | ~110 h | 3 runs of 36.5 h |
+| **Total up to 1.3.0** | **~5540 h** | of which 2400 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

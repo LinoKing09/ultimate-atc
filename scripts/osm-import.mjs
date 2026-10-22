@@ -30,7 +30,7 @@
  *   nearest taxiway edge,
  * - node ids are readable: "N.3" (third shape node on taxiway N), "N/W" (junction of N and W),
  *   "RWY.D" (where D meets the runway), "HP.<osm id>" for holding positions, "STAND_<id>",
- * - areas: aprons (ways and multipolygons), paved taxiway areas (area:aeroway=taxiway) and helipads,
+ * - areas: aprons (ways and multipolygons; not grass ones), paved taxiway areas (area:aeroway=taxiway) and helipads,
  * - buildings: every building inside the aerodrome boundary (aeroway=aerodrome; ways and multipolygons,
  *   e.g. a terminal mapped as a multipolygon) or within `--building-margin` metres of an apron or taxiway
  *   (hangars just outside a boundary drawn too tightly), plus terminals, hangars and towers anywhere in the box.
@@ -353,8 +353,10 @@ const simplifyPoly = (pts) => {
 };
 const areaName = (t) =>
   t.aeroway === 'apron' ? t.name ?? (t.ref ? `Apron ${t.ref}` : 'Apron') : t.aeroway === 'helipad' ? t.ref ?? t.name ?? 'Helipad' : t['area:aeroway'] === 'taxiway' ? t.ref ?? '' : '';
+// Grass (e.g. a grass parking area mapped as an apron) is the scope background: not an area.
+const grass = (t) => t.surface === 'grass' || t.landuse === 'grass';
 const areas = polygonWays
-  .filter((w) => (w.tags.aeroway === 'apron' || w.tags.aeroway === 'helipad' || w.tags['area:aeroway'] === 'taxiway') && w.nds.length > 3)
+  .filter((w) => (w.tags.aeroway === 'apron' || w.tags.aeroway === 'helipad' || w.tags['area:aeroway'] === 'taxiway') && !grass(w.tags) && w.nds.length > 3)
   .map((w) => ({ name: areaName(w.tags), pts: simplifyPoly(polygon(w)) }));
 const aerowayBuilding = (t) => t.aeroway === 'terminal' || t.aeroway === 'hangar' || t.aeroway === 'tower' || ['terminal', 'hangar'].includes(t.building);
 const buildings = polygonWays

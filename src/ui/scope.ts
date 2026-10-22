@@ -281,10 +281,12 @@ export class Scope {
   ) {
     this.ctx = canvas.getContext('2d')!;
     this.computeLabels();
+    // Each name once, on the largest building that carries it (OSM often splits a complex into parts).
     this.namedBuildings = this.sim.airport.buildings
       .filter((b) => b.name && b.name !== 'Tower' && b.polygon.length >= 3)
       .map((b) => ({ name: b.name, ...polygonCentre(b.polygon) }))
-      .sort((a, b) => b.area - a.area);
+      .sort((a, b) => b.area - a.area)
+      .filter((b, i, all) => all.findIndex((o) => o.name === b.name) === i);
     this.pavement = pavementGeometry(this.sim.airport);
     this.bindEvents();
     this.resize();
@@ -666,6 +668,9 @@ export class Scope {
     const half = Math.max(2.5, 9 * z);
     const spacing = 60; // metres between crosses
     ctx.beginPath();
+    // No crosses on a runway in use (a closed former runway or taxiway may run beneath it).
+    const runways = [...new Set([...ap.runwayEnds.values()].map((e) => e.runway))];
+    const onRunway = (q: Vec2) => runways.some((r) => ap.isOnRunway(r, q, 5));
     const crossesAlong = (pts: Vec2[]) => {
       for (let k = 0; k < pts.length - 1; k++) {
         const a = pts[k];
@@ -673,7 +678,9 @@ export class Scope {
         const n = Math.max(1, Math.round(Math.hypot(b.x - a.x, b.y - a.y) / spacing));
         for (let i = 0; i < n; i++) {
           const t = (i + 0.5) / n;
-          const p = this.toScreen({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+          const q = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+          if (onRunway(q)) continue;
+          const p = this.toScreen(q);
           ctx.moveTo(p.x - half, p.y - half);
           ctx.lineTo(p.x + half, p.y + half);
           ctx.moveTo(p.x - half, p.y + half);
@@ -868,6 +875,10 @@ export class Scope {
       }
     }
 
+    // Screen boxes of the stand and taxiway labels: building names keep clear of them.
+    const taken: { x0: number; x1: number; y0: number; y1: number }[] = [];
+    const box = (x: number, y: number, halfW: number, halfH: number) => ({ x0: x - halfW, x1: x + halfW, y0: y - halfH, y1: y + halfH });
+
     // Stands
     if (z > 0.35) {
       ctx.font = `${Math.max(9, Math.min(12, 10 * z))}px Consolas, monospace`;
@@ -878,6 +889,7 @@ export class Scope {
         const p = this.toScreen(add(s.pos, scale(v, 22)));
         ctx.fillStyle = this.t.standLabel;
         ctx.fillText(s.id, p.x, p.y);
+        taken.push(box(p.x, p.y, ctx.measureText(s.id).width / 2 + 1, 6));
         const q = this.toScreen(s.pos);
         ctx.fillRect(q.x - 1, q.y - 1, 2, 2);
       }
@@ -907,9 +919,9 @@ export class Scope {
       for (const l of this.taxiwayLabels) {
         if (l.repeat && z < 0.35) continue; // repeats only when zoomed in
         const p = this.toScreen(l.pos);
-        // Closed taxiways: designator in red.
         // Closed taxiways: designator in red (session closure) or grey (permanently closed).
         const u = l.name.toUpperCase();
+        taken.push(box(p.x, p.y, ctx.measureText(l.name).width / 2 + 3, 7));
         this.labelBox(l.name, p.x, p.y, ap.closedTaxiways.has(u) ? '#ff6b6b' : ap.outOfServiceTaxiways.has(u) ? this.t.standLabel : this.t.label);
       }
     }
@@ -920,15 +932,13 @@ export class Scope {
       ctx.fillStyle = this.t.buildingLabel;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      // Largest buildings first; a name that would overlap one already drawn is left out.
-      const placed: { x0: number; x1: number; y0: number; y1: number }[] = [];
+      // Largest buildings first; a name that would overlap a stand, a taxiway or another name is left out.
       for (const b of this.namedBuildings) {
         const p = this.toScreen(b.centre);
         const text = b.name.toUpperCase();
-        const w = ctx.measureText(text).width / 2 + 2;
-        const box = { x0: p.x - w, x1: p.x + w, y0: p.y - 7, y1: p.y + 7 };
-        if (placed.some((q) => box.x0 < q.x1 && q.x0 < box.x1 && box.y0 < q.y1 && q.y0 < box.y1)) continue;
-        placed.push(box);
+        const r = box(p.x, p.y, ctx.measureText(text).width / 2 + 2, 7);
+        if (taken.some((q) => r.x0 < q.x1 && q.x0 < r.x1 && r.y0 < q.y1 && q.y0 < r.y1)) continue;
+        taken.push(r);
         ctx.fillText(text, p.x, p.y);
       }
     }

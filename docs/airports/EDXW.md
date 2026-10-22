@@ -19,7 +19,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 | ---- | ------ |
 | Taxiways, holding points, aprons, buildings, stands 01-03 | [OpenStreetMap](https://www.openstreetmap.org/) - © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/). Imported with `scripts/osm-import.mjs`; the derived layout is available under the ODbL |
 | Runway thresholds and elevations, aerodrome elevation and reference point, declared distances, intersection take-off distances, approaches per runway, taxiway widths, surfaces and weight limits, parking rules | DFS AIP Germany AD 2 EDXW (AIRAC 2026OCT01) and its aerodrome chart AD 2 EDXW 2-5 (AMDT 06/26), used as a reference only: facts digitised by hand, no chart content copied |
-| Taxiway names L1 / L3, which parts of G, E and C are closed (X on the chart) | Aerodrome chart (as above); the closed parts that OSM does not have are digitised by hand from the georeferenced chart (approximate, ±20 m) |
+| Taxiway names L1 / L3, the closed parts (X on the chart) and the former runway | Aerodrome chart (as above); what OSM does not have - G along the east side, the G links into the 24 end and to runway 14/32 at the glide path antenna, E south of runway 06/24, the former runway (80 m wide) with the links around it, the stub west of D and the turning pad at A - is digitised by hand from the chart, georeferenced on the four runway ends (approximate, about 5 m) |
 | Frequencies, SIDs, runway use, stands | VATSIM Germany Sylt SOP (facts only; a simulation resource, not an official source); frequencies checked against the VATSIM Germany station data and vATIS profile, the SIDs and their initial climb (4000 ft) against the VATSIM Germany vSID configuration and the AIP SID charts (2026-10-21) |
 | Magnetic variation | NOAA World Magnetic Model (October 2026); the AIP gives 3.5° E (2023.11) + 0.2° per year |
 
@@ -69,7 +69,8 @@ All taxiways of the aerodrome chart (AIP AD 2.8: 15 m wide, C 12 m; I grass):
 | **B** | From A to runway 14/32 near the 32 end; 5.7 t (light aircraft) |
 | **L** | From the 14 end (holding point L, opposite D) east past Apron 3 to Apron 4; L1 leads into Apron 3, L3 along its east side |
 | **F, E** | F from L round the north of the airfield to the 24 end of runway 06/24 (holding point F); E from F to runway 06/24 a little before |
-| **G** | From the 32 end (holding point G) north-east to the track to the glider site; the rest of G (along the east side to the 24 end, and the link west to runway 14/32) is closed (crosses) |
+| **G** | From the 32 end (holding point G) north-east to the track to the glider site; the rest of G (along the east side to the 24 end, and the link west to runway 14/32 at the glide path antenna) is closed (crosses) |
+| Former runway | An 80 m wide paved band from D / C across runway 14/32 to the east, closed east of 14/32 (crosses) like E south of runway 06/24, the narrow links and the loop around it and the link from A along runway 06/24; C runs on its western part. Drawn only |
 | **I, M, P** | To Apron 2 (general aviation) in the west: I (grass, 2 t) from D; M and P from Apron 2 to runway 06/24 at its 06 end (holding points M and P - hot spot "holding points! Runway ahead!") |
 
 | Stands | Use in the simulator |

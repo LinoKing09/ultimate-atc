@@ -94,6 +94,26 @@ const built = buildLayout(EDDN_LAYOUT, {
   ],
 });
 
+/**
+ * Paved areas OpenStreetMap does not have, digitised by hand from the AIP ground movement chart (AD 2 EDDN 2-7,
+ * AMDT 01/26, georeferenced on its graticule; approximate, a few metres): the parts of the GA aprons and the J
+ * corridor between the aprons that the OSM apron polygons leave out, the terminal frontage, the Hangar A
+ * forecourt, and the FAI and Aero-Dienst aprons (the outlines of their areas of responsibility; the chart does
+ * not shade them, their paving is inferred).
+ */
+const CHART_AREAS: [string, [number, number][]][] = [
+  ['Apron G2 / G2A', [[49.4953276, 11.0727706], [49.4951511, 11.0745654], [49.4945082, 11.0744164], [49.4947208, 11.0722537], [49.4951124, 11.0723445], [49.4951086, 11.0724445], [49.4951284, 11.0724859], [49.4951816, 11.0725532], [49.4952365, 11.0726027], [49.4952879, 11.072688]]],
+  ['Apron (S3 east)', [[49.4947496, 11.074454], [49.4945987, 11.0759885], [49.4947098, 11.0760142], [49.4946614, 11.0766272], [49.494299, 11.0765432], [49.4945099, 11.0743985]]],
+  ['Apron (J)', [[49.4968446, 11.0719345], [49.4967913, 11.0724765], [49.4966735, 11.0724584], [49.4965999, 11.072478], [49.4965294, 11.072526], [49.4964756, 11.0725869], [49.4964685, 11.0726587], [49.4947208, 11.0722537], [49.4947988, 11.0714605]]],
+  ['Apron (Hangar 8)', [[49.4959053, 11.0687192], [49.495855, 11.0692307], [49.4953389, 11.0691295], [49.4953362, 11.0691564], [49.4950907, 11.0690995], [49.4951516, 11.0684803], [49.4954848, 11.0685575], [49.4954903, 11.0686231]]],
+  ['Apron (S4)', [[49.4953433, 11.0690846], [49.4950998, 11.0715614], [49.4947958, 11.071491], [49.4949017, 11.0704141], [49.494814, 11.0703938], [49.4949393, 11.0691195], [49.4950855, 11.0691534], [49.4950978, 11.0690277]]],
+  ['Apron (west edge)', [[49.4970855, 11.0684512], [49.4970581, 11.0687294], [49.4960703, 11.0685005], [49.4960977, 11.0682223], [49.4962789, 11.0682643], [49.4962992, 11.0680579], [49.4963752, 11.0680755], [49.4963549, 11.0682819]]],
+  ['FAI apron', [[49.4956649, 11.0670298], [49.4955211, 11.0684925], [49.4950652, 11.0683869], [49.4949991, 11.0686451], [49.4947174, 11.0685798], [49.4948875, 11.0668497]]],
+  ['Aero-Dienst apron', [[49.4943249, 11.0729972], [49.4943037, 11.0732126], [49.4943388, 11.0732207], [49.4943211, 11.0734002], [49.4942993, 11.0737439], [49.4943354, 11.0738147], [49.4941644, 11.0755538], [49.4941141, 11.0755421], [49.49408, 11.0758885], [49.4938708, 11.07584], [49.4940748, 11.0737653], [49.4937007, 11.0736786], [49.4937801, 11.072871]]],
+  ['Apron (terminal frontage)', [[49.4953925, 11.074603], [49.4950073, 11.0784604], [49.4948904, 11.0784333], [49.4952698, 11.0745745]]],
+  ['Apron (Hangar A)', [[49.4945148, 11.0846242], [49.4943911, 11.0855776], [49.4942684, 11.0855491], [49.4943628, 11.0845889]]],
+];
+
 /** Thresholds: AIP AD 2.12 (not displaced; the paved areas beyond them are tagged stopway in OSM, the AIP lists none). */
 const END_10 = { lat: 49.5005506, lon: 11.05917 };
 const END_28 = { lat: 49.4969253, lon: 11.0960247 };
@@ -129,9 +149,13 @@ export const EDDN: AirportData = {
   taxiNodes: built.taxiNodes,
   taxiEdges: built.taxiEdges,
   stands: built.stands,
-  areas: built.areas,
+  areas: [...built.areas, ...CHART_AREAS.map(([name, polygon]) => ({ name, polygon: polygon.map(([lat, lon]) => ({ lat, lon })) }))],
   buildings: built.buildings,
-  pavement: built.pavement,
+  pavement: [
+    ...built.pavement,
+    // Unnamed lane from S3 south between Hangar 4 and Hangar 3 into the Aero-Dienst apron (ground movement chart).
+    { points: [[49.4946759, 11.0742773], [49.4946134, 11.0742462], [49.4944806, 11.07421], [49.4943698, 11.0741824], [49.4942879, 11.0741635]].map(([lat, lon]) => ({ lat, lon })), widthM: 10.5 },
+  ],
   stations: [
     { callsign: 'EDDN_GND', type: 'GND', name: 'Nuernberg Ground', frequency: '121.760' },
     { callsign: 'EDDN_TWR', type: 'TWR', name: 'Nuernberg Tower', frequency: '118.305' },

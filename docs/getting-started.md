@@ -32,7 +32,7 @@ npm run build      # type check + bundle into dist/
 npm run preview    # serve dist/ on http://localhost:4173
 ```
 
-`dist/` is a static site: an `index.html` plus one JavaScript and one CSS bundle. You can host it on any static web server. The build uses relative asset paths (`base: './'` in `vite.config.ts`), so it also works from a sub-directory.
+`dist/` is a static site: an `index.html`, a CSS file and two JavaScript files (the code and the generated airport data, split in `vite.config.ts`). You can host it on any static web server. The build uses relative asset paths (`base: './'` in `vite.config.ts`), so it also works from a sub-directory.
 
 ### Tests
 

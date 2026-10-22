@@ -82,6 +82,44 @@ const built = buildLayout(EDXW_LAYOUT, {
   ],
 });
 
+/**
+ * Paved parts of the aerodrome chart that OpenStreetMap does not have, digitised by hand from the chart
+ * (AD 2 EDXW 2-5, AMDT 06/26, georeferenced on the runway ends; approximate, about 5 m). Most of them are closed
+ * (crosses on the chart): G apart from its southern stub, E south of runway 06/24, the former runway east of
+ * 14/32 and the links around it. The former runway west of 14/32 (C runs on it) and the turning pad at A are open.
+ * Drawn only: none of them leads anywhere the simulated traffic goes.
+ */
+const CHART_PAVEMENT: { name?: string; closed?: boolean; widthM: number; points: [number, number][] }[] = [
+  // G north of the junction near the 32 end, along the east side to the 24 end
+  { name: 'G', closed: true, widthM: 15, points: [[54.9072426, 8.3543708], [54.9074088, 8.3545865], [54.9080852, 8.3545757], [54.9087560, 8.3545690], [54.9094268, 8.3545736], [54.9100976, 8.3545720], [54.9107694, 8.3545750], [54.9114412, 8.3545771], [54.9121125, 8.3545631], [54.9124932, 8.3545733], [54.9128372, 8.3545527], [54.9133122, 8.3543591], [54.9137956, 8.3541470], [54.9142785, 8.3539281], [54.9146125, 8.3537615], [54.9149611, 8.3535843], [54.9153405, 8.3533767], [54.9157101, 8.3531614], [54.9161184, 8.3528149], [54.9165205, 8.3524616]] },
+  // G into the 24 end
+  { name: 'G', closed: true, widthM: 15, points: [[54.9164730, 8.3525161], [54.9167058, 8.3523262], [54.9170807, 8.3518871]] },
+  // G from the junction near the 32 end west to runway 14/32 at the glide path antenna
+  { name: 'G', closed: true, widthM: 15, points: [[54.9072426, 8.3543708], [54.9072043, 8.3536086], [54.9071395, 8.3530168], [54.9070651, 8.3525544], [54.9069345, 8.3519428], [54.9068078, 8.3514407], [54.9066750, 8.3509909], [54.9063733, 8.3501845], [54.9060612, 8.3493561]] },
+  // E south of runway 06/24 to the former runway
+  { name: 'E', closed: true, widthM: 15, points: [[54.9162655, 8.3494707], [54.9158725, 8.3496114], [54.9154750, 8.3497596], [54.9150003, 8.3498395], [54.9145357, 8.3499070], [54.9140598, 8.3499618], [54.9136658, 8.3499518], [54.9132627, 8.3499419]] },
+  // from the former runway east to G
+  { closed: true, widthM: 12, points: [[54.9132627, 8.3499419], [54.9130764, 8.3506906], [54.9130408, 8.3508855], [54.9128330, 8.3517253], [54.9126268, 8.3525782], [54.9124170, 8.3534445], [54.9122643, 8.3541284], [54.9121125, 8.3545631]] },
+  // from runway 14/32 (east side) north-east to the former runway
+  { closed: true, widthM: 15, points: [[54.9101890, 8.3442430], [54.9105264, 8.3446779], [54.9108731, 8.3451309], [54.9113577, 8.3457312], [54.9118417, 8.3463293], [54.9123318, 8.3469349], [54.9128089, 8.3475243], [54.9132935, 8.3481377], [54.9134444, 8.3484099], [54.9135479, 8.3486681], [54.9136451, 8.3489789], [54.9137396, 8.3493958], [54.9138308, 8.3496718], [54.9139384, 8.3498751], [54.9140161, 8.3499480], [54.9140631, 8.3499596]] },
+  // narrow link from the runway intersection area north-east to the former runway
+  { closed: true, widthM: 6, points: [[54.9093941, 8.3452276], [54.9097573, 8.3457726], [54.9101111, 8.3463037], [54.9106148, 8.3470389], [54.9110958, 8.3477518], [54.9115882, 8.3484848], [54.9120808, 8.3492219], [54.9125763, 8.3499546], [54.9130764, 8.3506906]] },
+  // narrow loop east of runway 14/32
+  { closed: true, widthM: 6, points: [[54.9101111, 8.3463037], [54.9102828, 8.3468697], [54.9104567, 8.3474500], [54.9104692, 8.3475304], [54.9104487, 8.3478655], [54.9103790, 8.3480593], [54.9103228, 8.3480610], [54.9101379, 8.3479981], [54.9100299, 8.3477215], [54.9097831, 8.3469280], [54.9095352, 8.3461292], [54.9092925, 8.3453536]] },
+  // narrow link from A at the 06 end east along runway 06/24
+  { closed: true, widthM: 6, points: [[54.9098810, 8.3315902], [54.9098092, 8.3317729], [54.9095906, 8.3328211], [54.9093697, 8.3338900], [54.9091443, 8.3349747], [54.9089242, 8.3360384], [54.9087078, 8.3370834], [54.9084906, 8.3381314], [54.9082678, 8.3392053], [54.9080443, 8.3402802], [54.9078568, 8.3411893], [54.9078013, 8.3416604], [54.9078039, 8.3420912], [54.9078753, 8.3426524], [54.9079787, 8.3430434], [54.9081312, 8.3434333], [54.9083531, 8.3438025], [54.9088798, 8.3445165], [54.9093941, 8.3452276]] },
+  // the former runway east of runway 14/32
+  { closed: true, widthM: 80, points: [[54.9166852, 8.3361962], [54.9164236, 8.3372468], [54.9161560, 8.3383214], [54.9158980, 8.3393580], [54.9156331, 8.3404218], [54.9153682, 8.3414857], [54.9151033, 8.3425495], [54.9148452, 8.3435861], [54.9145804, 8.3446500], [54.9143155, 8.3457138], [54.9140506, 8.3467777], [54.9137925, 8.3478142], [54.9135276, 8.3488781], [54.9132627, 8.3499419]] },
+  // stub west of the D / C junction
+  { closed: true, widthM: 12, points: [[54.9184866, 8.3289665], [54.9182790, 8.3298014], [54.9180795, 8.3306041], [54.9178721, 8.3314369], [54.9178053, 8.3317824]] },
+  // the former runway west of runway 14/32 (C runs on it)
+  { widthM: 80, points: [[54.9178053, 8.3317824], [54.9175823, 8.3325930], [54.9173580, 8.3334938], [54.9171337, 8.3343946], [54.9169095, 8.3352954], [54.9166852, 8.3361962]] },
+  // turning pad west of A (south part)
+  { widthM: 16.5, points: [[54.9052627, 8.3325366], [54.9054072, 8.3331626], [54.9054739, 8.3335351]] },
+];
+/** The turning pad at the end of the stub west of A (chart). */
+const CHART_PAD: [number, number][] = [[54.9054739, 8.3338145], [54.9055355, 8.3337932], [54.9055877, 8.3337326], [54.9056226, 8.3336420], [54.9056348, 8.3335351], [54.9056226, 8.3334282], [54.9055877, 8.3333376], [54.9055355, 8.3332770], [54.9054739, 8.3332558], [54.9054123, 8.3332770], [54.9053601, 8.3333376], [54.9053252, 8.3334282], [54.9053129, 8.3335351], [54.9053252, 8.3336420], [54.9053601, 8.3337326], [54.9054123, 8.3337932]];
+
 // Thresholds: AIP AD 2.12 (no displaced thresholds).
 const THR_14 = { lat: 54.9193483, lon: 8.3328822 };
 const THR_32 = { lat: 54.9038508, lon: 8.3520942 };
@@ -129,9 +167,9 @@ export const EDXW: AirportData = {
   taxiNodes: built.taxiNodes,
   taxiEdges: built.taxiEdges,
   stands: built.stands,
-  areas: built.areas,
+  areas: [...built.areas, { name: 'Turning pad', polygon: CHART_PAD.map(([lat, lon]) => ({ lat, lon })) }],
   buildings: built.buildings,
-  pavement: built.pavement,
+  pavement: [...built.pavement, ...CHART_PAVEMENT.map((l) => ({ ...l, points: l.points.map(([lat, lon]) => ({ lat, lon })) }))],
   // Sylt Tower only (it also gives the clearances on VATSIM; in reality Bremen Radar does).
   stations: [
     { callsign: 'EDXW_TWR', type: 'TWR', name: 'Sylt Tower', frequency: '119.750' },

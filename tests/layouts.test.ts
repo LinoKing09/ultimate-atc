@@ -58,6 +58,18 @@ describe('Sylt layout (aerodrome chart)', () => {
     expect(isRouteError(findRoute(ap, { node: ap.node('STAND_G4') }, ap.holdingPoint('D')!, [], { wingspanM: 21 }))).toBe(true);
     for (const hp of ['A', 'L']) expect(isRouteError(findRoute(ap, { node: ap.node('STAND_N1') }, ap.holdingPoint(hp)!, [], { wingspanM: 21 }))).toBe(false);
   });
+
+  it('draws the closed parts of the chart: G along the east side, E south of 06/24 and the former runway', () => {
+    const closed = (EDXW.pavement ?? []).filter((l) => l.closed);
+    expect(closed.filter((l) => l.name === 'G').length).toBe(3);
+    expect(closed.some((l) => l.name === 'E')).toBe(true);
+    // The former runway: 80 m wide, closed east of runway 14/32, open west of it (C runs on it).
+    expect((EDXW.pavement ?? []).filter((l) => l.widthM === 80).map((l) => !!l.closed).sort()).toEqual([false, true]);
+    // G and E are partly open, so they stay usable by name (only the drawn parts are closed).
+    const ap = new Airport(EDXW);
+    expect(ap.outOfServiceTaxiways.has('G')).toBe(false);
+    expect(ap.outOfServiceTaxiways.has('E')).toBe(false);
+  });
 });
 
 describe('Nuremberg layout (ground movement chart)', () => {
@@ -67,6 +79,22 @@ describe('Nuremberg layout (ground movement chart)', () => {
     const buildings = EDDN.buildings.map((b) => b.name);
     expect(buildings).toEqual(expect.arrayContaining(['Flughafen-Terminal', 'Hangar 2', 'Hangar 3', 'Hangar 4', 'Hangar 7', 'Hangar 8', 'Halle A']));
     expect(EDDN.buildings.length).toBeGreaterThan(50);
+  });
+
+  it('has the GA aprons of the chart and no pavement on the grass parking G3', () => {
+    const areas = EDDN.areas.map((a) => a.name);
+    expect(areas).toEqual(expect.arrayContaining(['Apron G2 / G2A', 'FAI apron', 'Aero-Dienst apron', 'H1', 'H2', 'H3', 'H4']));
+    // G3 (OSM: apron + landuse=grass) is grass, the scope background: no area there.
+    const ap = new Airport(EDDN);
+    const g3 = ap.proj.toLocal({ lat: 49.4965, lon: 11.0675 });
+    const inside = (poly: { x: number; y: number }[], p: { x: number; y: number }) => {
+      let c = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        if (poly[i].y > p.y !== poly[j].y > p.y && p.x < ((poly[j].x - poly[i].x) * (p.y - poly[i].y)) / (poly[j].y - poly[i].y) + poly[i].x) c = !c;
+      }
+      return c;
+    };
+    expect(ap.areas.some((a) => inside(a.polygon, g3))).toBe(false);
   });
 });
 

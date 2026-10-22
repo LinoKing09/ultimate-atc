@@ -31,7 +31,7 @@ Further airports follow in the 1.x releases (the airport data format, the data c
 | **0.8** | **done** - Combined positions with Tower, AI pilots that resolve simple conflicts (opposite traffic, lane priority), debriefing |
 | 0.9 | **done** - Scenario conditions (night flying restrictions, closed taxiways, thunderstorm), tutorials, traffic sliders, polish; final review in the [release report](release-1.0-report.md) |
 | **1.0** | **released 2026-10-13** - the first full version, see the [release report](release-1.0-report.md) |
-| 1.x | Further airports - 1.1 de-icing, Nuremberg, Memmingen, Sylt and runway backtracking; 1.1.1 Memmingen after the aerodrome chart, rounded taxiway drawing; 1.2 real-world data overhaul (SIDs by destination, Stuttgart TORA, de-icing pads, stands) and the PHX scope style of VATSIM Germany |
+| 1.x | Further airports - 1.1 de-icing, Nuremberg, Memmingen, Sylt and runway backtracking; 1.1.1 Memmingen after the aerodrome chart, rounded taxiway drawing; 1.2 real-world data overhaul (SIDs by destination, Stuttgart TORA, de-icing pads, stands) and the PHX scope style of VATSIM Germany; 1.3 complete Sylt and Nuremberg layouts, buildings from OpenStreetMap at every airport, all airports checked against the AIP (approaches per runway, declared distances, widths) |
 
 Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md](benchmarks.md) that compares them with the previous major release.
 
@@ -117,6 +117,8 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - **done** (1.1) - **EDDS holding bays P1/P2** (bypass at the 25 end) and **de-icing pads DP1-DP4** with de-icing as a scenario condition (winter operations); since 1.2 at their real positions (P1/P2 from OSM, DP1-DP4 after the VATSIM Germany ground radar data) with their wingspan limits
 - **done** (1.2) - **Real-world data overhaul** of all four airports: SIDs with the real designators planned towards the destination, published take-off run available from every Stuttgart entry (25: 3045 m), Stuttgart stand sizes and wide-body positions, Apron South after AIRAC 2512, crossings only between K and Y, radar frequency per SID, magnetic variation 2026
 - **done** (1.2) - **EuroScope look of VATSIM Germany** (PHX night / day: the DFS PHOENIX tower display): colours, radar returns with SSR symbol and history dots, departure / arrival tag colours, PHX ground states, VATSIM Germany tag and list layout with clickable list cells
+- **done** (1.3) - **Complete layouts**: every taxiway of the Sylt aerodrome chart (light-aircraft taxiways with their limits, closed parts drawn), the Nuremberg GA lanes and aprons, all buildings on every aerodrome from OpenStreetMap (also Stuttgart), paved areas inside runway strips drawn but not routed
+- **done** (1.3) - **AIP check of all four airports**: published approaches per runway (Sylt 14 RNP only), declared distances from every entry, taxiway widths and code letter limits, thresholds and elevations
 - planned - **Low visibility procedures (LVP)** with the CAT II/III holding points and larger spacing (values from the AIP, supplied as text)
 - planned - **Voice**: test text-to-speech and speech recognition again on the iPad and switch them back on
 - planned - Smarter AI Tower after a rejected take-off; partial taxiway closures; a taxiway blocked during the session (special event)

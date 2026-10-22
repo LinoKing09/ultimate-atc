@@ -165,12 +165,13 @@ The scope is a ground radar showing the aerodrome chart. By default it is rotate
 | Taxiways and taxilanes                 | Grey bands in their real width (where the airport data has it) with a thin yellow centre line; bends are rounded like the taxiway centre lines, junctions and runway entries have fillets (widened corners) |
 | Taxiway designators                    | White (classic: yellow) letters in dark boxes (`N`, `S`, `R`, `D` ...). Long taxiways (N, S, M) repeat their designator about every 600 m when you zoom in |
 | Closed taxiways                        | Red, hatched, designator in red (scenario option, see [closed taxiways](scenarios.md#closed-taxiways)) |
-| Permanently closed taxiway parts       | Grey pavement with black crosses, as on the aerodrome chart; a taxiway closed everywhere has a grey designator (Memmingen S, the loops around the runway ends) |
+| Permanently closed taxiway parts       | Grey pavement with black crosses, as on the aerodrome chart; a taxiway closed everywhere has a grey designator (Memmingen S, the loops around the runway ends, Sylt G north of the glider site track) |
+| Paved areas inside a runway strip      | Drawn like taxiways (Sylt: between D, L and F at the 14 end, between D, M, P and A at the 06 end), but routes go through the holding points |
 | De-icing pads                          | Outlined squares (PHX: blue) with the pad name (`DP1` ... `DP4`), with thin lead lines from N to S |
 | Runway holding positions               | Thick amber bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
 | Stands                                 | Thin yellow lead-in line plus the stand number                                 |
-| Aprons                                 | Dark grey areas (classic: slightly lighter than the background)                |
-| Buildings                              | Dark blue-grey (classic: brown) areas with names                               |
+| Aprons                                 | Dark grey areas (classic: slightly lighter than the background); also paved taxiway areas and helipads |
+| Buildings                              | Dark blue-grey (classic: brown) areas: every building on the aerodrome (OpenStreetMap). Named ones are labelled when you zoom in - each name once, the largest buildings first; a name that would cover a stand number, a taxiway designator or another name is left out |
 | Scale bar                              | Bottom left                                                                    |
 
 Details appear and disappear depending on zoom: centre lines and stand numbers only show when zoomed in.

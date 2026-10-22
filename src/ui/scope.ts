@@ -194,6 +194,9 @@ const THEMES: Record<ScopeStyle, ScopeTheme> = { 'phx-night': PHX_NIGHT, 'phx-da
 const HISTORY_DOTS = 5;
 const HISTORY_INTERVAL_S = 2;
 
+/** Below this zoom (pixels per metre, about the whole airport in view) tags are decluttered. */
+const COMPACT_TAG_ZOOM = 0.6;
+
 /** Clickable items of a data tag (EuroScope style). */
 /** Distance between repeated designators along long taxiways (metres). */
 const LABEL_REPEAT_SPACING = 600;
@@ -243,6 +246,8 @@ export class Scope {
   touchMode = false;
   /** Size factor of the data tags. */
   tagScale = 1;
+  /** Zoomed out, tags show only the callsign; the selected (and hovered) aircraft gets the full tag. */
+  compactTags = true;
   /** Colours (see `setStyle`). */
   private t: ScopeTheme = PHX_NIGHT;
   /** Ground state names in the tags. */
@@ -1199,8 +1204,11 @@ export class Scope {
     const p = this.toScreen(ac.pos);
     const off = ac.tagOffset ?? defaultTagOffset();
     const mine = this.sim.isOnMyFrequency(ac);
-    const compact = (ac.phase === 'parked' && !ac.request) || ac.phase === 'arrived';
     const hovered = this.hover?.callsign === ac.callsign;
+    const selected = ac.callsign === this.selected;
+    // Quiet parked aircraft, and zoomed out everybody but the selected / hovered aircraft: callsign only.
+    const zoomedOut = this.compactTags && this.zoom < COMPACT_TAG_ZOOM && !selected && !hovered;
+    const compact = (ac.phase === 'parked' && !ac.request) || ac.phase === 'arrived' || zoomedOut;
     const dep = ac.category === 'departure';
     // Each line is a list of items; items are clickable.
     type Part = { text: string; item?: TagItem; color?: string };
@@ -1241,7 +1249,6 @@ export class Scope {
     const hgt = lines.length * lh + 2;
     const tx = p.x + off.x;
     const ty = p.y + off.y;
-    const selected = ac.callsign === this.selected;
     ctx.save();
     if (this.dimmed(ac) && !selected) ctx.globalAlpha = 0.55;
     // leader line
@@ -1307,7 +1314,7 @@ export class Scope {
     for (const ac of list) {
       // Declutter: quiet parked aircraft only get a tag when zoomed in or selected.
       const quiet = (ac.phase === 'parked' && !ac.request) || ac.phase === 'arrived';
-      if (quiet && this.zoom < 0.6 && ac.callsign !== this.selected) continue;
+      if (quiet && this.zoom < COMPACT_TAG_ZOOM && ac.callsign !== this.selected) continue;
       // Without A-SMGCS surveillance the targets have no identity: no data tags.
       if (!this.sim.systemOn('surveillance')) continue;
       // A towed aircraft has its transponder off: it is identified by the tug's squitter (vehicle tracking).

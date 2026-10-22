@@ -402,7 +402,7 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
           }),
           h('h2', { text: 'Tags and lists' }),
           h('p', {
-            text: 'Tag: callsign + runway (departures) or stand (arrivals); type, wake category and ground state; SID and where the aircraft is cleared to, speed. Click the items: callsign / type = flight plan, SID = clearance (Delivery) or flight plan, cleared-to = taxi menu, ground state = aircraft menu. List cells with a function (C/S, ATYP, SID, ASSR, C, TAXI / STND, STS, REQ) open it with a click, like in EuroScope.',
+            text: 'Tag: callsign + runway (departures) or stand (arrivals); type, wake category and ground state; SID and where the aircraft is cleared to, speed. Click the items: callsign / type = flight plan, SID = clearance (Delivery) or flight plan, cleared-to = taxi menu, ground state = aircraft menu. Zoomed out, tags show only the callsign (* = request); select or tap an aircraft for its full tag (Settings: Data tags). List cells with a function (C/S, ATYP, SID, ASSR, C, TAXI / STND, STS, REQ) open it with a click, like in EuroScope.',
           }),
           h('p', {
             text: 'Ground states (PHX / EuroScope): SUG / ST-UP start-up given, PBG / PUSH pushback, TXG / TAXI taxi out, TX / TAXI taxi in, H/P at the holding point, ALU / L/U lined up, DEP / DEPA departing, ONB / PARK on blocks; also RQST, CLRD, DEICE, HOLD, HS-R, VAC, VACD, APP, LAND, G/A.',

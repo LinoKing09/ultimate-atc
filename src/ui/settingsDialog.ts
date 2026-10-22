@@ -114,6 +114,14 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
         ['Interface size', range('uiScale', 0.8, 1.6, 0.05, pct)],
         ['Tag size', range('tagScale', 0.8, 2, 0.05, pct)],
         [
+          'Data tags',
+          select(settings.tagDetail, [
+            ['compact', 'Compact when zoomed out'],
+            ['full', 'Always full'],
+          ], (v) => (settings.tagDetail = v)),
+          'Compact: zoomed out to the whole airport, the tags show only the callsign (and * for a request); select (tap) an aircraft, or point at it with the mouse, for its full tag',
+        ],
+        [
           'Scope orientation',
           select(settings.runwayAligned ? 'runway' : 'north', [
             ['runway', 'Runway horizontal (chart)'],

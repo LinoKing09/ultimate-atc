@@ -25,6 +25,8 @@ export interface Settings {
   uiScale: number;
   /** Size of the data tags on the scope (1 = 100 %). */
   tagScale: number;
+  /** Data tags: 'compact' = only the callsign when zoomed out (full when selected), 'full' = always the full tag. */
+  tagDetail: 'compact' | 'full';
   /** Speaking rate of the pilot voices (1 = normal). */
   ttsRate: number;
   /** Language/accent the speech recogniser listens for. */
@@ -52,6 +54,7 @@ const DEFAULTS: Settings = {
   device: 'pc',
   uiScale: 1,
   tagScale: 1,
+  tagDetail: 'compact',
   ttsRate: 1,
   voiceLang: 'en-US',
   scopeStyle: 'phx-night',

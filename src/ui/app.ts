@@ -511,6 +511,7 @@ export class App {
     for (const l of this.lists) l.statusStyle = this.scope.statusStyle;
     this.scope.touchMode = mobile;
     this.scope.tagScale = s.tagScale * (mobile ? 1.25 : 1);
+    this.scope.compactTags = s.tagDetail !== 'full';
     this.scope.showAllRoutes = s.showRoutes;
     this.routesBtn.classList.toggle('active', s.showRoutes);
     if (s.runwayAligned !== this.scope.runwayAligned) this.scope.setRotation(s.runwayAligned);

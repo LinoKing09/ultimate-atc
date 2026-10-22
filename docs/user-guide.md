@@ -120,6 +120,7 @@ Every airport added in the future comes with its own briefing.
 | Device (phone - laptop slider) | **Mobile** or **PC** layout, see [Mobile mode](#mobile-mode). Touch-only devices start in mobile mode. |
 | Interface size           | Size of the text and buttons (80-160 %)                                                    |
 | Tag size                 | Size of the aircraft data tags on the scope (80-200 %)                                     |
+| Data tags                | **Compact when zoomed out** (default): with the whole airport in view, tags show only the callsign - see [tags](#4-aircraft-tags-and-colours); **Always full** |
 | Scope orientation        | Runway horizontal (like the chart) or north-up - the same as `ROT`                         |
 | Scope style              | **PHX night** (default), **PHX day** or **Classic** - see [Scope styles](#scope-styles)     |
 | Show cleared routes      | The same as `ROUTES`                                                                       |
@@ -217,7 +218,7 @@ Like in EuroScope, **the tag items are clickable**. Hovered items are highlighte
 
 Airborne aircraft (arrivals on final, departures after take-off) show callsign, type and wake category, altitude in hundreds of feet and speed (`A034 140`), and the approach and runway (`ILS 25`) or the SID, plus a speed vector line.
 
-To keep the apron readable, parked aircraft with no pending request only get a tag when you zoom in or select them. **Drag a tag** with the mouse to move it; *Reset tag position* in the aircraft menu puts it back.
+**Compact tags when zoomed out**: below a zoom of 0.6 pixels per metre (about the whole airport in view, the typical Tower picture) every tag shows only the **callsign**, with `*` for a pending request and `PAN` for an emergency, like the minimal (untagged) label of EuroScope. The **selected** aircraft - tap it on a tablet - and the one under the mouse get the full tag; zoom in and all tags are full again. *Settings -> Data tags -> Always full* switches this off. To keep the apron readable, parked aircraft with no pending request only get a tag when you zoom in or select them. **Drag a tag** with the mouse to move it; *Reset tag position* in the aircraft menu puts it back.
 
 ### Extended centrelines
 

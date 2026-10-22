@@ -14,6 +14,10 @@ All notable changes to this project are documented in this file. The format is b
 - Airport menu: continent **Australia / Oceania** - Australia (Brisbane FIR YBBB, Melbourne FIR YMMM) and New Zealand (New Zealand FIR NZZC) with the planned airports Sydney, Melbourne, Perth, Brisbane, Auckland and Wellington (*Coming soon*).
 - **Airport recipe** in `docs/airport-data.md`: sources first (AIP, charts, VATSIM Germany procedures, OpenStreetMap, traffic), the chart's target list as tests, build, digitise, check visually and in the simulation, document. `scripts/georef.mjs` fits chart pixels to coordinates (with the residual of every control point) and converts traced outlines into airport data - the charts stay on your machine.
 
+### Changed
+
+- **Compact data tags when zoomed out**: with the whole airport in view (the typical Tower picture, e.g. on an iPad) tags show only the callsign, `*` for a request and `PAN`; the selected (tapped) aircraft and the one under the mouse get the full tag. *Settings -> Data tags -> Always full* keeps the full tags.
+
 ## [1.3.1] - 2026-10-22
 
 The airport menu step by step, with animations and *Coming soon* where there is no airport yet.

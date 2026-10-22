@@ -500,7 +500,17 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     }
     c.accept('taxiway');
     const d = readDesignator(c);
-    return d ? { kind: 'taxiway', name: d } : undefined;
+    return d ? { kind: 'taxiway', name: readGuideLine(d) } : undefined;
+  };
+
+  /** Coloured guide lines for parallel taxiing are taxiways of their own: "via mike blue" is M BLUE. */
+  const readGuideLine = (d: string): string => {
+    const colour = c.peek();
+    if ((colour === 'blue' || colour === 'orange') && ctx.taxiways.has(`${d} ${colour.toUpperCase()}`)) {
+      c.next();
+      return `${d} ${colour.toUpperCase()}`;
+    }
+    return d;
   };
 
   const readVia = (into: string[]) => {
@@ -525,7 +535,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
         into.push(d[0]);
         continue;
       }
-      into.push(d);
+      into.push(readGuideLine(d));
     }
   };
 

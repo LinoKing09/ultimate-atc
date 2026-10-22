@@ -302,6 +302,7 @@ const REFERENCE: [string, string][] = [
   ['taxi to runway 25 via L2, S', 'Taxi to the runway; the pilot picks the full-length holding point.'],
   ['taxi to stand 14 via N, L2', 'Taxi an arrival to its stand. Lettered stands: "taxi to stand G1" / "stand golf 1" (Sylt).'],
   ['taxi to de-icing pad DP2 via N', 'Winter scenarios (de-icing): taxi a departure that requests de-icing to a pad first (DP1-DP4; "taxi to de-icing" = a free pad). Status DEICE for 6-10 min, then "de-icing complete, ready for taxi" - now taxi it to the runway. Before that, crews refuse the runway.'],
+  ['taxi to runway 13L via N blue, M blue', 'Coloured guide lines for parallel taxiing are taxiways of their own (Cologne/Bonn: M BLUE, M ORANGE, N BLUE, N ORANGE next to the centre lines M and N): say the colour after the letter, "via mike blue".'],
   ['taxi via S, hold short of E', 'Incomplete taxi instruction: the clearance limit is the hold-short point.'],
   ['(closed taxiway in the route)', 'Taxiways closed by the scenario are red and hatched on the scope and in the ATIS: the crew answers "unable, taxiway S closed". Give a route around them. Parts with black crosses (e.g. Memmingen S, Sylt G) are closed permanently, as on the aerodrome chart.'],
   ['advise able for departure from intersection D', 'Ask whether the crew can depart from an intersection ("are you able intersection D" works too). Answer: "affirm, able" or "negative, we require full length".'],

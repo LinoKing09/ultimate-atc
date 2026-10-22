@@ -117,12 +117,13 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   let edges: E[] = [];
   for (const [from, to, rawName, kind, oneWay, widthM] of layout.edges) {
     if (drop.has(key(from, to)) || drop.has(key(to, from))) continue;
-    if (drawOnly.has(key(from, to)) || drawOnly.has(key(to, from))) {
-      pavement.push({ points: [pos.get(from)!, pos.get(to)!], ...(widthM ? { widthM } : {}) });
-      continue;
-    }
     let name = o.edgeNames?.[key(from, to)] ?? o.edgeNames?.[key(to, from)] ?? rawName;
     if (kind !== 'runway') name = o.taxiwayNames?.[name || '?'] ?? name;
+    if (drawOnly.has(key(from, to)) || drawOnly.has(key(to, from))) {
+      // Drawn with its name: a taxiway that exists only as pavement (e.g. one no simulated aircraft uses) gets a label.
+      pavement.push({ ...(name && kind !== 'runway' ? { name } : {}), points: [pos.get(from)!, pos.get(to)!], ...(widthM ? { widthM } : {}) });
+      continue;
+    }
     const k: TaxiEdgeKind = kind === 'runway' ? 'runway' : taxilanes.has(name) ? 'taxilane' : 'taxiway';
     const shut = closed.has(key(from, to)) || closed.has(key(to, from));
     edges.push({ from, to, name: kind === 'runway' ? rawName || o.runway : name, kind: k, ...(oneWay ? { oneWay } : {}), ...(shut ? { closed: true } : {}), ...(widthM && kind !== 'runway' ? { widthM } : {}) });
@@ -278,6 +279,33 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     ],
     runwayNodeOf,
   };
+}
+
+/**
+ * Imported edges ("from>to") of the given taxiways, or whose ends all lie inside one of the polygons ([lat, lon];
+ * runway centre line nodes are not counted). For `drawOnly` and `edgeMaxWingspanM` lists over whole areas the
+ * simulated traffic does not use (a military apron, an apron under construction) or over coloured guide lines.
+ */
+export function layoutEdges(layout: OsmLayout, o: { names?: string[]; inside?: [number, number][][] }): string[] {
+  const at = new Map(layout.nodes.map(([id, lat, lon]) => [id, [lat, lon] as [number, number]]));
+  const inPoly = ([lat, lon]: [number, number], poly: [number, number][]) => {
+    let c = false;
+    for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+      const [ai, bi] = poly[i];
+      const [aj, bj] = poly[j];
+      if (ai > lat !== aj > lat && lon < ((bj - bi) * (lat - ai)) / (aj - ai) + bi) c = !c;
+    }
+    return c;
+  };
+  const names = new Set(o.names ?? []);
+  return layout.edges
+    .filter(([from, to, name, kind]) => {
+      if (kind === 'runway') return false;
+      if (names.has(name)) return true;
+      const ends = [from, to].filter((id) => !id.startsWith('RWY.'));
+      return ends.length > 0 && (o.inside ?? []).some((poly) => ends.every((id) => inPoly(at.get(id)!, poly)));
+    })
+    .map(([from, to]) => key(from, to));
 }
 
 function bearingOf(proj: LocalProjection, from: LatLon, to: LatLon): number {

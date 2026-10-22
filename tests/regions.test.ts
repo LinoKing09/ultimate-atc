@@ -4,7 +4,7 @@ import { PLANNED_AIRPORTS, REGIONS, regionOf, trafficLevel } from '../src/data/r
 
 describe('airport menu regions', () => {
   it('lists the continents, and Germany split into its three FIRs', () => {
-    expect(REGIONS.map((c) => c.name)).toEqual(['Europe', 'North America', 'South America', 'Asia']);
+    expect(REGIONS.map((c) => c.name)).toEqual(['Europe', 'North America', 'South America', 'Asia', 'Australia / Oceania']);
     const germany = REGIONS[0].countries.find((c) => c.name === 'Germany')!;
     expect(germany.firs.map((f) => `${f.name} ${f.icao}`)).toEqual(['Bremen FIR EDWW', 'Langen FIR EDGG', 'München FIR EDMM']);
   });
@@ -15,7 +15,7 @@ describe('airport menu regions', () => {
       expect(r, a.icao).toBeDefined();
       expect(r!.country.name, a.icao).toBe(a.country);
     }
-    expect(Object.fromEntries(AIRPORTS.map((a) => [a.icao, a.fir]))).toEqual({ EDDS: 'EDGG', EDDN: 'EDMM', EDJA: 'EDMM', EDXW: 'EDWW' });
+    expect(Object.fromEntries(AIRPORTS.map((a) => [a.icao, a.fir]))).toEqual({ EDDS: 'EDGG', EDDN: 'EDMM', EDJA: 'EDMM', EDXW: 'EDWW', EDDW: 'EDWW', EDDK: 'EDGG' });
     for (const p of PLANNED_AIRPORTS) {
       expect(regionOf(p.fir), p.icao).toBeDefined();
       expect(AIRPORTS.some((a) => a.icao === p.icao), `${p.icao} is available, remove it from PLANNED_AIRPORTS`).toBe(false);

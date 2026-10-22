@@ -42,6 +42,20 @@ export const REGIONS: ContinentInfo[] = [
   { name: 'North America', countries: [{ name: 'United States', firs: [{ icao: 'KZLA', name: 'Los Angeles ARTCC' }] }] },
   { name: 'South America', countries: [] },
   { name: 'Asia', countries: [] },
+  {
+    name: 'Australia / Oceania',
+    countries: [
+      // Sydney, Melbourne and Perth lie in the Melbourne FIR, Brisbane in the Brisbane FIR.
+      {
+        name: 'Australia',
+        firs: [
+          { icao: 'YBBB', name: 'Brisbane FIR' },
+          { icao: 'YMMM', name: 'Melbourne FIR' },
+        ],
+      },
+      { name: 'New Zealand', firs: [{ icao: 'NZZC', name: 'New Zealand FIR' }] },
+    ],
+  },
 ];
 
 /** Airports planned for a later version: listed in the airport menu, not selectable. */
@@ -50,6 +64,12 @@ export const PLANNED_AIRPORTS: { icao: string; name: string; fir: string }[] = [
   { icao: 'EGLL', name: 'London Heathrow', fir: 'EGTT' },
   { icao: 'KLAX', name: 'Los Angeles', fir: 'KZLA' },
   { icao: 'KSAN', name: 'San Diego', fir: 'KZLA' },
+  { icao: 'YBBN', name: 'Brisbane', fir: 'YBBB' },
+  { icao: 'YMML', name: 'Melbourne', fir: 'YMMM' },
+  { icao: 'YPPH', name: 'Perth', fir: 'YMMM' },
+  { icao: 'YSSY', name: 'Sydney', fir: 'YMMM' },
+  { icao: 'NZAA', name: 'Auckland', fir: 'NZZC' },
+  { icao: 'NZWN', name: 'Wellington', fir: 'NZZC' },
 ];
 
 export interface RegionPath {

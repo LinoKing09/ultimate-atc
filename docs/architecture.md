@@ -58,7 +58,7 @@ ultimate-atc/
 │   │       ├── osmLayout.ts   # buildLayout(): taxi graph, stands, pavement lines from an OSM layout
 │   │       ├── edds.ts        # Stuttgart (layout, stands, runway operations, traffic, briefing)
 │   │       ├── edds.buildings.ts  # Stuttgart buildings (generated from OpenStreetMap)
-│   │       ├── eddn.ts, edja.ts, edxw.ts  # Nuremberg, Memmingen, Sylt (options for buildLayout, operations, traffic, briefing)
+│   │       ├── eddk.ts, eddn.ts, eddw.ts, edja.ts, edxw.ts  # Cologne/Bonn, Nuremberg, Bremen, Memmingen, Sylt (options for buildLayout, operations, traffic, briefing)
 │   │       └── *.layout.ts    # layouts generated from OpenStreetMap by scripts/osm-import.mjs
 │   └── ui/                    # browser client
 │       ├── app.ts             # wires sim <-> scope, lists, messages, command line, menus
@@ -79,6 +79,9 @@ ultimate-atc/
 │       ├── debriefDialog.ts   # debriefing dialog (DISCONNECT)
 │       ├── commandInput.ts    # single-line plain-text command field (no form input, iPad-friendly)
 │       └── dom.ts             # tiny DOM helper
+├── scripts/
+│   ├── osm-import.mjs         # OpenStreetMap -> <icao>.layout.ts / <icao>.buildings.ts
+│   └── georef.mjs             # georeferencing helper: chart pixels -> coordinates (digitising, charts stay local)
 ├── tests/                     # Vitest unit and scenario tests
 ├── docs/                      # documentation (this folder)
 └── .github/workflows/         # CI and GitHub Pages deployment

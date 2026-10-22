@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Cologne/Bonn (EDDK)**, Langen FIR: runway 13L/31R (3815 m) for all take-offs and landings, 06/24 and 13R/31L drawn and crossed - departures 31R cross runway 24 on A next to the reference point (holding points AN / AS). 138 stands at their AIP positions on the aprons A-F and W, sizes after the VATSIM Germany stand data; Delivery, Ground and Tower; taxi flows (31R: A outbound, E inbound); A-CDM and DCL. Layout from OpenStreetMap; runway data, declared distances, stand positions, taxiway widths and limits from the DFS AIP (AIRAC 2026OCT01, facts only); procedures and SIDs (F / R / B) after the VATSIM Germany SOP. A quarter of the traffic is cargo: UPS, FedEx and DHL / European Air Transport with B747-8, B747-400, B777F, B767, A300 and B757 to Louisville, Memphis, Philadelphia, Bangalore and Guangzhou. See `docs/airports/EDDK.md`.
+- **Bremen (EDDW)**, Bremen FIR: runway 08/26 (2040 m), 21 stands at their AIP positions (01-11 pushback, 12-17 taxi in / taxi out, wide-bodies on 12A and 18A), Ground (also clearances) and Tower, holding point F for runway 26 at the CAT II/III position (noise rule), 6 NM arrival spacing, night rules of the AIP. The Beluga take-off runways beyond both thresholds, runway 23 and the Airbus taxiways are drawn. See `docs/airports/EDDW.md`.
+- **Coloured guide lines** are taxiways of their own: at Cologne/Bonn M BLUE / M ORANGE and N BLUE / N ORANGE next to the centre lines M and N (two aircraft up to 36 m side by side; blue outbound, orange inbound in the simulator). The parser takes the colour after the letter: `via november blue, mike blue`, `hold short of mike orange`. The OSM importer appends the `colour` of a guide line to its taxiway name.
+- **Cargo airlines** (`cargo` in `src/data/airlines.ts`) park on the cargo stands first and use other stands only when no cargo stand is free. New operators: UPS, FedEx, European Air Transport (DHL), Sundair, Corendon; new types: A300-600F, B747-400F, B747-8F, B777F; new destinations for the long-haul freighters.
+- Airport data: `layoutEdges()` selects the imported edges of whole areas (polygons) or raw taxiway names for `drawOnly`, `edgeNames` or `edgeMaxWingspanM`; `drawOnly` taxiways keep their names on the scope.
+- Airport menu: continent **Australia / Oceania** - Australia (Brisbane FIR YBBB, Melbourne FIR YMMM) and New Zealand (New Zealand FIR NZZC) with the planned airports Sydney, Melbourne, Perth, Brisbane, Auckland and Wellington (*Coming soon*).
+- **Airport recipe** in `docs/airport-data.md`: sources first (AIP, charts, VATSIM Germany procedures, OpenStreetMap, traffic), the chart's target list as tests, build, digitise, check visually and in the simulation, document. `scripts/georef.mjs` fits chart pixels to coordinates (with the residual of every control point) and converts traced outlines into airport data - the charts stay on your machine.
+
 ## [1.3.1] - 2026-10-22
 
 The airport menu step by step, with animations and *Coming soon* where there is no airport yet.

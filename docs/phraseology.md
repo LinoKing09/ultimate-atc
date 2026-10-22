@@ -95,6 +95,8 @@ taxi via|along X [,] X ..., hold short of TAXIWAY|runway RWY        (incomplete 
 - the taxiway the aircraft is currently on,
 - the taxilane or taxiway the destination lies on (for example `M` for a terminal stand, `A` for holding point A).
 
+**Coloured guide lines** for parallel taxiing are taxiways of their own: at Cologne/Bonn `M BLUE` / `M ORANGE` and `N BLUE` / `N ORANGE` next to the yellow centre lines M and N. Say the colour after the letter: `taxi to runway 13L via november blue, mike blue` or `via N BLUE, M BLUE`; `hold short of mike orange` works the same way.
+
 So after a pushback from stand 14 facing east, `taxi to holding point A via L2, S` is accepted and gives the route M -> L2 -> S -> A. Without any `via`, the pilot takes the **shortest route**, avoiding runway crossings where possible. This is convenient, but not proper phraseology.
 
 If the route is impossible, the pilot replies `unable to follow route via S, say again route`. An unknown taxiway gives `confirm taxiway Q, we can't find it`. A taxiway closed by the scenario (shown red and hatched, in the ATIS) gives `unable, taxiway S closed` - also for a holding point or `vacate via` on it; see [closed taxiways](scenarios.md#closed-taxiways). The live preview in the command line shows these problems **before** you transmit.

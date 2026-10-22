@@ -100,7 +100,7 @@ Rules:
   maxWingspanM: 36,
   pushback: true,           // false = taxi-out stand
   defaultPushFacing: 'east', // optional
-  use: 'ga',                // optional: 'airline' (default), 'ga' (business jets first), 'cargo' (only when nothing else is free)
+  use: 'ga',                // optional: 'airline' (default), 'ga' (business jets first), 'cargo' (cargo airlines first, others only when nothing else is free)
 }
 ```
 
@@ -197,7 +197,7 @@ traffic: {
 }
 ```
 
-- `airline` refers to an operator in [`src/data/airlines.ts`](../src/data/airlines.ts) (ICAO code, radiotelephony callsign, callsign style). Add new operators there.
+- `airline` refers to an operator in [`src/data/airlines.ts`](../src/data/airlines.ts) (ICAO code, radiotelephony callsign, callsign style; `cargo: true` for cargo airlines, which park on the `cargo` stands first). Add new operators there.
 - `weight` is the operator's share of the movements (any unit; passenger shares are fine). `types` and `destinations` override the operator's defaults; repeat an entry to make it more frequent.
 - Without `traffic`, the global operator list is used.
 - `rateFactor` (optional) scales the movements per hour of every density step (1 = the Stuttgart figures; Memmingen 0.35, Sylt 0.25).
@@ -237,20 +237,35 @@ node scripts/osm-import.mjs EDDS --osm map.osm,aerodrome.osm --buildings-only   
 
 It writes `src/data/airports/<icao>.layout.ts` (do not edit by hand): the taxi graph of every way tagged `aeroway=taxiway`/`taxilane` connected to the runway centre line (`aeroway=runway` with a `ref` like `06/24`), reduced to junctions, ends, holding positions and shape points (Douglas-Peucker, `--simplify` metres, default 2.5); the runway holding positions (`aeroway=holding_position`); stands from `aeroway=parking_position` (the stand point and the lane points where the lead-in lines meet a taxiway; lanes off the graph are snapped onto the nearest taxiway); areas (aprons - ways and multipolygons, not the grass ones (`surface` / `landuse=grass`) -, paved taxiway areas `area:aeroway=taxiway`, helipads); buildings (every `building=*` inside the aerodrome boundary `aeroway=aerodrome` or within `--building-margin` metres - default 40 - of an apron or taxiway, multipolygons such as a terminal included, plus terminals, hangars and towers anywhere in the box; named after their `name` tag, unnamed ones get no label); and taxiways not connected to the runway as `pavement` lines (drawn only). Node ids are readable: `N.3` (third node on N), `N/W` (junction), `RWY.N` (where N meets the runway), `HP.<osm id>` (holding positions), `STAND_<id>`. The raw OSM data is not committed.
 
-`buildLayout(layout, options)` in `src/data/airports/osmLayout.ts` turns it into nodes, edges and stands. The airport file says what OSM does not: which holding positions are runway holding points and their names (`holdingPoints`), which taxiways to keep (`taxiways`), names for unnamed ways (`taxiwayNames`, `"?"` = unnamed), apron taxilanes, wingspan limits and pavement widths per taxiway (`maxWingspanM`, `widthM`; also for unnamed lanes: key `''`; the importer writes OSM `width` tags into the layout), extra nodes and edges (a fifth element `true` marks an added edge permanently closed; `closedEdges` does the same for imported edges), imported edges that are drawn only (`drawOnly`, `"from>to"`: links inside a runway strip, the second fillet of a junction - they become `pavement` lines), dead ends to keep (`keepNodes`: a lane to a GA apron or a hangar), and every stand with its size, apron and pushback / taxi-out (`osm: '1'` takes position and lanes from an imported stand whose OSM ref differs from the published designator, e.g. Memmingen P11). It makes every way onto the runway go through a holding point: the shortest way from each named holding point to the runway centre line becomes one `runwayStrip` edge (the nodes in between become its `shape`, so it keeps its curve), other taxiway edges touching the runway are removed, and dead ends are pruned. `exitVia(built, 'N', holdingPointNode)` builds an exit path (runway node, holding point, the next nodes up to 50 m behind it). The airport file passes `built.pavement` on as `pavement` (the `drawOnly` edges and the loose taxiways; `dropLoosePavement: true` leaves the latter out). See `edja.ts` and `edxw.ts`.
+`buildLayout(layout, options)` in `src/data/airports/osmLayout.ts` turns it into nodes, edges and stands. The airport file says what OSM does not: which holding positions are runway holding points and their names (`holdingPoints`), which taxiways to keep (`taxiways`), names for unnamed ways (`taxiwayNames`, `"?"` = unnamed; the importer appends the `colour` of a guide line to its ref, e.g. `M BLUE` - a taxiway of its own unless renamed; pilots and the parser know it as "mike blue"), apron taxilanes, wingspan limits and pavement widths per taxiway (`maxWingspanM`, `widthM`; also for unnamed lanes: key `''`; the importer writes OSM `width` tags into the layout), extra nodes and edges (a fifth element `true` marks an added edge permanently closed; `closedEdges` does the same for imported edges), imported edges that are drawn only (`drawOnly`, `"from>to"`: links inside a runway strip, the second fillet of a junction - they become `pavement` lines), dead ends to keep (`keepNodes`: a lane to a GA apron or a hangar), edge keys by area or name (`layoutEdges(layout, { names, inside })`: every imported edge with one of these raw names, or with all its nodes inside one of the polygons - for `drawOnly`, `edgeNames` or `edgeMaxWingspanM` of a whole area; a `drawOnly` edge keeps its name on the scope), and every stand with its size, apron and pushback / taxi-out (`osm: '1'` takes position and lanes from an imported stand whose OSM ref differs from the published designator, e.g. Memmingen P11). It makes every way onto the runway go through a holding point: the shortest way from each named holding point to the runway centre line becomes one `runwayStrip` edge (the nodes in between become its `shape`, so it keeps its curve), other taxiway edges touching the runway are removed, and dead ends are pruned. `exitVia(built, 'N', holdingPointNode)` builds an exit path (runway node, holding point, the next nodes up to 50 m behind it). The airport file passes `built.pavement` on as `pavement` (the `drawOnly` edges and the loose taxiways; `dropLoosePavement: true` leaves the latter out). See `edja.ts` and `edxw.ts`.
 
 Derived layouts are available under the ODbL: credit OpenStreetMap in `dataNotice` and in the airport page.
 
-## Adding an airport - checklist
+## Adding an airport - the recipe
 
-1. Create `src/data/airports/<icao>.ts` exporting an `AirportData`. Use real runway end coordinates; [OurAirports](https://ourairports.com/data/) (`runways.csv`) is a convenient public-domain source.
-   - **Digitising from an aerodrome chart** (how EDDS was made): render the chart at high resolution with a coordinate grid. Measure the runway ends to get the scale, and check it against a known distance (e.g. a displaced threshold). Then read every junction, holding point and stand position into the runway frame (`along`, `lateral`). The EDDS file shows how chart coordinates map to the builder.
-2. Register it in `AIRPORTS` in `src/data/airports/index.ts`, set its `fir` (add the FIR, country or continent to `REGIONS` in `src/data/regions.ts` if it is new) and remove it from `PLANNED_AIRPORTS` there if it is listed. The [data checks](#data-checks) then run for it automatically (`tests/regions.test.ts` checks the FIR and the country). The traffic bars of the airport menu follow `traffic.rateFactor`.
-3. Add tests (copy the "EDDS data" block in `tests/routing.test.ts`): every stand must reach every departure holding point, and every exit path must exist.
-4. Describe the airport's [traffic](#traffic) (operators, shares, destinations); add missing operators to `src/data/airlines.ts`.
-5. Write the airport **briefing** (see [Airport briefing](#airport-briefing)).
-6. Document the airport in `docs/airports/<ICAO>.md` (layout, holding points, stands, typical routes, accuracy) and link it from the README.
-7. Add a `CHANGELOG.md` entry.
+The order matters: the facts come first, then the code. Sylt and Nuremberg got their accuracy in rounds (OpenStreetMap first, the AIP check later, the digitising last); doing every step up front gets there in one go.
+
+**1. Source dossier - before any code.** Collect, for reading only (charts and packages are never committed):
+
+- the **AIP** text pages (AD 2): reference point and elevation (2.2), aprons and taxiways with widths and limits (2.8, 2.9), runways with threshold coordinates and elevations (2.12), declared distances **including every intersection take-off** (2.13), frequencies (2.18), local rules, runway use, night rules and hot spots (2.20-2.22);
+- the **charts**: aerodrome chart, ground movement and parking / docking charts (every taxiway designator, holding point, hot spot and stand), the approach chart titles (which approaches each runway end has), the SID charts (designators, exit fixes, initial climb);
+- the **VATSIM Germany** procedures (knowledge base / SOP: runway use, standard taxi routes, stand allocation, positions and frequencies) and their ground radar map and ATIS profile (reference only);
+- an **OpenStreetMap** extract (the OSM API `map` call, in tiles if the area is too large: the importer merges comma-separated files);
+- the traffic: operators, types and destinations (airport route network, public timetables).
+
+Write the facts down with their source. Then make the **gap list**: every chart designator, holding point and stand against OpenStreetMap - what is missing, unnamed or different (OSM often lags behind: runways renamed after the magnetic variation changed, new taxiways).
+
+**2. Target list as tests.** Before building the layout, write the tests that the chart demands (see `tests/layouts.test.ts`): every taxiway designator, every holding point name, the stands, the published TORAs and the approaches per runway end. They fail until the layout matches the chart.
+
+**3. Build.** `node scripts/osm-import.mjs <ICAO> --osm <files>`, then the airport file with `buildLayout()` options: holding point names, names for unnamed ways, limits and widths from the AIP, stands with their sizes, `drawOnly` for links inside a runway strip. Paved parts OpenStreetMap does not have are digitised by hand: render the chart on your machine, measure control points (thresholds, ARP, graticule crossings) and the outlines in pixels, and convert them with `node scripts/georef.mjs control.json trace.json` (it reports the residual of every control point; aim for a few metres). Register the airport in `AIRPORTS`, set its `fir` (add FIR, country or continent to `REGIONS` in `src/data/regions.ts` if new) and remove it from `PLANNED_AIRPORTS`. The traffic bars of the airport menu follow `traffic.rateFactor`.
+
+**4. Runway operations and procedures.** Entries with their published TORA, exits, SIDs by exit fix, stations and frequencies, the approaches per runway end, wind distribution, night rules, the traffic mix (add missing operators to `src/data/airlines.ts`) and the [briefing](#airport-briefing).
+
+**5. Check visually.** Compare the scope with the chart, area by area (the scope shows building names, holding points and stands); overlay the chart locally if in doubt.
+
+**6. Check in the simulation.** The [data checks](#data-checks) run automatically (`tests/airports.test.ts`, `tests/regions.test.ts`): every stand must reach a full-length entry of every runway. Add an hour of traffic per runway direction with a scripted controller (see `tests/eddn.test.ts`): no collisions, departures and arrivals flow. Run `npm run benchmark` if shared code changed.
+
+**7. Document.** `docs/airports/<ICAO>.md` (sources, layout, holding points, stands, routes, what is approximate), `dataNotice`, the README and the in-app help where airports are listed, and a `CHANGELOG.md` entry.
 
 ### Licensing of source data
 

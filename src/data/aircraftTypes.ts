@@ -46,6 +46,11 @@ const types: AircraftType[] = [
   { icao: 'AT76', name: 'ATR 72-600', wake: 'M', wingspanM: 27.1, lengthM: 27.2, silhouette: 'turboprop', taxiSpeedKt: 14, vrKt: 105, approachSpeedKt: 112, climbFpm: 1600, minRunwayM: 1300 },
   { icao: 'A332', name: 'Airbus A330-200', wake: 'H', wingspanM: 60.3, lengthM: 58.8, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 150, approachSpeedKt: 140, climbFpm: 2200, minRunwayM: 2800 },
   { icao: 'B763', name: 'Boeing 767-300', wake: 'H', wingspanM: 47.6, lengthM: 54.9, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 150, approachSpeedKt: 140, climbFpm: 2200, minRunwayM: 2800 },
+  // Freighters (Cologne/Bonn cargo hub).
+  { icao: 'A306', name: 'Airbus A300-600F', wake: 'H', wingspanM: 44.8, lengthM: 54.1, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 150, approachSpeedKt: 138, climbFpm: 2000, minRunwayM: 2500 },
+  { icao: 'B744', name: 'Boeing 747-400F', wake: 'H', wingspanM: 64.4, lengthM: 70.7, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 165, approachSpeedKt: 150, climbFpm: 1800, minRunwayM: 3000 },
+  { icao: 'B748', name: 'Boeing 747-8F', wake: 'H', wingspanM: 68.4, lengthM: 76.3, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 168, approachSpeedKt: 155, climbFpm: 1700, minRunwayM: 3100 },
+  { icao: 'B77L', name: 'Boeing 777F', wake: 'H', wingspanM: 64.8, lengthM: 63.7, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 165, approachSpeedKt: 150, climbFpm: 2000, minRunwayM: 2900 },
   { icao: 'B788', name: 'Boeing 787-8', wake: 'H', wingspanM: 60.1, lengthM: 56.7, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 150, approachSpeedKt: 140, climbFpm: 2300, minRunwayM: 2800 },
   { icao: 'C56X', name: 'Cessna Citation Excel', wake: 'L', wingspanM: 17.2, lengthM: 16.0, silhouette: 'bizjet', taxiSpeedKt: 15, vrKt: 105, approachSpeedKt: 115, climbFpm: 3500, minRunwayM: 1200 },
   { icao: 'CL35', name: 'Bombardier Challenger 350', wake: 'M', wingspanM: 21.0, lengthM: 20.9, silhouette: 'bizjet', taxiSpeedKt: 15, vrKt: 115, approachSpeedKt: 120, climbFpm: 3500, minRunwayM: 1500 },

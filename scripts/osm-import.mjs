@@ -106,7 +106,9 @@ for (const n of nodes.values()) Object.assign(n, xy(n));
 // ------------------------------------------------------------------ taxi graph
 const isTaxi = (w) => (w.tags.aeroway === 'taxiway' || w.tags.aeroway === 'taxilane') && !excludeWays.has(w.id) && w.nds.every((id) => nodes.has(id));
 let taxiWays = ways.filter(isTaxi);
-const graphWays = [...runwayWays.map((w) => ({ ...w, kind: 'runway', name: w.tags.ref })), ...taxiWays.map((w) => ({ ...w, kind: 'taxiway', name: (w.tags.ref ?? '').toUpperCase() }))];
+// Coloured guide lines of a taxiway (e.g. M blue / M orange for parallel taxiing) keep their colour in the name.
+const taxiName = (t) => [t.ref, t.ref && t.colour].filter(Boolean).join(' ').toUpperCase();
+const graphWays = [...runwayWays.map((w) => ({ ...w, kind: 'runway', name: w.tags.ref })), ...taxiWays.map((w) => ({ ...w, kind: 'taxiway', name: taxiName(w.tags) }))];
 
 // connected component of the runway
 const adj = new Map();

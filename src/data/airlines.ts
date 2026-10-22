@@ -14,6 +14,8 @@ export interface Airline {
   destinations: string[];
   weight: number;
   callsignStyle: 'alnum' | 'numeric' | 'reg';
+  /** A cargo airline: parks on the cargo stands first. */
+  cargo?: boolean;
 }
 
 export const AIRLINES: Airline[] = [
@@ -35,6 +37,11 @@ export const AIRLINES: Airline[] = [
   { icao: 'RYR', telephony: 'Ryanair', types: ['B738', 'B38M'], destinations: ['LEMG', 'EIDW', 'LIPE', 'LGTS'], weight: 2, callsignStyle: 'alnum' },
   { icao: 'VLG', telephony: 'Vueling', types: ['A320', 'A20N'], destinations: ['LEBL'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'ITY', telephony: 'Itarrow', types: ['A320', 'A20N'], destinations: ['LIRF'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'SDR', telephony: 'Sundair', types: ['A320', 'A321'], destinations: ['GCFV', 'HEGN', 'LGIR'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'CAI', telephony: 'Corendon', types: ['B738'], destinations: ['LTAI', 'LTFE'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'UPS', telephony: 'UPS', types: ['B748', 'B744', 'B763', 'A306', 'B752'], destinations: ['KSDF', 'KPHL', 'EGNX'], weight: 1, callsignStyle: 'numeric', cargo: true },
+  { icao: 'FDX', telephony: 'Fedex', types: ['B77L', 'B763'], destinations: ['KMEM', 'LFPG'], weight: 1, callsignStyle: 'numeric', cargo: true },
+  { icao: 'BCS', telephony: 'Eurotrans', types: ['A306', 'B752'], destinations: ['EDDP', 'EGNX'], weight: 1, callsignStyle: 'alnum', cargo: true },
   { icao: 'DCX', telephony: '', types: ['C56X', 'CL35'], destinations: ['EDDB', 'LFMN', 'LSGG', 'EGLF', 'LIML'], weight: 1, callsignStyle: 'reg' },
 ];
 

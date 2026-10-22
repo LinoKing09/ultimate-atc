@@ -123,7 +123,8 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - planned - **Low visibility procedures (LVP)** with the CAT II/III holding points and larger spacing (values from the AIP, supplied as text)
 - planned - **Voice**: test text-to-speech and speech recognition again on the iPad and switch them back on
 - planned - Smarter AI Tower after a rejected take-off; partial taxiway closures; a taxiway blocked during the session (special event)
-- planned - Further airports (EDDF first), then the Approach / Departure position
+- **done** (Unreleased) - **Cologne/Bonn (EDDK)** with its cargo hub (UPS, FedEx, DHL; cargo airlines park on the cargo aprons) and the parallel guide lines of Terminal 2, and **Bremen (EDDW)**, both after the airport recipe (sources first, the charts as tests)
+- planned - Further airports (EDDF first; single-runway airports on the other continents), then the Approach / Departure position
 
 ## Next steps
 
@@ -145,6 +146,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 ### Airports
 
 - **done** (1.1) - EDDN Nuremberg, EDJA Memmingen, EDXW Sylt
+- **done** (Unreleased) - EDDK Cologne/Bonn, EDDW Bremen
 - planned - EDDF Frankfurt
 - planned - EGLL London Heathrow
 - planned - KLAX Los Angeles

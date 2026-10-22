@@ -248,12 +248,14 @@ export class TrafficGenerator {
 
   private pickStand(type: AircraftType, airline: Airline, except?: Aircraft): Stand | undefined {
     const ga = airline.callsignStyle === 'reg';
-    // Business jets prefer the GA stands, airlines the airline stands; cargo stands only when nothing else is free.
+    // Business jets prefer the GA stands, cargo airlines the cargo stands, airlines the airline stands; others
+    // take cargo stands only when nothing else is free (cargo airlines the other way round).
     const use = (s: Stand) => s.use ?? 'airline';
-    const preferred = this.sim.freeStands(type.wingspanM, (s) => use(s) === (ga ? 'ga' : 'airline'), except);
-    const any = preferred.length
-      ? preferred
-      : this.sim.freeStands(type.wingspanM, (s) => use(s) !== 'cargo', except).concat(this.sim.freeStands(type.wingspanM, (s) => use(s) === 'cargo', except));
+    const kind = ga ? 'ga' : airline.cargo ? 'cargo' : 'airline';
+    const preferred = this.sim.freeStands(type.wingspanM, (s) => use(s) === kind, except);
+    const notCargo = () => this.sim.freeStands(type.wingspanM, (s) => use(s) !== 'cargo', except);
+    const cargo = () => this.sim.freeStands(type.wingspanM, (s) => use(s) === 'cargo', except);
+    const any = preferred.length ? preferred : kind === 'cargo' ? notCargo() : notCargo().concat(cargo());
     if (!any.length) return undefined;
     // Keep the wide-body stands (code E-F) and the alternative positions (e.g. 40D over 40) available:
     // aircraft up to code D take any other stand up to code D, larger ones the smallest stand that fits.

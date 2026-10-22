@@ -204,7 +204,7 @@ function destinationNode(sim: Simulation, dest: TaxiDestination): TaxiNode | und
 function intendedDestination(sim: Simulation, ac: Aircraft): TaxiDestination | undefined {
   if (ac.routeDestination && ac.routeDestination.kind !== 'holdShort') return ac.routeDestination;
   if (ac.category === 'arrival' || ac.returnToStand) return ac.assignedStand ? { kind: 'stand', stand: ac.assignedStand } : undefined;
-  return { kind: 'runway', runway: sim.runway };
+  return { kind: 'runway', runway: sim.departureRunwayOf(ac) };
 }
 
 export interface ResolveOption {
@@ -365,12 +365,15 @@ export function updateRunwayAlerts(sim: Simulation): void {
         break;
       }
     }
-    if (!hp) {
+    // Only runways in use are watched.
+    const active = hp ? sim.activeEndOn(hp.holdingPoint?.runway) : undefined;
+    if (!hp || !active) {
       rmcaAlerted.delete(ac);
       continue;
     }
-    const occupied = sim.tower.runwayBusy(ac);
-    const eta = sim.tower.nextArrivalEta();
+    const end = sim.tower.endFor(active);
+    const occupied = sim.tower.runwayBusy(ac, end);
+    const eta = sim.tower.nextArrivalEta(end);
     if (!occupied && eta > RMCA_ARRIVAL_S) continue;
     const key = hp.id;
     if (rmcaAlerted.get(ac) === key) continue;

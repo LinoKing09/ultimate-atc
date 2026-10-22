@@ -84,6 +84,29 @@ export interface AirportData {
   avoidTaxiways?: string[];
   /** Night flying restrictions (applied in scenarios with night rules, see core/night.ts). */
   nightRestrictions?: NightRestrictions;
+  /**
+   * Parallel runways used at the same time, one entry per direction of operation (e.g. 26R and 26L). When the
+   * runway in use belongs to one, all its ends are in use by default; the ATIS can also select a single one.
+   */
+  parallelRunways?: ParallelRunwayData[];
+}
+
+/** Separation between arrivals on adjacent final approaches to parallel runways. */
+export type ParallelApproachMode = 'independent' | 'dependent' | 'staggered';
+
+/** Parallel runways in one direction of operation, each used for take-offs and landings (mixed mode). */
+export interface ParallelRunwayData {
+  /** Runway ends used together, e.g. ['26R', '26L']; the first is named first by the ATIS. */
+  ends: string[];
+  /**
+   * Arrivals on adjacent finals: 'independent' (no separation between the finals), 'dependent' (1.5 NM
+   * diagonal radar separation) or 'staggered' (3 NM, the radar minimum).
+   */
+  approaches: ParallelApproachMode;
+  /** Physical runway (e.g. "08L/26R") used by the aircraft of an apron; other aprons use the nearest runway. */
+  aprons?: Record<string, string>;
+  /** Aircraft from this wingspan (m) use this physical runway, e.g. the B747-8 on the wider one. */
+  largeAircraft?: { runway: string; minWingspanM: number };
 }
 
 /** A de-icing pad. */

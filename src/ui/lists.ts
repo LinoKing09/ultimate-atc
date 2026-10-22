@@ -298,7 +298,7 @@ export function arrivalList(cb: ConstructorParameters<typeof TrafficList>[3]): T
       { key: 'wtc', label: 'W', get: (a) => a.type.wake },
       { key: 'adep', label: 'ADEP', get: (a) => a.flightPlan.departure },
       { key: 'rwy', label: 'RWY', get: (a) => a.runway ?? '' },
-      { key: 'apch', label: 'APCH', get: (a, sim) => (a.phase === 'approach' ? sim.approachType : '') },
+      { key: 'apch', label: 'APCH', get: (a, sim) => (a.phase === 'approach' ? sim.approachTypeFor(a.runway ?? sim.runway) : '') },
       {
         key: 'seq',
         label: 'SEQ',

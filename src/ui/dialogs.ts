@@ -1,4 +1,5 @@
 import type { AirportData, StationType } from '../core/airport/types';
+import { runwayChoices, runwayEndsOf } from '../core/runways';
 import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
 import { closureProblems } from '../core/airport/validate';
 import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
@@ -334,7 +335,7 @@ const KEYS: [string, string][] = [
   ['Right click', 'Aircraft menu (pushback, taxi, handoff, ...)'],
   ['Double click on list row', 'Centre the scope on the aircraft'],
   ['Click a tag item', 'Callsign: flight plan + telephony; cleared-to: taxi menu; status: aircraft menu'],
-  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use, wind and gusts, QNH, information letter). "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
+  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use - with parallel runways both together or one alone -, wind and gusts, QNH, information letter). "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
   ['2215L after the UTC time', 'Local time, shown with night flying restrictions: jets must be airborne by 2300 local, landings until 2330 (delayed flights until 2400)'],
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
@@ -453,7 +454,8 @@ export function showAtisEditor(sim: Simulation): void {
   }
   letterSel.value = a.letter === 'Z' ? 'A' : String.fromCharCode(a.letter.charCodeAt(0) + 1);
   const rwySel = h('select');
-  for (const o of sim.config.airport.runwayOps) rwySel.append(h('option', { value: o.runway, text: `Runway ${o.runway}` }));
+  // Parallel runways used together first ("Runways 26R + 26L"), then each runway on its own.
+  for (const c of runwayChoices(sim.config.airport)) rwySel.append(h('option', { value: c.key, text: c.label }));
   rwySel.value = a.runway;
   // Pre-filled with the actual surface wind (it may have changed since the last broadcast).
   const dir = h('input', { type: 'number', min: '0', max: '360', step: '10', value: String(sim.observedWind.direction) });
@@ -468,7 +470,7 @@ export function showAtisEditor(sim: Simulation): void {
   const comps = h('div.sub');
   const update = () => {
     const wind = { direction: Number(dir.value) || 0, speedKt: Number(spd.value) || 0 };
-    const c = sim.windComponents(rwySel.value, wind);
+    const c = sim.windComponents(runwayEndsOf(rwySel.value)[0], wind);
     const hw = Math.round(c.headwind);
     const xw = Math.abs(Math.round(c.crosswind));
     comps.textContent = `${hw >= 0 ? `Headwind ${hw} kt` : `Tailwind ${-hw} kt`}, crosswind ${xw} kt.`;
@@ -506,7 +508,7 @@ export function showAtisEditor(sim: Simulation): void {
       ),
       comps,
       h('div.notice', {
-        text: 'Changing the runway: departures that are not yet taxiing get the new runway and SID, arrivals further out than 3.5 NM are re-sequenced by Approach. Aircraft already taxiing keep their clearance - re-route them.',
+        text: 'Changing the runway: departures that are not yet taxiing get the new runway and SID, arrivals further out than 3.5 NM are re-sequenced by Approach. Aircraft already taxiing keep their clearance - re-route them. With parallel runways, aircraft keep a runway that stays in use.',
       }),
       h('div.actions', {}, cancel, apply),
     ),

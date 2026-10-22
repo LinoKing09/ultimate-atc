@@ -280,13 +280,21 @@ function milesFinal(nm: number): string {
   return `${nm} ${nm === 1 ? 'mile' : 'miles'} final`;
 }
 
-/** Take-off run available from a holding point on the active runway, or undefined if it is not an entry. */
+/** The departure entry at a holding point of a runway in use (with its runway end), if it is one. */
+function entryAt(sim: Simulation, holdingPoint: string) {
+  const end = sim.activeEndOn(sim.airport.holdingPoint(holdingPoint)?.holdingPoint?.runway);
+  const entry = end ? sim.airport.runwayOps(end)?.departureEntries.find((e) => e.holdingPoint.toUpperCase() === holdingPoint.toUpperCase()) : undefined;
+  return { end, entry };
+}
+
+/** Take-off run available from a holding point on a runway in use, or undefined if it is not an entry. */
 export function takeoffRunAvailable(sim: Simulation, holdingPoint: string): number | undefined {
-  const end = sim.airport.runwayEnd(sim.runway);
+  const active = sim.activeEndOn(sim.airport.holdingPoint(holdingPoint)?.holdingPoint?.runway);
+  const end = active ? sim.airport.runwayEnd(active) : undefined;
   const hp = sim.airport.holdingPoint(holdingPoint);
   const strip = hp?.edges.find((e) => e.kind === 'runwayStrip');
-  if (!end || !hp || !strip || hp.holdingPoint?.runway !== end.runway) return undefined;
-  const published = sim.airport.runwayOps(sim.runway)?.departureEntries.find((e) => e.holdingPoint.toUpperCase() === holdingPoint.toUpperCase())?.toraM;
+  if (!end || !hp || !strip) return undefined;
+  const published = entryAt(sim, holdingPoint).entry?.toraM;
   if (published !== undefined) return published;
   const rwyNode = strip.from === hp ? strip.to : strip.from;
   return end.tora - sim.airport.runwayCoordinates(end, rwyNode.pos).along;
@@ -301,7 +309,7 @@ function backtrackWords(sim: Simulation, ac: Aircraft, hp: string | undefined): 
 
 /** The departure entry at this holding point is normally used with a backtrack (runway in use). */
 export function backtrackEntry(sim: Simulation, holdingPoint: string): boolean {
-  return !!sim.airport.runwayOps(sim.runway)?.departureEntries.find((e) => e.holdingPoint.toUpperCase() === holdingPoint.toUpperCase())?.backtrack;
+  return !!entryAt(sim, holdingPoint).entry?.backtrack;
 }
 
 /** Take-off run this crew needs today (type figure varied per flight, -10 % / +15 %). */
@@ -312,7 +320,7 @@ function requiredRunway(sim: Simulation, ac: Aircraft): number {
 
 /** True if the full-length entry is the only one this aircraft accepts at this holding point. */
 function isIntersection(sim: Simulation, holdingPoint: string): boolean {
-  const entry = sim.airport.runwayOps(sim.runway)?.departureEntries.find((e) => e.holdingPoint.toUpperCase() === holdingPoint.toUpperCase());
+  const entry = entryAt(sim, holdingPoint).entry;
   return !!entry && !entry.fullLength;
 }
 
@@ -321,7 +329,7 @@ function isIntersection(sim: Simulation, holdingPoint: string): boolean {
  * one reached first from the aprons), "FULL" if it needs the full length. Records the answers.
  */
 export function earliestIntersection(sim: Simulation, ac: Aircraft): string {
-  const entries = sim.airport.runwayOps(sim.runway)?.departureEntries.filter((e) => !e.fullLength) ?? [];
+  const entries = sim.airport.runwayOps(sim.departureRunwayOf(ac))?.departureEntries.filter((e) => !e.fullLength) ?? [];
   let best: { name: string; tora: number } | undefined;
   for (const e of entries) {
     const tora = takeoffRunAvailable(sim, e.holdingPoint);
@@ -340,7 +348,7 @@ export function earliestIntersection(sim: Simulation, ac: Aircraft): string {
 function execAskIntersection(sim: Simulation, ac: Aircraft, name: string): ExecResult {
   if (ac.category !== 'departure' || !ac.onGround || ['lineup', 'takeoff', 'climb'].includes(ac.phase)) return { unable: 'say again' };
   const available = takeoffRunAvailable(sim, name);
-  if (available === undefined) return { unable: `confirm intersection ${name}, it is not an entry to runway ${sim.runway}` };
+  if (available === undefined) return { unable: `confirm intersection ${name}, it is not an entry to runway ${sim.departureRunwayOf(ac)}` };
   const able = available >= requiredRunway(sim, ac);
   ac.ableIntersection = { ...ac.ableIntersection, [name.toUpperCase()]: able };
   return { readback: able ? `affirm, able intersection ${name}` : 'negative, we require full length' };
@@ -466,7 +474,8 @@ function planPushback(sim: Simulation, ac: Aircraft, facing?: Compass): PushPlan
       let bestLen = Infinity;
       for (const o of options) {
         const r = findRoute(sim.airport, { position: o.end, heading: o.nose }, hp, [], { flows: sim.airport.flowVectors(rwy) });
-        const len = isRouteError(r) ? Infinity : r.length;
+        // A way out that needs a 180 degree turn (e.g. pushed towards the dead end of a taxilane) only if nothing else works.
+        const len = isRouteError(r) ? Infinity : r.length + (r.requiresUTurn ? UTURN_PUSH_PENALTY_M : 0);
         if (len < bestLen) {
           bestLen = len;
           choice = o;
@@ -567,7 +576,7 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       const wrong = wrongRunway(sim, ac, c.runway);
       if (wrong) return { unable: wrong };
       ac.landingCleared = true;
-      if (sim.systemOn('rmca') && sim.tower.runwayBusy()) {
+      if (sim.systemOn('rmca') && sim.tower.runwayBusy(ac, sim.tower.endFor(ac.runway))) {
         sim.system(`RMCA: landing clearance for ${ac.callsign} while runway ${ac.runway ?? sim.runway} is occupied!`, 'warning', ac.callsign);
       }
       return rb(`cleared to land runway ${ac.runway ?? sim.runway}`);
@@ -793,8 +802,10 @@ function resolveDestination(
     // Not turning around matters more than the flow.
     if (!via.length) {
       const strict = findRoute(sim.airport, start, node, via, { ...opts, strictFlows: true });
-      if (!isRouteError(strict) && !strict.requiresUTurn) return strict;
       const soft = findRoute(sim.airport, start, node, via, opts);
+      // Not at the price of crossing a runway more often (a detour round the other side of the airport).
+      const crossings = (r: TaxiRoute) => r.edges.filter((e) => e.kind === 'runwayStrip').length;
+      if (!isRouteError(strict) && !strict.requiresUTurn && (isRouteError(soft) || crossings(strict) <= crossings(soft))) return strict;
       if (!isRouteError(soft) && !soft.requiresUTurn) return soft;
       return isRouteError(strict) ? soft : strict;
     }
@@ -924,6 +935,9 @@ function resolveClearanceLimit(
   return best;
 }
 
+/** Extra length (m) for a pushback direction that would need a 180 degree turn afterwards. */
+const UTURN_PUSH_PENALTY_M = 5000;
+
 /** Largest wingspan (m) that can turn around on the spot on a taxiway. */
 const UTURN_MAX_WINGSPAN = 25;
 
@@ -937,7 +951,7 @@ function routeOptions(sim: Simulation, ac: Aircraft): { flows: Map<string, Vec2>
   const atHoldingPoint = ac.phase === 'holding' || !!ac.stoppedAt?.holdingPoint;
   return {
     wingspanM: ac.type.wingspanM,
-    flows: sim.airport.flowVectors(sim.runway),
+    flows: sim.airport.flowVectors(ac.category === 'departure' ? sim.departureRunwayOf(ac) : sim.isRunwayInUse(ac.runway) ? ac.runway! : sim.runway),
     // A towed aircraft turns wherever the tug can turn it.
     allowUTurn: ac.type.wingspanM <= UTURN_MAX_WINGSPAN || atHoldingPoint || isStuck(sim, ac) || ac.category === 'tow',
   };
@@ -1009,6 +1023,11 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
   if (res.dest.kind === 'holdingPoint' && needsDeicing(sim, ac)) return { unable: 'negative, we require de-icing first' };
   const atHoldingPoint = ac.phase === 'holding' || !!ac.stoppedAt?.holdingPoint;
 
+  // Parallel runways: taxied to a holding point of the other runway in use, the departure now leaves from there.
+  if (ac.category === 'departure' && res.dest.kind === 'holdingPoint') {
+    const end = sim.activeEndOn(sim.airport.holdingPoint(res.dest.name)?.holdingPoint?.runway);
+    if (end && end !== ac.runway) changeDepartureRunway(sim, ac, end);
+  }
   const resolved: TaxiCommand = { ...c, destination: res.dest };
   if (ac.phase === 'pushback' || ac.phase === 'startup') {
     ac.pendingTaxi = resolved;
@@ -1032,6 +1051,24 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
     rb += `, we need a tug to turn around, expect about ${Math.round(wait / 60)} minutes`;
   }
   return { readback: rb, answers: true };
+}
+
+/**
+ * A departure changes to another runway in use (parallel runways): it takes the SID of that runway to the same
+ * exit fix, as Delivery would re-clear it.
+ */
+function changeDepartureRunway(sim: Simulation, ac: Aircraft, end: string): void {
+  const sids = sim.config.airport.sids;
+  const fix = sids.find((s) => s.name === ac.flightPlan.sid)?.fix;
+  const sid = sids.find((s) => s.runway === end && s.fix === fix);
+  ac.runway = end;
+  ac.flightPlan.runway = end;
+  ac.earliestIntersection = undefined;
+  if (sid && sid.name !== ac.flightPlan.sid) {
+    ac.flightPlan.sid = sid.name;
+    if (ac.clearance) ac.clearance.sid = sid.name;
+    sim.system(`${ac.callsign} now departs from runway ${end}: SID ${sid.name} (re-cleared by Delivery).`, 'system', ac.callsign);
+  }
 }
 
 /** Installs a taxi route on an aircraft and computes where it has to stop. */
@@ -1333,9 +1370,8 @@ export function onStopReached(sim: Simulation, ac: Aircraft, stop: PathStop): vo
 }
 
 function runwayEndsText(sim: Simulation, runway: string): string {
-  // Use the active runway designator if it belongs to this runway, else the full name.
-  const active = sim.airport.runwayEnd(sim.runway);
-  return active && active.runway === runway ? active.name : runway;
+  // Use the designator of the end in use if this runway is in use, else the full name.
+  return sim.activeEndOn(runway) ?? runway;
 }
 
 // ====================================================================== periodic pilot logic
@@ -1610,11 +1646,11 @@ function towerResolveStuck(sim: Simulation, ac: Aircraft): void {
     sim.system(`Tower: ${ac.callsign} was holding short of ${st.target}, Tower told it to continue to the holding point.`, 'warning', ac.callsign);
     return;
   }
-  const dest: TaxiDestination = { kind: 'runway', runway: sim.runway };
+  const dest: TaxiDestination = { kind: 'runway', runway: sim.departureRunwayOf(ac) };
   const route = autoRoute(sim, ac, dest);
   if (route && !route.requiresUTurn && route.length <= TOWER_TAXI_ON_MAX) {
     applyRoute(sim, ac, route, dest);
-    sim.system(`Tower: ${ac.callsign} stopped at ${st.target} short of the holding point, Tower taxied it on to runway ${sim.runway}.`, 'warning', ac.callsign);
+    sim.system(`Tower: ${ac.callsign} stopped at ${st.target} short of the holding point, Tower taxied it on to runway ${dest.runway}.`, 'warning', ac.callsign);
     return;
   }
   // Too far from the runway: back to Ground.

@@ -611,7 +611,7 @@ export class Scope {
     ctx.save();
     ctx.lineCap = 'butt';
     for (const end of ap.runwayEnds.values()) {
-      const active = end.name === this.sim.runway;
+      const active = this.sim.isRunwayInUse(end.name);
       const out = headingVector((end.heading + 180) % 360);
       const n = { x: -out.y, y: out.x };
       const a = this.toScreen(end.threshold);
@@ -1238,7 +1238,7 @@ export class Scope {
       } else {
         lines.push([{ text: `${ac.type.icao} ${ac.type.wake}`, item: 'type' }]);
         lines.push([{ text: `A${String(Math.round(ac.altitudeFt / 100)).padStart(3, '0')} ${kt}` }]);
-        lines.push(dep ? [{ text: ac.flightPlan.sid ?? ac.flightPlan.destination, item: 'sid' }] : [{ text: `${this.sim.approachType} ${ac.runway ?? ''}`.trim() }]);
+        lines.push(dep ? [{ text: ac.flightPlan.sid ?? ac.flightPlan.destination, item: 'sid' }] : [{ text: `${this.sim.approachTypeFor(ac.runway ?? this.sim.runway)} ${ac.runway ?? ''}`.trim() }]);
       }
     }
     const k = this.tagScale;

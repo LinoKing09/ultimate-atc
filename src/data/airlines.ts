@@ -42,6 +42,14 @@ export const AIRLINES: Airline[] = [
   { icao: 'UPS', telephony: 'UPS', types: ['B748', 'B744', 'B763', 'A306', 'B752'], destinations: ['KSDF', 'KPHL', 'EGNX'], weight: 1, callsignStyle: 'numeric', cargo: true },
   { icao: 'FDX', telephony: 'Fedex', types: ['B77L', 'B763'], destinations: ['KMEM', 'LFPG'], weight: 1, callsignStyle: 'numeric', cargo: true },
   { icao: 'BCS', telephony: 'Eurotrans', types: ['A306', 'B752'], destinations: ['EDDP', 'EGNX'], weight: 1, callsignStyle: 'alnum', cargo: true },
+  { icao: 'BOX', telephony: 'German Cargo', types: ['B77L'], destinations: ['VHHH', 'ZSPD', 'KCVG'], weight: 1, callsignStyle: 'numeric', cargo: true },
+  { icao: 'DHK', telephony: 'World Express', types: ['B763', 'B752'], destinations: ['EGNX', 'EBBR', 'LEMD'], weight: 1, callsignStyle: 'alnum', cargo: true },
+  { icao: 'ABR', telephony: 'Contract', types: ['B738', 'B737'], destinations: ['EIDW', 'LIMC', 'LEBL'], weight: 1, callsignStyle: 'alnum', cargo: true },
+  { icao: 'CKS', telephony: 'Connie', types: ['B744', 'B77L'], destinations: ['KCVG', 'KJFK'], weight: 1, callsignStyle: 'numeric', cargo: true },
+  { icao: 'GTI', telephony: 'Giant', types: ['B744', 'B748'], destinations: ['KCVG', 'VHHH', 'OMDB'], weight: 1, callsignStyle: 'numeric', cargo: true },
+  { icao: 'PAC', telephony: 'Polar', types: ['B77L', 'B744'], destinations: ['KCVG', 'VHHH'], weight: 1, callsignStyle: 'numeric', cargo: true },
+  { icao: 'MNB', telephony: 'Black Sea', types: ['A332'], destinations: ['LTFM', 'OBBI'], weight: 1, callsignStyle: 'numeric', cargo: true },
+  { icao: 'SRR', telephony: 'Whitestar', types: ['B763'], destinations: ['EKCH', 'ESSA', 'EGNX'], weight: 1, callsignStyle: 'numeric', cargo: true },
   { icao: 'DCX', telephony: '', types: ['C56X', 'CL35'], destinations: ['EDDB', 'LFMN', 'LSGG', 'EGLF', 'LIML'], weight: 1, callsignStyle: 'reg' },
 ];
 

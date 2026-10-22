@@ -1,4 +1,5 @@
 import { otherEnd, type Airport, type TaxiNode } from '../core/airport/airport';
+import { capitalize, runwayWords } from '../core/runways';
 import type { Compass, StationType } from '../core/airport/types';
 import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
@@ -365,7 +366,7 @@ export class App {
     this.setSpeed(1);
     const staffed = sim.config.airport.stations.filter((st) => sim.userControls(st.type)).map((st) => `${st.callsign} (${st.name}, ${st.frequency})`);
     if (tutorial) this.hint(`Tutorial ${tutorial.tutorial.title}: follow the steps in the tutorial panel. "Show me" puts the example instruction into the command line - send it with Enter or SEND.`);
-    this.hint(`Connected as ${staffed.join(' + ')}. Runway ${sim.runway} in use. BRIEFING shows the airport briefing, F1 the help. End the session with DISCONNECT - it shows your debriefing, which is not saved.`);
+    this.hint(`Connected as ${staffed.join(' + ')}. ${capitalize(runwayWords(sim.runways))} in use. BRIEFING shows the airport briefing, F1 the help. End the session with DISCONNECT - it shows your debriefing, which is not saved.`);
     // Reloading or closing the page ends the session without the debriefing: the browser asks first.
     window.addEventListener('beforeunload', (e) => {
       if (this.leaving) return;
@@ -424,10 +425,10 @@ export class App {
         })
         .join(' + ') + (active.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '');
     if (this.fields.station.innerHTML !== html) this.fields.station.innerHTML = html;
-    this.fields.rwy.innerHTML = `RWY <b>${sim.runway}</b>`;
+    this.fields.rwy.innerHTML = `RWY <b>${sim.runways.join(' ')}</b>`;
     this.fields.atis.innerHTML = `ATIS <b>${sim.atisLetter}</b>`;
     const wind = sim.observedWind;
-    const tail = sim.windComponents(sim.runway, wind).headwind < -5;
+    const tail = sim.runways.some((r) => sim.windComponents(r, wind).headwind < -5);
     const gust = wind.gustKt ? `G${wind.gustKt}` : '';
     this.fields.wind.innerHTML = `<b${tail || sim.storm ? ' class="bad"' : ''}>${String(wind.direction).padStart(3, '0')}/${String(wind.speedKt).padStart(2, '0')}${gust}</b>KT${sim.storm ? ' TS' : ''}`;
     this.fields.wind.title = sim.storm
@@ -543,7 +544,7 @@ export class App {
   /** Mobile mode: one-tap buttons for the most common instructions to the selected aircraft. */
   private updateQuickbar(): void {
     if (this.allStationsMode && this.settings.device === 'mobile' && !this.selected) {
-      const key = `ALL|${this.sim.atisLetter}|${this.sim.runway}`;
+      const key = `ALL|${this.sim.atisLetter}|${this.sim.runwayKey}`;
       this.quickbar.classList.add('show');
       if (key === this.quickbarKey) return;
       this.quickbarKey = key;
@@ -985,7 +986,7 @@ export class App {
     const sim = this.sim;
     return [
       { label: `Information ${sim.atisLetter} is now current`, short: `INFO ${sim.atisLetter}`, phrase: `information ${sim.atisLetter} is now current, QNH ${sim.atis.qnh}` },
-      { label: `Runway ${sim.runway} in use`, short: `RWY ${sim.runway}`, phrase: `runway ${sim.runway} in use` },
+      { label: `${capitalize(runwayWords(sim.runways))} in use`, short: `RWY ${sim.runways.join('/')}`, phrase: `${runwayWords(sim.runways)} in use` },
       { label: 'Standby', short: 'STBY', phrase: 'standby' },
       { label: 'Expect delays', short: 'DELAYS', phrase: 'expect delays' },
     ];
@@ -1223,8 +1224,8 @@ export class App {
         disabled: !onRoute.length,
         submenu: () => onRoute.map((t) => ({ label: `Taxiway ${t}`, action: () => this.say(ac, `hold short of taxiway ${t}`) })),
       });
-      const rwyStop = ac.stoppedAt?.kind === 'runway' || ac.stops.some((s) => s.kind === 'runway');
-      items.push({ label: `Cross runway ${rwy}`, disabled: !rwyStop, action: () => this.say(ac, `cross runway ${rwy}`) });
+      const cross = this.crossingRunway(ac);
+      items.push({ label: `Cross runway ${cross ?? rwy}`, disabled: !cross, action: () => this.say(ac, `cross runway ${cross}`) });
       const partner = headOnPartner(sim, ac);
       if (partner) items.push(this.resolveItem(ac, partner));
       if (ac.category !== 'tow') items.push(this.followMeItem(ac));
@@ -1274,9 +1275,10 @@ export class App {
     const sim = this.sim;
     const items: MenuItem[] = [];
     const rwy = ac.runway ?? sim.runway;
+    const rwyEnd = sim.tower.endFor(rwy);
     const ground = sim.airport.station(sim.stationFor('ground'));
     const radar = sim.airport.station('APP');
-    const eta = sim.tower.nextArrivalEta();
+    const eta = sim.tower.nextArrivalEta(rwyEnd);
     const arrival = Number.isFinite(eta) ? `next arrival ${Math.round(eta)} s` : 'no arrival';
     // Tower may give taxi instructions too: a vacated arrival to its stand, a crossing aircraft on.
     if (ac.onGround && ac.phase === 'taxi' && (ac.category !== 'departure' || ac.returnToStand)) {
@@ -1308,7 +1310,7 @@ export class App {
         // Live while the menu is open: runway, CTOT, the spacing countdown, the next arrival.
         hint: () => {
           const wait = Math.max(0, Math.round(sim.tower.spacingRemaining(ac)));
-          const eta = sim.tower.nextArrivalEta();
+          const eta = sim.tower.nextArrivalEta(sim.tower.departureEnd(ac));
           if (sim.tower.runwayBusyForDeparture(ac)) return 'runway occupied!';
           if (slotOpens !== undefined && sim.time < slotOpens) return `CTOT: not before ${hhmm(sim, slotOpens)}!`;
           if (wait) return `spacing: wait ${wait} s`;
@@ -1337,7 +1339,7 @@ export class App {
       items.push({
         label: `Cleared to land runway ${rwy}`,
         disabled: !!ac.landingCleared,
-        hint: sim.tower.runwayBusy() ? 'runway occupied!' : `${sim.distanceToThresholdNm(ac).toFixed(1)} NM`,
+        hint: sim.tower.runwayBusy(ac, rwyEnd) ? 'runway occupied!' : `${sim.distanceToThresholdNm(ac).toFixed(1)} NM`,
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared to land`),
       });
       items.push({ label: 'Continue approach', disabled: !!ac.landingCleared || !!ac.continueApproachGiven, action: () => this.say(ac, 'continue approach') });
@@ -1361,7 +1363,8 @@ export class App {
       const exits = sim.airport.exits(rwy);
       items.push({ label: 'Vacate via', submenu: () => exits.map((e) => ({ label: `Taxiway ${e.name}`, hint: e.rapid ? 'rapid' : undefined, action: () => this.say(ac, `vacate via ${e.name}`) })) });
     }
-    if (ac.onGround && ac.stoppedAt?.kind === 'runway') items.push({ label: `Cross runway ${rwy}`, hint: sim.tower.runwayBusy() ? 'runway occupied!' : arrival, action: () => this.say(ac, `cross runway ${rwy}`) });
+    const cross = ac.onGround && ac.stoppedAt?.kind === 'runway' ? this.crossingRunway(ac) : undefined;
+    if (cross) items.push({ label: `Cross runway ${cross}`, hint: !sim.tower.crossingFree(ac.stoppedAt!.target) ? 'runway occupied!' : arrival, action: () => this.say(ac, `cross runway ${cross}`) });
     // Arrivals can be handed to Ground right after touchdown (they call Ground once vacated).
     if (ac.onGround && ground && (ac.phase === 'taxi' || (ac.category === 'arrival' && (ac.phase === 'landing' || ac.phase === 'vacating')))) {
       items.push({ label: `Contact Ground ${ground.frequency}`, hint: ac.request === 'vacated' ? 'vacated' : undefined, action: () => this.say(ac, `contact ground ${ground.frequency}`) });
@@ -1380,7 +1383,7 @@ export class App {
     const squawk = ac.clearance?.squawk || allocateSquawk(sim);
     const suggested = suggestedSid(sim, ac);
     const sids = sim.config.airport.sids
-      .filter((sd) => sd.runway === sim.runway)
+      .filter((sd) => sim.isRunwayInUse(sd.runway))
       .sort((a, b) => (a.name === suggested ? -1 : b.name === suggested ? 1 : a.name.localeCompare(b.name)));
     const sidHint = (name: string, fix: string) => (name === suggested ? `${fix} - flight plan` : fix);
     const dest = destinationName(ac.flightPlan.destination);
@@ -1455,7 +1458,7 @@ export class App {
       for (const e of ops.departureEntries) {
         const label = `${e.holdingPoint}  RWY ${ops.runway}${e.fullLength ? '' : ' (intersection)'}`;
         const item = this.routeItem(ac, label, `holding point ${e.holdingPoint} runway ${ops.runway}`);
-        if (ops.runway !== sim.runway) item.label += ' - not in use';
+        if (!sim.isRunwayInUse(ops.runway)) item.label += ' - not in use';
         items.push(item);
       }
     }
@@ -1488,6 +1491,15 @@ export class App {
     };
   }
 
+  /**
+   * The runway an aircraft holds short of (or will, on its route) as said in a crossing clearance: the end in use,
+   * else the lower-numbered end ("cross runway 24").
+   */
+  private crossingRunway(ac: Aircraft): string | undefined {
+    const target = ac.stoppedAt?.kind === 'runway' ? ac.stoppedAt.target : ac.stops.find((s) => s.kind === 'runway')?.target;
+    return target ? (this.sim.activeEndOn(target) ?? target.split('/')[0]) : undefined;
+  }
+
   /** "Follow the follow-me" - to the allocated stand if the aircraft has no route yet. */
   private followMeItem(ac: Aircraft): MenuItem {
     const toStand = !ac.route && ac.assignedStand;
@@ -1501,7 +1513,7 @@ export class App {
 
   /** "Advise able for departure from intersection X" for the intersections of the runway in use. */
   private ableItem(ac: Aircraft): MenuItem {
-    const ops = this.sim.airport.runwayOps(this.sim.runway);
+    const ops = this.sim.airport.runwayOps(this.sim.departureRunwayOf(ac));
     const entries = ops?.departureEntries.filter((e) => !e.fullLength) ?? [];
     return {
       label: 'Able intersection?',

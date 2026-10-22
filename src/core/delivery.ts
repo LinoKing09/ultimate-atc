@@ -3,6 +3,7 @@ import type { AirportData, SidData } from './airport/types';
 import { destinationBearing, destinationName, resolveDestination } from '../data/destinations';
 import type { Altitude, Command } from './phraseology/commands';
 import { formatAltitude, formatSidClimb } from './phraseology/format';
+import { runwayWords } from './runways';
 import type { Simulation } from './simulation';
 
 /**
@@ -122,10 +123,22 @@ function routeFix(ac: Aircraft): string {
   return ac.flightPlan.route.split(' ')[0];
 }
 
-/** The SID the flight plan suggests for the runway in use (same first fix). */
+/** The SID the flight plan suggests for the aircraft's runway in use (same first fix). */
 export function suggestedSid(sim: Simulation, ac: Aircraft): string | undefined {
   const fix = routeFix(ac);
-  return sim.config.airport.sids.find((s) => s.runway === sim.runway && s.fix === fix)?.name ?? ac.flightPlan.sid;
+  const runway = sim.isRunwayInUse(ac.runway) ? ac.runway : sim.runway;
+  return sim.config.airport.sids.find((s) => s.runway === runway && s.fix === fix)?.name ?? ac.flightPlan.sid;
+}
+
+/** "runway 25" / "runways 26R and 26L" in use, for the crews' queries. */
+function inUseWords(sim: Simulation): string {
+  return runwayWords(sim.runways);
+}
+
+/** The departure gets the runway of its SID (with parallel runways the SID designator names the runway). */
+function assignSidRunway(ac: Aircraft, sidRunway: string): void {
+  ac.runway = sidRunway;
+  ac.flightPlan.runway = sidRunway;
 }
 
 /** Called for every new departure: CTOT, DCL equipment, and the clearance if Delivery is run by the AI. */
@@ -158,9 +171,9 @@ export function execClearance(sim: Simulation, ac: Aircraft, c: Extract<Command,
   const sid = c.sid ? sim.config.airport.sids.find((s) => s.name === c.sid) : undefined;
   if (!c.sid) queries.push('request departure route');
   else if (!sid) queries.push(`confirm ${c.sid} departure`);
-  else if (sid.runway !== sim.runway) queries.push(`confirm ${sid.name} departure, information ${sim.atisLetter} says runway ${sim.runway} in use`);
+  else if (!sim.isRunwayInUse(sid.runway)) queries.push(`confirm ${sid.name} departure, information ${sim.atisLetter} says ${inUseWords(sim)} in use`);
   else if (sid.fix !== routeFix(ac)) queries.push(`confirm ${sid.name} departure, our flight plan is via ${routeFix(ac)}`);
-  if (c.runway && sim.airport.runwayEnd(c.runway) && c.runway !== sim.runway) queries.push(`confirm runway ${c.runway}, information ${sim.atisLetter} says runway ${sim.runway}`);
+  if (c.runway && sim.airport.runwayEnd(c.runway) && !sim.isRunwayInUse(c.runway)) queries.push(`confirm runway ${c.runway}, information ${sim.atisLetter} says ${inUseWords(sim)}`);
   if (!c.climb) queries.push('confirm initial climb');
   if (!c.squawk) queries.push('request squawk');
   else if (!isValidSquawk(c.squawk)) queries.push(`confirm squawk ${c.squawk}`);
@@ -169,7 +182,7 @@ export function execClearance(sim: Simulation, ac: Aircraft, c: Extract<Command,
   const squawk = c.squawk!;
   ac.clearance = { sid: sid!.name, climb: formatAltitude(c.climb!), squawk };
   fp.sid = sid!.name;
-  fp.runway = sim.runway;
+  assignSidRunway(ac, sid!.runway);
   fp.squawk = squawk;
   ac.cleared = true;
   // A new clearance: its readback is still to be checked.
@@ -240,7 +253,7 @@ export function sendDcl(sim: Simulation, ac: Aircraft, sidName: string, squawk: 
   if (!isValidSquawk(squawk)) return `Invalid squawk ${squawk}`;
   ac.clearance = { sid: sid.name, climb: formatAltitude(initialClimb(sim)), squawk };
   ac.flightPlan.sid = sid.name;
-  ac.flightPlan.runway = sim.runway;
+  assignSidRunway(ac, sid.runway);
   ac.flightPlan.squawk = squawk;
   ac.cleared = true;
   if (ac.request === 'clearance') {

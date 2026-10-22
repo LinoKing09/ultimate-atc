@@ -151,7 +151,8 @@ describe('tower position', () => {
     expect(runUntil(sim, () => ac.request === 'departure', 1500)).toBe(true);
     expect(runUntil(sim, () => ac.phase === 'holding', 600)).toBe(true);
     // A heavy became airborne 30 s ago: 2 minutes of wake turbulence spacing are required.
-    (sim.tower as unknown as { lastDeparture: { airborneAt: number; wake: string } }).lastDeparture = { airborneAt: sim.time - 30, wake: 'H' };
+    const lastDepartures = (sim.tower as unknown as { lastDepartures: Map<string, { airborneAt: number; wake: string }> }).lastDepartures;
+    lastDepartures.set(sim.tower.departureEnd(ac).runway, { airborneAt: sim.time - 30, wake: 'H' });
     sim.transmit('EWG8LM cleared for take-off');
     expect(runUntil(sim, () => ac.phase === 'takeoff', 120)).toBe(true);
     expect(sim.stats.separationLosses).toBe(1);

@@ -17,6 +17,7 @@ ultimate-atc/
 │   │   ├── path.ts            # smoothed polylines that aircraft move along
 │   │   ├── random.ts          # seeded PRNG
 │   │   ├── scenario.ts        # scenario codes (format/parse), presets
+│   │   ├── runways.ts         # runway keys ("26R+26L": parallel runways in use), runway choices, runways in words
 │   │   ├── levels.ts          # five-step sliders: density, traffic mix, heavies, special events
 │   │   ├── night.ts           # night flying restrictions (curfew planning, jets that miss it)
 │   │   ├── weather.ts         # wind type and formatting, thunderstorm event
@@ -31,7 +32,7 @@ ultimate-atc/
 │   │   ├── aircraft.ts        # Aircraft state, flight plan, phases
 │   │   ├── movement.ts        # path following, speed control, see-and-avoid, collisions
 │   │   ├── pilot.ts           # AI pilots: executing instructions, read-backs, own calls
-│   │   ├── tower.ts           # AI Tower: approach, landing, line-up, take-off, incursions, CTOT windows
+│   │   ├── tower.ts           # AI Tower: approach, landing, line-up, take-off, incursions, CTOT windows - per runway in use (parallel runways)
 │   │   ├── delivery.ts        # Clearance Delivery: IFR clearances, squawks, readback errors, CTOTs, DCL, A-CDM sequencer
 │   │   ├── groundAI.ts        # AI Ground (when the user doesn't staff Ground)
 │   │   ├── conflicts.ts       # A-SMGCS: CATC head-on checks, Resolve conflict options, RMCA runway alerts
@@ -39,7 +40,7 @@ ultimate-atc/
 │   │   ├── debrief.ts         # score table and the debriefing after a session
 │   │   ├── systems.ts         # airport/ATC systems (A-SMGCS services, A-CDM, DCL, ILS) and their states
 │   │   ├── vehicles.ts        # follow-me cars, tug positions, tow creation
-│   │   ├── traffic.ts         # traffic generator: departures, arrivals, callsigns, stands
+│   │   ├── traffic.ts         # traffic generator: departures, arrivals (Approach spacing, runway per arrival), callsigns, stands
 │   │   ├── radio.ts           # single-frequency radio with queued pilot transmissions
 │   │   ├── simulation.ts      # the world: owns everything above, fixed-step loop, stats
 │   │   └── phraseology/
@@ -58,7 +59,7 @@ ultimate-atc/
 │   │       ├── osmLayout.ts   # buildLayout(): taxi graph, stands, pavement lines from an OSM layout
 │   │       ├── edds.ts        # Stuttgart (layout, stands, runway operations, traffic, briefing)
 │   │       ├── edds.buildings.ts  # Stuttgart buildings (generated from OpenStreetMap)
-│   │       ├── eddk.ts, eddn.ts, eddw.ts, edja.ts, edxw.ts  # Cologne/Bonn, Nuremberg, Bremen, Memmingen, Sylt (options for buildLayout, operations, traffic, briefing)
+│   │       ├── eddk.ts, eddn.ts, eddp.ts, eddw.ts, edja.ts, edxw.ts  # Cologne/Bonn, Nuremberg, Leipzig/Halle, Bremen, Memmingen, Sylt (options for buildLayout, operations, traffic, briefing)
 │   │       └── *.layout.ts    # layouts generated from OpenStreetMap by scripts/osm-import.mjs
 │   └── ui/                    # browser client
 │       ├── app.ts             # wires sim <-> scope, lists, messages, command line, menus

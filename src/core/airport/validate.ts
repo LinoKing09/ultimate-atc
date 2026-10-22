@@ -81,6 +81,21 @@ export function validateAirport(data: AirportData): string[] {
       if (!ok) add(`de-icing pad ${pad.name} cannot reach a full-length entry of runway ${ops.runway}`);
     }
   }
+  // Parallel runways: ends with runway operations, on different runways in the same direction; known aprons.
+  const aprons = new Set([...airport.stands.values()].map((s) => s.apron));
+  for (const p of data.parallelRunways ?? []) {
+    const ends = p.ends.map((e) => airport.runwayEnd(e));
+    if (p.ends.length < 2) add(`parallel runways ${p.ends.join('+')}: at least two runway ends`);
+    for (const [i, e] of ends.entries()) if (!e || !airport.runwayOps(e.name)) add(`parallel runways ${p.ends.join('+')}: no runway operations for ${p.ends[i]}`);
+    const runways = ends.filter((e) => !!e).map((e) => e!.runway);
+    if (new Set(runways).size !== runways.length) add(`parallel runways ${p.ends.join('+')}: two ends of the same runway`);
+    if (ends.every((e) => !!e) && ends.some((e) => Math.abs(((e!.heading - ends[0]!.heading + 540) % 360) - 180) > 10)) add(`parallel runways ${p.ends.join('+')}: not the same direction`);
+    for (const [apron, runway] of Object.entries(p.aprons ?? {})) {
+      if (!aprons.has(apron)) add(`parallel runways ${p.ends.join('+')}: unknown apron ${apron}`);
+      if (!runways.includes(runway)) add(`parallel runways ${p.ends.join('+')}: apron ${apron} on ${runway}, not one of these runways`);
+    }
+    if (p.largeAircraft && !runways.includes(p.largeAircraft.runway)) add(`parallel runways ${p.ends.join('+')}: large aircraft on ${p.largeAircraft.runway}, not one of these runways`);
+  }
   if (!data.stations.some((s) => s.type === 'GND') && !data.stations.some((s) => s.type === 'TWR')) add('has neither a Ground nor a Tower station');
   for (const id of data.runwayCrossings ?? []) {
     const n = airport.nodes.get(id);

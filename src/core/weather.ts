@@ -96,7 +96,7 @@ export function updateWeather(sim: Simulation): void {
     sim.system(
       `${SCENARIO_EVENT_TEXT.thunderstorm}: thunderstorm overhead, gust front - surface wind ${formatWind(wind, true)}${tail > 0 ? `, ${tail} kt tailwind on runway ${sim.runway}` : ''}. ` +
         `Lightning: ground handling stopped (no pushbacks), crews will not take off. Windshear on final - expect go-arounds.` +
-        `${best !== sim.runway ? ` Consider runway ${best}.` : ''} Broadcast a new ATIS.`,
+        `${!sim.isRunwayInUse(best) ? ` Consider runway ${best}.` : ''} Broadcast a new ATIS.`,
       'warning',
     );
     return;
@@ -109,7 +109,7 @@ export function updateWeather(sim: Simulation): void {
   const best = sim.bestRunwayForWind(wind);
   sim.system(
     `${SCENARIO_EVENT_TEXT.thunderstorm}: the thunderstorm has passed. Ground handling resumes, departures may go again. Surface wind ${formatWind(wind, true)}.` +
-      `${best !== sim.runway ? ` Runway ${best} is better now.` : ''} Broadcast a new ATIS.`,
+      `${!sim.isRunwayInUse(best) ? ` Runway ${best} is better now.` : ''} Broadcast a new ATIS.`,
   );
 }
 

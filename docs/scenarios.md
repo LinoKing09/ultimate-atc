@@ -40,7 +40,7 @@ EDDS-25-MB0-S20-T2215.N.CE.CS-K7Q2M      (with the optional options part)
 | Part     | Example     | Meaning                                                                                       |
 | -------- | ----------- | --------------------------------------------------------------------------------------------- |
 | Airport  | `EDDS`      | Airport ICAO code                                                                              |
-| Runway   | `25`        | Runway in use at the start. `AUTO` = from the random wind                                      |
+| Runway   | `25`        | Runway in use at the start. `AUTO` = from the random wind. Parallel runways used together are joined with a dot: `26R.26L` (Leipzig/Halle) |
 | Traffic  | `HD1` or `4213` | **Letter form**: density (`L` light, `M` medium, `H` heavy), traffic mix (`B` balanced, `D` departure rush, `A` arrival rush), flags (`0` none, `1` heavies 35 %, `2` random special events "rare", `3` both). **Digit form** for the other slider steps: density 1-5, mix 1-5 (1 departure rush ... 3 balanced ... 5 arrival rush), heavies 0-4, random events 0-4 (see the tables below). The letter form is used whenever it fits, so older codes stay the same |
 | Events   | `M10R20W30` | Scheduled events: a letter and the minute after the start. `M` medical emergency (arrival), `D` medical emergency (departure), `R` rejected take-off, `W` wind shift, `S` thunderstorm. `X` = none |
 | Options  | `T2215.N.CE` | *Optional* (codes without options have five parts and are still valid). Tokens separated by `.`: `T2215` start at 22:15 local airport time, `N` night flying restrictions, `C` + taxiway (`CE`, `CL2`) taxiway closed - one token per closed taxiway, `I` de-icing (winter operations) |

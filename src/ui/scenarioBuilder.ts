@@ -1,4 +1,5 @@
 import type { AirportData } from '../core/airport/types';
+import { runwayChoices } from '../core/runways';
 import { closureProblems } from '../core/airport/validate';
 import { minutesToHhmm } from '../core/time';
 import {
@@ -45,7 +46,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
     // ---------------------------------------------------------------- controls
     const runwaySel = h('select');
     runwaySel.append(h('option', { value: '', text: 'From the wind (random)' }));
-    for (const o of airport.runwayOps) runwaySel.append(h('option', { value: o.runway, text: `Runway ${o.runway}` }));
+    for (const c of runwayChoices(airport)) runwaySel.append(h('option', { value: c.key, text: c.label }));
     const densitySlider = levelSlider(DENSITIES.map((d) => d.label), densityIndex(s.density), (i) => ((s.density = DENSITIES[i].value), output()));
     const mixSlider = levelSlider(MIXES.map((m) => m.label), mixIndex(s.mix), (i) => ((s.mix = MIXES[i].value), output()));
     const heavySlider = levelSlider(HEAVY_SHARES.map((x) => x.label), s.heavyLevel, (i) => ((s.heavyLevel = i), output()));

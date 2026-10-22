@@ -1,4 +1,5 @@
 import type { BriefingSection } from '../core/airport/types';
+import { capitalize, runwayWords } from '../core/runways';
 import type { Simulation } from '../core/simulation';
 import { h } from './dom';
 import { nightRules } from '../core/night';
@@ -52,12 +53,17 @@ export function renderBriefing(sim: Simulation): HTMLElement {
   ];
   const freqs: [string, string][] = ap.stations.map((s) => [s.callsign, `${s.name} ${s.frequency}${sim.userControls(s.type) ? '  (you)' : ''}`]);
 
-  // The runway in use right now.
-  const ops = sim.airport.runwayOps(sim.runway);
+  // The runway(s) in use right now.
   const w = sim.observedWind;
+  const inUse = capitalize(runwayWords(sim.runways));
   const now: [string, string][] = [
-    ['Runway / ATIS', `Runway ${sim.runway}, information ${sim.atisLetter}, wind ${formatWind(w, true)}, QNH ${sim.atis.qnh}`],
+    ['Runway / ATIS', `${inUse}, information ${sim.atisLetter}, wind ${formatWind(w, true)}, QNH ${sim.atis.qnh}`],
   ];
+  const parallel = sim.parallelOps;
+  if (parallel) {
+    const mode = { independent: 'independent (no spacing between the finals)', dependent: 'dependent (1.5 NM diagonal between the finals)', staggered: 'staggered (3 NM diagonal between the finals)' }[parallel.approaches];
+    now.push(['Parallel runways', `Take-offs and landings on both; each aircraft gets the runway of its apron (or the nearest one), wide-bodies from ${parallel.largeAircraft?.minWingspanM ?? '-'} m the ${parallel.largeAircraft?.runway ?? '-'} runway. Approaches ${mode}; departures from the two runways are independent.`]);
+  }
   // Scenario conditions: closed taxiways, night rules, thunderstorm.
   const closed = [...sim.airport.closedTaxiways].sort();
   if (closed.length) now.push(['Closed taxiways', `${closed.join(', ')} - also their runway entries and exits. Crews refuse routes over them ("unable, taxiway ${closed[0]} closed"); automatic routes go around them.`]);
@@ -78,14 +84,17 @@ export function renderBriefing(sim: Simulation): HTMLElement {
     ]);
   }
   if (sim.storm) now.push(['Weather', sim.storm.phase === 'overhead' ? 'Thunderstorm overhead: no pushbacks, no take-offs, windshear on final.' : 'Thunderstorm approaching.']);
-  if (ops) {
-    // With the take-off run available where it is published.
+  for (const runway of sim.runways) {
+    const ops = sim.airport.runwayOps(runway);
+    if (!ops) continue;
+    // With the take-off run available where it is published; with parallel runways per runway.
+    const tag = sim.runways.length > 1 ? ` ${runway}` : '';
     const entry = (e: (typeof ops.departureEntries)[number]) => `${e.holdingPoint}${e.toraM !== undefined ? ` ${e.toraM} m` : ''}`;
     const full = ops.departureEntries.filter((e) => e.fullLength).map(entry);
     const inter = ops.departureEntries.filter((e) => !e.fullLength).map(entry);
-    now.push(['Departures', `full length ${full.join(' / ') || '-'}${inter.length ? `; intersections ${inter.join(', ')} (ask "able" first)` : ''}`]);
-    now.push(['Arrival exits', ops.exits.map((x) => `${x.name}${x.rapid ? ' (rapid)' : ''}`).join(', ')]);
-    if (ops.flows?.length) now.push(['Taxi flows', ops.flows.map((f) => `${f.taxiway} ${f.direction}bound`).join(', ')]);
+    now.push([`Departures${tag}`, `full length ${full.join(' / ') || '-'}${inter.length ? `; intersections ${inter.join(', ')} (ask "able" first)` : ''}`]);
+    now.push([`Arrival exits${tag}`, ops.exits.map((x) => `${x.name}${x.rapid ? ' (rapid)' : ''}`).join(', ')]);
+    if (ops.flows?.length) now.push([`Taxi flows${tag}`, ops.flows.map((f) => `${f.taxiway} ${f.direction}bound`).join(', ')]);
   }
 
   const sections = (ap.briefing ?? []).filter((s) => !s.positions || s.positions.some((p) => sim.userControls(p)));
@@ -95,7 +104,7 @@ export function renderBriefing(sim: Simulation): HTMLElement {
     h('div.sub', { text: `Briefing for ${mine.map((s) => s.callsign).join(' + ')}. Everything here is also in the documentation; open it again at any time with BRIEFING in the toolbar.` }),
     h('h2', { text: 'At a glance' }),
     table(undefined, glance),
-    h('h2', { text: `Now: runway ${sim.runway} in use` }),
+    h('h2', { text: `Now: ${runwayWords(sim.runways)} in use` }),
     table(undefined, now),
     ...sections.map(section),
     h('h2', { text: 'Frequencies' }),

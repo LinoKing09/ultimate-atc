@@ -4,6 +4,7 @@
  */
 export const DESTINATION_NAMES: Record<string, string> = {
   BKPR: 'Pristina',
+  EBBR: 'Brussels',
   EDDB: 'Berlin',
   EDDF: 'Frankfurt',
   EDDH: 'Hamburg',
@@ -34,6 +35,8 @@ export const DESTINATION_NAMES: Record<string, string> = {
   GCTS: 'Tenerife South',
   GMMX: 'Marrakesh',
   HEGN: 'Hurghada',
+  KCVG: 'Cincinnati',
+  KJFK: 'New York',
   KMEM: 'Memphis',
   KPHL: 'Philadelphia',
   KSDF: 'Louisville',
@@ -84,9 +87,13 @@ export const DESTINATION_NAMES: Record<string, string> = {
   LWSK: 'Skopje',
   LYBE: 'Belgrade',
   LYPG: 'Podgorica',
+  OBBI: 'Bahrain',
+  OMDB: 'Dubai',
   UGKO: 'Kutaisi',
+  VHHH: 'Hong Kong',
   VOBL: 'Bengaluru',
   ZGGG: 'Guangzhou',
+  ZSPD: 'Shanghai',
 };
 
 /**
@@ -95,6 +102,7 @@ export const DESTINATION_NAMES: Record<string, string> = {
  */
 export const DESTINATION_POSITIONS: Record<string, [number, number]> = {
   BKPR: [42.573, 21.036],
+  EBBR: [50.901, 4.484],
   EDDB: [52.362, 13.502],
   EDDF: [50.027, 8.558],
   EDDH: [53.630, 9.988],
@@ -125,6 +133,8 @@ export const DESTINATION_POSITIONS: Record<string, [number, number]> = {
   GCTS: [28.044, -16.573],
   GMMX: [31.605, -8.036],
   HEGN: [27.177, 33.797],
+  KCVG: [39.049, -84.668],
+  KJFK: [40.641, -73.778],
   KMEM: [35.042, -89.977],
   KPHL: [39.872, -75.241],
   KSDF: [38.174, -85.736],
@@ -175,9 +185,13 @@ export const DESTINATION_POSITIONS: Record<string, [number, number]> = {
   LWSK: [41.958, 21.623],
   LYBE: [44.818, 20.309],
   LYPG: [42.359, 19.252],
+  OBBI: [26.271, 50.634],
+  OMDB: [25.253, 55.364],
   UGKO: [42.177, 42.485],
+  VHHH: [22.308, 113.918],
   VOBL: [13.198, 77.706],
   ZGGG: [23.392, 113.299],
+  ZSPD: [31.143, 121.805],
 };
 
 /**

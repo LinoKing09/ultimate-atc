@@ -47,7 +47,7 @@ taxi --(reaches destination holding point)--> holding --(contact Tower)--> [Towe
 | Delivery            | With Delivery staffed by you, it starts on Delivery frequency without a clearance: see [Delivery, A-CDM and slots](#delivery-a-cdm-and-slots). Otherwise it already has its clearance and starts on Ground. |
 | Pushback call       | On Ground: at the ready time, or with A-CDM at **TSAT - 2 min** unless start-up was already approved by Delivery (then at the ready time, at the earliest 20 s after the hand-off). |
 | Tug connection      | 6-15 s after the pushback approval, the push starts.                                       |
-| Pushback            | 1.3 m/s (~2.5 kt) backwards along the stand lead-in line, then 45 m (at most 90% of the taxilane segment) along the taxilane. Drive-through stands have no pushback: the aircraft calls `request taxi` and leaves forwards. |
+| Pushback            | 1.3 m/s (~2.5 kt) backwards along the stand lead-in line, then 45 m (at most 90% of the taxilane segment) along the taxilane. Without a `facing` the crew faces the shortest way to its runway; a direction that would need a 180 degree turn afterwards (towards the dead end of a taxilane) only if there is no other. Drive-through stands have no pushback: the aircraft calls `request taxi` and leaves forwards. |
 | Engine start        | After the push: 15-35 s with *push and start* or *start-up approved*, otherwise 40-80 s.    |
 | Ready for taxi      | The pilot calls `ready for taxi`. A taxi instruction received earlier is executed now.      |
 | Holding point       | When stopped at the destination holding point, the aircraft reports `ready for departure` after 8 s if it is still on your frequency. |
@@ -104,7 +104,7 @@ Acceleration is 0.6 m/s² times the taxi pace. Braking is up to 2.5 m/s². The t
 
 **Cancelled pushback**: if the aircraft has already moved, the tug tows it back along the same line onto the stand. It is then parked again and calls 60-150 s later.
 
-**Automatic routes** (no `via` list: pilots' own choice, menu suggestions, pushback direction) also follow the airport's **standard taxi flows** for the runway in use: they never taxi against a flow if there is any other route that doesn't need a 180 degree turn; only then a route against the flow is allowed (at 4 times the distance cost). They avoid runway crossings (3000 m extra cost per crossing). Where the airport names its crossing points (Stuttgart: only between K and Y), crossings elsewhere cost another 20 000 m, so they happen only if there is no other way (e.g. K or Y closed); taxiways reserved for others (Stuttgart Z, military) cost 20 000 m extra too. The lead lines of de-icing pads are only used to enter or leave a pad, with turns of at most 100° onto and off them.
+**Automatic routes** (no `via` list: pilots' own choice, menu suggestions, pushback direction) also follow the airport's **standard taxi flows** for the runway in use: they never taxi against a flow if there is any other route that doesn't need a 180 degree turn and doesn't cross a runway more often; only then a route against the flow is allowed (at 4 times the distance cost). They avoid runway crossings (3000 m extra cost per crossing). Where the airport names its crossing points (Stuttgart: only between K and Y), crossings elsewhere cost another 20 000 m, so they happen only if there is no other way (e.g. K or Y closed); taxiways reserved for others (Stuttgart Z, military) cost 20 000 m extra too. The lead lines of de-icing pads are only used to enter or leave a pad, with turns of at most 100° onto and off them.
 
 ## Pilot see-and-avoid
 
@@ -173,7 +173,7 @@ Source: `src/core/delivery.ts`.
 | ---- | ----- |
 | Clearance request | 10 min before the ready time (TOBT); immediately if the aircraft appears later than that. At session start staggered (see [Traffic generation](#traffic-generation)) |
 | DCL equipped | 40 % of the departures with an airline callsign (not German-registered `D-xxxx` aircraft), when DCL is on |
-| Initial climb | from the airport data (`initialClimbFt`: EDDS 5000 ft, the altitude of every published SID; Cologne/Bonn 5000 ft; Nuremberg and Memmingen FL70, Bremen and Sylt 4000 ft); 5000 ft if not set |
+| Initial climb | from the airport data (`initialClimbFt`: EDDS 5000 ft, the altitude of every published SID; Cologne/Bonn 5000 ft; Nuremberg, Memmingen and Leipzig/Halle FL70, Bremen and Sylt 4000 ft); 5000 ft if not set |
 | Squawk codes | next free code from the octal blocks 2101-2177, 2201-2277, 2301-2377, 2401-2477 (codes ending in 0 skipped; a simulator range, not the real ORCAM allocation). Special codes 7500, 7600, 7700, 7000, 2000, 1000, 0000 are refused |
 | Readback error | 4 % of voice clearances: two digits of the squawk read back swapped. Caught with `squawk <correct code>` (+5); passed with `readback correct` or a hand-off it stays: the crew sets the wrong code (-10) |
 | Crew queries | missing or unknown clearance limit, wrong destination, missing or unknown SID, SID of the wrong runway (`information R says runway 25 in use`) or not leading to the first fix of the flight plan, wrong runway, missing initial climb, missing or invalid squawk |
@@ -241,7 +241,7 @@ When you don't staff Ground (for example when you work Delivery alone), the AI G
 | Departure spacing | At the start of the roll, the required spacing (2 min behind a heavy, 3 from an intersection, 2 min same SID fix, 1 min diverging) is checked; too early counts as a separation loss |
 | Climb-out | Asks for a frequency change above 1500 ft above the airport; leaving (4000 ft) on Tower frequency counts as a missed hand-off. The crew reads back the radar frequency you give, or without one the frequency of its SID (Stuttgart southern departures: 119.200) |
 | Arrival | First call when Approach hands it over (8-10 NM; or right away if it appears closer), reminder at 2 NM, `one mile final, request landing clearance` at 1 NM; without a landing clearance it goes around only at **0.15 NM** (just before the threshold, incident); with a clearance it goes around at 0.5 NM if the runway is not clear |
-| Landing | Takes the exit given with `vacate via` if it can still reach it at normal braking, otherwise the usual one; reports vacated and waits for `contact ground` (calls again every 20 s if the call got lost) |
+| Landing | Takes the exit given with `vacate via` if it can still reach it at normal braking, otherwise the usual one - never one where a departure is holding at the holding point (an exit that is also a departure entry); reports vacated and waits for `contact ground` (calls again every 20 s if the call got lost) |
 | Backtrack (departure) | `backtrack runway 24, line up and wait` (or with the take-off clearance): the aircraft enters at its holding point, taxis along the runway towards the runway end at up to 18 kt, slows to 6 kt, turns around on the runway (a 180° turn of 11 m radius, 30 m from the end) and lines up on the centre line 80 m from the end. Only from a holding point at least 120 m from the runway end. At an entry marked for backtracking (Memmingen N for 24) the crew asks for it when the runway ahead is shorter than it needs, and refuses a line-up without it |
 | Backtrack (arrival) | At exits marked for backtracking (Memmingen N for 06): when no exit ahead can be made at normal braking, or Tower asks for an exit behind the aircraft (`backtrack, vacate via N`), it brakes to 6 kt, turns around on the runway where it has stopped (at the latest 50 m before the end), taxis back at up to 18 kt and vacates (10 kt on the exit) |
 | Runway crossing | The AI Ground hands an aircraft stopped at a runway holding point to Tower; after `cross runway 25` and crossing it reports vacated |
@@ -273,6 +273,23 @@ The **runway area** used for occupancy checks extends 70 m either side of the ce
 
 **Arrival spacing** (provided by the simulated Approach controller, see [traffic generation](#traffic-generation)): at least the wake turbulence minimum, and wider gaps when departures are waiting, so that one departure fits between two arrivals; on a runway where landing aircraft backtrack at least 10 NM, where departures backtrack at least 8 NM.
 
+## Parallel runways
+
+Airports with parallel runways (`parallelRunways` in the airport data, Leipzig/Halle) use both at the same time, each for take-offs and landings (mixed mode). The ATIS editor offers the parallel runways (`Runways 26R + 26L`, the default for the direction of the wind) and each runway on its own.
+
+| Topic | Rule |
+| ----- | ---- |
+| Runway of an aircraft | The runway of its apron (Leipzig: apron 1 and 3 the northern runway, the cargo aprons 2, 4, 5 the southern one); aircraft from a given wingspan always the runway named for them (Leipzig: 63 m and more, the southern runway); otherwise the runway nearest to its stand. Departures get it when they appear, with the SID of that runway (at Leipzig the SID letter names the runway) |
+| Delivery | The SID of a clearance must belong to a runway in use; it sets the departure's runway (`DRN3S` = 26L) |
+| Ground | `taxi to runway 26L` / `taxi to holding point S9` sends a departure to the other runway: it now departs from there, with the SID of that runway to the same exit fix (a message says so) |
+| Approach | Puts each arrival on the runway of its stand. If there is no gap on that final but on the other, it uses the other (not for the aircraft bound to one runway by their size). The spacing on each final is the same as with one runway (wake, departure gaps from the departures waiting for *that* runway, approach type of that runway). Between the finals: **dependent parallel approaches** (Leipzig, AIP) keep **1.5 NM** diagonal radar separation to the arrivals on the adjacent final, **staggered** approaches **3 NM**, **independent** approaches none. With centre lines `d` NM apart the required stagger along the final is `sqrt(diagonal² - d²)` (Leipzig: 2.1 km apart, 0.97 NM). Wake turbulence spacing applies on each final only (the simulator assumes parallel runways more than 760 m apart, as at Leipzig) |
+| Landing | Vacates on the side of its stand (not back across the runway) when it can reach such an exit |
+| AI Tower | Works each runway on its own: one line-up at a time per runway, occupancy, arrivals and departure spacing per runway (departures from parallel runways are independent - AIP: independent parallel departures). A crossing of a runway in use is cleared when nobody is on it and its next arrival is more than 90 s away; runways not in use can always be crossed |
+| You on Tower | Your line-up, take-off and landing clearances name the aircraft's runway (`runway 26L, cleared for take-off`); the take-off menu shows the next arrival to that runway; RMCA warns per runway |
+| Runway incursion | Per runway: entering a runway in use while an arrival to that runway is within 2.5 NM or an aircraft is lining up, taking off or landing on it |
+| Runway change | Aircraft whose runway stays in use keep it (e.g. from `26R + 26L` to `26L` only the northern ones change) |
+| ATIS | `ILS approach runways 26R and 26L, dependent parallel approaches in progress, runways 26R and 26L in use` (independent and dependent parallel approaches are announced, ICAO Doc 4444) |
+
 ## Runway incursions and go-arounds
 
 - **Runway incursion**: a taxiing aircraft (phase `taxi`) enters the runway area while an arrival is within 2.5 NM, or while another aircraft is lining up, taking off or landing. Taxiing aircraft only enter the runway area with a crossing clearance, so every incursion is caused by a crossing clearance given at the wrong moment. **-50 points.**
@@ -296,7 +313,7 @@ Two ground aircraft whose reference points come closer than `0.25 · (wingspan A
 | medium to heavy | 18         | 15              |
 | heavy    | 22                | 18              |
 
-These are the Stuttgart figures. Smaller airports scale them with their `rateFactor` (see [airport data](airport-data.md#traffic)): Nuremberg 0.6, Bremen 0.4, Memmingen 0.35, Sylt 0.25 (Cologne/Bonn 1, like Stuttgart). At Memmingen and Sylt (`standReserve` 1) no new departure takes the last free stand and Approach releases an arrival only when a stand is free for it; an arrival that still has none gets one (checked every 20 s) as soon as one becomes free.
+These are the Stuttgart figures. Smaller airports scale them with their `rateFactor` (see [airport data](airport-data.md#traffic)): Nuremberg 0.6, Bremen 0.4, Memmingen 0.35, Sylt 0.25 (Cologne/Bonn 1, like Stuttgart; Leipzig/Halle 1.1 on two runways). At Memmingen and Sylt (`standReserve` 1) no new departure takes the last free stand and Approach releases an arrival only when a stand is free for it; an arrival that still has none gets one (checked every 20 s) as soon as one becomes free.
 
 - **Initial situation**: about 55% of an hour's departures are already parked at stands, with ready times spread over the first 25 minutes, **denser towards the end** (`30 s + sqrt(u) x 24.5 min`), so the workload builds up gradually. Their first calls are **staggered**: the first after 15 s, each next one at least **90 s** later, in the order of their ready times. On Delivery that is the clearance request (a crew then needs at least 4 minutes until it is ready); on Ground the pushback call. One arrival is on a 4-6 NM final.
 - **New departures** appear at exponentially distributed intervals (a Poisson process) with the mean given by the rate.
@@ -312,7 +329,7 @@ These are the Stuttgart figures. Smaller airports scale them with their `rateFac
 - **Operators, types and destinations** come from the airport's `traffic` data (see [airport data format](airport-data.md#traffic)), weighted by each operator's share. At EDDS this follows the real airline shares (Eurowings about 40 %, SunExpress 8 %, TUIfly 6 %, Pegasus and the Lufthansa group 5 % each, Turkish 5 %, Condor 4 %, British Airways 4 % ...) and the busiest destinations (Palma, Antalya, Istanbul, Pristina, London, Barcelona, Berlin, Hamburg); see [EDDS](airports/EDDS.md#traffic). Airports without traffic data use the global list in [`src/data/airlines.ts`](../src/data/airlines.ts).
 - **Callsigns** are unique within a session: alphanumeric (`EWG7TK`), numeric (`THY1734`) or registrations (`DCMGB`), depending on the operator.
 - **Flight plans** contain the destination, the SID of the active runway towards the destination (the exit fix whose sector contains the great-circle bearing to the destination, or a SID filed only for that destination - e.g. Stuttgart ETASA for Frankfurt; see the airport pages), cruise level and a squawk. The route starts with the exit fix (`ROTWE DCT LEPA`).
-- **Stands**: aircraft up to code D (52 m wingspan) get a random free stand up to 52 m that fits, leaving out the alternative positions (stands overlapping a smaller one, like 71A or 24A at Stuttgart); larger aircraft the smallest free stand that fits. Every stand also needs enough wingtip clearance to its neighbours (see below). Business jets prefer their stands (Stuttgart 60-65), airlines the others. Cargo airlines (`cargo` in `src/data/airlines.ts`: UPS, FedEx, DHL / EAT) prefer the cargo stands (Cologne/Bonn aprons E, F and W) and take other stands only when no cargo stand is free; everybody else uses cargo stands (Stuttgart Apron South) only when nothing else is free.
+- **Stands**: aircraft up to code D (52 m wingspan) get a random free stand up to 52 m that fits, leaving out the alternative positions (stands overlapping a smaller one, like 71A or 24A at Stuttgart); larger aircraft the smallest free stand that fits. Every stand also needs enough wingtip clearance to its neighbours (see below). Business jets prefer their stands (Stuttgart 60-65), airlines the others. Cargo airlines (`cargo` in `src/data/airlines.ts`: UPS, FedEx, DHL / EAT, AeroLogic, ...) prefer the cargo stands (Cologne/Bonn aprons E, F and W, Leipzig/Halle aprons 2-5) and take other stands only when no cargo stand is free; everybody else uses cargo stands (Stuttgart Apron South) only when nothing else is free.
 
 ## Radio model
 
@@ -328,15 +345,15 @@ These are the Stuttgart figures. Smaller airports scale them with their `rateFac
 ## Weather and ATIS
 
 - **Wind** is drawn at session start: 60% westerly (220-290°), 40% easterly (040-110°), 3-14 kt - Stuttgart's long-term average is about 60 % of the operations to the west (RP Stuttgart noise report).
-- **Runway in use** at session start: the first runway of the airport (25 at EDDS), unless it has more than 3 kt tailwind; then the runway with the most headwind.
+- **Runway in use** at session start: the first runway of the airport (25 at EDDS), unless it has more than 3 kt tailwind; then the runway with the most headwind. Where it has a parallel runway, both are in use (see [parallel runways](#parallel-runways)).
 - **QNH** 1003-1028 hPa.
 - **Observed wind** (the toolbar): the actual surface wind. It equals the ATIS wind until a scenario **wind shift** turns it to the opposite direction (9-15 kt) or a **thunderstorm** changes it; broadcasting an ATIS with a wind sets it as well. The ATIS editor is pre-filled with it (including gusts, `070/18G32`).
 - **Thunderstorm** (scenario event): warning 5 min (gusts, 8 NM arrival spacing), overhead 15 min (tailwind gust front 14-20 kt gusting 12-18 kt more, no pushbacks, no take-offs, go-arounds at 1 NM with more than 10 kt tailwind or in windshear with a 40 % chance per arrival; weather go-arounds cost no points), then the wind settles at 6-11 kt from the new direction. Details: [scenarios.md](scenarios.md#thunderstorm).
 - **ATIS text** also lists closed taxiways (`taxiways E and S closed`), de-icing (`de-icing in progress on the de-icing pads`) and the thunderstorm (`thunderstorm in the vicinity` / `thunderstorm over the airport, windshear reported on final`).
 - **ATIS** starts at a random letter. It only changes when **you** broadcast a new ATIS in the ATIS editor. Pilots quote the current letter on first contact.
 - **Runway change** (via the ATIS):
-  - Departures that are parked, pushing back or starting up and have no taxi instruction yet get the new runway, and a SID with the same first fix for the new runway.
-  - Arrivals further out than 3.5 NM are moved onto the new final (Approach re-sequences them, at least 6 NM out).
+  - Departures that are parked, pushing back or starting up and have no taxi instruction yet get the new runway, and a SID with the same first fix for the new runway - unless their runway stays in use.
+  - Arrivals further out than 3.5 NM are moved onto the new final (Approach re-sequences them, at least 6 NM out) - unless their runway stays in use.
   - Arrivals closer in land on the old runway; Tower doesn't line anyone up until they have landed.
   - Taxiing departures keep their clearance.
 

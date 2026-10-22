@@ -2,6 +2,7 @@ import { DENSITIES, MIXES, HEAVY_SHARES, EVENT_LEVELS, clampLevel, densityIndex,
 import { hhmmToMinutes } from './time';
 import type { AirportData } from './airport/types';
 import { closureProblems } from './airport/validate';
+import { defaultRunwayKey, runwayEndsOf, runwayWords } from './runways';
 
 /**
  * Training scenarios.
@@ -26,7 +27,7 @@ import { closureProblems } from './airport/validate';
  *  |    |  ...or four digits for the five-step sliders (levels.ts): density 1-5, mix 1-5
  *  |    |  (1 departure rush, 3 balanced, 5 arrival rush), heavies 0-4, special events 0-4,
  *  |    |  e.g. 4213. The letter form is used whenever it can express the values.
- *  |    runway in use, AUTO = from the wind
+ *  |    runway in use, AUTO = from the wind; parallel runways used together joined with "." (26R.26L)
  *  airport
  * ```
  *
@@ -44,7 +45,7 @@ export interface ScenarioEvent {
 
 export interface Scenario {
   airport: string;
-  /** Runway in use; undefined = chosen from the (random) wind. */
+  /** Runway(s) in use ("25", "26R+26L"); undefined = chosen from the (random) wind. */
   runway?: string;
   density: Density;
   mix: TrafficMix;
@@ -147,7 +148,7 @@ function formatOptions(s: Scenario): string {
 export function formatScenarioCode(s: Scenario): string {
   const events = [...s.events].sort((a, b) => a.atMin - b.atMin).map((e) => `${EVENT_CODE[e.kind]}${Math.round(e.atMin)}`).join('') || 'X';
   const options = formatOptions(s);
-  return [s.airport.toUpperCase(), s.runway ?? 'AUTO', formatTraffic(s), events, ...(options ? [options] : []), (s.seed >>> 0).toString(36).toUpperCase()].join('-');
+  return [s.airport.toUpperCase(), s.runway?.replace(/\+/g, '.') ?? 'AUTO', formatTraffic(s), events, ...(options ? [options] : []), (s.seed >>> 0).toString(36).toUpperCase()].join('-');
 }
 
 /** Parses the options part ("T2215.N.CF.CE"). */
@@ -175,7 +176,8 @@ export function parseScenarioCode(code: string): Scenario | { error: string } {
   const options = parts.length === 6 ? parseOptions(parts[4]) : {};
   if ('error' in options) return options;
   if (!/^[A-Z]{4}$/.test(airport)) return { error: `Unknown airport "${airport}"` };
-  if (!/^(AUTO|\d{2}[LRC]?)$/.test(runway)) return { error: `Invalid runway "${runway}"` };
+  // Parallel runways in use together are joined with "." in the code ("26R.26L").
+  if (!/^(AUTO|\d{2}[LRC]?(\.\d{2}[LRC]?)*)$/.test(runway)) return { error: `Invalid runway "${runway}"` };
   const tr = parseTraffic(traffic);
   if (!tr) return { error: `Invalid traffic part "${traffic}" (e.g. MB2, or four digits like 3302)` };
   const evs: ScenarioEvent[] = [];
@@ -192,7 +194,7 @@ export function parseScenarioCode(code: string): Scenario | { error: string } {
   if (!/^[0-9A-Z]{1,7}$/.test(seed) || parseInt(seed, 36) > 0xffffffff) return { error: `Invalid seed "${seed}"` };
   return {
     airport,
-    runway: runway === 'AUTO' ? undefined : runway,
+    runway: runway === 'AUTO' ? undefined : runway.replace(/\./g, '+'),
     ...tr,
     events: evs,
     ...options,
@@ -203,7 +205,7 @@ export function parseScenarioCode(code: string): Scenario | { error: string } {
 /** A short human-readable description of a scenario. */
 export function describeScenario(s: Scenario): string {
   const mix = MIXES[mixIndex(s.mix)].label.toLowerCase();
-  const parts = [`${s.airport} runway ${s.runway ?? 'from the wind'}`, `${DENSITIES[densityIndex(s.density)].label.toLowerCase()} traffic`, s.mix === 'balanced' ? 'balanced mix' : mix];
+  const parts = [`${s.airport} ${s.runway ? runwayWords(runwayEndsOf(s.runway)) : 'runway from the wind'}`, `${DENSITIES[densityIndex(s.density)].label.toLowerCase()} traffic`, s.mix === 'balanced' ? 'balanced mix' : mix];
   if (s.heavyLevel > 0) parts.push(HEAVY_SHARES[clampLevel(s.heavyLevel)].label);
   parts.push(`random events: ${EVENT_LEVELS[clampLevel(s.eventLevel)].label.toLowerCase()}`);
   if (s.startLocal) parts.push(`start ${s.startLocal} local`);
@@ -300,13 +302,13 @@ export const SCENARIO_PRESETS: { name: string; description: string; scenario: Om
  * rules and de-icing need the airport's restrictions and pads.
  */
 export function presetsFor(airport: AirportData): typeof SCENARIO_PRESETS {
-  const first = airport.runwayOps[0]?.runway;
+  const first = airport.runwayOps[0] ? defaultRunwayKey(airport, airport.runwayOps[0].runway) : undefined;
   const ends = new Set(airport.runwayOps.map((o) => o.runway));
   const taxiways = new Set(airport.taxiEdges.filter((e) => e.kind === 'taxiway').map((e) => e.name.toUpperCase()));
   const out: typeof SCENARIO_PRESETS = [];
   for (const p of SCENARIO_PRESETS) {
     const sc = { ...p.scenario };
-    if (sc.runway && !ends.has(sc.runway)) sc.runway = first;
+    if (sc.runway && !runwayEndsOf(sc.runway).every((e) => ends.has(e))) sc.runway = first;
     if (sc.nightRules && !airport.nightRestrictions) continue;
     if (sc.deicing && !airport.deicingPads?.length) continue;
     if (sc.closedTaxiways?.length) {

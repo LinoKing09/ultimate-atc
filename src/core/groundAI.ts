@@ -30,8 +30,8 @@ export function updateGroundAI(sim: Simulation): void {
       continue;
     }
     // Both run by the simulator: Ground lets the aircraft cross when the AI Tower's runway is free.
-    if (!sim.userTower && ac.stoppedAt?.kind === 'runway' && ac.speed < 0.1 && !sim.tower.runwayBusy() && sim.tower.nextArrivalEta() > 90) {
-      aiInstruct(sim, ac, { type: 'cross', runway: sim.runway });
+    if (!sim.userTower && ac.stoppedAt?.kind === 'runway' && ac.speed < 0.1 && sim.tower.crossingFree(ac.stoppedAt.target)) {
+      aiInstruct(sim, ac, { type: 'cross', runway: crossingDesignator(sim, ac.stoppedAt.target) });
       continue;
     }
     if (ac.category === 'departure') departure(sim, ac);
@@ -47,7 +47,12 @@ function busyNearby(sim: Simulation, ac: Aircraft, radius: number): boolean {
 
 /** Where a departure taxis next: to a free de-icing pad first if it still needs de-icing (winter operations). */
 function outbound(sim: Simulation, ac: Aircraft): TaxiDestination {
-  return needsDeicing(sim, ac) ? { kind: 'deicing' } : { kind: 'runway', runway: sim.runway };
+  return needsDeicing(sim, ac) ? { kind: 'deicing' } : { kind: 'runway', runway: sim.departureRunwayOf(ac) };
+}
+
+/** How a runway is named in a crossing clearance: the end in use, else the lower-numbered end ("cross runway 24"). */
+function crossingDesignator(sim: Simulation, runway: string): string {
+  return sim.activeEndOn(runway) ?? runway.split('/')[0];
 }
 
 function departure(sim: Simulation, ac: Aircraft): void {
@@ -77,7 +82,7 @@ function departure(sim: Simulation, ac: Aircraft): void {
   // De-iced on the pad: on to the runway - metered, so the queue to the runway does not fill the taxiways.
   if (ac.phase === 'taxi' && ac.deicing === 'done' && ac.routeDestination?.kind === 'deicing' && ac.stoppedAt) {
     if (runwayQueueFull(sim)) return;
-    aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.runway }, via: [], holdShort: [], cross: [] });
+    aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.departureRunwayOf(ac) }, via: [], holdShort: [], cross: [] });
     return;
   }
   if (ac.phase === 'holding' || readyForTower(sim, ac)) {

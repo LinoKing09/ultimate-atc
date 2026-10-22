@@ -1,4 +1,5 @@
 import { approachProfile, targetSpeedKt, timeOnFinalS } from './approach';
+import { M_PER_NM } from './geo';
 import { aircraftType, type AircraftType } from '../data/aircraftTypes';
 import { AIRLINES, type Airline } from '../data/airlines';
 import type { Stand } from './airport/airport';
@@ -108,10 +109,12 @@ export class TrafficGenerator {
     if (sim.time >= this.nextArrivalAt) {
       // Pick the next arrival first: the required gap depends on its wake category.
       this.pendingArrival ??= this.pickArrivalSpec();
+      const pending = this.pendingArrival;
       // Small airports (stand reserve): Approach releases an arrival only when a stand is free for it.
-      const standFree = !this.standReserve || this.sim.freeStands(this.pendingArrival.type.wingspanM).length > 0;
-      if (standFree && this.arrivalGapAvailable(this.pendingArrival.type)) {
-        const ac = this.spawnArrival(SPAWN_DISTANCE_NM, { airline: this.pendingArrival.airline, type: this.pendingArrival.type.icao });
+      const standFree = !this.standReserve || this.sim.freeStands(pending.type.wingspanM).length > 0;
+      const runway = standFree ? this.arrivalRunway(pending) : undefined;
+      if (runway) {
+        const ac = this.spawnArrival(SPAWN_DISTANCE_NM, { airline: pending.airline, type: pending.type.icao, stand: pending.stand, runway });
         if (ac && landingStatus(sim, sim.time + NIGHT_APPROACH_ESTIMATE_S) === 'delayed') this.announceDelayed(ac);
         this.pendingArrival = undefined;
         this.nextArrivalAt = sim.time + sim.rng.exponential(3600 / r.arrivals);
@@ -127,18 +130,19 @@ export class TrafficGenerator {
    * provides wider gaps so departures can go in between (6 NM, 8 NM with a
    * long queue).
    */
-  requiredArrivalSpacingNm(followerWake: string): number {
+  requiredArrivalSpacingNm(followerWake: string, runway = this.sim.runway): number {
     const sim = this.sim;
-    const last = this.lastArrivalOnFinal();
+    const end = sim.tower.endFor(runway);
+    const last = this.lastArrivalOnFinal(runway);
     const wake = last ? wakeSpacingNm(last.type.wake, followerWake) : 3;
-    const demand = sim.tower.departureDemand();
+    const demand = sim.tower.departureDemand(sim.runways.length > 1 ? end : undefined);
     const gap = demand >= 4 ? 8 : demand >= 1 ? 6 : 4;
     // Non-precision approaches (localizer only, RNP) get more room on final.
-    const approach = sim.approachType === 'ILS' ? 0 : NON_PRECISION_SPACING_NM;
+    const approach = sim.approachTypeFor(runway) === 'ILS' ? 0 : NON_PRECISION_SPACING_NM;
     // Thunderstorm: Approach spaces the arrivals out.
     const storm = sim.storm ? STORM_ARRIVAL_SPACING_NM : 0;
     // Runways used with backtracks (landing or departing aircraft taxi on the runway): more room on final.
-    const ops = sim.airport.runwayOps(sim.runway);
+    const ops = sim.airport.runwayOps(runway);
     const backtrack = ops?.exits.some((x) => x.backtrack) ? BACKTRACK_ARRIVAL_SPACING_NM : ops?.departureEntries.some((e) => e.backtrack) ? BACKTRACK_DEPARTURE_SPACING_NM : 0;
     return Math.max(wake, gap, approach, storm, backtrack, ops?.arrivalSpacingNm ?? 0);
   }
@@ -151,10 +155,13 @@ export class TrafficGenerator {
     this.sim.system(`Approach: ${ac.callsign} is a delayed flight (scheduled arrival ${scheduled} local) - landing permitted until ${minutesToHhmm(r.delayedLandingsUntil ?? r.landings.from)} local.`, 'system', ac.callsign);
   }
 
-  private lastArrivalOnFinal(): Aircraft | undefined {
+  /** The arrival furthest out on the final of a runway (any runway when not given). */
+  private lastArrivalOnFinal(runway?: string): Aircraft | undefined {
+    const physical = runway ? this.sim.airport.runwayEnd(runway)?.runway : undefined;
     let best: Aircraft | undefined;
     for (const a of this.sim.aircraft) {
       if (a.phase !== 'approach') continue;
+      if (physical && this.sim.airport.runwayEnd(a.runway ?? this.sim.runway)?.runway !== physical) continue;
       if (!best || this.sim.distanceToThresholdNm(a) > this.sim.distanceToThresholdNm(best)) best = a;
     }
     return best;
@@ -165,17 +172,49 @@ export class TrafficGenerator {
    * profile from the spawn point, must not reach the spacing distance before that (the leader slows
    * down to its final approach speed first, which compresses the spacing on final).
    */
-  private arrivalGapAvailable(follower: AircraftType): boolean {
-    const last = this.lastArrivalOnFinal();
-    if (!last) return true;
-    const required = this.requiredArrivalSpacingNm(follower.wake);
-    if (SPAWN_DISTANCE_NM - this.sim.distanceToThresholdNm(last) < required) return false;
-    const p = approachProfile(follower.approachSpeedKt);
-    const followerTime = timeOnFinalS(p, SPAWN_DISTANCE_NM, required, targetSpeedKt(p, SPAWN_DISTANCE_NM));
-    return followerTime >= this.sim.tower.timeToThreshold(last);
+  private arrivalGapAvailable(follower: AircraftType, runway = this.sim.runway): boolean {
+    const sim = this.sim;
+    const behind = (last: Aircraft | undefined, required: number): boolean => {
+      if (!last) return true;
+      if (SPAWN_DISTANCE_NM - sim.distanceToThresholdNm(last) < required) return false;
+      const p = approachProfile(follower.approachSpeedKt);
+      const followerTime = timeOnFinalS(p, SPAWN_DISTANCE_NM, required, targetSpeedKt(p, SPAWN_DISTANCE_NM));
+      return followerTime >= sim.tower.timeToThreshold(last);
+    };
+    if (!behind(this.lastArrivalOnFinal(runway), this.requiredArrivalSpacingNm(follower.wake, runway))) return false;
+    // Parallel runways: the diagonal radar separation to the arrivals on the adjacent finals (dependent 1.5 NM,
+    // staggered 3 NM; none for independent approaches). Far enough apart, there is no wake turbulence between them.
+    const mode = sim.parallelOps?.approaches;
+    if (!mode || mode === 'independent') return true;
+    const diagonal = mode === 'dependent' ? DEPENDENT_DIAGONAL_NM : STAGGERED_DIAGONAL_NM;
+    const end = sim.airport.runwayEnd(runway)!;
+    for (const other of sim.runways) {
+      const o = sim.airport.runwayEnd(other)!;
+      if (o.runway === end.runway) continue;
+      const lateralNm = Math.abs(sim.airport.runwayCoordinates(end, o.threshold).lateral) / M_PER_NM;
+      if (!behind(this.lastArrivalOnFinal(other), Math.sqrt(Math.max(0, diagonal * diagonal - lateralNm * lateralNm)))) return false;
+    }
+    return true;
   }
 
-  private pendingArrival?: { airline: Airline; type: AircraftType };
+  /**
+   * The runway Approach puts the next arrival on: the one of its stand (parallel runways), else the other if
+   * only that one has a gap; undefined while there is no gap.
+   */
+  private arrivalRunway(pending: { airline: Airline; type: AircraftType; stand?: string }): string | undefined {
+    const sim = this.sim;
+    if (sim.runways.length === 1) return this.arrivalGapAvailable(pending.type) ? sim.runway : undefined;
+    // With parallel runways the stand decides the runway: allocate it now.
+    pending.stand ??= this.pickStand(pending.type, pending.airline)?.id ?? '';
+    const preferred = sim.runwayFor(pending.stand || undefined, pending.type);
+    const p = sim.parallelOps;
+    // Aircraft bound to a runway by their size (e.g. the B747-8) wait for a gap there.
+    const fixed = !!p?.largeAircraft && pending.type.wingspanM >= p.largeAircraft.minWingspanM;
+    const order = fixed ? [preferred] : [preferred, ...sim.runways.filter((r) => r !== preferred)];
+    return order.find((r) => this.arrivalGapAvailable(pending.type, r));
+  }
+
+  private pendingArrival?: { airline: Airline; type: AircraftType; stand?: string };
 
   private pickArrivalSpec(): { airline: Airline; type: AircraftType } {
     return this.pickSpec();
@@ -286,7 +325,8 @@ export class TrafficGenerator {
     const stand = opts.stand ? sim.airport.stand(opts.stand) : this.pickStand(type, airline);
     if (!stand) return undefined;
     const callsign = opts.callsign ?? this.makeCallsign(airline);
-    const rwy = sim.runway;
+    // Parallel runways: the runway of the stand's apron (or the nearest one).
+    const rwy = sim.runwayFor(stand.id, type);
     const destination = sim.rng.pick(airline.destinations);
     // The SID towards the destination (exit fix by direction, or a SID filed for this destination only).
     const sids = sidsForDestination(sim.config.airport, rwy, destination);
@@ -322,18 +362,21 @@ export class TrafficGenerator {
     return ac;
   }
 
-  spawnArrival(distanceNm: number, opts: { callsign?: string; type?: string; airline?: Airline; medical?: boolean } = {}): Aircraft | undefined {
+  spawnArrival(distanceNm: number, opts: { callsign?: string; type?: string; airline?: Airline; medical?: boolean; stand?: string; runway?: string } = {}): Aircraft | undefined {
     const sim = this.sim;
     const airline = opts.airline ?? this.pickAirline();
     const type = aircraftType(opts.type ?? sim.rng.pick(airline.types));
-    const stand = this.pickStand(type, airline);
+    // The stand allocated when Approach picked the runway (parallel runways), if it is still free; else a new one.
+    const reserved = opts.stand ? sim.airport.stand(opts.stand) : undefined;
+    const stand = reserved && sim.freeStands(type.wingspanM, (s) => s === reserved).length ? reserved : this.pickStand(type, airline);
+    const runway = opts.runway ?? sim.runwayFor(stand?.id, type);
     const callsign = opts.callsign ?? this.makeCallsign(airline);
     const origin = sim.rng.pick(airline.destinations);
     const fp: FlightPlan = {
       departure: origin,
       destination: sim.config.airport.icao,
       route: `DCT ${sim.config.airport.icao}`,
-      runway: sim.runway,
+      runway,
       cruiseFl: sim.rng.int(28, 39) * 10,
       squawk: this.squawk(),
     };
@@ -357,7 +400,7 @@ export class TrafficGenerator {
       ac.emergencySince = sim.time;
       sim.system(`Approach: ${callsign} has declared PAN PAN (medical emergency) and will land with priority.`, 'warning', callsign);
     }
-    sim.tower.setupApproach(ac, distanceNm);
+    sim.tower.setupApproach(ac, distanceNm, runway);
     ac.taxiPace = 0.85 + 0.3 * sim.variation(`${ac.callsign}:pace`);
     sim.aircraft.push(ac);
     return ac;
@@ -366,6 +409,9 @@ export class TrafficGenerator {
 
 /** Minimum time between the first calls of the initial departures at session start (seconds). */
 const INITIAL_CALL_SPACING_S = 90;
+/** Diagonal radar separation between arrivals on adjacent finals to parallel runways (NM): dependent / staggered. */
+export const DEPENDENT_DIAGONAL_NM = 1.5;
+export const STAGGERED_DIAGONAL_NM = 3;
 /** Minimum spacing on final when arrivals backtrack after landing / departures backtrack before take-off (NM). */
 export const BACKTRACK_ARRIVAL_SPACING_NM = 10;
 export const BACKTRACK_DEPARTURE_SPACING_NM = 8;

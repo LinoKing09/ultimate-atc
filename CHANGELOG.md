@@ -6,7 +6,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Handbook (PDF)**: `docs/handbook/ultimate-atc-handbook.pdf`, the player documentation as one printable A4 book in the colours and font of the app - cover, contents, getting started, user guide with an annotated screen and screenshots of every dialog, tutorials, phraseology, scenarios, all airports with an overview picture, systems, tower operations, simulation model and glossary. Built with `npm run handbook` (`scripts/handbook.mjs`); the screenshots come from `scripts/handbook-shots.mjs`.
 - **Road to 2.0** in `docs/roadmap.md`: the proposed criteria for the next major version (Approach / Departure, Frankfurt, an airport on every continent, changing weather and low visibility, pilot mistakes, voice on the iPad, the soak test at every airport, quality).
+
+### Changed
+
+- **Documentation navigation**: the README lists the documentation grouped (Play, Airports, How it works, Development, Project, Print) - one row *Airports* with all ICAO codes instead of one line per airport. New overview pages `docs/README.md` and `docs/airports/README.md` (all airports in one table), and every page starts with a breadcrumb (`Documentation › Airports › EDDK`).
 
 ## [1.4.0] - 2026-10-23
 

@@ -1,3 +1,5 @@
+[Documentation](README.md) › Airport data
+
 # Airport data format
 
 Every airport is described by one `AirportData` object (`src/core/airport/types.ts`). The format is plain, serialisable data (it could be JSON) using **latitude/longitude** coordinates, so it can be produced by hand, by the `RunwayFrameBuilder` helper, or later by importers for real data sources (OpenStreetMap, EuroScope sector files, X-Plane `apt.dat`).

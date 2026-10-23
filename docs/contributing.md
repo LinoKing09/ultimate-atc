@@ -1,3 +1,5 @@
+[Documentation](README.md) › Contributing
+
 # Contributing
 
 ## Workflow
@@ -46,3 +48,12 @@ All code, comments, UI text and documentation are written in **English**.
 - Unit tests for pure logic (parser, routing, geometry).
 - Scenario tests drive the `Simulation` directly with `sim.transmit(...)` and `sim.tick(...)` (see `tests/simulation.test.ts`). Use `generateTraffic: false` and spawn aircraft with `sim.traffic.spawnDeparture/spawnArrival` for deterministic setups.
 - New airports need a data-consistency test (every stand reaches every departure holding point, exits exist).
+
+## Handbook
+
+`docs/handbook/ultimate-atc-handbook.pdf` is built from the Markdown documentation; rebuild it when the player documentation or the UI changes noticeably (at least before a release):
+
+1. Screenshots: start the app (`npm run dev`) and run `node scripts/handbook-shots.mjs [--url http://localhost:5173/]`. It drives the app with Playwright and writes `docs/images/handbook/*.jpg` and `shots.json` (the screen regions numbered in the user guide figure).
+2. Book: `npm run handbook`. `scripts/handbook.mjs` renders the chapters (list `chapters` in the script) with `marked` into one HTML page in the colours and font of the app and prints it to PDF with Playwright. Breadcrumbs and local tables of contents are removed, links between pages become links inside the book, links to pages the book leaves out (developer documentation, sections such as *Tests*) go to GitHub.
+
+Playwright is not a dependency of the project: set `PLAYWRIGHT` to its module and `CHROMIUM` to a browser executable if needed, for example `PLAYWRIGHT=/path/to/playwright/index.mjs CHROMIUM=/path/to/chrome npm run handbook`. A new player page belongs in `chapters`; a new screenshot in both scripts.

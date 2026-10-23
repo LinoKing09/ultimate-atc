@@ -1,3 +1,5 @@
+[Documentation](README.md) › Scenarios
+
 # Scenarios and seeds
 
 Every session is driven by a **seeded random number generator**. This page explains what the seed does, and how **scenario codes** let you choose what you want to train and repeat it as often as you like.

@@ -1,3 +1,5 @@
+[Documentation](README.md) › Architecture
+
 # Architecture
 
 Ultimate ATC is a single-page web application written in **TypeScript**, bundled with **Vite**, and tested with **Vitest**. It has no runtime dependencies and no framework: the UI is plain DOM plus one `<canvas>`.

@@ -1,3 +1,5 @@
+[Documentation](README.md) › Release report 1.0
+
 # Release report: version 1.0
 
 Final review before version 1.0 (2026-10-13). It checks the [Road to 1.0](roadmap.md#road-to-10) criteria, lists what was tested and fixed during the review, assesses how realistic the simulation is, and names what is still open.

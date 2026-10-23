@@ -79,31 +79,16 @@ Press **F1** in the app for the in-game reference.
 
 ## Documentation
 
-| Document                                     | Contents                                                                    |
-| -------------------------------------------- | --------------------------------------------------------------------------- |
-| [Getting started](docs/getting-started.md)   | Installation, browsers, building, deployment                                |
-| [User guide](docs/user-guide.md)             | Screen layout, scope, lists, tags, menus, keyboard, voice, scoring          |
-| [Phraseology reference](docs/phraseology.md) | Every instruction the parser understands, pilot read-backs and calls        |
-| [Airport: EDDS Stuttgart](docs/airports/EDDS.md) | Layout, taxiways, holding points, stands, typical routes, frequencies    |
-| [Airport: EDDK Cologne/Bonn](docs/airports/EDDK.md) | OpenStreetMap layout, three runways, cargo aprons, guide lines        |
-| [Airport: EDDN Nuremberg](docs/airports/EDDN.md) | OpenStreetMap layout, stands, exits, frequencies                         |
-| [Airport: EDDP Leipzig/Halle](docs/airports/EDDP.md) | Two parallel runways in use, DHL hub, AIP stand positions            |
-| [Airport: EDDW Bremen](docs/airports/EDDW.md)    | OpenStreetMap layout, AIP stand positions, Beluga runways drawn          |
-| [Airport: EDJA Memmingen](docs/airports/EDJA.md) | OpenStreetMap layout, backtracking, stands, frequencies                  |
-| [Airport: EDXW Sylt](docs/airports/EDXW.md)      | OpenStreetMap layout, Tower only, crossing runways, stands               |
-| [Tutorials](docs/tutorials.md)               | Guided first sessions for Delivery, Ground and Tower                         |
-| [Scenarios and seeds](docs/scenarios.md)     | What the seed does, scenario codes, the scenario builder, presets            |
-| [Simulation model](docs/simulation.md)       | How AI pilots, AI Ground and Tower, Delivery and A-CDM, traffic generation, separation, special events and incidents work |
-| [Airport and ATC systems](docs/systems.md)   | The systems window: A-SMGCS, A-CDM, DCL - what they do in reality and in the simulator |
-| [Tower operations](docs/tower-operations.md) | Research: how tower controllers run a mixed-mode runway, separation minima, sources |
-| [Architecture](docs/architecture.md)         | Code structure, data flow, how to add positions and multiplayer             |
-| [Airport data format](docs/airport-data.md)  | How airports are described and how to add a new one                         |
-| [Roadmap](docs/roadmap.md)                   | What is planned next, the proposed criteria for version 1.0                 |
-| [Release report 1.0](docs/release-1.0-report.md) | Final review before 1.0: criteria, checks, fixes, realism review, open points |
-| [Benchmarks](docs/benchmarks.md)             | Release benchmark, results per version, simulated traffic, major release statistics |
-| [Glossary](docs/glossary.md)                 | Terms used in the simulator and the docs (deadlock, gridlock, TSAT, CTOT ...) |
-| [Contributing](docs/contributing.md)         | Development workflow, conventions, tests                                    |
-| [Changelog](CHANGELOG.md)                    | Release history                                                             |
+Start with the **[documentation overview](docs/README.md)**, or jump straight in:
+
+| | |
+| --- | --- |
+| **Play** | [Getting started](docs/getting-started.md) · [User guide](docs/user-guide.md) · [Tutorials](docs/tutorials.md) · [Phraseology](docs/phraseology.md) · [Scenarios](docs/scenarios.md) · [Glossary](docs/glossary.md) |
+| **Airports** | [EDDS](docs/airports/EDDS.md) · [EDDK](docs/airports/EDDK.md) · [EDDN](docs/airports/EDDN.md) · [EDDP](docs/airports/EDDP.md) · [EDDW](docs/airports/EDDW.md) · [EDJA](docs/airports/EDJA.md) · [EDXW](docs/airports/EDXW.md) - [all airports](docs/airports/README.md) |
+| **How it works** | [Simulation model](docs/simulation.md) · [Systems](docs/systems.md) · [Tower operations](docs/tower-operations.md) |
+| **Development** | [Architecture](docs/architecture.md) · [Airport data](docs/airport-data.md) · [Contributing](docs/contributing.md) |
+| **Project** | [Roadmap](docs/roadmap.md) · [Benchmarks](docs/benchmarks.md) · [Release report 1.0](docs/release-1.0-report.md) · [Changelog](CHANGELOG.md) |
+| **Print** | [Handbook (PDF)](docs/handbook/ultimate-atc-handbook.pdf) - the player documentation as one printable book |
 
 ## Benchmarks
 

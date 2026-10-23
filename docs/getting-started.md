@@ -1,3 +1,5 @@
+[Documentation](README.md) › Getting started
+
 # Getting started
 
 ## Play online
@@ -7,6 +9,8 @@ Every push to `main` builds the app and deploys it to GitHub Pages (see [below](
 ```
 https://linoking09.github.io/ultimate-atc/
 ```
+
+To read the documentation on paper, print the [handbook (PDF)](handbook/ultimate-atc-handbook.pdf).
 
 ## Run locally
 

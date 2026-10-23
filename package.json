@@ -13,9 +13,11 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "soak": "vitest run tests/soak.test.ts --silent=false",
-    "benchmark": "vitest run tests/benchmark.test.ts --silent=false"
+    "benchmark": "vitest run tests/benchmark.test.ts --silent=false",
+    "handbook": "node scripts/handbook.mjs"
   },
   "devDependencies": {
+    "marked": "^18.1.1",
     "typescript": "~5.9",
     "vite": "^8.3.3",
     "vitest": "^5.0.3"

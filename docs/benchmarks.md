@@ -1,3 +1,5 @@
+[Documentation](README.md) › Benchmarks
+
 # Benchmarks and release statistics
 
 Every **major release** (1.0, 2.0, ...) gets a statistics section here that shows how much faster, safer and better the simulator has become since the previous major release. Minor releases are measured too, so the trend is visible.

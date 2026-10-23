@@ -1,3 +1,5 @@
+[Documentation](../README.md) › [Airports](README.md) › EDXW
+
 # EDXW - Sylt
 
 | Item               | Value                                                                       |

@@ -42,7 +42,9 @@ export function validateAirport(data: AirportData): string[] {
     if (l.widthM !== undefined && !(l.widthM > 0)) add(`pavement line ${l.name ?? ''} has an invalid width`.replace('  ', ' '));
   }
   for (const end of data.runways.flatMap((r) => r.ends)) {
-    if (end.approaches && !end.approaches.length) add(`runway ${end.name} lists no approach (omit approaches for the default ILS)`);
+    // A runway that is drawn only (no runway operations) may have no instrument approach (e.g. a VFR runway).
+    const used = data.runwayOps.some((o) => o.runway === end.name);
+    if (used && end.approaches && !end.approaches.length) add(`runway ${end.name} lists no approach (omit approaches for the default ILS)`);
   }
   if (problems.length) return problems; // the rest needs a consistent graph
 

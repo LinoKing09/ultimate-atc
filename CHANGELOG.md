@@ -24,8 +24,12 @@ All notable changes to this project are documented in this file. The format is b
 
 - **Intermediate holding positions** from the charts (OpenStreetMap `holding_position:type=intermediate`, e.g. Leipzig/Halle): `hold short of taxiway X` stops there, with the nose at the line.
 
+- **Cologne/Bonn apron U** (maintenance and general aviation): U10-U26 at their AIP positions, reached across runway 13R/31L at B / P and along P; business jets park there.
+- **Bremen runway 05/23** (700 m, VFR take-offs only) is drawn as a runway; it was a plain line ending in the grass.
+
 ### Changed
 
+- **Taxiways that ended in nothing**: aprons at the end of drawn-only taxiways are imported too (Cologne/Bonn apron L at the 24 end); Leipzig/Halle K leads to the noise abatement facility and G2 to its pad (they were pruned as dead ends), and the stub P south-east of H1 is drawn closed, as on the chart.
 - **Hold short** without a holding position: the aircraft stops with its nose 40 m from the centre line of the other taxiway, measured from where its route leaves its own taxiway - it stopped 40 m before the junction node, which at junctions mapped with fillets (Leipzig N / E7) was in the middle of the junction.
 - **Lenient crews**: a via list that leaves out a connecting taxiway is no longer refused; the crew adds it (at most two taxiways, 600 m between the named ones; after the last one, one taxiway on to the destination) and reads back the whole route.
 - **Rapid exits that fork before their holding points** (OpenStreetMap: a branch with a runway holding position of its own) keep both branches behind the one holding point of the chart: at Leipzig/Halle S2, S3 and S4 (landing 26L) now lead onto T east as well as west; the import pruned the second branch as a dead end. Memmingen C and D get their second fillet onto P. Of the branches of one exit, the landing crew takes the one towards its stand.

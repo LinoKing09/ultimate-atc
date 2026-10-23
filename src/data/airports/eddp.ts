@@ -243,6 +243,9 @@ const built = buildLayout(EDDP_LAYOUT, {
     ['A2.214', 'V ORANGE.5', 'V ORANGE', 'taxilane'],
   ],
   dropEdges: ['?/F.2>F.1'],
+  // K leads on west to the noise abatement facility (engine run-ups), G2 south from C to the small pad by DP2
+  // (aerodrome chart).
+  keepNodes: ['K.2', 'G2.6'],
   // The orange guide line between stands 101-111 is for follow-me guidance only (AIP AD 2.20 8).
   drawOnly: layoutEdges(EDDP_LAYOUT, { names: ['L ORANGE'] }),
   maxWingspanM: { L: C, M: C },
@@ -331,7 +334,8 @@ export const EDDP: AirportData = {
   stands: built.stands,
   areas: built.areas,
   buildings: built.buildings,
-  pavement: built.pavement,
+  // The stub south-east from the H1 / N junction is P, closed (aerodrome chart correction "TWY P closed").
+  pavement: built.pavement.map((l) => (l.points[0].lat === 51.4193784 && l.points[0].lon === 12.2089903 ? { ...l, name: 'P', closed: true } : l)),
   // One Tower for both runways (AIP: 121.105 south, 125.955 north; cross-coupled when one controller works both).
   stations: [
     { callsign: 'EDDP_DEL', type: 'DEL', name: 'Leipzig Delivery', frequency: '121.680' },

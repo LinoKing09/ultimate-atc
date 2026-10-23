@@ -26,7 +26,9 @@ The simulator shows a condensed version of this page as the **airport briefing**
 
 - all take-offs and landings use runway **13L/31R** (as on a normal VATSIM day); 06/24 and 13R/31L are only crossed - departures 31R and arrivals vacating 13L at A2 / A1 cross runway 06/24 on A next to the reference point (holding points AN / AS, hot spot 1),
 - the holding points carry the names of their taxiways as on VATSIM (the charts give no designators); AN / AS (A north / south of runway 06/24) are simulator names; the CAT II/III holding positions are not modelled separately,
-- everything south-west of runway 13R/31L (taxiways P, C and Z1, the military ramps, the maintenance apron U), taxiway D east of runway 13L/31R to the 24 end, apron L and the taxilanes K1-K3 of apron V (under construction, no stands) are drawn but not used; OSM still calls P "B",
+- **apron U** (maintenance; general aviation parks there too): U10-U26 at their AIP AD 2.8 positions (U10-U14 up to code C, U16-U26 code A), reached across runway 13R/31L at B (holding points B north and P south - no designators on the charts) and along P; the lead-in lines of U10, U12 and U14 leave P where the ground movement chart shows them (digitised by hand). Business jets (registration callsigns) park there,
+- the military area south-west of runway 13R/31L (C, Z1, the MIL ramps; only with prior agreement with the Bundeswehr), P beyond apron U to the 06 end, taxiway D east of runway 13L/31R to the 24 end with apron L (the dispersal pads there), and the taxilanes K1-K3 of apron V are drawn but not used: the ground movement chart shows apron V under construction with all parking positions removed. OSM still calls P "B",
+- GAT 3 (light aircraft parking G01 / G02 by B) is drawn; light aircraft are not simulated,
 - the blue and orange guide lines on M and TXL-N (two aircraft up to 36 m side by side) are taxiways of their own in the simulator (M BLUE, M ORANGE, N BLUE, N ORANGE): blue outbound, orange inbound (a simulator flow, not a published rule); the yellow centre lines are M and N,
 - stand sizes follow the VATSIM Germany stand data (code C 36 m, D 52 m, E 65 m, F 80 m); A25-A35 (odd) are nose-out positions; aprons E and F (cargo hub) and W (cargo feeders) take the freighters first, the B747-8 only fits E and F,
 - taxi-in behind a follow-me car (AIP) and de-icing on the stand are not enforced,
@@ -71,7 +73,8 @@ All civil aprons lie between the two parallel runways, north of runway 06/24:
 | **L** (TXL-L), **S** (TXL-S) | Taxilanes of apron A (Terminal 1) and apron C (C pier, code C) |
 | **B** | From aprons A / B over the taxiway bridge (up to 52 m) to T and the 13R end; code E |
 | **T**, **T2**, **D** | T along the north side of 13R/31L (code E), T2 to 13R/31L (code C), D along runway 06/24 past apron W to A |
-| P, C, Z1, K1-K3 | South-west of 13R/31L and apron V - drawn only |
+| **P** | From the B crossing of 13R/31L south along apron U (used), on to the 06 end (drawn) |
+| C, Z1, K1-K3 | The military area south-west of 13R/31L and apron V - drawn only |
 
 | Stands | Use in the simulator |
 | ------ | -------------------- |

@@ -31,7 +31,7 @@ describe('Bremen (EDDW) after the AIP charts', () => {
     expect(EDDW.taxiNodes.filter((n) => n.holdingPoint).map((n) => n.holdingPoint!.name).sort()).toEqual(['A', 'C', 'D', 'E', 'F', 'M']);
     const stands = [...ap.stands.keys()].sort();
     expect(stands).toEqual(['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '12A', '13', '14', '15', '16', '17', '18', '18A', '19']);
-    expect(EDDW.runways.map((r) => r.name)).toEqual(['08/26']);
+    expect(EDDW.runways.map((r) => r.name)).toEqual(['08/26', '05/23']);
   });
 
   it('publishes the declared distances of the AIP for every entry', () => {

@@ -317,7 +317,12 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   // Aprons and buildings near the graph
   const radius = o.areaRadiusM ?? 300;
   // Near taxiways and stands (not just the runway: that keeps far-away buildings beside a long runway out).
-  const graphPts = [...new Set(edges.filter((e) => e.kind !== 'runway').flatMap((e) => [e.from, e.to]))].map((id) => proj.toLocal(pos.get(id)!));
+  // Taxiways drawn only count too: an apron at the end of one belongs to the picture (e.g. a dispersal area).
+  const graphPts = [
+    ...[...new Set(edges.filter((e) => e.kind !== 'runway').flatMap((e) => [e.from, e.to]))].map((id) => proj.toLocal(pos.get(id)!)),
+    ...pavement.flatMap((l) => l.points.map((q) => proj.toLocal(q))),
+    ...(o.dropLoosePavement ? [] : (layout.pavement ?? [])).flatMap((l) => l.points.map(([lat, lon]) => proj.toLocal({ lat, lon }))),
+  ];
   const near = (poly: [number, number][]) =>
     poly.some(([lat, lon]) => {
       const q = proj.toLocal({ lat, lon });

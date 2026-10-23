@@ -27,14 +27,16 @@ describe('Cologne/Bonn (EDDK) after the AIP charts', () => {
     const ap = new Airport(EDDK);
     expect(EDDK.runways.map((r) => r.name)).toEqual(['13L/31R', '06/24', '13R/31L']);
     const graph = new Set(EDDK.taxiEdges.filter((e) => e.kind !== 'runway' && e.kind !== 'stand').map((e) => e.name));
-    for (const t of ['A', 'A1', 'A2', 'A3', 'A4', 'A5', 'A7', 'B', 'D', 'E', 'M', 'N', 'L', 'S', 'T', 'T2']) expect(graph.has(t), t).toBe(true);
-    // South-west of 13R/31L and apron V: drawn, not routed.
+    for (const t of ['A', 'A1', 'A2', 'A3', 'A4', 'A5', 'A7', 'B', 'D', 'E', 'M', 'N', 'L', 'P', 'S', 'T', 'T2']) expect(graph.has(t), t).toBe(true);
+    // The military area south-west of 13R/31L and apron V (no positions, under construction): drawn, not routed.
+    // P is used from the B crossing to apron U and drawn on to the 06 end.
     const drawn = new Set((EDDK.pavement ?? []).map((l) => l.name));
-    for (const t of ['P', 'C', 'Z1', 'K1', 'K2', 'K3']) expect(drawn.has(t) && !graph.has(t), t).toBe(true);
-    expect(EDDK.taxiNodes.filter((n) => n.holdingPoint).map((n) => n.holdingPoint!.name).sort()).toEqual(['A', 'A1', 'A2', 'A3', 'A4', 'A5', 'A7', 'AN', 'AS', 'B', 'E', 'T', 'T2']);
+    for (const t of ['C', 'Z1', 'K1', 'K2', 'K3']) expect(drawn.has(t) && !graph.has(t), t).toBe(true);
+    expect(drawn.has('P')).toBe(true);
+    expect(EDDK.taxiNodes.filter((n) => n.holdingPoint).map((n) => n.holdingPoint!.name).sort()).toEqual(['A', 'A1', 'A2', 'A3', 'A4', 'A5', 'A7', 'AN', 'AS', 'B', 'E', 'P', 'T', 'T2']);
     const aprons = new Map<string, number>();
     for (const s of ap.stands.values()) aprons.set(s.apron, (aprons.get(s.apron) ?? 0) + 1);
-    expect(Object.fromEntries(aprons)).toEqual({ 'Apron A': 27, 'Apron B': 17, 'Apron C': 10, 'Apron D': 32, 'Apron E': 27, 'Apron F': 12, 'Apron W': 13 });
+    expect(Object.fromEntries(aprons)).toEqual({ 'Apron A': 27, 'Apron B': 17, 'Apron C': 10, 'Apron D': 32, 'Apron E': 27, 'Apron F': 12, 'Apron U': 9, 'Apron W': 13 });
   });
 
   it('publishes the declared distances of the AIP for every entry', () => {
@@ -72,4 +74,13 @@ describe('Cologne/Bonn (EDDK) after the AIP charts', () => {
       expect(sim.stats.arrivalsParked, runway).toBeGreaterThan(4);
     }
   }, 120000);
+});
+
+describe('Cologne/Bonn (EDDK) apron U', () => {
+  it('business jets taxi to apron U across runway 13R/31L at B and P', () => {
+    const sim = new Simulation({ airport: EDDK, position: 'GND', runway: '31R', density: 'light', seed: 1, generateTraffic: false, events: false });
+    const ap = sim.airport;
+    const r = findRoute(ap, { node: ap.stand('W20')!.node }, ap.stand('U12')!.node);
+    expect(isRouteError(r) ? r.error : r.taxiways).toEqual(expect.arrayContaining(['B', 'P']));
+  });
 });

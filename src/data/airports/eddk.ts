@@ -31,6 +31,18 @@ const NORTH_EAST: [number, number][] = [[50.87162, 7.14189], [50.86151, 7.15654]
 const COLOURED = layoutEdges(EDDK_LAYOUT, { names: ['M BLUE', 'M ORANGE', 'TL-N BLUE', 'TL-N ORANGE'] });
 /** OSM still calls P (south of 13R/31L) B. */
 const P_EDGES = layoutEdges({ ...EDDK_LAYOUT, edges: EDDK_LAYOUT.edges.filter((e) => e[2] === 'B') }, { inside: [SOUTH_WEST] });
+/** P from runway 13R/31L (crossing at B) to apron U is used; the rest of the south-west stays drawn only. */
+const P_USED = ['RWY.B>B.1', 'B.1>B.2', 'B.2>HP.7737265202'];
+/**
+ * Apron U (maintenance; GA parks there too): the lead-in lines of U10, U12 and U14 leave P just south of its
+ * holding position (ground movement chart; where they meet P digitised from the chart, the stands at their AIP
+ * AD 2.8 positions). U16-U26 are code A positions reached over the apron.
+ */
+const P_U: [string, number, number][] = [
+  ['P.U10', 50.8693567, 7.1205272],
+  ['P.U12', 50.8691153, 7.1206238],
+  ['P.U14', 50.8689541, 7.1206882],
+];
 
 const C = 36;
 /**
@@ -177,6 +189,16 @@ const STANDS: [string, string, number, boolean, string, number, number][] = [
   ['W30', 'W', 52, true, 'D.7', 50.866261, 7.133825],
   ['W32', 'W', 52, true, 'D.6', 50.866492, 7.134586],
   ['W34', 'W', 52, true, 'D.5', 50.866722, 7.13535],
+  // Apron U (AIP AD 2.8): U10-U14 up to code C, U16-U26 code A only (VATSIM Germany).
+  ['U10', 'U', 36, true, 'P.U10', 50.868319, 7.119683],
+  ['U12', 'U', 36, true, 'P.U12', 50.868061, 7.119761],
+  ['U14', 'U', 36, true, 'P.U14', 50.867753, 7.119717],
+  ['U16', 'U', 15, true, 'P.U10', 50.868183, 7.119625],
+  ['U18', 'U', 15, true, 'P.U12', 50.867925, 7.119733],
+  ['U20', 'U', 15, true, 'P.U14', 50.867722, 7.119675],
+  ['U22', 'U', 15, true, 'P.U14', 50.867728, 7.119875],
+  ['U24', 'U', 15, true, 'P.U14', 50.867783, 7.120056],
+  ['U26', 'U', 15, true, 'P.U14', 50.867783, 7.120261],
 ];
 
 const built = buildLayout(EDDK_LAYOUT, {
@@ -198,12 +220,21 @@ const built = buildLayout(EDDK_LAYOUT, {
     'HP.7736951108': { name: 'T', runway: '06/24' },
     'HP.1611111802': { name: 'B', runway: '13R/31L' },
     'HP.7737265205': { name: 'T2', runway: '13R/31L' },
+    // South of 13R/31L at the B crossing, on P (no designator on the charts).
+    'HP.7737265202': { name: 'P', runway: '13R/31L' },
   },
   // Chart names: TXL-N is N (its blue / orange guide lines N BLUE / N ORANGE), TXL-L is L, the B bridge
   // (OSM "TWB") is B; TXL-S on apron C is unnamed in OSM.
   taxiwayNames: { 'TL-N CENTER': 'N', 'TL-N BLUE': 'N BLUE', 'TL-N ORANGE': 'N ORANGE', 'TL-L': 'L', TWB: 'B' },
   edgeNames: { '?.17>?.18': 'S', '?.18>?/M BLUE': 'S', ...Object.fromEntries(P_EDGES.map((k) => [k, 'P'])) },
-  drawOnly: [...layoutEdges(EDDK_LAYOUT, { inside: [SOUTH_WEST, NORTH_EAST], names: ['K1', 'K2', 'K3', 'L'] })],
+  drawOnly: layoutEdges(EDDK_LAYOUT, { inside: [SOUTH_WEST, NORTH_EAST], names: ['K1', 'K2', 'K3', 'L'] }).filter((k) => !P_USED.includes(k)),
+  addNodes: P_U,
+  dropEdges: ['HP.7737265202>B.3'],
+  addEdges: [
+    ['HP.7737265202', 'P.U10', 'P', 'taxiway'],
+    ['P.U10', 'P.U12', 'P', 'taxiway'],
+    ['P.U12', 'P.U14', 'P', 'taxiway'],
+  ],
   // AIP AD 2.20: B, T and D code E, T2 and S code C, the guide lines up to 36 m; the B bridge north of the T junction
   // up to 52 m (larger aircraft are towed).
   maxWingspanM: { B: 65, T: 65, D: 65, T2: C, S: C },
@@ -218,8 +249,8 @@ const built = buildLayout(EDDK_LAYOUT, {
     pushback,
     lanes: [lane],
     pos: { lat, lon },
-    // Aprons E and F: cargo hub (UPS, FedEx, DHL); W: cargo feeders.
-    ...('EFW'.includes(apron) ? { use: 'cargo' as const } : {}),
+    // Aprons E and F: cargo hub (UPS, FedEx, DHL); W: cargo feeders; U: maintenance and general aviation.
+    ...('EFW'.includes(apron) ? { use: 'cargo' as const } : apron === 'U' ? { use: 'ga' as const } : {}),
   })),
 });
 
@@ -313,7 +344,8 @@ export const EDDK: AirportData = {
   stands: built.stands,
   areas: built.areas,
   buildings: built.buildings,
-  pavement: built.pavement,
+  // P on from apron U to the 06 end (drawn only).
+  pavement: [...built.pavement, { name: 'P', points: [{ lat: P_U[2][1], lon: P_U[2][2] }, { lat: 50.8626444, lon: 7.1232015 }] }],
   stations: [
     { callsign: 'EDDK_DEL', type: 'DEL', name: 'Koeln/Bonn Delivery', frequency: '121.855' },
     { callsign: 'EDDK_GND', type: 'GND', name: 'Koeln/Bonn Ground', frequency: '121.730' },
@@ -390,6 +422,8 @@ export const EDDK: AirportData = {
       { airline: 'UPS', weight: 13, types: ['B748', 'B744', 'B763', 'A306', 'B752'], destinations: ['KSDF', 'KPHL', 'EGNX', 'LEMD', 'LIMC', 'EPWA'] },
       { airline: 'FDX', weight: 6, types: ['B77L', 'B763'], destinations: ['KMEM', 'LFPG', 'VOBL', 'ZGGG'] },
       { airline: 'BCS', weight: 4, types: ['A306', 'B752'], destinations: ['EDDP', 'EGNX', 'LIMC'] },
+      // Business aviation (apron U; apron V is under construction).
+      { airline: 'DCX', weight: 1 },
     ],
   },
   briefing: [

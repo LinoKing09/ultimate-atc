@@ -31,6 +31,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 - apron 2 has no taxilane in OSM: the simulator adds one along its stands (part of V ORANGE); apron 3 gets lead-in lines from F; stands at the dead end of an apron 4 taxilane push back from the node before it (a general rule of the OSM layouts),
 - the orange guide line L between stands 101-111 (follow-me only), the de-icing pads and the engine run-up stand are drawn but not used,
 - taxi flows (simulator convention): direction 26 eastbound on N and T, direction 08 westbound - departures from apron 1 leave via the bridges E7 / E8 (26) or W1 (08), arrivals come the other way,
+- K leads west to the noise abatement facility (engine run-ups) and G2 south from C to the small pad by de-icing pad DP2, as on the aerodrome chart; the stub south-east from the H1 / N junction is P, closed (chart correction "TWY P closed"); the de-icing pads DP2-DP9 are not modelled,
 - night: the airport is open 24 hours for cargo; the AIP restrictions for passenger flights (from 23:30 local) are not modelled; HIRO exits at night (S6 / S4) are not enforced,
 - no general aviation, light aircraft or Antonov An-124 (no type data).
 

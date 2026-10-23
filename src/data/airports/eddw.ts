@@ -100,14 +100,15 @@ const THR_26 = { lat: 53.047264, lon: 8.804849 };
 
 /**
  * Drawn only: the paved sections beyond both thresholds (stopways, used as special take-off runways by the
- * Airbus Beluga; AIP AD 2.12 / 2.20) and runway 23 (700 m, take-off only, VFR aircraft up to 5.7 t), from
- * OpenStreetMap.
+ * Airbus Beluga; AIP AD 2.12 / 2.20), from OpenStreetMap.
  */
 const PAVEMENT: { widthM: number; points: [number, number][] }[] = [
   { widthM: 45, points: [[53.0464762, 8.770079], [53.0464935, 8.7708422], [53.0465144, 8.7717629], [53.0465479, 8.7732358], [53.046576, 8.774473]] },
   { widthM: 45, points: [[53.0472661, 8.8048426], [53.047286, 8.8057184], [53.047329, 8.8076103], [53.0473533, 8.8086798], [53.0473679, 8.8093237]] },
-  { widthM: 23, points: [[53.0426094, 8.7842277], [53.0439649, 8.787075], [53.0455026, 8.7902844], [53.0460632, 8.7914545], [53.0465194, 8.7924019]] },
 ];
+/** Runway 05/23 (700 x 23 m, take-off only, VFR up to 5.7 t): drawn as a runway, not used; ends from OpenStreetMap. */
+const THR_05 = { lat: 53.0426094, lon: 8.7842277 };
+const THR_23 = { lat: 53.0465194, lon: 8.7924019 };
 
 export const EDDW: AirportData = {
   icao: 'EDDW',
@@ -144,6 +145,15 @@ export const EDDW: AirportData = {
         // AIP: ILS Z (CAT II / III) or LOC, ILS Y, VOR and RNP for both directions.
         { name: '08', threshold: THR_08, end: THR_08, elevationFt: 13, approaches: ['ILS', 'LOC', 'RNP'] },
         { name: '26', threshold: THR_26, end: THR_26, elevationFt: 14, approaches: ['ILS', 'LOC', 'RNP'] },
+      ],
+    },
+    {
+      name: '05/23',
+      widthM: 23,
+      lengthM: 700,
+      ends: [
+        { name: '05', threshold: THR_05, end: THR_05, elevationFt: 10, approaches: [] },
+        { name: '23', threshold: THR_23, end: THR_23, elevationFt: 10, approaches: [] },
       ],
     },
   ],

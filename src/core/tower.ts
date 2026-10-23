@@ -4,6 +4,8 @@ import { wantsFollowMe } from './vehicles';
 import type { RunwayEnd, TaxiNode } from './airport/airport';
 import { moveFree, type Aircraft } from './aircraft';
 import { KT_TO_MS, M_PER_FT, M_PER_NM, add, distance, headingVector, length, scale } from './geo';
+import { vacateStopS } from './holdShort';
+import { findRoute, isRouteError } from './airport/routing';
 import { Path } from './path';
 import { call } from './pilot';
 import type { Simulation } from './simulation';
@@ -427,6 +429,27 @@ export class TowerAI {
    * Plans the roll-out to the first exit that can be reached at the given
    * deceleration and puts the aircraft into phase 'landing'.
    */
+  private onwardCache = new Map<string, boolean>();
+
+  /** True if an aircraft can taxi from the end of this exit to its stand (or a free one that fits) without turning around. */
+  private leadsToStand(path: string[], ac: Aircraft): boolean {
+    const sim = this.sim;
+    const standId = ac.assignedStand ?? sim.freeStands(ac.type.wingspanM, undefined, ac)[0]?.id;
+    const stand = standId ? sim.airport.stand(standId) : undefined;
+    if (!stand) return true;
+    const key = `${path.join('>')}|${stand.id}|${ac.type.wingspanM}`;
+    let ok = this.onwardCache.get(key);
+    if (ok === undefined) {
+      const end = sim.airport.node(path[path.length - 1]).pos;
+      const before = sim.airport.node(path[path.length - 2]).pos;
+      const heading = (Math.atan2(end.x - before.x, end.y - before.y) * 180) / Math.PI;
+      const r = findRoute(sim.airport, { position: end, heading: (heading + 360) % 360 }, stand.node, [], { wingspanM: ac.type.wingspanM, allowUTurn: ac.type.wingspanM <= 25 });
+      ok = !isRouteError(r) && !r.requiresUTurn;
+      this.onwardCache.set(key, ok);
+    }
+    return ok;
+  }
+
   private planRollout(ac: Aircraft, end: RunwayEnd, decel: number, preferSouth: boolean, longRoll = false, brakeNow = false): void {
     const sim = this.sim;
     ac.phase = 'landing';
@@ -459,18 +482,27 @@ export class TowerAI {
     if (longRoll && usable.length > 1) usable = usable.slice(1);
     // Tower: "vacate via E" - taken if it can still be reached.
     const requested = ac.requestedExit ? usable.find((c) => c.ex.name.toUpperCase() === ac.requestedExit) : undefined;
+    // Crews take an exit from which they can taxi on to their stand without turning around (some lead only
+    // to taxiways too narrow for them).
+    const onward = usable.filter((c) => this.leadsToStand(c.ex.path, ac));
     // Backtrack: to an exit behind the stopping point (exits marked for it) when the requested exit is
-    // behind, or when no exit ahead can be made.
+    // behind, when no exit ahead can be made, or when none ahead leads on to the stand.
     if (!requested && !brakeNow) {
       const stopAlong = Math.min(end.length - BACKTRACK_TURN_ALONG - 20, here + (v0 * v0) / (2 * decel) + 30);
       const behind = all.filter((c) => c.ex.backtrack && c.along < stopAlong - 40).sort((a, b) => b.along - a.along);
-      const target = ac.requestedExit ? behind.find((c) => c.ex.name.toUpperCase() === ac.requestedExit) : !usable.length ? behind[0] : undefined;
+      const target = ac.requestedExit
+        ? behind.find((c) => c.ex.name.toUpperCase() === ac.requestedExit)
+        : !usable.length
+          ? behind[0]
+          : !onward.length
+            ? behind.find((c) => this.leadsToStand(c.ex.path, ac))
+            : undefined;
       if (target) {
         this.planBacktrack(ac, end, decel, Math.max(stopAlong, here + 60), target.ex.path, target.ex.name);
         return;
       }
     }
-    const pool = usable.length ? usable : candidates.slice(-1);
+    const pool = onward.length ? onward : usable.length ? usable : candidates.slice(-1);
     // Parallel runways: vacate on the side of the stand (not back across the runway).
     const stand = ac.assignedStand ? sim.airport.stand(ac.assignedStand) : undefined;
     const side = (p: { x: number; y: number }) => Math.sign(sim.airport.runwayCoordinates(end, p).lateral);
@@ -490,7 +522,7 @@ export class TowerAI {
     ac.s = 0;
     ac.reverse = false;
     ac.route = null;
-    ac.stops = [{ s: path.length, kind: 'destination', target: 'vacated' }];
+    ac.stops = [{ s: vacateStopS(sim.airport, path, chosen.ex.path, ac.type.lengthM), kind: 'destination', target: 'vacated' }];
     ac.stoppedAt = undefined;
     // A rejected take-off brakes at once down to runway taxi speed, then rolls on to the exit; a landing
     // brakes as needed for its exit.
@@ -542,7 +574,7 @@ export class TowerAI {
     ac.s = 0;
     ac.reverse = false;
     ac.route = null;
-    ac.stops = [{ s: path.length, kind: 'destination', target: 'vacated' }];
+    ac.stops = [{ s: vacateStopS(sim.airport, path, exitPath, ac.type.lengthM), kind: 'destination', target: 'vacated' }];
     ac.stoppedAt = undefined;
     ac.speedLimit = (s) => {
       if (s < sTurn) return Math.min(v0, Math.sqrt(BACKTRACK_TURN_SPEED ** 2 + 2 * decel * (sTurn - s)));

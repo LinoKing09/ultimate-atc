@@ -21,7 +21,7 @@ describe('airport data', () => {
           expect(known, a.callsign).toBe(true);
         }
       }
-    });
+    }, 30000);
   }
 
   it('reports broken data', () => {

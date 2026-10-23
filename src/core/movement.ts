@@ -122,10 +122,11 @@ export function updateSeparation(sim: Simulation): void {
 
     // Direction of travel (the path direction; for a pushback that is tail first).
     const moveDir = headingVector(a.path.headingAt(a.s));
-    for (let d = 4; d <= look && !best; d += 5) {
+    // Only traffic within reach of the look-ahead (plus its own movement in 4 s and the lane width) matters.
+    const near = ground.filter((b) => b !== a && distance(b.pos, a.pos) < look + b.speed * 4 + (a.type.wingspanM + b.type.wingspanM) * 0.38 + 10);
+    for (let d = 4; d <= look && !best && near.length; d += 5) {
       const p = a.path.pointAt(a.s + d);
-      for (const b of ground) {
-        if (b === a) continue;
+      for (const b of near) {
         // Traffic behind or beside us doesn't block: moving on increases the distance.
         if (dot(sub(b.pos, a.pos), moveDir) < 0) continue;
         const r = (a.type.wingspanM + b.type.wingspanM) * 0.38 + 6;

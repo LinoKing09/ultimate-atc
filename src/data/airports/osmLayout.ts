@@ -255,12 +255,15 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   // Nodes actually used
   const usedIds = new Set(edges.flatMap((e) => [e.from, e.to]));
   const taxiNodes: TaxiNodeData[] = [];
+  // Intermediate holding positions of the charts (OSM holding_position:type=intermediate).
+  const intermediate = new Set(layout.holdingPositions.filter((h) => h.type === 'intermediate').map((h) => h.node));
   for (const id of usedIds) {
     if (id.startsWith('STAND_')) continue;
     const at = pos.get(id);
     if (!at) throw new Error(`unknown node ${id}`);
     const n: TaxiNodeData = { id, pos: at };
     if (o.holdingPoints[id]) n.holdingPoint = { name: hpSpec(o.holdingPoints[id]).name, runway: hpSpec(o.holdingPoints[id]).runway };
+    else if (intermediate.has(id)) n.intermediateHold = true;
     taxiNodes.push(n);
   }
   taxiNodes.push(...standNodes);
@@ -357,7 +360,9 @@ export function exitVia(built: BuiltLayout, name: string, hp: string, opts: { ra
     const d1 = { x: at(cur).x - at(prev).x, y: at(cur).y - at(prev).y };
     const d2 = { x: at(id).x - at(cur).x, y: at(id).y - at(cur).y };
     const cos = (d1.x * d2.x + d1.y * d2.y) / (Math.hypot(d1.x, d1.y) * Math.hypot(d2.x, d2.y) || 1);
-    const named = opts.via && built.taxiEdges.some((e) => e.name === opts.via && ((e.from === cur && e.to === id) || (e.to === cur && e.from === id)));
+    // Along the exit's own taxiway rather than onto an unnamed fillet that leads one way only.
+    const along = opts.via ?? name;
+    const named = built.taxiEdges.some((e) => e.name === along && ((e.from === cur && e.to === id) || (e.to === cur && e.from === id)));
     return -cos - (named ? 2 : 0);
   }
   return { name, path, rapid: !!opts.rapid };

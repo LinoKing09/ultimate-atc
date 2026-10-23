@@ -184,7 +184,8 @@ export const EDXW: AirportData = {
       // B (TORA 1826) is limited to 5.7 t: light aircraft only.
       departureEntries: [{ holdingPoint: 'A', intersection: 'A', fullLength: true, toraM: 2120 }],
       // At the end: C or D to the west (Apron 1 / 2), L to the north (Apron 3).
-      exits: [exitVia(built, 'C', 'HP.8948863800'), exitVia(built, 'D', 'HP.1084436486'), exitVia(built, 'L', 'HP.564287084')],
+      // Airliners that roll on to L (F and the north apron lanes are too narrow for them) backtrack to D.
+      exits: [exitVia(built, 'C', 'HP.8948863800'), { ...exitVia(built, 'D', 'HP.1084436486'), backtrack: true }, exitVia(built, 'L', 'HP.564287084')],
       // Arrivals vacate only at the far end: Approach spaces them at least 6 NM.
       arrivalSpacingNm: 6,
     },

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Airport } from '../src/core/airport/airport';
+import { headOnPartner, resolveOptions } from '../src/core/conflicts';
 import { M_PER_NM, distance } from '../src/core/geo';
 import { parseScenarioCode, formatScenarioCode } from '../src/core/scenario';
 import { Simulation } from '../src/core/simulation';
@@ -22,6 +23,10 @@ function runHour(runway: string, tower: boolean, onTick?: (sim: Simulation) => v
       }
       if (ac.request === 'taxiIn' || (ac.request === 'route' && ac.category === 'arrival')) sim.transmit(`${cs} taxi to stand ${ac.assignedStand ?? sim.freeStands(ac.type.wingspanM)[0]?.id}`);
       if (ac.request === 'handoff') sim.transmit(`${cs} contact tower`);
+      // Head-on: re-route one of the two, as the aircraft menu's "Resolve conflict" offers.
+      const other = ac.request === 'blocked' ? headOnPartner(sim, ac) : undefined;
+      const opt = other && resolveOptions(sim, ac, other).find((o) => !o.crossesRunway && !o.tug);
+      if (opt) sim.transmit(`${opt.aircraft.callsign} ${opt.instruction}`);
       if (!tower) continue;
       if (ac.request === 'departure' && !sim.tower.runwayBusyForDeparture(ac) && sim.tower.spacingRemaining(ac) <= 0 && sim.tower.nextArrivalEta(sim.tower.departureEnd(ac)) > 90) {
         sim.transmit(`${cs} runway ${ac.runway} cleared for take-off`);

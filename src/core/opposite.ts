@@ -10,6 +10,10 @@ import type { Simulation } from './simulation';
  * junction free, so that one of them can turn off there - and ask Ground for
  * instructions. Without this they would meet nose to nose, and only a tug
  * could separate them.
+ *
+ * Without a junction between them (e.g. on two apron taxilanes too close for
+ * both wingspans) the crew further from the narrow part waits before it until
+ * the other one has passed, as a give-way.
  */
 
 /** How far ahead along the route a crew looks for opposite traffic (metres). */
@@ -66,6 +70,50 @@ function junctionBetween(sim: Simulation, a: Aircraft, b: Aircraft, gap: number)
   return best;
 }
 
+/**
+ * Where `a`'s path ahead comes within wingtip distance of `b`'s path ahead (the narrow part they cannot
+ * pass each other in): the distance along `a`'s path, and whether somewhere there the two paths run in
+ * opposite directions (`look`: how far ahead on both paths).
+ */
+function narrowAhead(a: Aircraft, b: Aircraft, look: number): { d: number; opposite: boolean } | undefined {
+  const pa = a.path!;
+  const pb = b.path!;
+  const r = lane(a, b);
+  const bPts: { p: { x: number; y: number }; s: number }[] = [];
+  for (let s = b.s; s <= Math.min(pb.length, b.s + look); s += SAMPLE_M) bPts.push({ p: pb.pointAt(s), s });
+  let d: number | undefined;
+  for (let s = a.s; s <= Math.min(pa.length, a.s + look); s += SAMPLE_M) {
+    const p = pa.pointAt(s);
+    const q = bPts.find((x) => distance(p, x.p) < r);
+    if (!q) continue;
+    d ??= s - a.s;
+    if (Math.abs(headingDiff(pa.headingAt(s), pb.headingAt(q.s))) > 135) return { d, opposite: true };
+  }
+  return d === undefined ? undefined : { d, opposite: false };
+}
+
+/** Opposite traffic on lanes beside each other is looked for within this distance (metres). */
+const PARALLEL_LOOK_M = 400;
+
+/** Both head into a narrow part from opposite ends (their paths there run in opposite directions). */
+function parallelOpposite(a: Aircraft, b: Aircraft): boolean {
+  return !!narrowAhead(a, b, PARALLEL_LOOK_M)?.opposite;
+}
+
+/** No junction between them: the one further from the narrow part waits short of it; the other goes first. */
+function yieldBefore(sim: Simulation, a: Aircraft, b: Aircraft): boolean {
+  const dA = narrowAhead(a, b, LOOK_AHEAD_M)?.d;
+  const dB = narrowAhead(b, a, LOOK_AHEAD_M)?.d;
+  if (dA === undefined || dB === undefined) return false;
+  const [w, g, d] = dA > dB || (dA === dB && a.callsign > b.callsign) ? [a, b, dA] : [b, a, dB];
+  const hold = d - JUNCTION_CLEARANCE_M;
+  // Too late to stop short of it: see-and-avoid (and Ground) take over.
+  if (hold < (w.speed * w.speed) / 2) return false;
+  const here = sim.airport.nearestEdge(w.pos)?.edge.name ?? '';
+  w.oppositeStop = { s: w.s + hold, path: w.path!, other: g.callsign, junction: here, taxiway: here, since: sim.time, called: true, narrow: true };
+  return true;
+}
+
 function holdFor(sim: Simulation, ac: Aircraft, other: Aircraft, node: TaxiNode, sJ: number): void {
   const here = sim.airport.nearestEdge(ac.pos)?.edge.name ?? '';
   const branch = sim.airport.namesAt(node).find((t) => t && t !== here && sim.airport.taxiwayNames.has(t.toUpperCase())) ?? here;
@@ -79,7 +127,9 @@ export function updateOppositeTraffic(sim: Simulation): void {
     const st = ac.oppositeStop;
     if (!st) continue;
     const other = sim.find(st.other);
-    const still = other && ac.path === st.path && other.path && ac.phase === 'taxi' && other.phase === 'taxi' && onPathAhead(ac, other, LOOK_AHEAD_M) !== undefined && onPathAhead(other, ac, LOOK_AHEAD_M) !== undefined;
+    const still =
+      other && ac.path === st.path && other.path && ac.phase === 'taxi' && ['taxi', 'pushback'].includes(other.phase) &&
+      (st.narrow ? !!narrowAhead(ac, other, LOOK_AHEAD_M)?.opposite : onPathAhead(ac, other, LOOK_AHEAD_M) !== undefined && onPathAhead(other, ac, LOOK_AHEAD_M) !== undefined);
     if (still) {
       // Stopped: tell Ground once (not if the other one has already been given a way out).
       const otherWaits = other!.oppositeStop?.other === ac.callsign && other!.oppositeStop.path === other!.path;
@@ -105,12 +155,24 @@ export function updateOppositeTraffic(sim: Simulation): void {
       const b = list[j];
       if (b === a || b.oppositeStop || distance(a.pos, b.pos) > LOOK_AHEAD_M + 50) continue;
       const gap = onPathAhead(a, b, LOOK_AHEAD_M);
-      if (gap === undefined || gap < MIN_GAP_M) continue;
+      if (gap === undefined) {
+        // Not on our path, but on a lane beside it too close to pass (parallel apron taxilanes).
+        if (distance(a.pos, b.pos) < PARALLEL_LOOK_M && parallelOpposite(a, b) && yieldBefore(sim, a, b)) break;
+        continue;
+      }
       // Really opposite: b heads towards us on our lane, and we stand on b's path ahead.
       if (Math.abs(headingDiff(a.path!.headingAt(a.s + gap), b.heading)) < 135) continue;
       if (onPathAhead(b, a, LOOK_AHEAD_M) === undefined) continue;
+      if (gap < MIN_GAP_M) {
+        // Close already: only a crew that can still stop short of the narrow part waits (parallel lanes).
+        if (!junctionBetween(sim, a, b, gap) && yieldBefore(sim, a, b)) break;
+        continue;
+      }
       const j1 = junctionBetween(sim, a, b, gap);
-      if (!j1) continue;
+      if (!j1) {
+        if (yieldBefore(sim, a, b)) break;
+        continue;
+      }
       holdFor(sim, a, b, j1.node, j1.sA);
       holdFor(sim, b, a, j1.node, j1.sB);
       break;

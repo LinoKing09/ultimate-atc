@@ -14,6 +14,7 @@ import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, locationOf, maybeStartTow } from './veh
 import { curfewCall, departureAllowed, needsCurfewRoute, nightRules } from './night';
 import { minutesToHhmm } from './time';
 import { apronClosed, takeoffsSuspended } from './weather';
+import { holdShortS } from './holdShort';
 import { deicingMinutesLeft, freePads, needsDeicing, onPad, padUser, startDeicing, updateDeicing } from './deicing';
 
 /**
@@ -817,7 +818,7 @@ function resolveDestination(
       if (!isRouteError(soft) && !soft.requiresUTurn) return soft;
       return isRouteError(strict) ? soft : strict;
     }
-    return findRoute(sim.airport, start, node, via, opts);
+    return viaRoute(sim, start, node, via, opts);
   };
 
   switch (dest.kind) {
@@ -849,8 +850,9 @@ function resolveDestination(
           lastErr = r.error;
           continue;
         }
-        // Prefer full length; among equals the shortest route.
-        if (!best || (entry.fullLength && !bestFull) || (entry.fullLength === bestFull && r.length < best.length)) {
+        // The route as given before one with taxiways the crew adds; then full length; among equals the shortest.
+        const rank = (x: TaxiRoute, full: boolean) => (x.filled?.length ? 2 : 0) + (full ? 0 : 1);
+        if (!best || rank(r, entry.fullLength) < rank(best, bestFull) || (rank(r, entry.fullLength) === rank(best, bestFull) && r.length < best.length)) {
           best = r;
           bestFull = entry.fullLength;
         }
@@ -905,6 +907,26 @@ function resolveDestination(
 }
 
 /**
+ * Longest stretch (m) of taxiways a crew adds between the taxiways of a `via` list; after the last one it
+ * follows the taxiway to the destination however long it is ("via N, E7" to runway 08L: on along C).
+ */
+const GAP_FILL_MAX_M = 600;
+/** At most this many taxiways are added. */
+const GAP_FILL_MAX_TAXIWAYS = 2;
+
+/**
+ * The route of a `via` list. A list that leaves out a short connecting taxiway (e.g. "via T, N" where S5 and
+ * H5 link them) is not refused: the crew takes the obvious connection and reads back the whole route.
+ */
+function viaRoute(sim: Simulation, start: RouteStart, node: Parameters<typeof findRoute>[2], via: string[], opts: Parameters<typeof findRoute>[4]): TaxiRoute | { error: string } {
+  const r = findRoute(sim.airport, start, node, via, opts);
+  if (!isRouteError(r) || !r.error.startsWith('no route')) return r;
+  const filled = findRoute(sim.airport, start, node, via, { ...opts, fillGaps: true });
+  if (isRouteError(filled) || (filled.filledLength ?? 0) > GAP_FILL_MAX_M || (filled.filled?.length ?? 0) > GAP_FILL_MAX_TAXIWAYS || (filled.filledTail?.length ?? 0) > 1) return r;
+  return filled;
+}
+
+/**
  * Incomplete taxi instruction: "taxi via N, hold short of F" (or "... hold
  * short of runway 25"). The clearance limit is where the last via taxiway
  * meets the hold-short target.
@@ -925,7 +947,7 @@ function resolveClearanceLimit(
     for (const hp of sim.airport.holdingPoints.values()) {
       if (hp.holdingPoint?.runway !== rwy) continue;
       if (!hp.edges.some((e) => e.name.toUpperCase() === last)) continue;
-      const r = findRoute(sim.airport, start, hp, via, opts);
+      const r = viaRoute(sim, start, hp, via, opts);
       if (isRouteError(r) || r.edges.some((e) => e.kind === 'runwayStrip')) continue;
       if (!best || r.length < best.route.length) best = { route: r, dest: { kind: 'holdingPoint', name: hp.holdingPoint!.name, runway: target.runway } };
     }
@@ -933,7 +955,7 @@ function resolveClearanceLimit(
     const X = target.name.toUpperCase();
     for (const n of sim.airport.nodes.values()) {
       if (!n.edges.some((e) => e.name.toUpperCase() === X) || !n.edges.some((e) => e.name.toUpperCase() === last)) continue;
-      const r = findRoute(sim.airport, start, n, via, opts);
+      const r = viaRoute(sim, start, n, via, opts);
       if (isRouteError(r) || r.edges.length === 0) continue;
       if (r.edges[r.edges.length - 1].name.toUpperCase() === X) continue;
       if (!best || r.length < best.route.length) best = { route: r, dest: { kind: 'holdShort', name: X } };
@@ -1047,7 +1069,10 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
 
   // Read-back: destination, route, conditions.
   let rb = res.dest.kind === 'holdShort' ? 'taxi' : `taxi to ${formatDestination(res.dest)}`;
-  const via = c.via.length ? c.via : [];
+  // A route with taxiways the crew added: they read back the whole route, so you hear what they will do.
+  const via = res.route.filled?.length ? [...new Set(res.route.edges.filter((e) => e.kind === 'taxiway' && e.name).map((e) => e.name))] : c.via;
+  // ... without the taxiway of the holding point it was cleared to ("to holding point A via S", not "via S, A").
+  if (res.route.filled?.length && res.dest.kind === 'holdingPoint' && via[via.length - 1]?.toUpperCase() === res.dest.name.toUpperCase()) via.pop();
   if (via.length) rb += ` via ${via.join(', ')}`;
   for (const h of c.holdShort) rb += `, ${formatHoldShort(h)}`;
   for (const r of c.cross) rb += `, cross runway ${r}`;
@@ -1159,8 +1184,11 @@ function computeStops(sim: Simulation, ac: Aircraft, holdShort: HoldShortTarget[
   return stops.sort((a, b) => a.s - b.s);
 }
 
-/** Stop position before the route joins or crosses taxiway `name`, searching from arc length `fromS`. */
-function holdShortStop(_sim: Simulation, ac: Aircraft, name: string, fromS: number): PathStop | undefined {
+/**
+ * Stop position before the route joins or crosses taxiway `name`, searching from arc length `fromS`: at the
+ * intermediate holding position before the junction, else with the nose clear of the taxiway (holdShort.ts).
+ */
+function holdShortStop(sim: Simulation, ac: Aircraft, name: string, fromS: number): PathStop | undefined {
   const route = ac.route;
   const path = ac.path;
   if (!route || !path) return undefined;
@@ -1169,10 +1197,8 @@ function holdShortStop(_sim: Simulation, ac: Aircraft, name: string, fromS: numb
     const n = route.nodes[i];
     if (route.edges[i - 1].name.toUpperCase() === N) continue;
     if (!n.edges.some((e) => e.name.toUpperCase() === N)) continue;
-    const sNode = path.marker(n.id)?.s ?? 0;
-    const sPrev = path.marker(route.nodes[i - 1].id)?.s ?? 0;
-    const s = Math.max(sPrev + 1, sNode - 40);
-    if (s < fromS) continue;
+    const s = holdShortS(sim.airport, route, path, i, N, ac.type.lengthM, fromS);
+    if (s === undefined) continue;
     return { s, kind: 'holdShort', target: N, nodeId: n.id };
   }
   return undefined;

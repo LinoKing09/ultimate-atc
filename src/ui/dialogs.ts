@@ -308,7 +308,7 @@ const REFERENCE: [string, string][] = [
   ['taxi via S, hold short of E', 'Incomplete taxi instruction: the clearance limit is the hold-short point.'],
   ['(closed taxiway in the route)', 'Taxiways closed by the scenario are red and hatched on the scope and in the ATIS: the crew answers "unable, taxiway S closed". Give a route around them. Parts with black crosses (e.g. Memmingen S, Sylt G) are closed permanently, as on the aerodrome chart.'],
   ['advise able for departure from intersection D', 'Ask whether the crew can depart from an intersection ("are you able intersection D" works too). Answer: "affirm, able" or "negative, we require full length".'],
-  ['... hold short of taxiway D | runway 25', 'Add a hold-short point to a route (or send it on its own).'],
+  ['... hold short of taxiway D | runway 25', 'Add a hold-short point to a route (or send it on its own). The aircraft stops at the dashed intermediate holding line of the charts, otherwise with its nose 40 m from the centre line of D.'],
   ['cross runway 25', 'Clear an aircraft holding short of the runway to cross (also as part of a taxi instruction).'],
   ['behind the A320 passing left to right, ...', 'Conditional clearance (also "behind DLH5AB", "when clear of the Boeing"). The pilot waits for the traffic.'],
   ['hold position', 'Stop immediately.'],

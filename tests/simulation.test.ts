@@ -58,9 +58,20 @@ describe('departure flow', () => {
     runUntil(sim, () => ac.request === 'pushback');
     sim.transmit('DLH5AB push and start approved');
     runUntil(sim, () => ac.request === 'taxi');
-    sim.transmit('DLH5AB taxi to holding point A via S');
+    // K is at the far end of the airport: no connection a crew would fill in on its own.
+    sim.transmit('DLH5AB taxi to holding point A via K');
     runUntil(sim, () => lastPilotMessage(sim, 'DLH5AB').includes('unable'), 10);
-    expect(lastPilotMessage(sim, 'DLH5AB')).toMatch(/unable to follow route via S/i);
+    expect(lastPilotMessage(sim, 'DLH5AB')).toMatch(/unable to follow route via K/i);
+  });
+
+  it('pilot fills in a connecting taxiway the instruction leaves out and reads back the whole route', () => {
+    const sim = makeSim();
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    runUntil(sim, () => ac.request === 'pushback');
+    sim.transmit('DLH5AB push and start approved facing east');
+    runUntil(sim, () => ac.request === 'taxi', 400);
+    sim.transmit('DLH5AB taxi to holding point A via S');
+    expect(runUntil(sim, () => /Taxi to holding point A via (M, )?L2, S,/i.test(lastPilotMessage(sim, 'DLH5AB')), 10)).toBe(true);
   });
 
   it('pilot says again on gibberish', () => {
@@ -242,8 +253,9 @@ describe('extended phraseology', () => {
     runUntil(sim, () => ac.stoppedAt?.kind === 'destination', 400);
     const nH = sim.airport.node('N_H').pos;
     const d = Math.hypot(ac.pos.x - nH.x, ac.pos.y - nH.y);
-    expect(d).toBeGreaterThan(30);
-    expect(d).toBeLessThan(60);
+    // The nose 40 m from the centre line of H.
+    expect(d).toBeGreaterThan(55);
+    expect(d).toBeLessThan(75);
     sim.transmit('DLH5AB taxi to holding point A via N');
     runUntil(sim, () => ac.phase === 'holding', 600);
     expect(ac.stoppedAt?.holdingPoint).toBe('A');

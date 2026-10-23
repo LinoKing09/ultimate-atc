@@ -21,6 +21,7 @@ ultimate-atc/
 │   │   ├── levels.ts          # five-step sliders: density, traffic mix, heavies, special events
 │   │   ├── night.ts           # night flying restrictions (curfew planning, jets that miss it)
 │   │   ├── weather.ts         # wind type and formatting, thunderstorm event
+│   │   ├── holdShort.ts       # where aircraft hold short (intermediate holding positions, 40 m nose clearance) and stop after vacating
 │   │   ├── met.ts             # METAR observations (seeded weather, half-hourly, SPECI), ATIS met formats
 │   │   ├── deicing.ts         # de-icing (winter scenario option): pads, timings, who needs it
 │   │   ├── time.ts            # local airport time (Intl, no DOM)
@@ -150,9 +151,10 @@ Runway holding positions are **nodes** with a `holdingPoint` attribute. Moving f
 
 ### Taxi routing
 
-`findRoute(airport, start, destination, via)` in `core/airport/routing.ts` runs **Dijkstra on the state (node, k, incoming edge)**, where `k` is the number of `via` taxiways joined so far. The incoming edge is part of the state so that **turns sharper than 150°** (hairpins, reversing on a taxiway) can be rejected. An edge may be used if
+`findRoute(airport, start, destination, via)` in `core/airport/routing.ts` runs **Dijkstra on the state (node, k, incoming edge)**, where `k` is the number of `via` taxiways joined so far. The incoming edge is part of the state so that **turns sharper than 150°** (hairpins, reversing on a taxiway) can be rejected; from one named taxiway onto another up to 175° (`JUNCTION_MAX_TURN`, extra cost, automatic routes only as a last resort). An edge may be used if
 
 - its name is the current via taxiway `via[k-1]` (stay on it), or the next one `via[k]` (k + 1), or
+- `fillGaps` (the pilot's second try after an exact route failed): any other taxiway edge except a runway strip, at three times its length; the route lists the added taxiways (`filled`, `filledTail` after the last via taxiway) and their length, and the pilot accepts it only within the limits in [simulation.md](simulation.md#ground-movement) - or
 - it is a "free" edge that controllers usually don't mention: a stand lead-in or taxilane at the start or end of the route, the taxiway the aircraft is currently on (k = 0), the taxiway the destination lies on (k = len(via)), or - anywhere on the route - a short unnamed link (at most 150 m: the fillets of a junction that OpenStreetMap maps as ways of their own). Unnamed edges never appear in the taxiway list of a route (`route.taxiways`, the menu proposals).
 
 The goal is any state at `(destination, len(via))`. With an empty `via` list, the router returns the overall shortest route and adds a large penalty to runway strips, so it avoids crossing runways whenever possible. Routes can start at a node (a stand) or at an arbitrary position and heading. The start then snaps to the nearest edge; both edge ends are candidates. The first turn is checked against the aircraft's direction of travel, so it can't immediately reverse. A start node *behind* the aircraft means turning around on the spot and costs 5000 m, so it is only used as a last resort.

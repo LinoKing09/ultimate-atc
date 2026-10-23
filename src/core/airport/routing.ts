@@ -19,6 +19,11 @@ import { edgeVertices, isClosedEdge, otherEnd, type Airport, type TaxiEdge, type
  *  - anywhere: short unnamed links (the fillets of a junction mapped as ways of
  *    their own), which have no name a controller could say.
  *
+ * With `fillGaps` any other taxiway may fill a gap between the named ones (at a
+ * higher cost, never across a runway): the pilot's lenient reading of an
+ * instruction that leaves out a connecting taxiway. The route then lists the
+ * taxiways it added (`filled`).
+ *
  * With an empty `via` list the router returns the shortest overall route
  * (used by the UI's "auto route" and by AI traffic) and avoids crossing
  * runways if any alternative exists.
@@ -50,6 +55,14 @@ export interface TaxiRoute {
   length: number;
   /** Distinct taxiway names in order of use (for read-backs and display). */
   taxiways: string[];
+  /**
+   * `fillGaps`: taxiways not in the `via` list the route had to add, and their length (m) before the last
+   * via taxiway (the stretch after it, to the destination, is not counted).
+   */
+  filled?: string[];
+  filledLength?: number;
+  /** The added taxiways after the last via taxiway. */
+  filledTail?: string[];
 }
 
 export interface RouteError {
@@ -62,13 +75,24 @@ const OTHER_CROSSING_PENALTY = 20000;
 /** Extra cost of a taxiway automatic routes avoid (reserved for other traffic). */
 const AVOID_PENALTY = 20000;
 const UTURN_PENALTY = 5000;
-/** Sharpest turn (degrees) an aircraft can make at a taxiway junction. */
+/** Sharpest turn (degrees) an aircraft makes along a taxiway or onto an unnamed link. */
 const MAX_TURN = 150;
+/**
+ * Sharpest turn from one taxiway onto another (e.g. off a rapid exit against the landing direction): the
+ * junction has room for it even where OpenStreetMap lacks the fillet. A `via` route takes it when the
+ * controller asks for that direction (a little extra cost per degree beyond MAX_TURN); automatic routes
+ * only if there is no other way.
+ */
+const JUNCTION_MAX_TURN = 175;
+const SHARP_TURN_COST_M = 20;
+const AUTO_SHARP_TURN_PENALTY = 20000;
 /** Sharpest turn onto or off the lead line of a de-icing pad. */
 const PAD_MAX_TURN = 100;
 const FREE_EDGE_PENALTY = 1.15;
 /** Unnamed edges up to this length (m) are junction links a `via` list never names. */
 const UNNAMED_LINK_M = 150;
+/** Cost factor of a taxiway that fills a gap in a `via` list (`fillGaps`). */
+const GAP_FACTOR = 3;
 
 export interface RouteOptions {
   /** Points the route must keep away from (e.g. another aircraft standing on a taxiway), with a radius in metres. */
@@ -81,6 +105,8 @@ export interface RouteOptions {
   flows?: Map<string, Vec2>;
   /** Whether the aircraft may turn around on the spot (small aircraft only). Default: true. */
   allowUTurn?: boolean;
+  /** A `via` list may leave out connecting taxiways; the route fills them in (see above). */
+  fillGaps?: boolean;
 }
 
 /** Cost factor for automatic routes taxiing against a standard flow. */
@@ -165,7 +191,7 @@ export function findRoute(
   const crossings = auto && airport.data.runwayCrossings ? new Set(airport.data.runwayCrossings) : undefined;
   const avoid = auto && airport.data.avoidTaxiways ? new Set(airport.data.avoidTaxiways.map((t) => t.toUpperCase())) : undefined;
   const dist = new Map<string, number>();
-  const prev = new Map<string, { key: string; edge: TaxiEdge | null; seed?: Seed }>();
+  const prev = new Map<string, { key: string; edge: TaxiEdge | null; seed?: Seed; gap?: boolean; tail?: boolean }>();
   const open: State[] = [];
 
   seeds.forEach((s, i) => {
@@ -202,11 +228,14 @@ export function findRoute(
       const arrive = unit(sub(verts[verts.length - 1], verts[verts.length - 2]));
       // Onto and off de-icing pads the lead lines allow no sharp turns (enter and leave the way they are painted).
       const pad = airport.isDeicingLead(e) || (!!cur.inEdge && airport.isDeicingLead(cur.inEdge));
-      if (cur.dir && turnAngle(cur.dir, out) > (pad ? PAD_MAX_TURN : MAX_TURN)) continue;
+      const turn = cur.dir ? turnAngle(cur.dir, out) : 0;
+      const otherTaxiway = !!cur.inEdge && !!e.name && !!cur.inEdge.name && e.name !== cur.inEdge.name && e.kind !== 'stand' && cur.inEdge.kind !== 'stand';
+      if (turn > (pad ? PAD_MAX_TURN : otherTaxiway ? JUNCTION_MAX_TURN : MAX_TURN)) continue;
 
       const name = e.name.toUpperCase();
       let k = cur.k;
-      let cost = e.length;
+      let cost = e.length + (turn > MAX_TURN ? (auto ? AUTO_SHARP_TURN_PENALTY : (turn - MAX_TURN) * SHARP_TURN_COST_M) : 0);
+      let gap = false;
       if (auto) {
         if (e.kind === 'runwayStrip') cost += RUNWAY_CROSSING_PENALTY / 2;
         // Crossing a runway away from the designated crossing points: only if there is no other way.
@@ -232,6 +261,9 @@ export function findRoute(
         cost *= FREE_EDGE_PENALTY;
       } else if (!name && e.kind !== 'stand' && e.length <= UNNAMED_LINK_M) {
         cost *= FREE_EDGE_PENALTY;
+      } else if (options.fillGaps && e.kind !== 'stand' && e.kind !== 'runwayStrip') {
+        cost *= GAP_FACTOR;
+        gap = true;
       } else {
         continue;
       }
@@ -239,7 +271,7 @@ export function findRoute(
       const nc = cur.cost + cost;
       if (nc < (dist.get(nk) ?? Infinity)) {
         dist.set(nk, nc);
-        prev.set(nk, { key: cur.key, edge: e });
+        prev.set(nk, { key: cur.key, edge: e, gap, tail: gap && k === m });
         open.push({ key: nk, node: nxt, k, cost: nc, dir: arrive, inEdge: e });
       }
     }
@@ -252,6 +284,9 @@ export function findRoute(
   // ---- reconstruct
   const nodes: TaxiNode[] = [];
   const edges: TaxiEdge[] = [];
+  const filled: string[] = [];
+  const filledTail: string[] = [];
+  let filledLength = 0;
   let k = goalKey;
   let seed: Seed | undefined;
   for (;;) {
@@ -259,6 +294,11 @@ export function findRoute(
     const nodeId = k.split('|')[0];
     nodes.unshift(airport.node(nodeId));
     if (p.edge) edges.unshift(p.edge);
+    if (p.gap && p.edge) {
+      if (!p.tail) filledLength += p.edge.length;
+      if (p.edge.name && !filled.includes(p.edge.name)) filled.unshift(p.edge.name);
+      if (p.tail && p.edge.name && !filledTail.includes(p.edge.name)) filledTail.unshift(p.edge.name);
+    }
     if (p.seed) {
       seed = p.seed;
       break;
@@ -280,6 +320,7 @@ export function findRoute(
     requiresUTurn: seed?.uTurn ?? false,
     length: dist.get(goalKey)!,
     taxiways,
+    ...(options.fillGaps ? { filled, filledLength, filledTail } : {}),
   };
 }
 

@@ -21,6 +21,8 @@ export interface TaxiNode {
   id: string;
   pos: Vec2;
   holdingPoint?: { name: string; runway: string };
+  /** Intermediate holding position (see TaxiNodeData). */
+  intermediateHold?: boolean;
   edges: TaxiEdge[];
 }
 
@@ -132,6 +134,7 @@ export class Airport {
 
     for (const n of data.taxiNodes) {
       const node: TaxiNode = { id: n.id, pos: this.proj.toLocal(n.pos), edges: [] };
+      if (n.intermediateHold) node.intermediateHold = true;
       if (n.holdingPoint) {
         node.holdingPoint = { ...n.holdingPoint };
         this.holdingPoints.set(n.holdingPoint.name.toUpperCase(), node);

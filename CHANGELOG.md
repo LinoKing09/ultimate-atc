@@ -22,8 +22,16 @@ All notable changes to this project are documented in this file. The format is b
 - **Old ATIS letters**: crews listen to the ATIS 2-8 minutes before their first call, so after a new ATIS some report the old letter. `information K is current, QNH 1018` (aircraft menu, quick-action bar) or the ALL STN broadcast corrects them; a crew that leaves your frequency with an old letter costs 3 points (new score table row and debriefing tip). `QNH 1018` alone is understood too.
 - Airport data: `climate` (monthly mean temperatures) for the METAR.
 
+- **Intermediate holding positions** from the charts (OpenStreetMap `holding_position:type=intermediate`, e.g. Leipzig/Halle): `hold short of taxiway X` stops there, with the nose at the line.
+
 ### Changed
 
+- **Hold short** without a holding position: the aircraft stops with its nose 40 m from the centre line of the other taxiway, measured from where its route leaves its own taxiway - it stopped 40 m before the junction node, which at junctions mapped with fillets (Leipzig N / E7) was in the middle of the junction.
+- **Lenient crews**: a via list that leaves out a connecting taxiway is no longer refused; the crew adds it (at most two taxiways, 600 m between the named ones; after the last one, one taxiway on to the destination) and reads back the whole route.
+- **Turning off rapid exits either way**: from one taxiway onto another the router allows turns up to 175 degrees (OpenStreetMap often lacks the fillet for the other direction, e.g. Cologne/Bonn A1 onto A); automatic routes use them only if there is no other way. Exit paths follow the exit's own taxiway instead of a one-way fillet (Leipzig S3). Vacated arrivals stop with the nose clear of the taxiway ahead instead of in the junction.
+- Landing: crews prefer an exit from which they can taxi on to their stand without turning around, and backtrack to one marked for it if none ahead does (Sylt: airliners that roll on to L backtrack to D).
+- Opposite traffic on lanes beside each other too close for both wingspans (Leipzig apron 4) or without a junction between them: the crew further from the narrow part waits short of it until the other has passed (they met and blocked each other for good).
+- See-and-avoid only checks traffic within reach of the look-ahead (faster with many aircraft on the ground, same behaviour).
 - Sidebar: **SAY AGAIN** instead of STANDBY - the selected aircraft (or the pilot who called last) repeats its last transmission. `standby` stays in the aircraft menu and on the command line.
 - **Compact data tags when zoomed out**: with the whole airport in view (the typical Tower picture, e.g. on an iPad) tags show only the callsign, `*` for a request and `PAN`; the selected (tapped) aircraft and the one under the mouse get the full tag. *Settings -> Data tags -> Always full* keeps the full tags.
 - Pushback: without a `facing`, a direction that would need a 180 degree turn afterwards (towards the dead end of a taxilane) is only taken if there is no other.

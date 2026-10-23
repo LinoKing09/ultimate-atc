@@ -81,7 +81,7 @@ All taxiways of the aerodrome chart (AIP AD 2.8: 15 m wide, C 12 m; I grass):
 
 ## Procedures
 
-- **Runway 32** (preferred with the prevailing westerly winds, ILS): departures taxi via D, **cross runway 24** (D2 / A2) and follow A to the 32 end (`taxi to holding point A via D, A, cross runway 24`); from Apron 3 they first cross runway 14/32 at its 14 end (L to D). Arrivals vacate at the end via C or D (west: Apron 1 / 2) or L (north: Apron 3).
+- **Runway 32** (preferred with the prevailing westerly winds, ILS): departures taxi via D, **cross runway 24** (D2 / A2) and follow A to the 32 end (`taxi to holding point A via D, A, cross runway 24`); from Apron 3 they first cross runway 14/32 at its 14 end (L to D). Arrivals vacate at the end via C or D (west: Apron 1 / 2) or L (north: Apron 3). An airliner that rolls on to L (F and the Apron 3 lanes are too narrow for it) backtracks to D instead.
 - **Runway 14** (RNP approach): departures from D or L (full length) or C (intersection, 1748 m). Arrivals vacate to the right at the end via A and taxi back via A, across runway 06/24, and D.
 - One SID per runway, initial climb 4000 ft: space departures at least 5 NM (2 minutes).
 - Arrivals vacate only at the far end and occupy the runway for long: Approach spaces them at least **6 NM** (`arrivalSpacingNm`).

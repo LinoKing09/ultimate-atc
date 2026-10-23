@@ -218,6 +218,11 @@ export interface TaxiNodeData {
     /** Runway it protects, e.g. "07/25". */
     runway: string;
   };
+  /**
+   * Intermediate holding position (charts: a dashed yellow line before a junction). "Hold short of
+   * taxiway X" stops here when it is the last one before X.
+   */
+  intermediateHold?: boolean;
 }
 
 export type TaxiEdgeKind =

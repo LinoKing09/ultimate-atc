@@ -99,9 +99,11 @@ taxi via|along X [,] X ..., hold short of TAXIWAY|runway RWY        (incomplete 
 
 So after a pushback from stand 14 facing east, `taxi to holding point A via L2, S` is accepted and gives the route M -> L2 -> S -> A. Without any `via`, the pilot takes the **shortest route**, avoiding runway crossings where possible. This is convenient, but not proper phraseology.
 
+**Left-out taxiways**: crews are not pedantic. If the via list leaves out a connecting taxiway (`taxi to holding point A via S` from stand 14, where L2 links M and S), the crew takes the obvious connection - at most two added taxiways and 600 m between the ones you named; after the last one it follows one taxiway to the destination - and reads back the whole route: `Taxi to holding point A via M, L2, S, Lufthansa 5AB`. Check the read-back.
+
 If the route is impossible, the pilot replies `unable to follow route via S, say again route`. An unknown taxiway gives `confirm taxiway Q, we can't find it`. A taxiway closed by the scenario (shown red and hatched, in the ATIS) gives `unable, taxiway S closed` - also for a holding point or `vacate via` on it; see [closed taxiways](scenarios.md#closed-taxiways). The live preview in the command line shows these problems **before** you transmit.
 
-**Incomplete taxi instructions** (clearance limit): `taxi via S, hold short of E` or `taxi along R, D, N, hold short of runway 25`. There is no destination; the aircraft taxis along the via taxiways and stops at the hold-short point, which is the clearance limit: about 40 m before the junction with E, or at the runway holding point. The read-back is `Taxi via S, hold short of taxiway E, ...`. Then give the rest of the route with a normal taxi instruction. `continue taxi` at a clearance limit gets `confirm where to taxi`.
+**Incomplete taxi instructions** (clearance limit): `taxi via S, hold short of E` or `taxi along R, D, N, hold short of runway 25`. There is no destination; the aircraft taxis along the via taxiways and stops at the hold-short point, which is the clearance limit: at the intermediate holding position before the junction with E where the charts have one, otherwise with the nose 40 m from the centre line of E; or at the runway holding point. The read-back is `Taxi via S, hold short of taxiway E, ...`. Then give the rest of the route with a normal taxi instruction. `continue taxi` at a clearance limit gets `confirm where to taxi`.
 
 **No turning around on the spot**: an airliner (wingspan above 25 m) cannot make a 180 degree turn on a taxiway. If the route you give would need one, for example `taxi to holding point A via N` for an aircraft facing west on N when A is to the east, the pilot replies `unable, we are facing west and cannot turn around here, say again route`. Give a route that continues in the direction the aircraft is facing, or loops around. Smaller aircraft (business jets, CRJ900) can turn around. Exceptions:
 
@@ -124,7 +126,7 @@ The crew compares the take-off run available from that intersection (the publish
 
 | You say                                        | Effect                                                                                     |
 | ---------------------------------------------- | ------------------------------------------------------------------------------------------ |
-| `hold short of taxiway D` / `hold short D`     | Stops before the route joins or crosses taxiway D (about 40 m before the centre line)     |
+| `hold short of taxiway D` / `hold short D`     | Stops before the route joins or crosses taxiway D: at the intermediate holding position of the charts (the dashed line before the junction) where there is one, otherwise with the nose 40 m from the centre line of D - clear of traffic on D |
 | `hold short of runway 25`                      | Cancels a crossing clearance; the aircraft stops at the runway holding point              |
 | `hold position` / `hold` / `stop`              | Stops immediately                                                                          |
 | `continue taxi` / `continue`                   | Cancels *hold position*, *give way* and the current or next *hold short of taxiway*       |

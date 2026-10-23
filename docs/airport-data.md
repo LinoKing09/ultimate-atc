@@ -262,7 +262,13 @@ Write the facts down with their source. Then make the **gap list**: every chart 
 
 **4. Runway operations and procedures.** Entries with their published TORA, exits, SIDs by exit fix, stations and frequencies, the approaches per runway end, wind distribution, night rules, the traffic mix (add missing operators to `src/data/airlines.ts`) and the [briefing](#airport-briefing).
 
-**5. Check visually.** Compare the scope with the chart, area by area (the scope shows building names, holding points and stands); overlay the chart locally if in doubt.
+**5. Check visually and against the chart, area by area** - before the airport is called finished:
+
+- **Nothing ends in the grass**: list every dead end of the taxi graph and every loose end of a drawn line (apart from runway nodes and stand lead-ins) and find each one on the chart - an apron, a de-icing pad, a run-up area, a closed taxiway (draw it `closed`), a hangar. Taxiways the import pruned as dead ends come back with `keepNodes`; aprons at drawn-only taxiways are imported automatically.
+- **Every apron of the chart** is there: general aviation, maintenance, cargo, military (drawn only if not simulated), with the stands the AIP AD 2.8 publishes - none where the chart has removed them.
+- **Every exit and junction** leads on the way the chart shows, both ways where the pavement allows (forks in OpenStreetMap are kept behind one holding point).
+- **Never invent designators**: holding points, stands and taxiways carry the names of the chart. Where the chart has none, use the taxiway name and say so in `docs/airports/<ICAO>.md`; never make up suffixes like "EAST".
+- Overlay the chart locally if in doubt.
 
 **6. Check in the simulation.** The [data checks](#data-checks) run automatically (`tests/airports.test.ts`, `tests/regions.test.ts`): every stand must reach a full-length entry of every runway. Add an hour of traffic per runway direction with a scripted controller (see `tests/eddn.test.ts`): no collisions, departures and arrivals flow. Run `npm run benchmark` if shared code changed.
 

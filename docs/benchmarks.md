@@ -50,6 +50,7 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 1.2.1 (2026-10-22) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 4.0 s |
 | 1.3.0 (2026-10-22) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 4.1 s |
 | 1.3.1 (2026-10-22) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 5.4 s |
+| 1.4.0 (2026-10-23) | 13.0 | 6.3 | 0 | 0 | 0 | 10.4 | 3.0 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -79,6 +80,8 @@ The second part of 1.1.0 (Nuremberg, Memmingen, Sylt, runway backtracking; relea
 
 **1.3.1** (airport menu step by step): the simulation is unchanged, the results are identical to 1.3.0. The computing time of 5.4 s per simulated hour (soak test 6.3 s) comes from the machine: other jobs were running on it during the measurement. Soak test (1.3.1): 12.0 departures and 7.5 arrivals per hour, no collisions, no incursions, no go-arounds, 11.1 deadlock calls per hour.
 
+**1.4.0** (parallel runways, three new airports, METAR and ATIS, hold short and rapid exits as on the charts): slightly fewer arrivals parked (6.3 instead of 6.6 per hour) - arrivals now stop clear of the parallel taxiway after vacating and hold short at the intermediate holding positions, and crews meeting on lanes too close for both wingspans wait; the automatic controller never re-routes them. Computing time is lower (3.0 s per simulated hour): see-and-avoid only checks traffic within reach. Still no collisions, incursions or go-arounds.
+
 ### Tower benchmark (since 0.7)
 
 The same 20 sessions with you as **Tower** (Ground and Delivery run by the simulator) and a simple scripted Tower controller: it clears arrivals to land inside 4 NM when nobody is lined up, clears a departure for take-off when the runway is free, the next arrival is more than 110 s away, the departure spacing is met and its CTOT window is open, hands departures to Radar and arrivals to Ground when they ask, and clears crossings when the runway is free and the next arrival is more than 90 s away.
@@ -95,6 +98,7 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 | 1.2.1 (2026-10-22) | 11.7 | 9.9 | 0 | 0 | 0 | 0 | 0 |
 | 1.3.0 (2026-10-22) | 11.7 | 9.9 | 0 | 0 | 0 | 0 | 0 |
 | 1.3.1 (2026-10-22) | 11.7 | 9.9 | 0 | 0 | 0 | 0 | 0 |
+| 1.4.0 (2026-10-23) | 11.4 | 9.9 | 0 | 0 | 0 | 0 | 0 |
 
 Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
 

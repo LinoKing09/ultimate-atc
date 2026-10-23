@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.4.0] - 2026-10-23
+
+Two runways at the same time and Leipzig/Halle, Cologne/Bonn and Bremen, METAR and a full ATIS, hold short and rapid exits as on the charts, lenient crews.
+
 ### Added
 
 - **Parallel runways in use at the same time**: airports with parallel runways (`parallelRunways`) use both for take-offs and landings. Each aircraft gets the runway of its apron (or size, or the nearest one); Approach spaces each final on its own and keeps the diagonal separation between the finals (dependent 1.5 NM, staggered 3 NM, independent none); the AI Tower works each runway on its own (independent parallel departures, line-up, occupancy, crossings and incursions per runway); a SID of the other runway (Delivery) or a holding point of it (Ground) moves a departure there. The ATIS names both runways (`dependent parallel approaches in progress`), the ATIS editor and the scenario builder offer the parallel runways or each one alone, scenario codes write them as `26R.26L`, the toolbar shows `RWY 26R 26L`, the briefing lists entries and exits of each runway.

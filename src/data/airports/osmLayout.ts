@@ -47,11 +47,6 @@ export interface LayoutOptions {
    * the same node for the holding points on both sides of a runway crossing). Others become plain nodes.
    */
   holdingPoints: Record<string, string | { name: string; runway?: string; node?: string }>;
-  /**
-   * Names for the holding positions of strip branches (see BuiltLayout.branches), by imported node; default:
-   * the name of the main holding point and the direction of the branch, e.g. "S4 EAST".
-   */
-  branchHoldingPoints?: Record<string, string>;
   /** Rename the taxiway of single edges (imported names that are missing or wrong): "from>to" -> name. */
   edgeNames?: Record<string, string>;
   /** Rename taxiways everywhere: imported name -> name ("?" = unnamed ways). */
@@ -103,10 +98,10 @@ export interface BuiltLayout {
   /** Runway node where the strip of a holding point meets the runway, by holding point name. */
   runwayNodeOf: Record<string, string>;
   /**
-   * Branches of a runway strip with a holding point of their own (`branchHoldingPoints`): the holding
-   * point node of the branch by its name, e.g. "S4 EAST" -> "HP.6139515728", with the main holding point.
+   * Branches of runway strips behind the same holding point (see buildLayout): the holding point and the
+   * first node of the branch behind it - pass it as `next` to `exitVia` for an exit along the branch.
    */
-  branches: { name: string; hp: string; of: string }[];
+  branches: { of: string; node: string }[];
 }
 
 const key = (a: string, b: string) => `${a}>${b}`;
@@ -207,12 +202,13 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     strips.push({ name, runway, hp, goal, inner, twy, widthM: stripWidth });
   }
 
-  // Branches: a way that leaves a strip between its holding point and the runway, passes a runway holding
-  // position of its own and joins the taxiways elsewhere (e.g. a rapid exit forking into a fillet to either
-  // side of the parallel taxiway) becomes a strip of its own from that holding position. Without this it
+  // Branches: a way that leaves a strip between its holding point and the runway, crosses the same holding
+  // position line (a runway holding position of its own beside the main one) and joins the taxiways elsewhere
+  // - a rapid exit forking into a fillet to either side of the parallel taxiway, behind one holding point
+  // (Leipzig S2-S4). The branch is linked to the holding point node, so both ways lead on from the one
+  // holding point; its part between the fork and the holding line is drawn as pavement. Without this it
   // would hang loose once the strip is one edge, and be pruned as a dead end.
   const branches: BuiltLayout['branches'] = [];
-  const branchHolds = new Map<string, { name: string; runway: string }>();
   const runwayHolds = new Set(layout.holdingPositions.filter((h) => h.type === 'runway').map((h) => h.node));
   for (const st of strips) {
     for (const n of st.inner) {
@@ -227,19 +223,11 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
           const next = edges.filter((x) => x !== e && x.kind !== 'runway' && (x.from === cur || x.to === cur));
           e = next.length === 1 ? next[0] : undefined;
         }
-        if (!runwayHolds.has(cur) || hpNames[cur]) continue;
-        const name = o.branchHoldingPoints?.[cur] ?? `${st.name} ${compassWord(bearingOf(proj, pos.get(st.hp)!, pos.get(cur)!))}`;
-        // The strip: from the branch's holding position back to the fork, then along the main strip to the runway.
-        const fork = st.inner.indexOf(n);
-        const back: string[] = [];
-        let at = n;
-        for (const e of chain.slice(0, -1)) {
-          at = e.from === at ? e.to : e.from;
-          back.unshift(at);
-        }
-        const shape = [...back, ...st.inner.slice(fork)].map((id) => pos.get(id)!);
+        // Only a holding line beside the main one (the same line across a wide exit).
+        if (!runwayHolds.has(cur) || hpNames[cur] || distance(p(cur), p(st.hp)) > 60) continue;
         edges = edges.filter((e) => !chain.includes(e));
-        edges.push({ from: cur, to: st.goal, name: st.twy, kind: 'runwayStrip', shape, ...(st.widthM ? { widthM: st.widthM } : {}) });
+        for (const e of chain) pavement.push({ points: [pos.get(e.from)!, pos.get(e.to)!], ...(st.widthM ? { widthM: st.widthM } : {}) });
+        edges.push({ from: st.hp, to: cur, name: st.twy, kind: 'taxiway', ...(st.widthM ? { widthM: st.widthM } : {}) });
         // The rest of the branch is part of the same taxiway.
         for (let id = cur, guard = 0; guard < 50; guard++) {
           const rest = edges.filter((x) => x.kind !== 'runway' && x.kind !== 'runwayStrip' && !x.name && (x.from === id || x.to === id));
@@ -248,10 +236,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
           id = rest[0].from === id ? rest[0].to : rest[0].from;
           if (edges.filter((x) => x.from === id || x.to === id).length !== 2) break;
         }
-        hpNames[cur] = name;
-        branchHolds.set(cur, { name, runway: st.runway });
-        runwayNodeOf[name] = st.goal;
-        branches.push({ name, hp: cur, of: st.hp });
+        branches.push({ of: st.hp, node: cur });
       }
     }
   }
@@ -324,7 +309,6 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     if (!at) throw new Error(`unknown node ${id}`);
     const n: TaxiNodeData = { id, pos: at };
     if (o.holdingPoints[id]) n.holdingPoint = { name: hpSpec(o.holdingPoints[id]).name, runway: hpSpec(o.holdingPoints[id]).runway };
-    else if (branchHolds.has(id)) n.holdingPoint = { ...branchHolds.get(id)! };
     else if (intermediate.has(id)) n.intermediateHold = true;
     taxiNodes.push(n);
   }
@@ -386,11 +370,6 @@ export function layoutEdges(layout: OsmLayout, o: { names?: string[]; inside?: [
     .map(([from, to]) => key(from, to));
 }
 
-/** "NORTH", "EAST", "SOUTH" or "WEST" for a bearing in degrees. */
-function compassWord(bearing: number): string {
-  return ['NORTH', 'EAST', 'SOUTH', 'WEST'][Math.round((((bearing % 360) + 360) % 360) / 90) % 4];
-}
-
 function bearingOf(proj: LocalProjection, from: LatLon, to: LatLon): number {
   const a = proj.toLocal(from);
   const b = proj.toLocal(to);
@@ -401,7 +380,7 @@ function bearingOf(proj: LocalProjection, from: LatLon, to: LatLon): number {
  * Exit path for `runwayOps`: runway node -> holding point -> the next node behind it (where the
  * aircraft stops after vacating), at least `clearM` metres behind the holding point.
  */
-export function exitVia(built: BuiltLayout, name: string, hp: string, opts: { rapid?: boolean; clearM?: number; via?: string } = {}): ExitData {
+export function exitVia(built: BuiltLayout, name: string, hp: string, opts: { rapid?: boolean; clearM?: number; via?: string; next?: string } = {}): ExitData {
   const rwy = built.runwayNodeOf[built.taxiNodes.find((n) => n.id === hp)?.holdingPoint?.name ?? ''];
   if (!rwy) throw new Error(`exit ${name}: ${hp} is not a holding point`);
   const nodes = new Map(built.taxiNodes.map((n) => [n.id, n.pos]));
@@ -411,6 +390,13 @@ export function exitVia(built: BuiltLayout, name: string, hp: string, opts: { ra
   let len = 0;
   let cur = hp;
   let prev = rwy;
+  if (opts.next) {
+    // Along a branch behind the holding point (BuiltLayout.branches).
+    len += Math.hypot(at(opts.next).x, at(opts.next).y);
+    path.push(opts.next);
+    prev = cur;
+    cur = opts.next;
+  }
   while (len < (opts.clearM ?? 50)) {
     const next = built.taxiEdges
       .filter((e) => e.kind !== 'runway' && e.kind !== 'runwayStrip' && e.kind !== 'stand' && (e.from === cur || e.to === cur))

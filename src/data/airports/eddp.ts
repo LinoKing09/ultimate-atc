@@ -382,12 +382,12 @@ export const EDDP: AirportData = {
         exitVia(built, 'S5', 'HP.6139515751'),
         exitVia(built, 'H5', 'HP.6139515753'),
         exitVia(built, 'S4', 'HP.6139515727', { rapid: true }),
-        // The rapid exits fork before their holding points: the east branch leads onto T eastbound.
-        exitVia(built, 'S4', 'HP.6139515728', { rapid: true }),
+        // S2-S4 fork into a branch to either side of T across the one holding position line: the east branch.
+        exitVia(built, 'S4', 'HP.6139515727', { rapid: true, next: 'HP.6139515728' }),
         exitVia(built, 'S3', 'HP.2694400171', { rapid: true }),
-        exitVia(built, 'S3', 'HP.6139515724', { rapid: true }),
+        exitVia(built, 'S3', 'HP.2694400171', { rapid: true, next: 'HP.6139515724' }),
         exitVia(built, 'S2', 'HP.6139515278'),
-        exitVia(built, 'S2', 'HP.6139515277'),
+        exitVia(built, 'S2', 'HP.6139515278', { next: 'HP.6139515277' }),
         exitVia(built, 'S1', 'HP.6139515715'),
       ],
       // Departures from apron 1 east on N to the bridges E7 / E8, arrivals from the west on W1 (VATSIM); on the south

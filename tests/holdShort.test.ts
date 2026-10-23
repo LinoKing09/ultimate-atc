@@ -76,26 +76,26 @@ describe('rapid exits', () => {
     bothWays(EDDP, '08R', 'S8', 'T');
   });
 
-  it('Leipzig/Halle: the rapid exits fork before their holding points, the east branches lead onto T eastbound', () => {
+  it('Leipzig/Halle: S2, S3 and S4 fork behind their one holding point into a branch to either side of T', () => {
     const ap = new Airport(EDDP);
-    for (const [name, hp] of [
-      ['S2 EAST', 'HP.6139515277'],
-      ['S3 EAST', 'HP.6139515724'],
-      ['S4 EAST', 'HP.6139515728'],
+    for (const [name, branch] of [
+      ['S2', 'HP.6139515277'],
+      ['S3', 'HP.6139515724'],
+      ['S4', 'HP.6139515728'],
     ]) {
-      expect(ap.holdingPoint(name)?.id, name).toBe(hp);
-      // A strip of its own to the runway node of the main exit.
-      expect(ap.holdingPoint(name)!.edges.some((e) => e.kind === 'runwayStrip')).toBe(true);
+      const hp = ap.holdingPoint(name)!;
+      // No holding point of its own: the branch leaves from behind the holding point of the chart.
+      expect(ap.node(branch).holdingPoint, name).toBeUndefined();
+      expect(hp.edges.some((e) => e.kind === 'taxiway' && (e.from.id === branch || e.to.id === branch)), name).toBe(true);
     }
     const exits26L = EDDP.runwayOps.find((o) => o.runway === '26L')!.exits.filter((e) => e.name === 'S4');
-    expect(exits26L.map((e) => e.path[1])).toEqual(['HP.6139515727', 'HP.6139515728']);
-    expect(exits26L[0].path[0]).toBe(exits26L[1].path[0]);
+    expect(exits26L.map((e) => e.path[2])).toContain('HP.6139515728');
     // From the east branch, east on T without a detour.
-    const ex = exits26L[1];
+    const ex = exits26L.find((e) => e.path[2] === 'HP.6139515728')!;
     const end = ap.node(ex.path[ex.path.length - 1]);
     const prev = ap.node(ex.path[ex.path.length - 2]);
     const heading = (Math.atan2(end.pos.x - prev.pos.x, end.pos.y - prev.pos.y) * 180) / Math.PI;
-    const east = ap.node('S5/T').pos.x > end.pos.x ? ap.node('S5/T') : ap.node('S6/T');
+    const east = ap.node('S5/T');
     const r = findRoute(ap, { position: end.pos, heading: (heading + 360) % 360 }, east, ['T'], { allowUTurn: false, wingspanM: 36 });
     expect(isRouteError(r) ? r.error : r.length).toBeLessThan(distance(end.pos, east.pos) * 1.3 + 100);
   });

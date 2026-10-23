@@ -66,7 +66,7 @@ Datalink clearances (DCL) and A-CDM as at the real airport and on VATSIM.
 | **C** | Parallel taxiway south of the northern runway; **A1-A9** link it to the runway (A4 rapid exit landing 26R, A6 landing 08L); **B**, **G1**, **G2** short links at both ends |
 | **W1**, **E7 / E8** | From C south to the terminal: W1 in the west (to H1 and the 08R end), the two bridges E7 and E8 in the east (to H7 / H8 and the southern runway) |
 | **N** | Along apron 1 (terminal) from W1 to E7 / E8; **L** and **M** taxilanes of apron 1; **H2**, **K** to the west; **H5** from N to the southern runway |
-| **T**, **V** | Along the south side of the southern runway: T next to the runway, V along the cargo aprons 2, 4 and 5; **S1-S10** link them to the runway (S3 / S4 rapid exits landing 26L, S6 landing 08R), **Y** links T and V. S2, S3 and S4 fork before their holding points into a branch to either side of T; each branch has its own holding position (simulator names `S2 EAST`, `S3 EAST`, `S4 EAST`, after OpenStreetMap), so arrivals vacating 26L turn onto T east or west |
+| **T**, **V** | Along the south side of the southern runway: T next to the runway, V along the cargo aprons 2, 4 and 5; **S1-S10** link them to the runway (S3 / S4 rapid exits landing 26L, S6 landing 08R), **Y** links T and V. S2, S3 and S4 fork into a branch to either side of T across one holding position line (chart: one holding point each), so arrivals vacating 26L turn onto T east or west |
 | **Z1-Z5** | Taxilanes of apron 4 (DHL hub), each with an orange and a blue guide line (Z1.1 / Z1.2 ...) |
 | **F** | Apron 3 north of the terminal |
 

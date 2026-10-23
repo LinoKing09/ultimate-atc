@@ -75,9 +75,7 @@ describe('Leipzig/Halle (EDDP) after the AIP charts', () => {
     for (const t of ['A1', 'A5', 'A9', 'B', 'C', 'E7', 'E8', 'F', 'H1', 'H5', 'H7', 'H8', 'L', 'N', 'S1', 'S4', 'S10', 'T', 'V', 'W1', 'Y', 'Z1.1', 'Z4.3']) expect(graph.has(t), t).toBe(true);
     const hps = EDDP.taxiNodes.filter((n) => n.holdingPoint).map((n) => `${n.holdingPoint!.name} ${n.holdingPoint!.runway}`);
     expect(hps.filter((h) => h.endsWith('08L/26R')).map((h) => h.split(' ')[0]).sort()).toEqual(['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9']);
-    // 14 of the charts, and the holding positions of the east branches of the rapid exits S2, S3 and S4.
-    expect(hps.filter((h) => h.endsWith('08R/26L')).length).toBe(17);
-    expect(hps.filter((h) => / EAST /.test(h)).sort()).toEqual(['S2 EAST 08R/26L', 'S3 EAST 08R/26L', 'S4 EAST 08R/26L']);
+    expect(hps.filter((h) => h.endsWith('08R/26L')).length).toBe(14);
     const aprons = new Map<string, number>();
     for (const s of ap.stands.values()) aprons.set(s.apron, (aprons.get(s.apron) ?? 0) + 1);
     expect(Object.fromEntries(aprons)).toEqual({ 'Apron 1': 34, 'Apron 2': 18, 'Apron 3': 8, 'Apron 4': 62, 'Apron 5': 6 });

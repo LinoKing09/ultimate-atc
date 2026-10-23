@@ -230,7 +230,9 @@ export class TowerAI {
     const active = this.sim.activeEndOn(runway);
     if (!active) return true;
     const end = this.endFor(active);
-    return !this.runwayBusy(undefined, end) && this.nextArrivalEta(end) > 90;
+    // Nor while a departure on it is cleared for take-off or line-up and not yet airborne.
+    const cleared = this.sim.aircraft.some((a) => a.onGround && (a.takeoffCleared || a.lineUpCleared) && this.sim.airport.runwayNameFor(a.runway ?? '') === runway);
+    return !cleared && !this.runwayBusy(undefined, end) && this.nextArrivalEta(end) > 90;
   }
 
   /**

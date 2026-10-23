@@ -31,7 +31,7 @@ Accuracy: the OSM parts as good as the OSM mapping (usually a few metres), the h
 - all taxiways of the chart are modelled. The south side (P, P4, C, D, E and the unnamed GA lanes) is for small aircraft: the chart limits P to an outer main gear wheel span of 6 m, the simulator uses a 24 m wingspan limit on all of them. The airline traffic therefore never uses them; there are no GA stands on Apron 3 / 4 (the chart shows none),
 - the unnamed lane to Apron 2 is named N in the simulator,
 - taxiway S is named after OpenStreetMap; the AIP charts leave this closed link unnamed,
-- holding points of the south taxiways: C, D and E. C and D fork into two fillets onto P with a holding position each (OSM): the second one is a holding point of its own in the simulator (`C WEST`, `D EAST`, named after the direction of the fillet); E's second fillet is not used. P4's intermediate holding position is not modelled,
+- holding points of the south taxiways: C, D and E. C and D fork into two fillets onto P behind their holding point (both ways are used); E's second fillet is not used. P4's intermediate holding position is not modelled,
 - the 200 m stopway beyond the runway 06 end is drawn as a paved area (not usable by the simulation); the turn loops around both runway ends are closed (crosses) and drawn as closed taxiways,
 - holding point W lies before the turn towards the runway (marked on the chart with a red circle and the note "holding points located before turn towards the RWY"): mentioned in the briefing, not drawn,
 - stands from OSM, named after the AIP chart: P11 and P12 at the terminal (Apron 1, OSM refs 1 and 2) with pushback, 3-6 on Apron 2 as taxi-in / taxi-out positions (the SOP has a pushback on 6; in the OSM layout its lane ends at the stand),

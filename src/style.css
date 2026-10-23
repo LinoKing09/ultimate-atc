@@ -523,6 +523,18 @@ button.mic.listening {
   color: var(--text-dim);
   margin-bottom: 10px;
 }
+.dialog .metar,
+.dialog pre.datis {
+  font-family: var(--font);
+  font-size: 12px;
+  color: var(--text);
+  margin: 0 0 8px;
+  white-space: pre-wrap;
+}
+.dialog pre.datis {
+  border-left: 2px solid var(--panel-border);
+  padding-left: 8px;
+}
 .dialog .grid {
   display: grid;
   grid-template-columns: 130px 1fr;

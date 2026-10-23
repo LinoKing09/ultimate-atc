@@ -21,6 +21,7 @@ ultimate-atc/
 │   │   ├── levels.ts          # five-step sliders: density, traffic mix, heavies, special events
 │   │   ├── night.ts           # night flying restrictions (curfew planning, jets that miss it)
 │   │   ├── weather.ts         # wind type and formatting, thunderstorm event
+│   │   ├── met.ts             # METAR observations (seeded weather, half-hourly, SPECI), ATIS met formats
 │   │   ├── deicing.ts         # de-icing (winter scenario option): pads, timings, who needs it
 │   │   ├── time.ts            # local airport time (Intl, no DOM)
 │   │   ├── tutorial.ts        # tutorials: lessons per position, step runner

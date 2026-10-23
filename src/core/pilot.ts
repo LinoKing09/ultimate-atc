@@ -257,6 +257,14 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       }
       return r;
     }
+    case 'information': {
+      // The crew can listen to the ATIS: a letter that is not broadcast is queried.
+      if (c.letter !== sim.atisLetter) return { unable: `confirm information ${c.letter}, the ATIS is broadcasting information ${sim.atisLetter}` };
+      sim.tellAtis(ac);
+      return { readback: formatCommand(c) };
+    }
+    case 'qnh':
+      return { readback: formatCommand(c) };
     case 'readbackCorrect':
       return execReadbackCorrect(sim, ac);
     case 'ctot':
@@ -1473,9 +1481,9 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     if (ac.phase === 'parked' && ac.category === 'departure' && now >= pushDue && !apronClosed(sim)) {
       const stand = sim.airport.stand(ac.stand ?? '');
       if (stand && !stand.pushback) {
-        call(sim, ac, 'taxi', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetter}, request taxi${deiceWords(sim, ac)}`);
+        call(sim, ac, 'taxi', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetterOf(ac)}, request taxi${deiceWords(sim, ac)}`);
       } else {
-        call(sim, ac, 'pushback', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetter}, request ${sim.rng.chance(0.2) ? 'push and start' : 'pushback'}`);
+        call(sim, ac, 'pushback', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetterOf(ac)}, request ${sim.rng.chance(0.2) ? 'push and start' : 'pushback'}`);
       }
       return;
     }
@@ -1585,7 +1593,7 @@ function deliveryCall(sim: Simulation, ac: Aircraft, stationName: string, tel: s
       return;
     }
     const st = sim.airport.stand(ac.stand ?? '');
-    call(sim, ac, 'clearance', `${stationName}, ${tel}, ${ac.type.icao}, stand ${st?.id ?? ''}, information ${sim.atisLetter}, request clearance to ${destinationName(ac.flightPlan.destination)}`);
+    call(sim, ac, 'clearance', `${stationName}, ${tel}, ${ac.type.icao}, stand ${st?.id ?? ''}, information ${sim.atisLetterOf(ac)}, request clearance to ${destinationName(ac.flightPlan.destination)}`);
     return;
   }
   if (!ac.startupApproved) {

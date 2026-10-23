@@ -470,6 +470,6 @@ describe('ATIS', () => {
     expect(sim.transitionLevel(1012)).toBe(70);
     expect(sim.transitionLevel(980)).toBe(70);
     expect(sim.transitionLevel(975)).toBe(80);
-    expect(sim.atisText()).toMatch(/transition level (60|70)\./);
+    expect(sim.atisText()).toMatch(/Transition level (60|70)\./);
   });
 });

@@ -1,5 +1,6 @@
 import type { AirportData, StationType } from '../core/airport/types';
 import { runwayChoices, runwayEndsOf } from '../core/runways';
+import { formatMetar } from '../core/met';
 import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
 import { closureProblems } from '../core/airport/validate';
 import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
@@ -319,6 +320,7 @@ const REFERENCE: [string, string][] = [
   ['follow the follow-me [to stand 14]', 'A follow-me car comes and leads the aircraft (crews unfamiliar with the airport ask for one).'],
   ['standby', 'Acknowledge a request; the pilot waits two minutes before calling again.'],
   ['expedite taxi', 'Taxi a bit faster.'],
+  ['information K is current, QNH 1018', 'To a crew that reported an old ATIS letter (aircraft menu). After a new ATIS, "all stations, information K is now current" (ALL STN) reaches everybody on your frequency.'],
   ['SAY AGAIN (sidebar) / say again', 'The selected aircraft (or the last caller) repeats its last transmission.'],
   ['Aircraft menu: Acknowledge CATC alert', 'You have checked the head-on alert and the aircraft will not meet (e.g. one stops or turns off before): the flashing stops until that conflict is over.'],
   ['Aircraft menu: Resolve conflict with ...', 'Two aircraft face each other on a taxiway (A-SMGCS CATC alert: flashing red while both roll towards each other): turn one off via a junction, or order a tug (several minutes).'],
@@ -442,8 +444,9 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
 }
 
 /**
- * ATIS editor: the controller sets the runway in use, wind, QNH and the
- * information letter. Applying it broadcasts a new ATIS.
+ * ATIS editor: the controller sets the runway in use, wind, QNH and the information letter (pre-filled
+ * from the latest METAR). The preview shows the new ATIS as D-ATIS text and spoken; applying it
+ * broadcasts it.
  */
 export function showAtisEditor(sim: Simulation): void {
   const a = sim.atis;
@@ -466,9 +469,14 @@ export function showAtisEditor(sim: Simulation): void {
     const speedKt = Number(spd.value) || 0;
     return { direction: Number(dir.value) || 0, speedKt, ...(g > speedKt ? { gustKt: g } : {}) };
   };
-  const qnh = h('input', { type: 'number', min: '950', max: '1060', value: String(a.qnh) });
+  const qnh = h('input', { type: 'number', min: '950', max: '1060', value: String(sim.metar.qnh) });
   const comps = h('div.sub');
+  const datis = h('pre.datis');
+  const spoken = h('div.sub');
   const update = () => {
+    const draft = { letter: letterSel.value, runway: rwySel.value, wind: windOf(), qnh: Number(qnh.value) || a.qnh, updatedAt: sim.time, metar: sim.metar };
+    datis.textContent = sim.atisDatis(draft).join('\n');
+    spoken.textContent = sim.atisText(draft);
     const wind = { direction: Number(dir.value) || 0, speedKt: Number(spd.value) || 0 };
     const c = sim.windComponents(runwayEndsOf(rwySel.value)[0], wind);
     const hw = Math.round(c.headwind);
@@ -477,7 +485,7 @@ export function showAtisEditor(sim: Simulation): void {
     // Tailwind above 5 kt on the selected runway: wind direction and speed in red (as in the toolbar).
     for (const el of [dir, spd]) el.classList.toggle('bad', hw < -5);
   };
-  [dir, spd, rwySel].forEach((el) => el.addEventListener('input', update));
+  [dir, spd, gust, qnh, rwySel, letterSel].forEach((el) => el.addEventListener('input', update));
   update();
 
   const apply = h('button.primary', { type: 'submit', text: 'Broadcast ATIS' });
@@ -489,7 +497,8 @@ export function showAtisEditor(sim: Simulation): void {
     h(
       'div.dbody',
       {},
-      h('div.sub', { text: sim.atisText() }),
+      h('div.metar', { text: formatMetar(sim, sim.metar) }),
+      h('div.sub', { text: sim.atisDifferences.length ? `Information ${a.letter} differs from this METAR: ${sim.atisDifferences.join(', ')}.` : `Information ${a.letter} matches this METAR.` }),
       h(
         'div.grid',
         {},
@@ -507,6 +516,9 @@ export function showAtisEditor(sim: Simulation): void {
         qnh,
       ),
       comps,
+      h('div.sub', { text: 'New ATIS:' }),
+      datis,
+      spoken,
       h('div.notice', {
         text: 'Changing the runway: departures that are not yet taxiing get the new runway and SID, arrivals further out than 3.5 NM are re-sequenced by Approach. Aircraft already taxiing keep their clearance - re-route them. With parallel runways, aircraft keep a runway that stays in use.',
       }),

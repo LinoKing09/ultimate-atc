@@ -20,6 +20,7 @@ export const SCORE_TABLE: { key: keyof Stats; label: string; points: number }[] 
   { key: 'readbackErrorsMissed', label: 'Wrong read-backs not corrected', points: -10 },
   { key: 'slotsMissed', label: 'CTOT slots missed or violated', points: -10 },
   { key: 'curfewMissed', label: 'Departures that missed the night curfew', points: -10 },
+  { key: 'atisNotCorrected', label: 'Crews that left with an old ATIS letter', points: -3 },
   { key: 'sayAgains', label: 'Instructions not understood ("say again")', points: -2 },
   { key: 'delayPenalty', label: 'Slow answers (1 point per 15 s beyond 30 s)', points: -1 },
   { key: 'arrivalStopMinutes', label: 'Minutes Approach held all arrivals for you', points: -2 },
@@ -79,6 +80,7 @@ export function debrief(sim: Simulation): Debrief {
   if (s.slotsMissed > 0) tips.push('Watch the CTOT column: a departure with a slot must be airborne between CTOT -5 and +10 minutes.');
   if (s.curfewMissed > 0) tips.push('With night rules, get the jets out first in the last half hour before the curfew: a jet still on the ground at 2300 local goes back to its stand.');
   if (s.readbackErrorsMissed > 0) tips.push('Listen to the squawk in every clearance read-back and correct a wrong one ("negative, squawk 2312").');
+  if (s.atisNotCorrected > 0) tips.push('When a crew reports an old ATIS letter, tell them the current one ("information K is current, QNH 1018"); after a new ATIS, "all stations, information K is now current" reaches everybody on your frequency.');
   if (!tips.length) tips.push(s.answeredRequests + s.departuresAirborne > 10 ? 'A clean session. Try heavier traffic, a scenario with special events or a combined position next.' : 'Work a longer session to get a meaningful debriefing.');
   const warnings = sim.messages
     .filter((m) => m.kind === 'warning' && m.from === 'SYSTEM')

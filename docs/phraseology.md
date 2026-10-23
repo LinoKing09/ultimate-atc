@@ -262,6 +262,7 @@ A wrong frequency gets `confirm frequency 118.700 for Tower`. Departures that ar
 | `number 2 [for pushback\|start-up\|taxi\|departure]` | Queue position in busy periods. The pilot reads it back (`Number 2 for pushback`) and waits 60 s + 45 s per position before reminding you. The number is shown in the tag (`#2`) and in the list. |
 | `expect pushback\|start-up\|taxi\|departure in 5 minutes` | Expected delay. The pilot waits that long (plus 20 s) before reminding you. |
 | `say again`      | The pilot repeats their last transmission                                      |
+| `information K is current[, QNH 1018]` | To a crew that reported an old ATIS letter: they read back `Information K, QNH 1018`. A letter that is not broadcast gets `confirm information J, the ATIS is broadcasting information K`. `QNH 1018` alone is read back too. |
 | `report position` / `say position` (aircraft on the ground) | The pilot reports where it is: `Taxiing on taxiway N`, `At holding point A`, `On stand 14` |
 | `all stations, ...` | Broadcast to everybody on your frequencies, no read-back: `all stations, information B is now current, QNH 1013`, `all stations, runway 25 in use`, `all stations, expect delays`. `all stations, standby` puts every open request on hold for 2 minutes. Sent as `All stations, Stuttgart Ground, ...` |
 | `line up ...`, `cleared for take-off`, `cleared to land` (to an aircraft on Ground frequency) | Not Ground's job. The pilot asks `confirm, we are on Ground frequency, contact Tower?` |
@@ -320,6 +321,7 @@ Read-backs repeat the safety-relevant parts and end with the callsign:
 | a route that needs a tug                            | `Taxi to ..., we need a tug to turn around, expect about 7 minutes, Lufthansa 5AB` |
 | `expedite taxi`                                     | `Expediting, Lufthansa 5AB`                                         |
 | `standby`                                           | *(no read-back)*                                                    |
+| `information K is current, QNH 1018`                | `Information K, QNH 1018, Lufthansa 5AB`                            |
 | `number 2 for pushback`                             | `Number 2 for pushback, Condor 11`                                  |
 | `cancel pushback`                                   | `Pushback cancelled, Lufthansa 5AB`                                 |
 | `taxi via S, hold short of E`                       | `Taxi via S, hold short of taxiway E, Lufthansa 5AB`                |
@@ -335,7 +337,7 @@ Pilots on your frequency call on their own:
 | Clearance request (Delivery, first contact, 10 min before off-block) | `Stuttgart Delivery, Lufthansa 5AB, A320, stand 14, information E, request clearance to Frankfurt` (DCL crews: no call, `DCL` in the list) |
 | Start-up request (Delivery; with A-CDM at the TSAT)     | `Stuttgart Delivery, Lufthansa 5AB, stand 14, ready for start-up, TSAT 1452`            |
 | After start-up approval (Delivery)                      | `Stuttgart Delivery, Lufthansa 5AB, start-up approved, request frequency for pushback`  |
-| Departure ready (first contact)                         | `Stuttgart Ground, Lufthansa 5AB, stand 14, information E, request pushback` (sometimes `request push and start`) |
+| Departure ready (first contact)                         | `Stuttgart Ground, Lufthansa 5AB, stand 14, information E, request pushback` (sometimes `request push and start`). The letter is the one the crew listened to 2-8 minutes earlier - after a new ATIS it can be the old one |
 | Pushback and start-up complete                          | `Lufthansa 5AB, ready for taxi` (with de-icing: `ready for taxi, request de-icing`)    |
 | (De-icing) De-icing on the pad finished                 | `Stuttgart Ground, Lufthansa 5AB, de-icing complete on DP2, ready for taxi`            |
 | Arrival has vacated the runway (first contact)          | `Stuttgart Ground, Eurowings 7TK, vacated runway 25 via E` (crews unfamiliar with the airport add `, request follow-me to the stand`) |

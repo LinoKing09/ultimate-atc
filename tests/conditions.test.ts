@@ -240,7 +240,8 @@ describe('thunderstorm', () => {
     const sim = simFor('EDDS-25-MB0-S5-9', { generateTraffic: false, position: 'TWR' });
     const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
     expect(runUntil(sim, () => ac.request === 'departure' && sim.storm?.phase === 'overhead', 1800)).toBe(true);
-    expect(sim.atisText()).toMatch(/thunderstorm over the airport/);
+    expect(sim.atisText()).toMatch(/windshear reported on final/);
+    expect(sim.metar.weather).toContain('TSRA');
     sim.transmit('DLH5AB cleared for take-off runway 25');
     expect(runUntil(sim, () => /unable, thunderstorm overhead/i.test(lastPilotMessage(sim, 'DLH5AB')), 15)).toBe(true);
     expect(ac.takeoffCleared).toBeFalsy();

@@ -22,6 +22,7 @@ import { EVENT_LEVELS, clampLevel, type Density } from './levels';
 import { updateNight } from './night';
 import { deicingActive } from './deicing';
 import { utcOffsetMinutes } from './time';
+import { atisDifferences, datisMet, initialMet, metWords, temperatureWords, trendWords, updateMet, type Metar, type MetState } from './met';
 import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
 import { capitalize, defaultRunwayKey, runwayEndsOf, runwayWords } from './runways';
 
@@ -118,6 +119,8 @@ export interface Stats {
   curfewMissed: number;
   /** Thunderstorm: go-arounds in windshear or tailwind (not counted against you). */
   weatherGoArounds: number;
+  /** Crews that reported an old ATIS letter and left your frequency without the current one. */
+  atisNotCorrected: number;
   score: number;
 }
 
@@ -130,6 +133,8 @@ export interface AtisInfo {
   qnh: number;
   /** Simulation time of the last update. */
   updatedAt: number;
+  /** The METAR the information was made from (visibility, weather, clouds, temperature, trend). */
+  metar: Metar;
 }
 
 export interface AtisChange {
@@ -253,10 +258,15 @@ export class Simulation {
     slotsMissed: 0,
     curfewMissed: 0,
     weatherGoArounds: 0,
+    atisNotCorrected: 0,
     score: 0,
   };
 
   readonly atis: AtisInfo;
+  /** Weather observations (METAR), see met.ts. */
+  readonly met: MetState;
+  /** The ATIS letters broadcast in this session with their times (the first one from the start). */
+  private atisHistory: { letter: string; at: number }[] = [];
   /** Actual surface wind. Changes with a scenario wind shift or thunderstorm; broadcasting an ATIS wind sets it too. */
   observedWind: Wind;
   /** Active thunderstorm (scenario event), see weather.ts. */
@@ -312,14 +322,12 @@ export class Simulation {
     const runway = config.runway?.toUpperCase() ?? this.defaultRunwayKey(this.bestRunwayForWind(wind));
     for (const end of runwayEndsOf(runway)) if (!this.airport.runwayEnd(end)) throw new Error(`Unknown runway ${end}`);
     this.config.runway = runway;
-    this.atis = {
-      letter: String.fromCharCode(65 + this.rng.int(0, 25)),
-      runway,
-      wind,
-      qnh: this.rng.int(1003, 1028),
-      updatedAt: 0,
-    };
+    const letter = String.fromCharCode(65 + this.rng.int(0, 25));
+    const qnh = this.rng.int(1003, 1028);
     this.observedWind = { ...wind };
+    this.met = initialMet(this, qnh);
+    this.atis = { letter, runway, wind, qnh, updatedAt: 0, metar: this.met.metar };
+    this.atisHistory.push({ letter, at: -Infinity });
     this.scenarioPending = (config.scenario?.events ?? []).map((e) => ({ ...e })).sort((a, b) => a.atMin - b.atMin);
 
     if (config.generateTraffic !== false) this.traffic.populateInitial();
@@ -395,6 +403,7 @@ export class Simulation {
     Simulation.simulatedSeconds += dt;
     this.updateScenario();
     updateWeather(this);
+    updateMet(this);
     updateNight(this);
     if (this.config.generateTraffic !== false) this.traffic.update();
     this.tower.update(dt);
@@ -418,6 +427,7 @@ export class Simulation {
       updateSequencer(this);
       updateDeliveryAI(this);
       updateGroundAI(this);
+      this.checkAtisCorrections();
     }
     this.frequency.update(this.time);
 
@@ -425,6 +435,7 @@ export class Simulation {
     if (gone.length) {
       this.aircraft = this.aircraft.filter((a) => a.phase !== 'gone');
       for (const g of gone) {
+        this.missAtisCorrection(g);
         this.frequency.release(g.callsign);
         this.emit('aircraftRemoved', g);
       }
@@ -461,6 +472,11 @@ export class Simulation {
     const body = text.replace(/^all stations[,\s]*/i, '');
     const clean = body.replace(/^stuttgart (delivery|ground|tower)[,\s]*/i, '');
     this.frequency.controllerTransmit(this.time, `All stations, ${this.station.name}, ${clean}`);
+    // "Information K is now current": every crew on your frequencies has the current ATIS now.
+    const info = parseTransmission(clean, { callsigns: [], taxiways: this.airport.taxiwayNames, sids: [] }).commands.find((c) => c.type === 'information');
+    if (info?.type === 'information' && info.letter === this.atis.letter) {
+      for (const ac of this.aircraft) if (this.isOnMyFrequency(ac)) this.tellAtis(ac);
+    }
     if (/^standby\b/i.test(clean)) {
       for (const ac of this.aircraft) {
         if (!this.isOnMyFrequency(ac)) continue;
@@ -614,6 +630,44 @@ export class Simulation {
     return this.atis.letter;
   }
 
+  /** The latest weather observation. */
+  get metar(): Metar {
+    return this.met.metar;
+  }
+
+  /**
+   * The ATIS letter a crew reports: the information that was current when they listened to the ATIS,
+   * 2-8 minutes before their first call (or the one you told them). An old letter on your frequency
+   * has to be corrected ("information K is current, QNH 1018") before the aircraft leaves it.
+   */
+  atisLetterOf(ac: Aircraft): string {
+    if (!ac.atisHeard) {
+      const at = this.time - 120 - 360 * this.variation(`${ac.callsign}:atis`);
+      ac.atisHeard = [...this.atisHistory].reverse().find((h) => h.at <= at)?.letter ?? this.atis.letter;
+    }
+    ac.atisOutdated = ac.atisHeard !== this.atis.letter && this.isOnMyFrequency(ac);
+    return ac.atisHeard;
+  }
+
+  /** The crew has the current ATIS (you told them, or a broadcast). */
+  tellAtis(ac: Aircraft): void {
+    ac.atisHeard = this.atis.letter;
+    ac.atisOutdated = false;
+  }
+
+  /** Crews with an old ATIS letter that left your frequencies uncorrected cost points. */
+  private checkAtisCorrections(): void {
+    for (const ac of this.aircraft) if (ac.atisOutdated && !this.isOnMyFrequency(ac)) this.missAtisCorrection(ac);
+  }
+
+  private missAtisCorrection(ac: Aircraft): void {
+    if (!ac.atisOutdated) return;
+    ac.atisOutdated = false;
+    this.stats.atisNotCorrected++;
+    this.system(`${ac.callsign} left your frequency with information ${ac.atisHeard} - information ${this.atis.letter} is current. Tell crews with an old letter "information ${this.atis.letter} is current, QNH ${this.atis.qnh}".`, 'warning', ac.callsign);
+    this.updateScore();
+  }
+
   /** Headwind (positive) / tailwind (negative) and crosswind components in knots for a runway end. */
   windComponents(runwayEnd: string, wind = this.atis.wind): { headwind: number; crosswind: number } {
     const end = this.airport.runwayEnd(runwayEnd);
@@ -642,7 +696,9 @@ export class Simulation {
       a.wind = { ...change.wind };
       this.observedWind = { ...change.wind };
     }
-    if (change.qnh !== undefined) a.qnh = change.qnh;
+    // Without a QNH the latest METAR's.
+    a.qnh = change.qnh ?? this.met.metar.qnh;
+    a.metar = this.met.metar;
     if (runwayChanged) {
       const key = change.runway!.toUpperCase();
       for (const end of runwayEndsOf(key)) if (!this.airport.runwayEnd(end)) throw new Error(`Unknown runway ${end}`);
@@ -651,6 +707,7 @@ export class Simulation {
     }
     a.letter = change.letter ?? nextLetter(a.letter);
     a.updatedAt = this.time;
+    this.atisHistory.push({ letter: a.letter, at: this.time });
     this.system(`ATIS information ${a.letter} is now current: ${this.atisText()}`);
   }
 
@@ -700,22 +757,110 @@ export class Simulation {
     return `${t === 'ILS' ? 'ILS' : t === 'LOC' ? 'localizer' : 'RNP'} approach ${runwayWords(ends)}`;
   }
 
-  /** ATIS broadcast text (abbreviated). */
-  atisText(): string {
-    const a = this.atis;
-    const ends = runwayEndsOf(a.runway);
-    const hhmm = this.utc().toISOString().slice(11, 16).replace(':', '');
-    const ils = ends.filter((e) => this.hasIls(e));
-    const navaids = !ils.length ? '' : !this.systems.loc ? `, ILS ${runwayWords(ils)} out of service` : !this.systems.gp ? `, glide path ${runwayWords(ils)} out of service` : '';
-    // Independent and dependent parallel approaches are announced (ICAO Doc 4444, 6.7.3.2.4).
-    const mode = ends.length > 1 ? this.parallelOps?.approaches : undefined;
-    const parallel = mode === 'independent' || mode === 'dependent' ? `, ${mode} parallel approaches in progress` : '';
+  /**
+   * The notices of an ATIS after the runway in use, as D-ATIS text and spoken: runway assignment of parallel
+   * runways, closed taxiways, de-icing, A-CDM, datalink clearances out of service, windshear.
+   */
+  private atisNotices(ends: string[]): { text: string; spoken: string }[] {
+    const out: { text: string; spoken: string }[] = [];
+    const p = ends.length > 1 ? this.parallelOps : undefined;
+    if (p?.aprons) {
+      const byRunway = new Map<string, string[]>();
+      for (const [apron, runway] of Object.entries(p.aprons)) {
+        const end = ends.find((e) => this.airport.runwayEnd(e)?.runway === runway);
+        if (end) byRunway.set(end, [...(byRunway.get(end) ?? []), apron]);
+      }
+      for (const [end, aprons] of byRunway) {
+        // "apron 2, 4 or 5"
+        const names = aprons.every((x) => /^apron /i.test(x)) ? `apron ${aprons.map((x) => x.slice(6)).join(', ')}` : aprons.join(', ');
+        const list = names.replace(/, ([^,]*)$/, ' or $1');
+        out.push({ text: `A/C ON ${list.toUpperCase()} EXPECT DEP AND ARR RWY ${end}`, spoken: `aircraft on ${list.toLowerCase()} expect departure and arrival runway ${end}` });
+      }
+    }
+    const large = p?.largeAircraft && ends.find((e) => this.airport.runwayEnd(e)?.runway === p.largeAircraft!.runway);
+    if (p?.largeAircraft && large) {
+      const m = p.largeAircraft.minWingspanM;
+      out.push({ text: `A/C WITH WINGSPAN ${m}M OR MORE EXPECT RWY ${large}`, spoken: `aircraft with a wingspan of ${m} metres or more expect runway ${large}` });
+    }
     const closed = [...this.airport.closedTaxiways].sort();
-    const taxiways = closed.length ? `, taxiway${closed.length > 1 ? 's' : ''} ${closed.join(' and ')} closed` : '';
-    const deicing = deicingActive(this) ? ', de-icing in progress on the de-icing pads' : '';
-    const storm = this.storm ? (this.storm.phase === 'overhead' ? ', thunderstorm over the airport, windshear reported on final' : ', thunderstorm in the vicinity') : '';
+    if (closed.length) out.push({ text: `TWY ${closed.join(' AND ')} CLSD`, spoken: `taxiway${closed.length > 1 ? 's' : ''} ${closed.join(' and ')} closed` });
+    if (deicingActive(this)) out.push({ text: 'DE-ICING IN PROGRESS ON DE-ICING PADS', spoken: 'de-icing in progress on the de-icing pads' });
+    const has = (id: SystemId) => !this.config.airport.systems || this.config.airport.systems.includes(id);
+    if (has('acdm') && this.systemOn('acdm')) out.push({ text: 'A-CDM IN PROGRESS', spoken: 'A-CDM in progress' });
+    if (has('dcl') && !this.systemOn('dcl')) out.push({ text: 'DCL U/S', spoken: 'departure clearance via datalink not available' });
+    if (this.storm?.phase === 'overhead') out.push({ text: 'CAUTION WINDSHEAR REPORTED ON FINAL', spoken: 'caution, windshear reported on final' });
+    return out;
+  }
+
+  /** The approach type in ATIS words ("ILS", "localizer", "RNP") and abbreviations ("ILS", "LOC", "RNP"). */
+  private approachAbbr(end: string): string {
+    const t = this.approachTypeFor(end);
+    return t === 'ILS' ? 'ILS' : t === 'LOC' ? 'LOC' : 'RNP';
+  }
+
+  /** Navigation aids out of service, as text ("ILS RWY 25 U/S") and spoken ("ILS runway 25 out of service"). */
+  private navaidNotice(ends: string[]): { text: string; spoken: string } | undefined {
+    const ils = ends.filter((e) => this.hasIls(e));
+    if (!ils.length || (this.systems.loc && this.systems.gp)) return undefined;
+    const what = !this.systems.loc ? 'ILS' : 'glide path';
+    return { text: `${!this.systems.loc ? 'ILS' : 'GP'} RWY ${ils.join(' AND ')} U/S`, spoken: `${what} ${runwayWords(ils)} out of service` };
+  }
+
+  /**
+   * Spoken ATIS: "Stuttgart information K, time 1220. Expect ILS approach runway 25, runway in use 25, A-CDM in
+   * progress. Transition level 70. Wind 250 degrees 8 knots, CAVOK, temperature 12, dew point 6, QNH 1018.
+   * Trend nosig. Information K out." `info` defaults to the ATIS that is broadcast (the editor previews others).
+   */
+  atisText(info: AtisInfo = this.atis): string {
+    const ends = runwayEndsOf(info.runway);
+    const navaids = this.navaidNotice(ends);
+    // Independent and dependent parallel approaches are announced (ICAO Doc 4444, 6.7.3.2.4).
+    const mode = ends.length > 1 ? this.parallelOpsOf(ends)?.approaches : undefined;
+    const parallel = mode === 'independent' || mode === 'dependent' ? `, ${mode} parallel approaches in progress` : '';
     const inUse = ends.length > 1 ? `${runwayWords(ends)} in use` : `runway in use ${ends[0]}`;
-    return `${this.station.name.split(' ')[0]} information ${a.letter}, time ${hhmm}, ${this.approachesText(ends)}${navaids}${parallel}, ${inUse}${taxiways}${deicing}, wind ${windWords(a.wind)}${storm}, QNH ${a.qnh}, transition level ${this.transitionLevel(a.qnh)}.`;
+    const notices = this.atisNotices(ends).map((n) => `, ${n.spoken}`).join('');
+    const m = info.metar;
+    const L = info.letter;
+    return (
+      `${this.station.name.split(' ')[0]} information ${L}, time ${m.time.slice(2)}. ` +
+      `Expect ${this.approachesText(ends)}${navaids ? `, ${navaids.spoken}` : ''}${parallel}, ${inUse}${notices}. ` +
+      `Transition level ${this.transitionLevel(info.qnh)}. ` +
+      `Wind ${windWords(info.wind)}, ${metWords(m)}, ${temperatureWords(m)}, QNH ${info.qnh}. ` +
+      `Trend ${trendWords(m.trend)}. Information ${L} out.`
+    );
+  }
+
+  /**
+   * D-ATIS text, one line per item: "ATIS EDDS K 1220", "EXPECT ILS APCH", "RWY 25", notices, "TRL 70",
+   * "25008KT CAVOK T12 DP06 QNH1018", "TREND NOSIG".
+   */
+  atisDatis(info: AtisInfo = this.atis): string[] {
+    const ends = runwayEndsOf(info.runway);
+    const types = new Set(ends.map((e) => this.approachAbbr(e)));
+    const mode = ends.length > 1 ? this.parallelOpsOf(ends)?.approaches : undefined;
+    const kind = mode === 'independent' || mode === 'dependent' ? `${mode.toUpperCase()} ` : '';
+    const approach = types.size > 1 ? ends.map((e) => `${this.approachAbbr(e)} APCH RWY ${e}`).join(', ') : `${kind}${[...types][0]} APCH`;
+    const m = info.metar;
+    return [
+      `ATIS ${this.config.airport.icao} ${info.letter} ${m.time.slice(2)}`,
+      `EXPECT ${approach}`,
+      ...(this.navaidNotice(ends) ? [this.navaidNotice(ends)!.text] : []),
+      ends.length > 1 ? `RWYS ${ends.join(' AND ')}` : `RWY ${ends[0]}`,
+      ...this.atisNotices(ends).map((n) => n.text),
+      `TRL ${this.transitionLevel(info.qnh)}`,
+      datisMet(m, info.wind, info.qnh),
+      `TREND ${m.trend}`,
+    ];
+  }
+
+  /** What the latest METAR says differently from the ATIS (empty: up to date). */
+  get atisDifferences(): string[] {
+    return atisDifferences(this);
+  }
+
+  /** The parallel runway set of these runway ends. */
+  private parallelOpsOf(ends: string[]): ParallelRunwayData | undefined {
+    return this.config.airport.parallelRunways?.find((p) => p.ends.length === ends.length && p.ends.every((e) => ends.includes(e)));
   }
 
   private changeRunway(key: string): void {

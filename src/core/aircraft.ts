@@ -163,6 +163,10 @@ export interface Aircraft {
   clearance?: { sid?: string; climb?: string; squawk?: string };
   /** A wrong readback the controller still has to catch (squawk digits swapped). */
   readbackError?: { squawk: string; said: string };
+  /** The ATIS letter the crew has (listened to before the first call, or told by the controller). */
+  atisHeard?: string;
+  /** The crew reported an ATIS letter that is no longer current and nobody has told them the current one. */
+  atisOutdated?: boolean;
   /** The crew requests the clearance by datalink (DCL) instead of voice. */
   dcl?: boolean;
   /** A-CDM: target start-up approval time (sim seconds). */

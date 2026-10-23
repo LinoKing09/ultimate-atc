@@ -66,7 +66,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | --------------------- | ----------------------------------------------------------------------------------------------- |
 | `EDDS_GND 118.605`    | Your station(s) and frequency, in the position colour (several plus `COMBINED` with combined positions). **Click a frequency to switch it off**: the simulator takes the position over (pilots waiting on it are answered by the AI) and it is shown dashed with `OFF`; click again to take it back. At least one frequency stays on. |
 | `RWY 25`              | Runway in use (with parallel runways both, `RWY 26R 26L`). Click to open the [ATIS editor](#atis-editor). |
-| `ATIS E`              | Current ATIS letter. Pilots report it on first contact. Click to open the ATIS editor.          |
+| `ATIS E`              | Current ATIS letter. Pilots report it on first contact. Red: a newer METAR differs from it (the tooltip says what) - broadcast a new ATIS. Click to open the ATIS editor. |
 | `250/08KT`            | Surface wind (magnetic), with gusts `070/18G32KT`. Shown in red if the tailwind on the runway in use is above 5 kt, and with `TS` while a [thunderstorm](scenarios.md#thunderstorm) is active. Click to edit. |
 | `Q1013`               | QNH in hPa. Click to edit.                                                                      |
 | `14:32:10Z`           | Simulation time in UTC. The session starts at the current real time, or at a scenario's start time. With [night flying restrictions](scenarios.md#start-time-and-night-flying-restrictions) the local time follows (`2215L`). |
@@ -86,7 +86,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 
 ### ATIS editor
 
-Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS:
+Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS. The top shows the latest METAR (`METAR EDDS 010950Z 25008KT CAVOK 21/11 Q1018 NOSIG`, new at minute 20 and 50 of every hour) and whether the current information matches it:
 
 | Field           | Meaning                                                                                    |
 | --------------- | ------------------------------------------------------------------------------------------ |
@@ -94,9 +94,11 @@ Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS:
 | Runway in use   | Runway for departures and arrivals. At airports with parallel runways (Leipzig/Halle) first the parallel runways used together (`Runways 26R + 26L`), then each runway alone - see [parallel runways](simulation.md#parallel-runways) |
 | Wind direction / speed | Surface wind; the dialog shows the head-/tailwind and crosswind for the selected runway. Direction and speed turn red when the tailwind on the selected runway is above 5 kt |
 | Gusts           | Peak gusts in knots (empty = none); broadcast as `gusting 32 knots`                        |
-| QNH             | Pressure setting                                                                           |
+| QNH             | Pressure setting (pre-filled from the METAR)                                               |
 
-**Broadcast ATIS** publishes the new information. It appears in the message window, and pilots quote the new letter on first contact. The ATIS does not change on its own.
+Below the fields the dialog previews the new ATIS as D-ATIS text and spoken, with the METAR's visibility, clouds, temperature and trend and the notices (closed taxiways, de-icing, A-CDM, DCL out of service, windshear, the runway of each apron with parallel runways). **Broadcast ATIS** publishes it. It appears in the message window, and crews that listen to the ATIS from now on quote the new letter. The ATIS does not change on its own.
+
+Crews that listened before the broadcast still report the old letter (`..., information D, request pushback` with E current): the aircraft menu then offers `Information E is current` (`information E is current, QNH 1018`), or broadcast `all stations, information E is now current` with **ALL STN**. A crew that leaves your frequency with an old letter costs 3 points.
 
 **Runway change**: departures that are not yet taxiing get the new runway and a matching SID. Arrivals further out than 3.5 NM are re-sequenced onto the new final by Approach; arrivals closer in still land on the old runway. Aircraft that are already taxiing keep their clearance, so re-route them to a holding point of the new runway. If an aircraft ends up at the wrong end, Tower sends it back to you.
 
@@ -532,6 +534,7 @@ The A-SMGCS runway monitoring (RMCA) warns when you give a take-off or landing c
 | Night rules: jet ready in time that missed the curfew        |    -10 |
 | Medical emergency on a stand within 6 minutes of the call   |    +15 |
 | "Say again" (pilot did not understand)                      |     -2 |
+| Crew left your frequency with an old ATIS letter            |     -3 |
 | Slow answer: per 15 s of waiting beyond the first 30 s      |     -1 |
 | Go-around caused by an occupied runway (or, as Tower, a missing landing clearance) |    -15 |
 | Runway incursion                                            |    -50 |

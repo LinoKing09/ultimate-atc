@@ -107,7 +107,7 @@ const KEYWORDS = new Set([
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
   'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise', 'climb', 'squawk',
   'readback', 'ctot', 'slot', 'tow', 'proceed', 'return', 'wind', 'go', 'vacate', 'abort', 'reduce', 'increase', 'maintain', 'resume', 'speed', 'no',
-  'backtrack', 'enter',
+  'backtrack', 'enter', 'information', 'qnh',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -282,6 +282,17 @@ function readNumber(c: Cursor): number | undefined {
   let s = c.next()!;
   while (s.length < 5 && isDigit(c.peek()) && c.peek(1) !== 'thousand' && c.peek(1) !== 'hundred') s += c.next();
   return Number(s);
+}
+
+/** Reads a QNH: "1018", "1 0 1 8" or "998" (hectopascal). */
+function readQnh(c: Cursor): number | undefined {
+  const t = c.peek();
+  if (!t || !/^\d+$/.test(t)) return undefined;
+  let s = c.next()!;
+  while (s.length < 4 && isDigit(c.peek())) s += c.next();
+  c.accept('hectopascal', 'hectopascals', 'hpa');
+  const q = Number(s);
+  return s && q >= 900 && q <= 1100 ? q : undefined;
 }
 
 /** Reads a four-digit code (squawk, time): "2312" or "2 3 1 2". */
@@ -1090,6 +1101,29 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       const code = readCode(c);
       if (code) result.commands.push({ type: 'squawk', code });
       else result.unparsed.push('squawk');
+      continue;
+    }
+    // "information K is now current, QNH 1018" / "QNH 1018"
+    if (w === 'information' && /^[a-z]$/.test(c.peek(1) ?? '')) {
+      c.next();
+      const letter = c.next()!.toUpperCase();
+      c.accept('is');
+      c.accept('now');
+      c.accept('current');
+      c.accept('and');
+      let qnh: number | undefined;
+      if (c.peek() === 'qnh' && /^\d+$/.test(c.peek(1) ?? '')) {
+        c.next();
+        qnh = readQnh(c);
+      }
+      result.commands.push({ type: 'information', letter, qnh });
+      continue;
+    }
+    if (w === 'qnh' && /^\d+$/.test(c.peek(1) ?? '')) {
+      c.next();
+      const qnh = readQnh(c);
+      if (qnh) result.commands.push({ type: 'qnh', qnh });
+      else result.unparsed.push('qnh');
       continue;
     }
     if (w === 'readback' || (w === 'read' && c.peek(1) === 'back')) {

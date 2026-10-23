@@ -99,6 +99,10 @@ export function formatCommand(c: Command): string {
       return formatClearance(c);
     case 'squawk':
       return `squawk ${c.code}`;
+    case 'information':
+      return `information ${c.letter.toUpperCase()}${c.qnh ? `, QNH ${c.qnh}` : ''}`;
+    case 'qnh':
+      return `QNH ${c.qnh}`;
     case 'readbackCorrect':
       return 'readback correct';
     case 'ctot':

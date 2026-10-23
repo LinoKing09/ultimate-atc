@@ -1,3 +1,4 @@
+import { issueSpeci } from './met';
 import { SCENARIO_EVENT_TEXT } from './scenario';
 import type { Simulation } from './simulation';
 
@@ -74,6 +75,7 @@ export function startThunderstorm(sim: Simulation): boolean {
       `Expect a gust front with a wind shift, windshear on final and a stop of ground handling (lightning). Approach increases the spacing on final.`,
     'warning',
   );
+  issueSpeci(sim);
   return true;
 }
 
@@ -99,6 +101,7 @@ export function updateWeather(sim: Simulation): void {
         `${!sim.isRunwayInUse(best) ? ` Consider runway ${best}.` : ''} Broadcast a new ATIS.`,
       'warning',
     );
+    issueSpeci(sim);
     return;
   }
   // The storm has passed: the wind settles from the new direction.
@@ -111,6 +114,7 @@ export function updateWeather(sim: Simulation): void {
     `${SCENARIO_EVENT_TEXT.thunderstorm}: the thunderstorm has passed. Ground handling resumes, departures may go again. Surface wind ${formatWind(wind, true)}.` +
       `${!sim.isRunwayInUse(best) ? ` Runway ${best} is better now.` : ''} Broadcast a new ATIS.`,
   );
+  issueSpeci(sim);
 }
 
 /** True while lightning stops the ground handling (no pushbacks). */

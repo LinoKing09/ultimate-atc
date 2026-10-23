@@ -89,6 +89,8 @@ export interface AirportData {
    * runway in use belongs to one, all its ends are in use by default; the ATIS can also select a single one.
    */
   parallelRunways?: ParallelRunwayData[];
+  /** Climate for the METAR (default: Central Europe). */
+  climate?: { /** Mean temperature of each month (degrees C), January first. */ monthlyMeanC: number[] };
 }
 
 /** Separation between arrivals on adjacent final approaches to parallel runways. */

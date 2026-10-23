@@ -426,7 +426,10 @@ export class App {
         .join(' + ') + (active.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '');
     if (this.fields.station.innerHTML !== html) this.fields.station.innerHTML = html;
     this.fields.rwy.innerHTML = `RWY <b>${sim.runways.join(' ')}</b>`;
-    this.fields.atis.innerHTML = `ATIS <b>${sim.atisLetter}</b>`;
+    // A newer METAR the ATIS does not match yet: the letter in red, the differences in the tooltip.
+    const diff = sim.atisDifferences;
+    this.fields.atis.innerHTML = `ATIS <b${diff.length ? ' class="bad"' : ''}>${sim.atisLetter}</b>`;
+    this.fields.atis.title = diff.length ? `New METAR (${diff.join(', ')}) - click to broadcast a new ATIS` : 'Current ATIS (click to edit)';
     const wind = sim.observedWind;
     const tail = sim.runways.some((r) => sim.windComponents(r, wind).headwind < -5);
     const gust = wind.gustKt ? `G${wind.gustKt}` : '';
@@ -612,6 +615,7 @@ export class App {
       items.push(b);
     }
     if (mine && ac.request && !ac.requestAck) items.push(phrase('ROGER', 'roger'));
+    if (mine && ac.atisOutdated) items.push(phrase(`INFO ${this.sim.atisLetter}`, `information ${this.sim.atisLetter} is current, QNH ${this.sim.atis.qnh}`));
     if (catcAlert(this.sim, ac)) items.push(btn('ACK', () => this.acknowledgeCatc(ac)));
     if (mine && this.sim.userTower && ac.frequency === this.sim.stationFor('tower')) {
       // Tower: the clearances of the moment as buttons.
@@ -1169,6 +1173,10 @@ export class App {
 
     const rwy = sim.runway;
     const tower = sim.airport.station(sim.stationFor('tower'));
+    // The crew reported an old ATIS letter.
+    if (ac.atisOutdated) {
+      items.push({ label: `Information ${sim.atisLetter} is current`, hint: `has ${ac.atisHeard}`, action: () => this.say(ac, `information ${sim.atisLetter} is current, QNH ${sim.atis.qnh}`) }, { divider: true, label: '' });
+    }
 
     if (ac.frequency === sim.stationFor('delivery') && sim.stationFor('delivery') !== sim.stationFor('ground')) {
       items.push(...this.deliveryItems(ac));

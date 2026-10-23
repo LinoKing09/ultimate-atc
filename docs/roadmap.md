@@ -31,9 +31,26 @@ Further airports follow in the 1.x releases (the airport data format, the data c
 | **0.8** | **done** - Combined positions with Tower, AI pilots that resolve simple conflicts (opposite traffic, lane priority), debriefing |
 | 0.9 | **done** - Scenario conditions (night flying restrictions, closed taxiways, thunderstorm), tutorials, traffic sliders, polish; final review in the [release report](release-1.0-report.md) |
 | **1.0** | **released 2026-10-13** - the first full version, see the [release report](release-1.0-report.md) |
-| 1.x | Further airports - 1.1 de-icing, Nuremberg, Memmingen, Sylt and runway backtracking; 1.1.1 Memmingen after the aerodrome chart, rounded taxiway drawing; 1.2 real-world data overhaul (SIDs by destination, Stuttgart TORA, de-icing pads, stands) and the PHX scope style of VATSIM Germany; 1.2.1 complete Sylt and Nuremberg layouts, buildings from OpenStreetMap at every airport, all airports checked against the AIP (approaches per runway, declared distances, widths); 1.3 airport menu in the Connect dialog (continent, country and FIR, airport) |
+| 1.x | Further airports - 1.1 de-icing, Nuremberg, Memmingen, Sylt and runway backtracking; 1.1.1 Memmingen after the aerodrome chart, rounded taxiway drawing; 1.2 real-world data overhaul (SIDs by destination, Stuttgart TORA, de-icing pads, stands) and the PHX scope style of VATSIM Germany; 1.2.1 complete Sylt and Nuremberg layouts, buildings from OpenStreetMap at every airport, all airports checked against the AIP (approaches per runway, declared distances, widths); 1.3 airport menu in the Connect dialog (continent, country and FIR, airport); 1.4 parallel runways, Leipzig/Halle, Cologne/Bonn, Bremen, METAR and ATIS, hold short and rapid exits as on the charts |
 
 Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md](benchmarks.md) that compares them with the previous major release.
+
+## Road to 2.0
+
+Version 2.0 is the next major version: from a tower simulator with many airports to an **airport and terminal area simulator**. Like 1.0 it is released only when we agree on it: when the criteria below are met, Claude proposes the release. The criteria are a proposal (2026-10-23) until the project owner agrees; the versions on the way there are not fixed.
+
+**Criteria for 2.0**
+
+1. **Approach / Departure playable**: a radar position (Approach, Departure or both combined) at least at Stuttgart - vectoring, altitude and speed instructions, ILS / RNP clearances, sequencing onto final with the real spacing, hand-offs to and from Tower and Center - with an AI for it when it is not staffed (as today). Top-down: one controller can work everything from Delivery to Approach.
+2. **A big hub**: Frankfurt (EDDF) with its parallel runways and runway 18, its taxiway system and aprons, built after the airport recipe and its chart checks; the large airports (EDDF, EDDK, EDDP) hold up under heavy traffic.
+3. **The world map comes alive**: at least one airport on each continent of the airport menu (from the *Coming soon* list), each with the regional phraseology where it differs (FAA vs ICAO: "line up and wait", "taxi via", altitudes and runway designators).
+4. **Weather and visibility**: the surface wind changes with the METAR during a session; **low visibility procedures** (CAT II/III holding points, larger spacing, LVP in the ATIS) at every airport that publishes them.
+5. **Pilots and traffic**: pilots who make mistakes now and then (wrong turn, missed hold short, wrong runway read-back) and react realistically when corrected; stand allocation by airline, terminal and Schengen / non-Schengen where the airport publishes it.
+6. **Voice works on the iPad**: speech recognition and text-to-speech tested on the iPad and on by default, with the voice phraseology of every position.
+7. **No dead ends at any airport**: the soak test runs at every airport and every runway direction - no collisions, every deadlock has a way out, no aircraft stuck for good.
+8. **Quality**: every airport passes the chart checks of the recipe (nothing ends in nothing, every apron, no invented designators); the performance budget is met on an iPad with heavy traffic at the largest airport; documentation and in-app help complete; benchmark statistics comparing 2.0 with 1.0 in [benchmarks.md](benchmarks.md).
+
+**Not required for 2.0** (later): multiplayer and shared sessions, a Center position, configurable tag profiles.
 
 ## v0.9 - Scenario conditions, tutorials, beta
 
@@ -123,8 +140,8 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - planned - **Low visibility procedures (LVP)** with the CAT II/III holding points and larger spacing (values from the AIP, supplied as text)
 - planned - **Voice**: test text-to-speech and speech recognition again on the iPad and switch them back on
 - planned - Smarter AI Tower after a rejected take-off; partial taxiway closures; a taxiway blocked during the session (special event)
-- **done** (Unreleased) - **Cologne/Bonn (EDDK)** with its cargo hub (UPS, FedEx, DHL; cargo airlines park on the cargo aprons) and the parallel guide lines of Terminal 2, and **Bremen (EDDW)**, both after the airport recipe (sources first, the charts as tests)
-- **done** (Unreleased) - **Parallel runways in use at the same time** (mixed mode, dependent / staggered / independent approaches, runway per apron and size, AI Tower per runway, ATIS) and **Leipzig/Halle (EDDP)** with the DHL hub
+- **done** (1.4) - **Cologne/Bonn (EDDK)** with its cargo hub (UPS, FedEx, DHL; cargo airlines park on the cargo aprons) and the parallel guide lines of Terminal 2, and **Bremen (EDDW)**, both after the airport recipe (sources first, the charts as tests)
+- **done** (1.4) - **Parallel runways in use at the same time** (mixed mode, dependent / staggered / independent approaches, runway per apron and size, AI Tower per runway, ATIS) and **Leipzig/Halle (EDDP)** with the DHL hub
 - planned - Further airports (EDDF next, it needs the parallel runways too; the single-runway airports on the other continents listed as *Coming soon*), then the Approach / Departure position
 
 ## Next steps
@@ -136,7 +153,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - planned - Stand allocation per airline and terminal (Schengen / non-Schengen), contact/remote stands
 - planned - More special events (bird strike, a taxiway blocked during the session - closed taxiways for a whole session are done since 0.9; follow-me and tows are done since 0.6.1), de-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short; squawk read-back errors are done since 0.6)
 - planned - Low visibility procedures (CAT II/III holding points, larger spacing)
-- planned - Wind that changes during the session (METAR updates)
+- *in progress* - Weather that changes during the session: half-hourly METAR, drifting QNH and thunderstorm SPECIs are done (1.4); the surface wind itself still changes only with scenario events
 - planned - Scenario files (fixed traffic for training); more tutorial lessons (combined positions, conflicts, runway change)
 
 ### Positions
@@ -147,7 +164,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 ### Airports
 
 - **done** (1.1) - EDDN Nuremberg, EDJA Memmingen, EDXW Sylt
-- **done** (Unreleased) - EDDK Cologne/Bonn, EDDW Bremen, EDDP Leipzig/Halle
+- **done** (1.4) - EDDK Cologne/Bonn, EDDW Bremen, EDDP Leipzig/Halle
 - planned - EDDF Frankfurt
 - planned - EGLL London Heathrow
 - planned - KLAX Los Angeles

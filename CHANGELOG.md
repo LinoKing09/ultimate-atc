@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Road to 2.0** in `docs/roadmap.md`: the proposed criteria for the next major version (Approach / Departure, Frankfurt, an airport on every continent, changing weather and low visibility, pilot mistakes, voice on the iPad, the soak test at every airport, quality).
+
 ## [1.4.0] - 2026-10-23
 
 Two runways at the same time and Leipzig/Halle, Cologne/Bonn and Bremen, METAR and a full ATIS, hold short and rapid exits as on the charts, lenient crews.

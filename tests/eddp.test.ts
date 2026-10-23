@@ -9,17 +9,26 @@ import { EDDP } from '../src/data/airports/eddp';
 /** Answers every call: Ground (scripted), and with `tower` Tower too; otherwise the AI Tower flies and clears. */
 function runHour(runway: string, tower: boolean, onTick?: (sim: Simulation) => void): Simulation {
   const sim = new Simulation({ airport: EDDP, position: 'GND', positions: tower ? ['GND', 'TWR'] : ['GND'], runway, density: 'medium', seed: 1, events: false });
+  /** Last crossing clearance per runway: no take-off on it for 90 s after. */
+  const crossed = new Map<string, number>();
   for (let t = 0; t < 3600; t++) {
     sim.tick(1);
     onTick?.(sim);
     for (const ac of sim.aircraft) {
-      if (!ac.request || sim.time - ac.lastCallAt < 3 || sim.time - ac.lastCallAt > 4) continue;
       const cs = ac.callsign;
+      // Tower clears a waiting departure as soon as the runway allows (it may have stopped calling).
+      if (tower && ac.request === 'departure' && sim.time - ac.lastCallAt >= 3 && t % 5 === 0 && t - (crossed.get(sim.airport.runwayNameFor(ac.runway!) ?? '') ?? -999) > 90 && !sim.tower.runwayBusyForDeparture(ac) && sim.tower.spacingRemaining(ac) <= 0 && sim.tower.nextArrivalEta(sim.tower.departureEnd(ac)) > 90) {
+        sim.transmit(`${cs} runway ${ac.runway} cleared for take-off`);
+        continue;
+      }
+      if (!ac.request || sim.time - ac.lastCallAt < 3 || sim.time - ac.lastCallAt > 4) continue;
       if (ac.request === 'clearance') sim.transmit(`${cs} cleared to ${ac.flightPlan.destination} ${ac.flightPlan.sid} departure squawk ${ac.flightPlan.squawk}`);
       if (ac.request === 'pushback' && !sim.aircraft.some((o) => o !== ac && o.phase === 'taxi' && distance(o.pos, ac.pos) < 250)) sim.transmit(`${cs} push and start approved`);
       if (ac.request === 'taxi') sim.transmit(`${cs} taxi to runway ${sim.departureRunwayOf(ac)}`);
       if (ac.request === 'crossing' && ac.stoppedAt?.kind === 'runway' && sim.tower.crossingFree(ac.stoppedAt.target)) {
-        sim.transmit(`${cs} cross runway ${sim.activeEndOn(ac.stoppedAt.target) ?? ac.stoppedAt.target.split('/')[0]}`);
+        const target = ac.stoppedAt.target;
+        sim.transmit(`${cs} cross runway ${sim.activeEndOn(target) ?? target.split('/')[0]}`);
+        crossed.set(target, t);
       }
       if (ac.request === 'taxiIn' || (ac.request === 'route' && ac.category === 'arrival')) sim.transmit(`${cs} taxi to stand ${ac.assignedStand ?? sim.freeStands(ac.type.wingspanM)[0]?.id}`);
       if (ac.request === 'handoff') sim.transmit(`${cs} contact tower`);
@@ -28,9 +37,6 @@ function runHour(runway: string, tower: boolean, onTick?: (sim: Simulation) => v
       const opt = other && resolveOptions(sim, ac, other).find((o) => !o.crossesRunway && !o.tug);
       if (opt) sim.transmit(`${opt.aircraft.callsign} ${opt.instruction}`);
       if (!tower) continue;
-      if (ac.request === 'departure' && !sim.tower.runwayBusyForDeparture(ac) && sim.tower.spacingRemaining(ac) <= 0 && sim.tower.nextArrivalEta(sim.tower.departureEnd(ac)) > 90) {
-        sim.transmit(`${cs} runway ${ac.runway} cleared for take-off`);
-      }
       if (ac.request === 'landing') sim.transmit(`${cs} runway ${ac.runway} cleared to land`);
       if (ac.request === 'vacated') sim.transmit(`${cs} contact ground`);
       if (ac.request === 'radar') sim.transmit(`${cs} contact radar`);
@@ -69,7 +75,9 @@ describe('Leipzig/Halle (EDDP) after the AIP charts', () => {
     for (const t of ['A1', 'A5', 'A9', 'B', 'C', 'E7', 'E8', 'F', 'H1', 'H5', 'H7', 'H8', 'L', 'N', 'S1', 'S4', 'S10', 'T', 'V', 'W1', 'Y', 'Z1.1', 'Z4.3']) expect(graph.has(t), t).toBe(true);
     const hps = EDDP.taxiNodes.filter((n) => n.holdingPoint).map((n) => `${n.holdingPoint!.name} ${n.holdingPoint!.runway}`);
     expect(hps.filter((h) => h.endsWith('08L/26R')).map((h) => h.split(' ')[0]).sort()).toEqual(['A1', 'A2', 'A3', 'A4', 'A5', 'A6', 'A7', 'A8', 'A9']);
-    expect(hps.filter((h) => h.endsWith('08R/26L')).length).toBe(14);
+    // 14 of the charts, and the holding positions of the east branches of the rapid exits S2, S3 and S4.
+    expect(hps.filter((h) => h.endsWith('08R/26L')).length).toBe(17);
+    expect(hps.filter((h) => / EAST /.test(h)).sort()).toEqual(['S2 EAST 08R/26L', 'S3 EAST 08R/26L', 'S4 EAST 08R/26L']);
     const aprons = new Map<string, number>();
     for (const s of ap.stands.values()) aprons.set(s.apron, (aprons.get(s.apron) ?? 0) + 1);
     expect(Object.fromEntries(aprons)).toEqual({ 'Apron 1': 34, 'Apron 2': 18, 'Apron 3': 8, 'Apron 4': 62, 'Apron 5': 6 });

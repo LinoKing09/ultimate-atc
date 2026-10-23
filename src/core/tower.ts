@@ -429,14 +429,19 @@ export class TowerAI {
    * Plans the roll-out to the first exit that can be reached at the given
    * deceleration and puts the aircraft into phase 'landing'.
    */
-  private onwardCache = new Map<string, boolean>();
+  private onwardCache = new Map<string, number>();
 
   /** True if an aircraft can taxi from the end of this exit to its stand (or a free one that fits) without turning around. */
   private leadsToStand(path: string[], ac: Aircraft): boolean {
+    return this.onwardLength(path, ac) < Infinity;
+  }
+
+  /** Length of the taxi route from the end of this exit to the stand without turning around (Infinity: none; 0: no stand). */
+  private onwardLength(path: string[], ac: Aircraft): number {
     const sim = this.sim;
     const standId = ac.assignedStand ?? sim.freeStands(ac.type.wingspanM, undefined, ac)[0]?.id;
     const stand = standId ? sim.airport.stand(standId) : undefined;
-    if (!stand) return true;
+    if (!stand) return 0;
     const key = `${path.join('>')}|${stand.id}|${ac.type.wingspanM}`;
     let ok = this.onwardCache.get(key);
     if (ok === undefined) {
@@ -444,7 +449,7 @@ export class TowerAI {
       const before = sim.airport.node(path[path.length - 2]).pos;
       const heading = (Math.atan2(end.x - before.x, end.y - before.y) * 180) / Math.PI;
       const r = findRoute(sim.airport, { position: end, heading: (heading + 360) % 360 }, stand.node, [], { wingspanM: ac.type.wingspanM, allowUTurn: ac.type.wingspanM <= 25 });
-      ok = !isRouteError(r) && !r.requiresUTurn;
+      ok = isRouteError(r) || r.requiresUTurn ? Infinity : r.length;
       this.onwardCache.set(key, ok);
     }
     return ok;
@@ -502,7 +507,10 @@ export class TowerAI {
         return;
       }
     }
-    const pool = onward.length ? onward : usable.length ? usable : candidates.slice(-1);
+    // Of the branches of one exit (the same runway node, e.g. a rapid exit forking to both sides of the parallel
+    // taxiway) the one towards the stand.
+    const pool0 = onward.length ? onward : usable.length ? usable : candidates.slice(-1);
+    const pool = pool0.filter((c) => !pool0.some((d) => d !== c && d.node === c.node && this.onwardLength(d.ex.path, ac) < this.onwardLength(c.ex.path, ac)));
     // Parallel runways: vacate on the side of the stand (not back across the runway).
     const stand = ac.assignedStand ? sim.airport.stand(ac.assignedStand) : undefined;
     const side = (p: { x: number; y: number }) => Math.sign(sim.airport.runwayCoordinates(end, p).lateral);

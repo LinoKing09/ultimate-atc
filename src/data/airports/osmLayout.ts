@@ -47,6 +47,11 @@ export interface LayoutOptions {
    * the same node for the holding points on both sides of a runway crossing). Others become plain nodes.
    */
   holdingPoints: Record<string, string | { name: string; runway?: string; node?: string }>;
+  /**
+   * Names for the holding positions of strip branches (see BuiltLayout.branches), by imported node; default:
+   * the name of the main holding point and the direction of the branch, e.g. "S4 EAST".
+   */
+  branchHoldingPoints?: Record<string, string>;
   /** Rename the taxiway of single edges (imported names that are missing or wrong): "from>to" -> name. */
   edgeNames?: Record<string, string>;
   /** Rename taxiways everywhere: imported name -> name ("?" = unnamed ways). */
@@ -97,6 +102,11 @@ export interface BuiltLayout {
   pavement: PavementLineData[];
   /** Runway node where the strip of a holding point meets the runway, by holding point name. */
   runwayNodeOf: Record<string, string>;
+  /**
+   * Branches of a runway strip with a holding point of their own (`branchHoldingPoints`): the holding
+   * point node of the branch by its name, e.g. "S4 EAST" -> "HP.6139515728", with the main holding point.
+   */
+  branches: { name: string; hp: string; of: string }[];
 }
 
 const key = (a: string, b: string) => `${a}>${b}`;
@@ -141,6 +151,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   const hpNames: Record<string, string> = Object.fromEntries(Object.entries(o.holdingPoints).map(([k, v]) => [k, hpSpec(v).name]));
   const runwayNodes = new Set(edges.filter((e) => e.kind === 'runway').flatMap((e) => [e.from, e.to]));
   const runwayNodeOf: Record<string, string> = {};
+  const strips: { name: string; runway: string; hp: string; goal: string; inner: string[]; twy: string; widthM?: number }[] = [];
   for (const [hp, raw] of Object.entries(o.holdingPoints)) {
     const { name, runway, node: fixed } = hpSpec(raw);
     const own = new Set(edges.filter((e) => e.kind === 'runway' && e.name === runway).flatMap((e) => [e.from, e.to]));
@@ -193,6 +204,56 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     const stripWidth = path[path.length - 1]?.widthM;
     edges.push({ from: hp, to: goal, name: twy, kind: 'runwayStrip', ...(inner.length ? { shape: inner.map((id) => pos.get(id)!) } : {}), ...(stripWidth ? { widthM: stripWidth } : {}) });
     runwayNodeOf[name] = goal;
+    strips.push({ name, runway, hp, goal, inner, twy, widthM: stripWidth });
+  }
+
+  // Branches: a way that leaves a strip between its holding point and the runway, passes a runway holding
+  // position of its own and joins the taxiways elsewhere (e.g. a rapid exit forking into a fillet to either
+  // side of the parallel taxiway) becomes a strip of its own from that holding position. Without this it
+  // would hang loose once the strip is one edge, and be pruned as a dead end.
+  const branches: BuiltLayout['branches'] = [];
+  const branchHolds = new Map<string, { name: string; runway: string }>();
+  const runwayHolds = new Set(layout.holdingPositions.filter((h) => h.type === 'runway').map((h) => h.node));
+  for (const st of strips) {
+    for (const n of st.inner) {
+      for (const e0 of edges.filter((e) => e.kind !== 'runway' && e.kind !== 'runwayStrip' && (e.from === n || e.to === n))) {
+        // Follow the branch (nodes with two edges) away from the strip.
+        const chain: E[] = [];
+        let cur = n;
+        for (let e: E | undefined = e0; e; ) {
+          chain.push(e);
+          cur = e.from === cur ? e.to : e.from;
+          if (runwayNodes.has(cur) || runwayHolds.has(cur) || hpNames[cur]) break;
+          const next = edges.filter((x) => x !== e && x.kind !== 'runway' && (x.from === cur || x.to === cur));
+          e = next.length === 1 ? next[0] : undefined;
+        }
+        if (!runwayHolds.has(cur) || hpNames[cur]) continue;
+        const name = o.branchHoldingPoints?.[cur] ?? `${st.name} ${compassWord(bearingOf(proj, pos.get(st.hp)!, pos.get(cur)!))}`;
+        // The strip: from the branch's holding position back to the fork, then along the main strip to the runway.
+        const fork = st.inner.indexOf(n);
+        const back: string[] = [];
+        let at = n;
+        for (const e of chain.slice(0, -1)) {
+          at = e.from === at ? e.to : e.from;
+          back.unshift(at);
+        }
+        const shape = [...back, ...st.inner.slice(fork)].map((id) => pos.get(id)!);
+        edges = edges.filter((e) => !chain.includes(e));
+        edges.push({ from: cur, to: st.goal, name: st.twy, kind: 'runwayStrip', shape, ...(st.widthM ? { widthM: st.widthM } : {}) });
+        // The rest of the branch is part of the same taxiway.
+        for (let id = cur, guard = 0; guard < 50; guard++) {
+          const rest = edges.filter((x) => x.kind !== 'runway' && x.kind !== 'runwayStrip' && !x.name && (x.from === id || x.to === id));
+          if (rest.length !== 1) break;
+          rest[0].name = st.twy;
+          id = rest[0].from === id ? rest[0].to : rest[0].from;
+          if (edges.filter((x) => x.from === id || x.to === id).length !== 2) break;
+        }
+        hpNames[cur] = name;
+        branchHolds.set(cur, { name, runway: st.runway });
+        runwayNodeOf[name] = st.goal;
+        branches.push({ name, hp: cur, of: st.hp });
+      }
+    }
   }
 
   // Stands
@@ -263,6 +324,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     if (!at) throw new Error(`unknown node ${id}`);
     const n: TaxiNodeData = { id, pos: at };
     if (o.holdingPoints[id]) n.holdingPoint = { name: hpSpec(o.holdingPoints[id]).name, runway: hpSpec(o.holdingPoints[id]).runway };
+    else if (branchHolds.has(id)) n.holdingPoint = { ...branchHolds.get(id)! };
     else if (intermediate.has(id)) n.intermediateHold = true;
     taxiNodes.push(n);
   }
@@ -293,6 +355,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
       })),
     ],
     runwayNodeOf,
+    branches,
   };
 }
 
@@ -321,6 +384,11 @@ export function layoutEdges(layout: OsmLayout, o: { names?: string[]; inside?: [
       return ends.length > 0 && (o.inside ?? []).some((poly) => ends.every((id) => inPoly(at.get(id)!, poly)));
     })
     .map(([from, to]) => key(from, to));
+}
+
+/** "NORTH", "EAST", "SOUTH" or "WEST" for a bearing in degrees. */
+function compassWord(bearing: number): string {
+  return ['NORTH', 'EAST', 'SOUTH', 'WEST'][Math.round((((bearing % 360) + 360) % 360) / 90) % 4];
 }
 
 function bearingOf(proj: LocalProjection, from: LatLon, to: LatLon): number {

@@ -39,7 +39,7 @@ The whole player documentation is also available as a printable book: **[Handboo
 
 | Page | Contents |
 | ---- | -------- |
-| [Roadmap](roadmap.md) | What comes next, the road to 2.0 |
+| [Roadmap](roadmap.md) | What comes next, the roads to 2.0 and 3.0 (multiplayer, Frankfurt) |
 | [Benchmarks](benchmarks.md) | Release benchmark and statistics per version |
 | [Release report 1.0](release-1.0-report.md) | The final review before 1.0 |
 | [Changelog](../CHANGELOG.md) | Release history |

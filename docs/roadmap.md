@@ -39,20 +39,50 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 
 ## Road to 2.0
 
-Version 2.0 is the next major version: from a tower simulator with many airports to an **airport and terminal area simulator**. Like 1.0 it is released only when we agree on it: when the criteria below are met, Claude proposes the release. The criteria are a proposal (2026-10-23) until the project owner agrees; the versions on the way there are not fixed.
+Version 2.0 is the next major version: from a tower simulator with many airports to an **airport and terminal area simulator**. Like 1.0 it is released only when we agree on it: when the criteria below are met, Claude proposes the release. (Criteria agreed on 2026-10-23; the versions on the way there are not fixed.)
 
 **Criteria for 2.0**
 
 1. **Approach / Departure playable**: a radar position (Approach, Departure or both combined) at least at Stuttgart - vectoring, altitude and speed instructions, ILS / RNP clearances, sequencing onto final with the real spacing, hand-offs to and from Tower and Center - with an AI for it when it is not staffed (as today). Top-down: one controller can work everything from Delivery to Approach.
-2. **A big hub**: Frankfurt (EDDF) with its parallel runways and runway 18, its taxiway system and aprons, built after the airport recipe and its chart checks; the large airports (EDDF, EDDK, EDDP) hold up under heavy traffic.
+2. **Large airports under heavy traffic**: Cologne/Bonn and Leipzig/Halle (parallel runways, cargo hubs) hold up under heavy traffic - no deadlocks, AI positions that keep the flow going.
 3. **The world map comes alive**: at least one airport on each continent of the airport menu (from the *Coming soon* list), each with the regional phraseology where it differs (FAA vs ICAO: "line up and wait", "taxi via", altitudes and runway designators).
 4. **Weather and visibility**: the surface wind changes with the METAR during a session; **low visibility procedures** (CAT II/III holding points, larger spacing, LVP in the ATIS) at every airport that publishes them.
-5. **Pilots and traffic**: pilots who make mistakes now and then (wrong turn, missed hold short, wrong runway read-back) and react realistically when corrected; stand allocation by airline, terminal and Schengen / non-Schengen where the airport publishes it.
-6. **Voice works on the iPad**: speech recognition and text-to-speech tested on the iPad and on by default, with the voice phraseology of every position.
-7. **No dead ends at any airport**: the soak test runs at every airport and every runway direction - no collisions, every deadlock has a way out, no aircraft stuck for good.
-8. **Quality**: every airport passes the chart checks of the recipe (nothing ends in nothing, every apron, no invented designators); the performance budget is met on an iPad with heavy traffic at the largest airport; documentation and in-app help complete; benchmark statistics comparing 2.0 with 1.0 in [benchmarks.md](benchmarks.md).
+5. **Voice works on the iPad**: speech recognition and text-to-speech tested on the iPad and on by default, with the voice phraseology of every position.
+6. **No dead ends at any airport**: the soak test runs at every airport and every runway direction - no collisions, every deadlock has a way out, no aircraft stuck for good.
+7. **Quality**: every airport passes the chart checks of the recipe (nothing ends in nothing, every apron, no invented designators); the performance budget is met on an iPad with heavy traffic at the largest airport; documentation and in-app help complete; benchmark statistics comparing 2.0 with 1.0 in [benchmarks.md](benchmarks.md).
 
-**Not required for 2.0** (later): multiplayer and shared sessions, a Center position, configurable tag profiles.
+**Not part of 2.0**: Frankfurt and multiplayer (both [3.0](#road-to-30)), a Center position, configurable tag profiles. Pilots who make mistakes (wrong turn, missed hold short) and stand allocation by airline and terminal stay on the wish list and may be proposed again later.
+
+## Road to 3.0
+
+Version 3.0 turns the simulator into **shared sessions**: several human controllers at one airport, like an evening on VATSIM, with **Frankfurt** as the big hub to staff together. The criteria are a proposal (2026-10-23) until the project owner agrees; like every major version, 3.0 is released only when we agree on it, and the versions on the way there are not fixed. It builds on 2.0 (Approach / Departure, the large airports, the world map).
+
+**Criteria for 3.0**
+
+1. **Multiplayer**: a session runs on a server, several human controllers staff different positions of the same airport (Delivery, Ground, Tower, Approach, Apron at Frankfurt) and see the same traffic in real time. Joining by a session link or code, late join and reconnect after a lost connection; positions without a human are run by the AI, which hands over when a controller joins or leaves.
+2. **Coordination between controllers**: hand-offs to a human controller (the pilot changes to that frequency and calls in), ownership of each aircraft visible to everyone (lists, tags), coordination messages (release, runway crossing, runway change), text chat; a shared ATIS. Voice between controllers (push-to-talk) is optional.
+3. **Frankfurt (EDDF)** built after the airport recipe and its chart checks: runways 07C/25C and 07R/25L, the Northwest runway 07L/25R (landings only), runway 18 (departures only), the taxiway system with the bridges and all aprons; the **Apron** positions (Frankfurt's apron control) as a position of their own; runway configurations and traffic of a real Frankfurt day.
+4. **Performance**: the server runs heavy Frankfurt traffic with all positions staffed; clients stay smooth on an iPad; a short lag (up to about 300 ms) does not change what a controller sees or the outcome.
+5. **Robust sessions**: the server is the only authority (one deterministic simulation, clients send transmissions); a session survives a client dropping out; a session can be saved and replayed for the debriefing of all controllers.
+6. **Quality**: a multiplayer soak test (bots as controllers on every position) with no collisions and no deadlocks; documentation and in-app help for hosting and joining; benchmark statistics comparing 3.0 with 2.0 in [benchmarks.md](benchmarks.md).
+
+**Requirements**
+
+| Area | Requirement |
+| ---- | ----------- |
+| Server | `Simulation` runs unchanged in Node.js (the core is DOM-free and seeded, see [architecture](architecture.md#multiplayer-vatsim-like-shared-sessions)); one process per session; ticks at a fixed rate |
+| Protocol | WebSocket; clients send controller transmissions (plain text) and UI actions (hand-off, ownership); the server sends state snapshots and deltas, radio messages, events |
+| Positions | Each client staffs one or more positions (combined positions as today); `isOnMyFrequency` per client; the AI runs every unstaffed position |
+| Hand-offs | Between human positions: the receiving controller sees the aircraft announced, the pilot calls in on the new frequency; between human and AI as today |
+| Visibility | Tag and list colours show who owns an aircraft (own, other controller, AI); each controller keeps their own scope view, zoom and style |
+| Communication | Text chat between controllers, coordination messages from the aircraft menu; optional voice between controllers |
+| Frankfurt | Airport data after the recipe (OpenStreetMap layout, AIP facts by hand, VATSIM Germany procedures), Apron position, Frankfurt traffic mix; checked against the charts from the start |
+| Hosting | The game stays playable alone without a server (GitHub Pages); a server is needed only for shared sessions. Where it runs (self-hosted, a small cloud service, one player as host) is open |
+| Privacy | No accounts required: a callsign per controller; the server stores no personal data beyond a running session |
+| Scoring | A score per controller and one for the team; a shared debriefing |
+| Tests | Unit tests for the protocol, a multiplayer soak test with bots, reconnect and late-join tests |
+
+**Open questions** (to decide before the work starts): hosting and cost of the server; one player as host versus a dedicated server; whether voice between controllers is needed for 3.0.
 
 ## v0.9 - Scenario conditions, tutorials, beta
 
@@ -144,7 +174,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - planned - Smarter AI Tower after a rejected take-off; partial taxiway closures; a taxiway blocked during the session (special event)
 - **done** (1.4) - **Cologne/Bonn (EDDK)** with its cargo hub (UPS, FedEx, DHL; cargo airlines park on the cargo aprons) and the parallel guide lines of Terminal 2, and **Bremen (EDDW)**, both after the airport recipe (sources first, the charts as tests)
 - **done** (1.4) - **Parallel runways in use at the same time** (mixed mode, dependent / staggered / independent approaches, runway per apron and size, AI Tower per runway, ATIS) and **Leipzig/Halle (EDDP)** with the DHL hub
-- planned - Further airports (EDDF next, it needs the parallel runways too; the single-runway airports on the other continents listed as *Coming soon*), then the Approach / Departure position
+- planned - Further airports (the single-runway airports on the other continents listed as *Coming soon*) and the Approach / Departure position - see [Road to 2.0](#road-to-20); Frankfurt comes with [3.0](#road-to-30)
 
 ## Next steps
 
@@ -167,7 +197,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 
 - **done** (1.1) - EDDN Nuremberg, EDJA Memmingen, EDXW Sylt
 - **done** (1.4) - EDDK Cologne/Bonn, EDDW Bremen, EDDP Leipzig/Halle
-- planned - EDDF Frankfurt
+- planned - EDDF Frankfurt ([3.0](#road-to-30))
 - planned - EGLL London Heathrow
 - planned - KLAX Los Angeles
 - planned - KSAN San Diego
@@ -182,6 +212,8 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - planned - Mobile and tablet layout improvements
 
 ### Multiplayer
+
+Planned for [3.0](#road-to-30).
 
 - planned - Run the simulation on a server; multiple human controllers on different positions of the same airport
 - planned - Hand-offs and coordination between human controllers, text and voice channels

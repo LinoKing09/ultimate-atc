@@ -367,6 +367,9 @@ export const EDDP: AirportData = {
       flows: [
         { taxiway: 'N', direction: 'east' },
         { taxiway: 'T', direction: 'east' },
+        // The two bridges between C and the south: E7 northbound, E8 southbound.
+        { taxiway: 'E7', direction: 'north' },
+        { taxiway: 'E8', direction: 'south' },
       ],
     },
     {
@@ -399,6 +402,9 @@ export const EDDP: AirportData = {
       flows: [
         { taxiway: 'N', direction: 'east' },
         { taxiway: 'T', direction: 'east' },
+        // The two bridges between C and the south: E7 northbound, E8 southbound.
+        { taxiway: 'E7', direction: 'north' },
+        { taxiway: 'E8', direction: 'south' },
       ],
     },
     {
@@ -421,6 +427,9 @@ export const EDDP: AirportData = {
       flows: [
         { taxiway: 'N', direction: 'west' },
         { taxiway: 'T', direction: 'west' },
+        // The two bridges between C and the south: E7 northbound, E8 southbound.
+        { taxiway: 'E7', direction: 'north' },
+        { taxiway: 'E8', direction: 'south' },
       ],
     },
     {
@@ -449,6 +458,9 @@ export const EDDP: AirportData = {
       flows: [
         { taxiway: 'N', direction: 'west' },
         { taxiway: 'T', direction: 'west' },
+        // The two bridges between C and the south: E7 northbound, E8 southbound.
+        { taxiway: 'E7', direction: 'north' },
+        { taxiway: 'E8', direction: 'south' },
       ],
     },
   ],

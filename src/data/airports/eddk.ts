@@ -249,6 +249,8 @@ const built = buildLayout(EDDK_LAYOUT, {
     pushback,
     lanes: [lane],
     pos: { lat, lon },
+    // Nose-out positions: the checkpoint is the nose wheel stop position facing L, the aircraft stands behind it.
+    ...(pushback ? {} : { noseStopM: 15 }),
     // Aprons E and F: cargo hub (UPS, FedEx, DHL); W: cargo feeders; U: maintenance and general aviation.
     ...('EFW'.includes(apron) ? { use: 'cargo' as const } : apron === 'U' ? { use: 'ga' as const } : {}),
   })),
@@ -341,6 +343,8 @@ export const EDDK: AirportData = {
   ],
   taxiNodes: built.taxiNodes,
   taxiEdges: built.taxiEdges,
+  // Up to 36 m on the blue and orange guide lines, the centre lines M and N for the larger aircraft (AIP AD 2.20).
+  largeAircraftTaxiways: { taxiways: ['M', 'N'], minWingspanM: 36 },
   stands: built.stands,
   areas: built.areas,
   buildings: built.buildings,

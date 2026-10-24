@@ -303,6 +303,7 @@ const REFERENCE: [string, string][] = [
   ['taxi to holding point A [runway 25] via L2, S', 'Taxi to a runway holding point along the given taxiways.'],
   ['taxi to runway 25 via L2, S', 'Taxi to the runway; the pilot picks the full-length holding point.'],
   ['taxi to stand 14 via N, L2', 'Taxi an arrival to its stand. Lettered stands: "taxi to stand G1" / "stand golf 1" (Sylt).'],
+  ['turn around, taxi to stand 208', 'The route starts the other way round: an airliner needs a tug for it (several minutes), a small aircraft turns on the spot. Resolve conflict uses it.'],
   ['taxi to de-icing pad DP2 via N', 'Winter scenarios (de-icing): taxi a departure that requests de-icing to a pad first (DP1-DP4; "taxi to de-icing" = a free pad). Status DEICE for 6-10 min, then "de-icing complete, ready for taxi" - now taxi it to the runway. Before that, crews refuse the runway.'],
   ['taxi to runway 13L via N blue, M blue', 'Coloured guide lines for parallel taxiing are taxiways of their own (Cologne/Bonn: M BLUE, M ORANGE, N BLUE, N ORANGE next to the centre lines M and N): say the colour after the letter, "via mike blue".'],
   ['taxi via S, hold short of E', 'Incomplete taxi instruction: the clearance limit is the hold-short point.'],
@@ -323,7 +324,7 @@ const REFERENCE: [string, string][] = [
   ['information K is current, QNH 1018', 'To a crew that reported an old ATIS letter (aircraft menu). After a new ATIS, "all stations, information K is now current" (ALL STN) reaches everybody on your frequency.'],
   ['SAY AGAIN (sidebar) / say again', 'The selected aircraft (or the last caller) repeats its last transmission.'],
   ['Aircraft menu: Acknowledge CATC alert', 'You have checked the head-on alert and the aircraft will not meet (e.g. one stops or turns off before): the flashing stops until that conflict is over.'],
-  ['Aircraft menu: Resolve conflict with ...', 'Two aircraft face each other on a taxiway (A-SMGCS CATC alert: flashing red while both roll towards each other): turn one off via a junction, or order a tug (several minutes).'],
+  ['Aircraft menu: Resolve conflict with ...', 'Two aircraft face each other on a taxiway (A-SMGCS CATC alert: flashing red while both roll towards each other): turn one off via a junction, send it to another entry (departure) or a free stand nearby (arrival), or turn it around (a tug for an airliner, several minutes).'],
 ];
 
 const KEYS: [string, string][] = [

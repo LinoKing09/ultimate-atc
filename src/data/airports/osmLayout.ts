@@ -36,6 +36,11 @@ export interface StandSpec {
   heading?: number;
   /** Who parks here first (see StandData.use). */
   use?: StandData['use'];
+  /**
+   * `pos` is where the nose wheel stops (the AIP stand coordinates): the aircraft reference point is placed this
+   * many metres behind it, along the stand heading.
+   */
+  noseStopM?: number;
 }
 
 export interface LayoutOptions {
@@ -247,20 +252,23 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   for (const spec of o.stands) {
     const imp = layout.stands.find((s) => s.id === (spec.osm ?? spec.id));
     const lanes = spec.lanes ?? imp?.lanes;
-    const at = spec.pos ?? (imp ? { lat: imp.pos[0], lon: imp.pos[1] } : undefined);
-    if (!lanes?.length || !at) throw new Error(`stand ${spec.id}: no position or lane`);
+    const stop = spec.pos ?? (imp ? { lat: imp.pos[0], lon: imp.pos[1] } : undefined);
+    if (!lanes?.length || !stop) throw new Error(`stand ${spec.id}: no position or lane`);
     const node = `STAND_${spec.id}`;
+    const out = lanes[1] ?? lanes[0];
+    let heading = spec.heading ?? imp?.heading ?? 0;
+    if (spec.heading === undefined) heading = Math.round(spec.pushback ? bearingOf(proj, pos.get(lanes[0])!, stop) : bearingOf(proj, stop, pos.get(out)!));
+    // The reference point behind the nose wheel stop position.
+    const back = spec.noseStopM ?? 0;
+    const p = proj.toLocal(stop);
+    const at = back ? proj.toLatLon({ x: p.x - Math.sin((heading * Math.PI) / 180) * back, y: p.y - Math.cos((heading * Math.PI) / 180) * back }) : stop;
     standNodes.push({ id: node, pos: at });
     pos.set(node, at);
-    let heading = spec.heading ?? imp?.heading ?? 0;
     if (spec.pushback) {
       edges.push({ from: lanes[0], to: node, name: spec.id, kind: 'stand' });
-      if (spec.heading === undefined) heading = Math.round(bearingOf(proj, pos.get(lanes[0])!, at));
     } else {
-      const out = lanes[1] ?? lanes[0];
       edges.push({ from: lanes[0], to: node, name: spec.id, kind: 'stand', oneWay: true });
       edges.push({ from: node, to: out, name: spec.id, kind: 'stand', oneWay: true });
-      if (spec.heading === undefined) heading = Math.round(bearingOf(proj, at, pos.get(out)!));
     }
     stands.push({ id: spec.id, apron: spec.apron, pos: at, heading, laneNode: lanes[0], maxWingspanM: spec.maxWingspanM, pushback: spec.pushback, ...(spec.use ? { use: spec.use } : {}) });
   }

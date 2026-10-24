@@ -485,7 +485,11 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
   }
   if (!result.callsign && ctx.selected) result.callsign = ctx.selected;
 
-  const c = new Cursor(tokens.slice(start, end));
+  const body = tokens.slice(start, end);
+  // "turn around, taxi to stand 208": the taxi starts with a turn on the spot (a tug for an airliner).
+  const turnAt = body.findIndex((t, i) => t === 'turn' && body[i + 1] === 'around');
+  if (turnAt >= 0) body.splice(turnAt, 2);
+  const c = new Cursor(body);
   let taxi: Extract<Command, { type: 'taxi' }> | undefined;
   const pendingHoldShort: HoldShortTarget[] = [];
   const pendingCross: string[] = [];
@@ -916,6 +920,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
         }
         break;
       }
+      if (turnAt >= 0) taxi.turnAround = true;
       result.commands.push(taxi);
       continue;
     }

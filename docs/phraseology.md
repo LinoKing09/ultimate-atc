@@ -112,6 +112,8 @@ If the route is impossible, the pilot replies `unable to follow route via S, say
 - at a runway holding point (there is room to turn), and
 - when the aircraft has been **stuck** for over 30 seconds (blocked by other traffic): a route that needs a turn is accepted, the pilot reads it back with `we need a tug to turn around, expect about 7 minutes`, and starts taxiing 5-10 minutes later. Use this to solve a [deadlock](glossary.md) when there is no junction left to turn off (the *Resolve conflict* menu offers it).
 
+**Turning around on purpose**: `turn around, taxi to stand 208` (or `taxi to stand 208, turn around`) - the route starts the other way round. An airliner needs a tug for it (`... we need a tug to turn around, expect about 7 minutes`), a smaller aircraft turns on the spot. *Resolve conflict* uses it when an aircraft can only get out of a conflict by turning around; without it the crew would take a route forwards that leads back into the conflict.
+
 **Intersection departures**: ask first, as in real operations:
 
 | You say                                                         | Pilot replies                                              |

@@ -3,7 +3,9 @@ import { blockCycle, headOnPartner, resolveOptions } from './conflicts';
 import { CTOT_EARLY_S } from './delivery';
 import type { TaxiDestination } from './phraseology/commands';
 import { parseTransmission } from './phraseology/parser';
-import { aiInstruct, previewTaxi } from './pilot';
+import { aiInstruct, autoRoute, previewTaxi } from './pilot';
+import type { Stand } from './airport/airport';
+import { distance } from './geo';
 import type { TaxiRoute } from './airport/routing';
 import type { Simulation } from './simulation';
 import { apronClosed } from './weather';
@@ -93,7 +95,7 @@ function departure(sim: Simulation, ac: Aircraft): void {
   // Back from Tower without a route (e.g. after a rejected take-off): taxi to the runway, or to a stand.
   if (ac.phase === 'taxi' && !ac.route && (!ac.path || ac.stoppedAt)) {
     if (ac.returnToStand) {
-      const stand = ac.assignedStand ?? sim.freeStands(ac.type.wingspanM, undefined, ac)[0]?.id;
+      const stand = ac.assignedStand ?? reachableFreeStand(sim, ac)?.id;
       if (stand) aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] });
     } else aiInstruct(sim, ac, { type: 'taxi', destination: outbound(sim, ac), via: [], holdShort: [], cross: [] });
   }
@@ -196,8 +198,25 @@ function arrival(sim: Simulation, ac: Aircraft): void {
     if (ac.routeDestination?.kind === 'stand') return;
     if (!ac.stoppedAt && ac.path) return;
   }
-  const stand = ac.assignedStand ?? sim.freeStands(ac.type.wingspanM, (s) => s.id !== blocked, ac)[0]?.id;
+  const stand = ac.assignedStand ?? reachableFreeStand(sim, ac, (s) => s.id !== blocked)?.id;
   if (stand) aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] });
+}
+
+/** Free stands tried for a route (nearest first) before taking the nearest one anyway. */
+const STAND_ROUTE_TRIES = 10;
+
+/**
+ * A free stand that fits an aircraft taxiing in without an assigned stand: the nearest one it can reach from where it
+ * is without turning around (an arrival that vacated away from the apron would otherwise stop on the exit).
+ */
+export function reachableFreeStand(sim: Simulation, ac: Aircraft, filter?: (s: Stand) => boolean): Stand | undefined {
+  const free = sim.freeStands(ac.type.wingspanM, filter, ac).sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos));
+  if (!ac.onGround) return free[0];
+  for (const s of free.slice(0, STAND_ROUTE_TRIES)) {
+    const route = autoRoute(sim, ac, { kind: 'stand', stand: s.id });
+    if (route && !route.requiresUTurn) return s;
+  }
+  return free[0];
 }
 
 /** Time after a resolution before the AI Ground resolves a conflict of the same aircraft again (seconds). */
@@ -205,23 +224,41 @@ const RESOLVE_AGAIN_S = 120;
 
 /** Head-on: re-route one of the two (as a real Ground controller would). */
 function resolve(sim: Simulation, ac: Aircraft): void {
+  const r = conflictResolution(sim, ac);
+  if (!r) return;
+  const cmd = parseTransmission(r.instruction, { callsigns: [], taxiways: sim.airport.taxiwayNames }).commands[0];
+  if (cmd && aiInstruct(sim, r.aircraft, cmd)) r.done();
+}
+
+/**
+ * The way out of a conflict `ac` is in, as the AI Ground (and the soak test's controller) gives it: an instruction
+ * for one of the aircraft, and `done` to call once it was given. `acrossRunway`: a detour across a runway is
+ * acceptable if there is no other way (the controller also works the runway). Undefined while there is nothing to do yet - the
+ * crew has not waited long enough, a tug is coming, or the conflict was just resolved.
+ */
+export function conflictResolution(sim: Simulation, ac: Aircraft, acrossRunway = false): { aircraft: Aircraft; instruction: string; done: () => void } | undefined {
   // Stopped for opposite traffic at a junction (the crew asks), or stuck behind traffic for 40 s.
   const waitingOpposite = !!ac.oppositeStop && ac.speed < 0.1 && sim.time - ac.oppositeStop.since > 20;
-  if (!waitingOpposite && (!ac.blockedBy || ac.blockedSince === undefined || sim.time - ac.blockedSince < 40)) return;
+  if (!waitingOpposite && (!ac.blockedBy || ac.blockedSince === undefined || sim.time - ac.blockedSince < 40)) return undefined;
   const other = headOnPartner(sim, ac);
-  if (!other) return;
+  if (!other) return undefined;
   // Resolve each conflict once: not again while a tug is coming or right after the last instruction.
   const recent = (a: Aircraft) => (a.tugUntil ?? 0) > sim.time || sim.time - (a.resolvedAt ?? -Infinity) < RESOLVE_AGAIN_S;
-  if (recent(ac) || recent(other)) return;
+  if (recent(ac) || recent(other)) return undefined;
   // A circle of aircraft waiting for each other with a pushback in it: the tug pulls that one back onto its stand.
   const pusher = blockCycle(sim, ac)?.find((a) => a.phase === 'pushback' && !a.towingIn);
-  if (pusher) {
-    if (aiInstruct(sim, pusher, { type: 'cancelPushback' })) ac.resolvedAt = other.resolvedAt = pusher.resolvedAt = sim.time;
-    return;
-  }
-  // The AI Ground never sends an aircraft across the runway to get out of a conflict.
-  const opt = resolveOptions(sim, ac, other).find((o) => !o.crossesRunway);
-  if (!opt) return;
-  const cmd = parseTransmission(opt.instruction, { callsigns: [], taxiways: sim.airport.taxiwayNames }).commands[0];
-  if (cmd && aiInstruct(sim, opt.aircraft, cmd)) ac.resolvedAt = other.resolvedAt = sim.time;
+  if (pusher) return { aircraft: pusher, instruction: 'cancel pushback', done: () => (ac.resolvedAt = other.resolvedAt = pusher.resolvedAt = sim.time) };
+  // Not across the runway to get out of a conflict - unless the controller also works the runway (Tower).
+  // A re-route that was given before and did not help (the conflict is still there) is not repeated; a tug is.
+  const options = resolveOptions(sim, ac, other).filter((o) => (o.tug || o.aircraft.resolvedWith !== o.instruction) && !recent(o.aircraft));
+  const opt = options.find((o) => !o.crossesRunway) ?? (acrossRunway ? options[0] : undefined);
+  if (!opt) return undefined;
+  return {
+    aircraft: opt.aircraft,
+    instruction: opt.instruction,
+    done: () => {
+      ac.resolvedAt = other.resolvedAt = sim.time;
+      opt.aircraft.resolvedWith = opt.instruction;
+    },
+  };
 }

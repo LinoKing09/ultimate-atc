@@ -82,6 +82,11 @@ export interface AirportData {
    * Your own `via` lists may use them.
    */
   avoidTaxiways?: string[];
+  /**
+   * Centre lines with guide lines for smaller aircraft alongside (Cologne/Bonn M and N): automatic routes of aircraft
+   * below `minWingspanM` use them only for short links (their cost counts several times).
+   */
+  largeAircraftTaxiways?: { taxiways: string[]; minWingspanM: number };
   /** Night flying restrictions (applied in scenarios with night rules, see core/night.ts). */
   nightRestrictions?: NightRestrictions;
   /**
@@ -337,7 +342,7 @@ export interface RunwayOpsData {
    * the higher / lower runway coordinate). Automatic routes avoid taxiing
    * against these directions.
    */
-  flows?: { taxiway: string; direction: 'east' | 'west' }[];
+  flows?: { taxiway: string; direction: 'east' | 'west' | 'north' | 'south' }[];
   /**
    * Minimum spacing Approach provides between arrivals on this runway in NM (e.g. when arrivals can
    * only vacate at the far end and occupy the runway for long).

@@ -327,6 +327,13 @@ function requiredRunway(sim: Simulation, ac: Aircraft): number {
   return ac.requiredRunwayM;
 }
 
+/** True if the crew accepts a departure from this holding point (full length, or enough take-off run from it). */
+export function ableFrom(sim: Simulation, ac: Aircraft, holdingPoint: string): boolean {
+  if (entryAt(sim, holdingPoint).entry?.fullLength) return true;
+  const tora = takeoffRunAvailable(sim, holdingPoint);
+  return tora !== undefined && tora >= requiredRunway(sim, ac);
+}
+
 /** True if the full-length entry is the only one this aircraft accepts at this holding point. */
 function isIntersection(sim: Simulation, holdingPoint: string): boolean {
   const entry = entryAt(sim, holdingPoint).entry;
@@ -1046,9 +1053,13 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
       return { unable: `unable intersection ${c.destination.name.toUpperCase()}, we require full length` };
     }
   }
-  const start = routeStart(sim, ac);
+  const here = routeStart(sim, ac);
+  // "Turn around": the route starts the other way round (on the spot; an airliner needs a tug for it).
+  const turn = !!c.turnAround && ac.phase === 'taxi';
+  const start = turn ? { position: ac.pos, heading: (ac.heading + 180) % 360 } : here;
   const res = resolveDestination(sim, ac, c.destination, toRouteStart(sim, start), c.via, c.holdShort);
   if ('error' in res) return { unable: res.error };
+  if (turn) res.route.requiresUTurn = true;
   // Winter operations: not to the runway before the de-icing.
   if (res.dest.kind === 'holdingPoint' && needsDeicing(sim, ac)) return { unable: 'negative, we require de-icing first' };
   const atHoldingPoint = ac.phase === 'holding' || !!ac.stoppedAt?.holdingPoint;

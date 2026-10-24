@@ -4,20 +4,15 @@ import { findRoute, isRouteError } from '../src/core/airport/routing';
 import { parseTransmission } from '../src/core/phraseology/parser';
 import { Simulation } from '../src/core/simulation';
 import { EDDK } from '../src/data/airports/eddk';
+import { createBot } from './bot';
 
 /** An hour of traffic with a scripted Ground controller (the AI Delivery and Tower do the rest). */
 function runHour(runway: string): Simulation {
   const sim = new Simulation({ airport: EDDK, position: 'GND', runway, density: 'medium', seed: 1, events: false });
+  const bot = createBot(sim);
   for (let t = 0; t < 3600; t++) {
     sim.tick(1);
-    for (const ac of sim.aircraft) {
-      if (!ac.request || sim.time - ac.lastCallAt < 3 || sim.time - ac.lastCallAt > 4) continue;
-      if (ac.request === 'pushback' && !sim.aircraft.some((o) => o !== ac && o.phase === 'taxi' && Math.hypot(o.pos.x - ac.pos.x, o.pos.y - ac.pos.y) < 250)) sim.transmit(`${ac.callsign} push and start approved`);
-      if (ac.request === 'taxi') sim.transmit(`${ac.callsign} taxi to runway ${runway}`);
-      if (ac.request === 'crossing') sim.transmit(`${ac.callsign} cross runway 24`);
-      if (ac.request === 'taxiIn' || (ac.request === 'route' && ac.category === 'arrival')) sim.transmit(`${ac.callsign} taxi to stand ${ac.assignedStand ?? sim.freeStands(ac.type.wingspanM)[0]?.id}`);
-      if (ac.request === 'handoff') sim.transmit(`${ac.callsign} contact tower`);
-    }
+    bot();
   }
   return sim;
 }

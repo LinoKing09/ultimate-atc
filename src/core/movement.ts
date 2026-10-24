@@ -11,6 +11,9 @@ const ACCEL = 0.6; // m/s^2 taxi acceleration
 const BRAKE = 1.0; // m/s^2 comfortable braking used to plan stops
 const MAX_DECEL = 2.5; // m/s^2 hardest braking
 const PUSH_SPEED = 1.3; // m/s (~2.5 kt)
+/** Taxiing past an aircraft parked on its stand: its centre is kept (span A + span B) * factor + margin away. */
+const PARKED_FACTOR = 0.3;
+const PARKED_MARGIN_M = 4;
 
 function turnSpeedLimit(turnDeg: number): number {
   if (turnDeg > 70) return 7 * KT_TO_MS;
@@ -129,7 +132,9 @@ export function updateSeparation(sim: Simulation): void {
       for (const b of near) {
         // Traffic behind or beside us doesn't block: moving on increases the distance.
         if (dot(sub(b.pos, a.pos), moveDir) < 0) continue;
-        const r = (a.type.wingspanM + b.type.wingspanM) * 0.38 + 6;
+        // An aircraft parked on its stand is passed closer (the apron is laid out for it: wingtip clearance only).
+        const parked = b.phase === 'parked' || b.phase === 'arrived';
+        const r = (a.type.wingspanM + b.type.wingspanM) * (parked ? PARKED_FACTOR : 0.38) + (parked ? PARKED_MARGIN_M : 6);
         const physical = distance(p, b.pos) < r;
         let hit = physical;
         if (!hit && b.speed > 1 && b.phase !== 'pushback') {
@@ -261,6 +266,8 @@ function crossingConflict(sim: Simulation, a: Aircraft, ground: Aircraft[], look
   }
   for (const b of ground) {
     if (b === a || distance(a.pos, b.pos) > look + OTHER_LOOK + 40 || !intendsToMove(sim, b)) continue;
+    // It waits for us to pass (opposite traffic in a narrow part): we go first.
+    if (b.oppositeStop?.other === a.callsign && b.oppositeStop.narrow) continue;
     const bp = b.path!;
     const r = (a.type.wingspanM + b.type.wingspanM) * 0.38 + 6;
     const bs = samplesOf(cache, b);

@@ -7,12 +7,29 @@ All notable changes to this project are documented in this file. The format is b
 ### Added
 
 - **Handbook (PDF)**: `docs/handbook/ultimate-atc-handbook.pdf`, the player documentation as one printable A4 book in the colours and font of the app - cover, contents, getting started, user guide with an annotated screen and screenshots of every dialog, tutorials, phraseology, scenarios, all airports with an overview picture, systems, tower operations, simulation model and glossary. Built with `npm run handbook` (`scripts/handbook.mjs`); the screenshots come from `scripts/handbook-shots.mjs`.
+- **Soak test at every airport** (2.0 criterion "no dead ends"): `npm run soak` now runs every airport, every runway direction (parallel runways together) and two staffings (Ground alone; all positions), 3 seeds of one hour each (`SOAK_SEEDS`, `SOAK_AIRPORT`), with a scripted controller (`tests/bot.ts`) that works like a careful but simple controller. It fails on a collision or an aircraft that has not moved for 20 minutes and reports where and why. All 93 sessions pass (also with 6 seeds).
+- **Turning around on purpose**: `turn around, taxi to stand 208` - the route starts the other way round (an airliner needs a tug). *Resolve conflict* uses it for its turn-around options.
+- **Resolve conflict** offers more ways out: another entry of the runway the departure accepts (an intersection) or another free stand nearby for an arrival, when its own destination cannot be reached; the turn-arounds are always offered as the last resort.
+- Data format: `noseStopM` for stands whose position is the nose wheel stop position, `largeAircraftTaxiways` (centre lines smaller aircraft avoid), taxi flows `north` / `south` across the runway.
 - **Road to 2.0** in `docs/roadmap.md`: the agreed criteria for the next major version (Approach / Departure, the large airports under heavy traffic, an airport on every continent, changing weather and low visibility, voice on the iPad, the soak test at every airport, quality).
 - **Road to 3.0** in `docs/roadmap.md` (proposal): multiplayer with several human controllers on a server, coordination between them, Frankfurt with the Apron position, performance, robust sessions, quality - with a requirements list and open questions.
 
 ### Changed
 
+- **Stands and taxi routes after the soak test**: Bremen stands 12-17 and 12A and Cologne/Bonn A25-A35 stand behind their AIP nose wheel stop positions, clear of taxilanes S and L; at Cologne/Bonn aircraft below 36 m keep to the blue and orange guide lines (the centre lines M and N only for short links); at Leipzig/Halle the bridges E7 (northbound) and E8 (southbound) are one-way.
+- **Arrivals without a stand** taxi to the nearest free stand they can reach without turning around; the exit is chosen for one of the nearest stands that fit. A landing aircraft whose exit is blocked by an aircraft waiting at its holding point (to cross the runway there) takes another exit instead of waiting on the runway.
+- **Taxiing past parked aircraft**: an aircraft parked on its stand is passed with wingtip clearance (`0.3 · (spans) + 4 m` instead of `0.38 · (spans) + 6 m`).
+- **Opposite traffic in narrow parts**: the aircraft that goes first never has the waiting one in its way, and the waiting one stops clear of the other's way.
+- The AI Ground does not repeat a re-route that did not solve a conflict, and gives nothing to an aircraft whose tug is coming.
+- A flight that misses its CTOT while ready at the holding point gets a new slot in 8-15 minutes (otherwise 20-40).
 - **Documentation navigation**: the README lists the documentation grouped (Play, Airports, How it works, Development, Project, Print) - one row *Airports* with all ICAO codes instead of one line per airport. New overview pages `docs/README.md` and `docs/airports/README.md` (all airports in one table), and every page starts with a breadcrumb (`Documentation › Airports › EDDK`).
+
+### Fixed
+
+- A departure that rejected its take-off and taxied out again lined up on its own at the holding point (the old line-up clearance was still set) and waited there.
+- The "more heavies" scenario option crashed at Sylt (no wide-body operators there).
+- An arrival vacating at Sylt runway 32 to the north (L) without a stand got a stand it could only reach by turning around, stopped on the exit and blocked the runway.
+- *Resolve conflict* offered `taxi to stand 208 via` (an empty via list) when the route needs no taxiway names.
 
 ## [1.4.0] - 2026-10-23
 

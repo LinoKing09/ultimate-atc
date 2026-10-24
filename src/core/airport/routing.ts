@@ -75,6 +75,8 @@ const OTHER_CROSSING_PENALTY = 20000;
 /** Extra cost of a taxiway automatic routes avoid (reserved for other traffic). */
 const AVOID_PENALTY = 20000;
 const UTURN_PENALTY = 5000;
+/** Cost factor of a centre line for aircraft that have guide lines of their own beside it. */
+const CENTRE_LINE_FACTOR = 3;
 /** Sharpest turn (degrees) an aircraft makes along a taxiway or onto an unnamed link. */
 const MAX_TURN = 150;
 /**
@@ -190,6 +192,8 @@ export function findRoute(
   // if there is no other way (e.g. a designated crossing is closed).
   const crossings = auto && airport.data.runwayCrossings ? new Set(airport.data.runwayCrossings) : undefined;
   const avoid = auto && airport.data.avoidTaxiways ? new Set(airport.data.avoidTaxiways.map((t) => t.toUpperCase())) : undefined;
+  const large = airport.data.largeAircraftTaxiways;
+  const centreLines = auto && large && options.wingspanM !== undefined && options.wingspanM < large.minWingspanM ? new Set(large.taxiways.map((t) => t.toUpperCase())) : undefined;
   const dist = new Map<string, number>();
   const prev = new Map<string, { key: string; edge: TaxiEdge | null; seed?: Seed; gap?: boolean; tail?: boolean }>();
   const open: State[] = [];
@@ -244,6 +248,8 @@ export function findRoute(
         }
         // Taxiways reserved for others (e.g. military): only if there is no other way.
         if (avoid?.has(name)) cost += AVOID_PENALTY;
+        // Smaller aircraft taxi on the guide lines beside a centre line.
+        if (centreLines?.has(name)) cost *= CENTRE_LINE_FACTOR;
         const flow = options.flows?.get(name);
         if (flow && dot(flow, out) < -0.5) {
           if (options.strictFlows) continue;

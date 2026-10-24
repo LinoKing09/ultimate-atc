@@ -22,8 +22,14 @@ import { buildLayout, exitVia, type StandSpec } from './osmLayout';
 
 /** Pushback stand at its AIP position, lead-in from `lane`. */
 const PUSH = (id: string, apron: string, lane: string, lat: number, lon: number, maxWingspanM = 36): StandSpec => ({ id, apron, maxWingspanM, pushback: true, lanes: [lane], pos: { lat, lon } });
-/** Taxi-in / taxi-out stand between the taxilanes N (in) and S (out), AIP position. */
-const THROUGH = (id: string, osm: string, lat: number, lon: number, use?: StandSpec['use']): StandSpec => ({ id, osm, apron: 'Apron 1', maxWingspanM: 36, pushback: false, pos: { lat, lon }, ...(use ? { use } : {}) });
+/** Nose wheel stop position to aircraft reference point: about half the length of a code C aircraft. */
+const NOSE_STOP_C_M = 15;
+/**
+ * Taxi-in / taxi-out stand between the taxilanes N (in) and S (out). The AIP position is the nose wheel stop
+ * position next to S: the aircraft stands half its length behind it, clear of S.
+ */
+const THROUGH = (id: string, osm: string, lat: number, lon: number, use?: StandSpec['use']): StandSpec => ({ id, osm, apron: 'Apron 1', maxWingspanM: 36, pushback: false, pos: { lat, lon }, noseStopM: NOSE_STOP_C_M, ...(use ? { use } : {}) });
+
 
 const built = buildLayout(EDDW_LAYOUT, {
   runway: '08/26',
@@ -81,7 +87,8 @@ const built = buildLayout(EDDW_LAYOUT, {
     // Between N and S: taxi in from N, out onto S (no pushback, ground movement chart); 14-16 also for larger
     // business jets (VATSIM SOP). 12A takes wide-bodies up to 52 m: a pushback stand onto N in the simulator.
     THROUGH('12', '10', 53.049933, 8.784614),
-    PUSH('12A', 'Apron 1', 'N.16', 53.049986, 8.784275, 52),
+    // Its AIP position is the nose wheel stop position next to S (a wide-body stands about 25 m behind it).
+    { ...PUSH('12A', 'Apron 1', 'N.16', 53.049986, 8.784275, 52), noseStopM: 25 },
     THROUGH('13', '11', 53.050178, 8.784261),
     THROUGH('14', '12', 53.050419, 8.783911, 'ga'),
     THROUGH('15', '13', 53.050672, 8.783572, 'ga'),

@@ -1486,7 +1486,7 @@ export class App {
         const options = resolveOptions(this.sim, ac, other).filter((o) => this.sim.isOnMyFrequency(o.aircraft));
         if (!options.length) return [{ label: 'No way out found', disabled: true }];
         return options.map((o) => ({
-          label: `${o.aircraft.callsign}: ${o.tug ? 'tug turnaround, then ' : ''}${o.instruction.replace(/^taxi to /, 'to ')}`,
+          label: `${o.aircraft.callsign}: ${o.tug ? 'tug turnaround, then ' : /^turn around/.test(o.instruction) ? 'turn around, then ' : ''}${o.instruction.replace(/^turn around, /, '').replace(/^taxi to /, 'to ')}`,
           hint: `${o.tug ? 'tug: 5-10 min' : o.route ? `${o.other.callsign} waits` : 'towed back onto the stand'}${o.crossesRunway ? ', crosses runway' : ''}`,
           action: () => this.say(o.aircraft, o.instruction),
           onHover: (on: boolean) => {

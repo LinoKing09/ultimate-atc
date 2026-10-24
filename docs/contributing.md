@@ -48,6 +48,7 @@ All code, comments, UI text and documentation are written in **English**.
 - Unit tests for pure logic (parser, routing, geometry).
 - Scenario tests drive the `Simulation` directly with `sim.transmit(...)` and `sim.tick(...)` (see `tests/simulation.test.ts`). Use `generateTraffic: false` and spawn aircraft with `sim.traffic.spawnDeparture/spawnArrival` for deterministic setups.
 - New airports need a data-consistency test (every stand reaches every departure holding point, exits exist).
+- `npm run soak` (also in CI) runs one hour of traffic at every airport, every runway direction, with Ground alone and with all positions, 3 seeds each, answered by the scripted controller in `tests/bot.ts`. It fails on a collision or an aircraft stuck for 20 minutes and prints where and why (`SOAK_AIRPORT=EDDK npm run soak` for one airport, `SOAK_SEEDS=6` for more sessions). A new airport is part of it automatically.
 
 ## Handbook
 

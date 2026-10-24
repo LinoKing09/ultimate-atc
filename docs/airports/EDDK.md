@@ -32,7 +32,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 - the military area south-west of runway 13R/31L (C, Z1, the MIL ramps; only with prior agreement with the Bundeswehr), P beyond apron U to the 06 end, taxiway D east of runway 13L/31R to the 24 end with apron L (the dispersal pads there), and the taxilanes K1-K3 of apron V are drawn but not used: the ground movement chart shows apron V under construction with all parking positions removed. OSM still calls P "B",
 - GAT 3 (light aircraft parking G01 / G02 by B) is drawn; light aircraft are not simulated,
 - the blue and orange guide lines on M and TXL-N (two aircraft up to 36 m side by side) are taxiways of their own in the simulator (M BLUE, M ORANGE, N BLUE, N ORANGE): blue outbound, orange inbound (a simulator flow, not a published rule); the yellow centre lines are M and N,
-- stand sizes follow the VATSIM Germany stand data (code C 36 m, D 52 m, E 65 m, F 80 m); A25-A35 (odd) are nose-out positions; aprons E and F (cargo hub) and W (cargo feeders) take the freighters first, the B747-8 only fits E and F,
+- stand sizes follow the VATSIM Germany stand data (code C 36 m, D 52 m, E 65 m, F 80 m); A25-A35 (odd) are nose-out positions (the AIP checkpoint is taken as the nose wheel stop position facing L, the aircraft stands 15 m behind it); aprons E and F (cargo hub) and W (cargo feeders) take the freighters first, the B747-8 only fits E and F,
 - taxi-in behind a follow-me car (AIP) and de-icing on the stand are not enforced,
 - the airport is open 24 hours; the night rules of AIP AD 2.20 (noisy aircraft, runways 13R/31L, 06 and 24, intersection take-offs only from A5 / A1) are not modelled,
 - no military, general aviation or light aircraft traffic,
@@ -91,7 +91,7 @@ All civil aprons lie between the two parallel runways, north of runway 06/24:
 
 - **Runway 31R** (preferred): departures taxi south on **A**, **cross runway 24** at AN / AS (`cross runway 24`) and line up at **A** (3815 m) or **A1** (3586 m); intersections A2 and A3. Arrivals vacate at **A3** (rapid exit), A4, A5 or A7 and taxi north on **E**: the flow is A outbound (south-east), E inbound (north-west).
 - **Runway 13L**: departures line up at **A7** (3815 m) or A5, A4, A3. Arrivals vacate at **A2** (rapid exit), A1 or A at the end and taxi north-west on A, across runway 06/24.
-- Terminal 2: outbound on **N BLUE / M BLUE**, inbound on **N ORANGE / M ORANGE** (`taxi to runway 13L via november blue, mike blue`); aircraft of 36 m and more use the centre lines N and M.
+- Terminal 2: outbound on **N BLUE / M BLUE**, inbound on **N ORANGE / M ORANGE** (`taxi to runway 13L via november blue, mike blue`); aircraft of 36 m and more use the centre lines N and M (automatic routes of smaller aircraft keep to the guide lines and use the centre lines only for short links).
 - SIDs climb to 5000 ft: WIPUR (north), PODIP (north-east), KUMIK (east, also the south-bound traffic), NVO (west); COL only for Frankfurt. Runway 13L: the F SIDs; runway 31R: R for aircraft up to 98 t, B for heavier ones (filed for the long-haul freighters). The numbers change with the AIRAC cycle.
 - A-CDM (TSAT / TOBT) and datalink clearances (DCL) as on VATSIM.
 

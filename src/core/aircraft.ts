@@ -236,6 +236,8 @@ export interface Aircraft {
   shortFinalCall?: boolean;
   /** Last time a head-on conflict involving this aircraft was resolved (AI Ground), to resolve each pair once. */
   resolvedAt?: number;
+  /** The last instruction that resolved one of its conflicts: not given again if the conflict is still there. */
+  resolvedWith?: string;
   /** Follow-me ordered: `vehicle` once one is assigned, `leading` once it is in front of the aircraft. */
   followMe?: { vehicle?: string; leading: boolean };
   /** Time since when the AI Tower sees this departure stranded short of the holding point. */

@@ -28,7 +28,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 
 - the holding points carry the names of their taxiways (the charts give no designators); departures 26 are cleared via F only up to the CAT II/III holding position (noise rule, AIP AD 2.20) - that is holding point F in the simulator,
 - C, D and E meet the runway in a Y: the simulator routes on one fillet of each (C: the eastern one, for departures 08; D and E: the western ones, for exits landing 08 and departures 26) and draws the other one,
-- stands 12A and 18A (wide-bodies up to 52 m) are pushback stands here; stands 12-17 are taxi-in / taxi-out stands between N and S (ground movement chart),
+- stands 12A and 18A (wide-bodies up to 52 m) are pushback stands here; stands 12-17 are taxi-in / taxi-out stands between N and S (ground movement chart); their AIP positions (and that of 12A) are taken as the nose wheel stop positions next to S, so the aircraft stand 15 m (12A: 25 m) behind them, clear of S,
 - the paved sections beyond both thresholds (stopways, the special take-off runways of the Airbus Beluga), runway 05/23 (700 m, drawn as a runway: VFR take-offs only), the Airbus taxiways F1 / F2, the lanes to the LH parking and the helicopter platform and the inner GA lane of Apron 2 are drawn but not used,
 - intersection take-offs 08 from D (808 m) and 26 from C (836 m) are published but not offered (VATSIM SOP),
 - Beluga flights, light aircraft, helicopters and the general aviation parking along R are not simulated,

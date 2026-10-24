@@ -105,8 +105,19 @@ function yieldBefore(sim: Simulation, a: Aircraft, b: Aircraft): boolean {
   const dA = narrowAhead(a, b, LOOK_AHEAD_M)?.d;
   const dB = narrowAhead(b, a, LOOK_AHEAD_M)?.d;
   if (dA === undefined || dB === undefined) return false;
-  const [w, g, d] = dA > dB || (dA === dB && a.callsign > b.callsign) ? [a, b, dA] : [b, a, dB];
-  const hold = d - JUNCTION_CLEARANCE_M;
+  let [w, g, d] = dA > dB || (dA === dB && a.callsign > b.callsign) ? [a, b, dA] : [b, a, dB];
+  // The one that goes first must not have the waiting one in its way (e.g. one already at its stand turn-off).
+  if (onPathAhead(g, w, LOOK_AHEAD_M) !== undefined) {
+    if (onPathAhead(w, g, LOOK_AHEAD_M) !== undefined) return false;
+    [w, g, d] = [g, w, w === a ? dB : dA];
+  }
+  let hold = d - JUNCTION_CLEARANCE_M;
+  // Where the waiting one stops it must not stand in the other one's way (a wide-body near the lane).
+  const gPts: { x: number; y: number }[] = [];
+  for (let t = g.s; t <= Math.min(g.path!.length, g.s + LOOK_AHEAD_M); t += SAMPLE_M) gPts.push(g.path!.pointAt(t));
+  const r = lane(w, g);
+  const inWay = (at: number) => gPts.some((p) => distance(p, w.path!.pointAt(w.s + at)) < r);
+  while (hold > 0 && inWay(hold)) hold -= SAMPLE_M;
   // Too late to stop short of it: see-and-avoid (and Ground) take over.
   if (hold < (w.speed * w.speed) / 2) return false;
   const here = sim.airport.nearestEdge(w.pos)?.edge.name ?? '';

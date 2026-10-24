@@ -21,7 +21,7 @@ export type Command =
   | { type: 'stopPushback' }
   | { type: 'startup' }
   /** Taxi instruction; `tow` for a tow ("tow approved via N, W"). */
-  | { type: 'taxi'; destination?: TaxiDestination; via: string[]; holdShort: HoldShortTarget[]; cross: string[]; tow?: boolean }
+  | { type: 'taxi'; destination?: TaxiDestination; via: string[]; holdShort: HoldShortTarget[]; cross: string[]; tow?: boolean; turnAround?: boolean }
   | { type: 'holdShort'; target: HoldShortTarget }
   | { type: 'cross'; runway: string }
   | { type: 'holdPosition' }

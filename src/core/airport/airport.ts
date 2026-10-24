@@ -286,7 +286,9 @@ export class Airport {
     // "east" = towards the higher runway coordinate of the reference (lower-numbered) runway end.
     const ref = [...this.runwayEnds.values()].filter((e) => e.runway === end.runway).sort((a, b) => a.name.localeCompare(b.name))[0];
     const east = normalize(sub(ref.farEnd, ref.start));
-    for (const f of ops.flows) out.set(f.taxiway.toUpperCase(), f.direction === 'east' ? east : { x: -east.x, y: -east.y });
+    const north = { x: -east.y, y: east.x };
+    const dirs = { east, west: { x: -east.x, y: -east.y }, north, south: { x: -north.x, y: -north.y } };
+    for (const f of ops.flows) out.set(f.taxiway.toUpperCase(), dirs[f.direction]);
     return out;
   }
 

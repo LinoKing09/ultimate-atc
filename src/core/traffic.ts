@@ -59,8 +59,10 @@ export class TrafficGenerator {
   private pickSpec(): { airline: Airline; type: AircraftType } {
     const rng = this.sim.rng;
     const share = HEAVY_SHARES[clampLevel(this.sim.config.scenario?.heavyLevel ?? 0)].share;
-    if (share > 0 && rng.chance(share)) {
-      const airline = this.pickAirline((a) => a.types.some((t) => aircraftType(t).wake === 'H'));
+    const heavy = (a: Airline) => a.types.some((t) => aircraftType(t).wake === 'H');
+    // Airports without wide-body operators (Sylt) get their normal traffic.
+    if (share > 0 && rng.chance(share) && this.operators.some(heavy)) {
+      const airline = this.pickAirline(heavy);
       return { airline, type: aircraftType(rng.pick(airline.types.filter((t) => aircraftType(t).wake === 'H'))) };
     }
     const airline = this.pickAirline();

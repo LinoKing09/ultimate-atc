@@ -60,7 +60,7 @@ The four traffic **sliders** have five steps each (digit in the code in brackets
 | 4th  | Medium to heavy 18 / 15 (`4`) | More arrivals 0.75 / 1.3 (`4`) | 35 % (`3`) | Occasional 2 (`3`) |
 | 5th  | Heavy 22 / 18 (`5`, `H`)     | Arrival rush 0.5 / 1.6 (`5`, `A`) | 50 % (`4`) | Often 4 (`4`) |
 
-**Heavies**: with a share above *normal*, that share of the new flights is a wide-body (A330, B767, B787), picked from operators that fly them. Wide-bodies cannot turn around on taxiways, need the full runway length and only fit a few stands - with a large share some wait for a stand or are not generated. **Random events** multiply the chances of the random special events (see [simulation model](simulation.md#special-events)); scheduled events happen at any step.
+**Heavies**: with a share above *normal*, that share of the new flights is a wide-body (A330, B767, B787), picked from operators that fly them (at an airport without such operators, like Sylt, the traffic stays as it is). Wide-bodies cannot turn around on taxiways, need the full runway length and only fit a few stands - with a large share some wait for a stand or are not generated. **Random events** multiply the chances of the random special events (see [simulation model](simulation.md#special-events)); scheduled events happen at any step.
 
 ## The scenario builder
 

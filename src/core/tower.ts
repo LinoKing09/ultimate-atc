@@ -62,6 +62,12 @@ interface DepartureRecord {
   fix?: string;
 }
 
+/** A landing aircraft waiting this long (s) on the runway for its blocked exit takes another one. */
+const EXIT_BLOCKED_S = 15;
+
+/** Stands (nearest first) an exit is checked against when the arrival has none assigned. */
+const ONWARD_STANDS = 4;
+
 export class TowerAI {
   /** Simulation time of the last take-off roll start. */
   lastTakeoffAt = -Infinity;
@@ -438,27 +444,39 @@ export class TowerAI {
     return this.onwardLength(path, ac) < Infinity;
   }
 
-  /** Length of the taxi route from the end of this exit to the stand without turning around (Infinity: none; 0: no stand). */
+  /**
+   * Length of the taxi route from the end of this exit to the stand without turning around (Infinity: none; 0: no
+   * stand fits at all). Without an assigned stand: to the nearest of the free stands that fit - or, with none free,
+   * of all stands that fit (it waits for one of them).
+   */
   private onwardLength(path: string[], ac: Aircraft): number {
     const sim = this.sim;
-    const standId = ac.assignedStand ?? sim.freeStands(ac.type.wingspanM, undefined, ac)[0]?.id;
-    const stand = standId ? sim.airport.stand(standId) : undefined;
-    if (!stand) return 0;
-    const key = `${path.join('>')}|${stand.id}|${ac.type.wingspanM}`;
-    let ok = this.onwardCache.get(key);
-    if (ok === undefined) {
-      const end = sim.airport.node(path[path.length - 1]).pos;
-      const before = sim.airport.node(path[path.length - 2]).pos;
-      const heading = (Math.atan2(end.x - before.x, end.y - before.y) * 180) / Math.PI;
-      const r = findRoute(sim.airport, { position: end, heading: (heading + 360) % 360 }, stand.node, [], { wingspanM: ac.type.wingspanM, allowUTurn: ac.type.wingspanM <= 25 });
-      ok = isRouteError(r) || r.requiresUTurn ? Infinity : r.length;
-      this.onwardCache.set(key, ok);
+    const assigned = ac.assignedStand ? sim.airport.stand(ac.assignedStand) : undefined;
+    const end = sim.airport.node(path[path.length - 1]).pos;
+    let stands = assigned ? [assigned] : sim.freeStands(ac.type.wingspanM, undefined, ac);
+    if (!stands.length) stands = [...sim.airport.stands.values()].filter((s) => s.maxWingspanM >= ac.type.wingspanM);
+    if (!stands.length) return 0;
+    stands = [...stands].sort((a, b) => distance(a.pos, end) - distance(b.pos, end)).slice(0, ONWARD_STANDS);
+    let best = Infinity;
+    for (const stand of stands) {
+      const key = `${path.join('>')}|${stand.id}|${ac.type.wingspanM}`;
+      let ok = this.onwardCache.get(key);
+      if (ok === undefined) {
+        const before = sim.airport.node(path[path.length - 2]).pos;
+        const heading = (Math.atan2(end.x - before.x, end.y - before.y) * 180) / Math.PI;
+        const r = findRoute(sim.airport, { position: end, heading: (heading + 360) % 360 }, stand.node, [], { wingspanM: ac.type.wingspanM, allowUTurn: ac.type.wingspanM <= 25 });
+        ok = isRouteError(r) || r.requiresUTurn ? Infinity : r.length;
+        this.onwardCache.set(key, ok);
+      }
+      best = Math.min(best, ok);
     }
-    return ok;
+    return best;
   }
 
   private planRollout(ac: Aircraft, end: RunwayEnd, decel: number, preferSouth: boolean, longRoll = false, brakeNow = false): void {
     const sim = this.sim;
+    // A rejected take-off: the clearances are used up (a new departure needs new ones).
+    if (brakeNow) ac.lineUpCleared = ac.takeoffCleared = ac.backtrackCleared = ac.immediateTakeoff = false;
     ac.phase = 'landing';
     const here = sim.airport.runwayCoordinates(end, ac.pos).along;
     const v0 = ac.speed;
@@ -481,7 +499,7 @@ export class TowerAI {
       .filter((c) => {
         const stop = sim.airport.node(c.ex.path[c.ex.path.length - 1]).pos;
         const hp = sim.airport.node(c.ex.path[1]);
-        return !sim.aircraft.some((o) => o !== ac && o.onGround && (distance(o.pos, stop) < 70 || (o.category === 'departure' && o.stoppedAt?.nodeId === hp.id)));
+        return !sim.aircraft.some((o) => o !== ac && o.onGround && (distance(o.pos, stop) < 70 || o.stoppedAt?.nodeId === hp.id));
       });
     const candidates = all.filter((c) => c.along > here + 5).sort((a, b) => a.along - b.along);
     let usable = candidates.filter((c) => c.ok);
@@ -511,7 +529,9 @@ export class TowerAI {
     }
     // Of the branches of one exit (the same runway node, e.g. a rapid exit forking to both sides of the parallel
     // taxiway) the one towards the stand.
-    const pool0 = onward.length ? onward : usable.length ? usable : candidates.slice(-1);
+    // None can be made: the last ones (at the runway end), the one towards the stand first.
+    const last = candidates.filter((c) => c.along >= (candidates.at(-1)?.along ?? 0) - 1);
+    const pool0 = onward.length ? onward : usable.length ? usable : [...last.filter((c) => this.leadsToStand(c.ex.path, ac)), ...last].slice(0, 1);
     const pool = pool0.filter((c) => !pool0.some((d) => d !== c && d.node === c.node && this.onwardLength(d.ex.path, ac) < this.onwardLength(c.ex.path, ac)));
     // Parallel runways: vacate on the side of the stand (not back across the runway).
     const stand = ac.assignedStand ? sim.airport.stand(ac.assignedStand) : undefined;
@@ -599,7 +619,17 @@ export class TowerAI {
     if (!ac.path) return;
     // markers: [runway node, holding point, stop point]
     const hp = ac.path.markers[1];
-    if (hp && ac.s >= hp.s) ac.phase = 'vacating';
+    if (hp && ac.s >= hp.s) {
+      ac.phase = 'vacating';
+      return;
+    }
+    // Still on the runway and the exit blocked by an aircraft that stopped at its holding point (for example
+    // one waiting to cross there): the crew takes another exit instead of waiting on the runway.
+    const blocker = ac.blockedBy ? this.sim.find(ac.blockedBy) : undefined;
+    const hpNode = hp?.id;
+    if (blocker && hpNode && ac.speed < 1 && this.sim.time - (ac.blockedSince ?? this.sim.time) > EXIT_BLOCKED_S && blocker.stoppedAt?.nodeId === hpNode) {
+      this.planRollout(ac, this.endFor(ac.runway), ROLLOUT_DECEL, false);
+    }
   }
 
   /** Called when an aircraft has stopped behind the holding position of its exit. */
@@ -700,7 +730,9 @@ export class TowerAI {
       if (a.category !== 'departure' || a.ctot === undefined || !a.onGround || ['takeoff', 'climb', 'gone'].includes(a.phase)) continue;
       if (sim.time <= a.ctot + CTOT_LATE_S) continue;
       const old = hhmm(sim, a.ctot);
-      a.ctot = Math.round((sim.time + sim.rng.range(20 * 60, 40 * 60)) / 60) * 60;
+      // A flight ready at the holding point (a "ready" message to the Network Manager) gets an earlier slot.
+      const ready = a.phase === 'holding' || a.phase === 'lineup';
+      a.ctot = Math.round((sim.time + (ready ? sim.rng.range(8 * 60, 15 * 60) : sim.rng.range(20 * 60, 40 * 60))) / 60) * 60;
       sim.stats.slotsMissed++;
       sim.updateScore();
       sim.system(`${a.callsign} missed its CTOT ${old} (window -5/+10 min). New CTOT ${hhmm(sim, a.ctot)} from the Network Manager.`, 'warning', a.callsign);

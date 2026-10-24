@@ -4,7 +4,7 @@ import type { Aircraft } from './aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from './geo';
 import type { TaxiDestination } from './phraseology/commands';
 import { formatDestination } from './phraseology/format';
-import { previewTaxi, routeOptionsOf, routeStartOf } from './pilot';
+import { ableFrom, previewTaxi, routeOptionsOf, routeStartOf } from './pilot';
 import type { Simulation } from './simulation';
 
 /**
@@ -207,6 +207,41 @@ function intendedDestination(sim: Simulation, ac: Aircraft): TaxiDestination | u
   return { kind: 'runway', runway: sim.departureRunwayOf(ac) };
 }
 
+/** A destination a conflict can be resolved to: its node, how it is said and the taxi destination. */
+interface Goal {
+  node: TaxiNode;
+  text: string;
+  target: TaxiDestination;
+}
+
+/** "taxi to stand 208 via V" - without "via" when the route needs no taxiway names (along the lane it is on). */
+function taxiInstruction(goal: Goal, via: string[]): string {
+  return via.length ? `taxi to ${goal.text} via ${via.join(', ')}` : `taxi to ${goal.text}`;
+}
+
+/** Free stands (nearest first) an arrival in a conflict may be sent to instead of its own. */
+const ALTERNATIVE_STANDS = 3;
+
+/** Other destinations for an aircraft that cannot reach its own without turning around. */
+function alternativeGoals(sim: Simulation, ac: Aircraft, primary: Goal): Goal[] {
+  if (primary.target.kind === 'holdingPoint') {
+    if (ac.category !== 'departure') return [];
+    const entries = sim.airport.runwayOps(sim.departureRunwayOf(ac))?.departureEntries ?? [];
+    return entries
+      .filter((e) => e.holdingPoint.toUpperCase() !== primary.node.holdingPoint?.name.toUpperCase() && ableFrom(sim, ac, e.holdingPoint))
+      .map((e) => ({ hp: sim.airport.holdingPoint(e.holdingPoint), name: e.holdingPoint }))
+      .filter((e): e is { hp: TaxiNode; name: string } => !!e.hp)
+      .map((e) => ({ node: e.hp, text: `holding point ${e.name}`, target: { kind: 'holdingPoint', name: e.name } }));
+  }
+  if (primary.target.kind !== 'stand') return [];
+  const own = primary.target.stand;
+  return sim
+    .freeStands(ac.type.wingspanM, (s) => s.id !== own, ac)
+    .sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos))
+    .slice(0, ALTERNATIVE_STANDS)
+    .map((s) => ({ node: s.node, text: `stand ${s.id}`, target: { kind: 'stand', stand: s.id } }));
+}
+
 export interface ResolveOption {
   /** Aircraft that is re-routed. */
   aircraft: Aircraft;
@@ -248,40 +283,52 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
     // junction for opposite traffic: the other one waits, so only its position counts.
     const waiting = x.oppositeStop?.other === y.callsign || y.oppositeStop?.other === x.callsign;
     const avoid = { points: waiting ? [y.pos] : futureOf(y).slice(0, 10).map((s) => s.p), radius };
-    const destText = dest.kind === 'runway' ? `holding point ${node.holdingPoint?.name ?? ''}` : formatDestination(dest);
-    const target: TaxiDestination = dest.kind === 'runway' ? { kind: 'holdingPoint', name: node.holdingPoint?.name ?? '' } : dest;
+    const primary: Goal = dest.kind === 'runway' || dest.kind === 'holdingPoint'
+      ? { node, text: `holding point ${node.holdingPoint?.name ?? ''}`, target: { kind: 'holdingPoint', name: node.holdingPoint?.name ?? '' } }
+      : { node, text: formatDestination(dest), target: dest };
 
-    const find = (allowUTurn: boolean): TaxiRoute | undefined => {
+    const find = (goal: Goal, allowUTurn: boolean): TaxiRoute | undefined => {
       // Turning around: y's path runs through x itself, so only y's position must be avoided.
       // (They may already stand closer together than the normal clearance: then moving away is enough.)
       const tugAvoid = { points: [y.pos], radius: Math.min(radius, distance(x.pos, y.pos) - 3) };
       const base = { ...routeOptionsOf(sim, x), allowUTurn, avoid: allowUTurn ? tugAvoid : avoid };
-      let r = findRoute(sim.airport, routeStartOf(sim, x), node, [], { ...base, strictFlows: true });
-      if (isRouteError(r)) r = findRoute(sim.airport, routeStartOf(sim, x), node, [], base);
+      let r = findRoute(sim.airport, routeStartOf(sim, x), goal.node, [], { ...base, strictFlows: true });
+      if (isRouteError(r)) r = findRoute(sim.airport, routeStartOf(sim, x), goal.node, [], base);
       return isRouteError(r) ? undefined : r;
     };
     const viaOf = (r: TaxiRoute) => r.taxiways.filter((t) => sim.airport.taxiwayNames.has(t.toUpperCase()));
-
-    const route = find(false);
-    if (route && !route.requiresUTurn) {
+    /** A route forwards to the goal that keeps clear of the other aircraft, as the crew will fly it. */
+    const forward = (goal: Goal): ResolveOption | undefined => {
+      const route = find(goal, false);
+      if (!route || route.requiresUTurn) return undefined;
       const via = viaOf(route);
       // The pilot's own interpretation of the instruction must also keep clear of the other aircraft.
-      const check = previewTaxi(sim, x, { type: 'taxi', destination: target, via, holdShort: [], cross: [] });
-      if (!('error' in check) && !check.route.requiresUTurn && keepsClear(sim.airport, check.route, avoid)) {
-        out.push({ aircraft: x, other: y, instruction: `taxi to ${destText} via ${via.join(', ')}`, route: check.route, tug: false });
-        continue;
-      }
+      const check = previewTaxi(sim, x, { type: 'taxi', destination: goal.target, via, holdShort: [], cross: [] });
+      if ('error' in check || check.route.requiresUTurn || !keepsClear(sim.airport, check.route, avoid)) return undefined;
+      return { aircraft: x, other: y, instruction: taxiInstruction(goal, via), route: check.route, tug: false };
+    };
+
+    // Forwards to its destination - or, if that is not possible, to another one: a departure to another entry of
+    // its runway it accepts (an intersection departure), an arrival to another free stand.
+    const way = forward(primary) ?? alternativeGoals(sim, x, primary).reduce<ResolveOption | undefined>((found, g) => found ?? forward(g), undefined);
+    if (way) {
+      out.push(way);
+      continue;
     }
     // No way out forwards: a tug turns the aircraft around (only big aircraft need one; small ones can turn).
-    const back = find(true);
-    if (back) tugs.push({ aircraft: x, other: y, instruction: `taxi to ${destText} via ${viaOf(back).join(', ')}`, route: back, tug: back.requiresUTurn && x.type.wingspanM > 25 });
+    for (const goal of [primary, ...alternativeGoals(sim, x, primary)]) {
+      const back = find(goal, true);
+      if (!back) continue;
+      tugs.push({ aircraft: x, other: y, instruction: `${back.requiresUTurn ? 'turn around, ' : ''}${taxiInstruction(goal, viaOf(back))}`, route: back, tug: back.requiresUTurn && x.type.wingspanM > 25 });
+      break;
+    }
   }
   const crosses = (o: ResolveOption) => !!o.route?.edges.some((e) => e.kind === 'runwayStrip');
   for (const o of [...out, ...tugs]) o.crossesRunway = crosses(o);
   // Detours across the runway come last.
   const byCrossing = (a: ResolveOption, b: ResolveOption) => Number(!!a.crossesRunway) - Number(!!b.crossesRunway);
-  const forward = out.filter((o) => !o.crossesRunway);
-  return forward.length ? [...forward, ...out.filter((o) => o.crossesRunway)] : [...out, ...tugs].sort(byCrossing);
+  // Forwards first, then the turnarounds (a tug for an airliner) - the last resort, also when a re-route did not help.
+  return [...out.sort(byCrossing), ...tugs.sort(byCrossing)];
 }
 
 function keepsClear(airport: Airport, route: TaxiRoute, avoid: { points: Vec2[]; radius: number }): boolean {

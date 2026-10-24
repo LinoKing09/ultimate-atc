@@ -127,3 +127,61 @@ describe('ATIS', () => {
     expect(a.atisHeard).toBe(s.atisLetter);
   });
 });
+
+describe('changing surface wind', () => {
+  it('turns the actual wind to the next observed wind, and the METAR reports it', () => {
+    const s = sim({ seed: 21 });
+    const start = { ...s.observedWind };
+    const winds: string[] = [];
+    let last = s.metar.time;
+    for (let t = 0; t < 3 * 3600; t++) {
+      s.tick(1);
+      if (s.metar.time !== last) {
+        last = s.metar.time;
+        // The routine observation reports the actual wind of that moment (direction to 10 degrees).
+        expect(s.metar.wind.speedKt).toBe(s.observedWind.speedKt);
+        if (s.metar.wind.speedKt > 0) expect(Math.abs(((s.metar.wind.direction - s.observedWind.direction + 540) % 360) - 180), `${s.metar.time} ${JSON.stringify(s.metar.wind)} ${JSON.stringify(s.observedWind)}`).toBeLessThanOrEqual(5);
+        winds.push(`${s.metar.wind.direction}/${s.metar.wind.speedKt}`);
+      }
+      const w = s.observedWind;
+      expect(w.speedKt).toBeGreaterThanOrEqual(0);
+      expect(w.speedKt).toBeLessThanOrEqual(30);
+      if (w.gustKt) expect(w.gustKt).toBeGreaterThanOrEqual(w.speedKt + 10);
+    }
+    expect(winds.length).toBe(6);
+    // The wind changes over three hours, but stays near the prevailing wind of the session.
+    expect(new Set(winds).size).toBeGreaterThan(2);
+    const away = Math.abs(((s.observedWind.direction - start.direction + 540) % 360) - 180);
+    expect(away).toBeLessThan(120);
+  });
+
+  it('shows the difference to the broadcast ATIS, and changes gradually', () => {
+    const s = sim({ seed: 9 });
+    let maxStep = 0;
+    let prev = s.observedWind.direction;
+    let differs = false;
+    for (let t = 0; t < 4 * 3600; t++) {
+      s.tick(1);
+      maxStep = Math.max(maxStep, Math.abs(((s.observedWind.direction - prev + 540) % 360) - 180));
+      prev = s.observedWind.direction;
+      differs ||= s.atisDifferences.some((d) => d.startsWith('wind'));
+    }
+    expect(maxStep).toBeLessThanOrEqual(3);
+    expect(differs).toBe(true);
+  });
+
+  it('takes a wind set in the ATIS editor as it is', () => {
+    const s = sim({ seed: 21 });
+    s.updateAtis({ wind: { direction: 70, speedKt: 6 } });
+    for (let t = 0; t < 60; t++) s.tick(1);
+    expect(s.observedWind).toEqual({ direction: 70, speedKt: 6 });
+  });
+
+  it('keeps the wind of the tutorials', () => {
+    const s = sim({ seed: 21 });
+    s.met.drift.enabled = false;
+    const w = { ...s.observedWind };
+    for (let t = 0; t < 2 * 3600; t++) s.tick(1);
+    expect(s.observedWind).toEqual(w);
+  });
+});

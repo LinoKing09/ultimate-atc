@@ -39,7 +39,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 
 ![Connect dialog with the airport menu open: Europe, Germany, Langen FIR, Stuttgart](images/screenshot-connect.png)
 
-There is no runway selection: the session starts with a random wind, and the **runway in use is the one with the most headwind** (runway 25 at EDDS unless the tailwind on it is above 3 kt; at Leipzig/Halle both parallel runways of that direction). You change the runway, wind, QNH and ATIS letter during the session in the [ATIS editor](#atis-editor).
+There is no runway selection: the session starts with a random wind, and the **runway in use is the one with the most headwind** (runway 25 at EDDS unless the tailwind on it is above 3 kt; at Leipzig/Halle both parallel runways of that direction). The wind changes during the session with the weather (a new METAR every 30 minutes); when the tailwind on the runway in use grows above 5 kt, the METAR message suggests a runway change. You change the runway, wind, QNH and ATIS letter during the session in the [ATIS editor](#atis-editor).
 
 The yellow notice shows how accurate the airport data is. Press **Connect** to start. The session begins immediately and the clock runs. Open the [airport briefing](#airport-briefing) (`BRIEFING`) to learn the local procedures.
 

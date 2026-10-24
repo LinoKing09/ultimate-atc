@@ -76,6 +76,7 @@ export class TutorialRunner {
     const wind = { direction: 250, speedKt: 8 };
     sim.atis.wind = { ...wind };
     sim.observedWind = { ...wind };
+    sim.met.drift.enabled = false;
     sim.readbackErrors = 'off';
   }
 

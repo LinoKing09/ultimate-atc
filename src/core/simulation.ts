@@ -22,7 +22,7 @@ import { EVENT_LEVELS, clampLevel, type Density } from './levels';
 import { updateNight } from './night';
 import { deicingActive } from './deicing';
 import { utcOffsetMinutes } from './time';
-import { atisDifferences, datisMet, initialMet, metWords, temperatureWords, trendWords, updateMet, type Metar, type MetState } from './met';
+import { atisDifferences, datisMet, initialMet, metWords, temperatureWords, trendWords, updateMet, updateWind, type Metar, type MetState } from './met';
 import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
 import { capitalize, defaultRunwayKey, runwayEndsOf, runwayWords } from './runways';
 
@@ -403,6 +403,7 @@ export class Simulation {
     Simulation.simulatedSeconds += dt;
     this.updateScenario();
     updateWeather(this);
+    updateWind(this);
     updateMet(this);
     updateNight(this);
     if (this.config.generateTraffic !== false) this.traffic.update();

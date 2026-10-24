@@ -1,4 +1,5 @@
 import { deicingActive } from './deicing';
+import { runwayEndsOf, runwayWords } from './runways';
 import type { Simulation } from './simulation';
 import type { Wind } from './weather';
 
@@ -8,7 +9,11 @@ import type { Wind } from './weather';
  * few / scattered, broken, overcast), a temperature from the climate of the month and the time of
  * day, and a QNH that drifts by a hectopascal now and then. A routine METAR is issued at minute 20
  * and 50 of every hour (UTC), a SPECI when a thunderstorm approaches, is overhead or has passed.
- * The surface wind is the simulator's actual wind (`sim.observedWind`).
+ * The surface wind is the simulator's actual wind (`sim.observedWind`). It changes with the weather: for every
+ * routine observation a new wind is drawn - a step of up to 40 degrees and 5 kt from the last one, pulled back
+ * towards the prevailing wind of the session, gusts from 15 kt on now and then - and the actual wind turns to it
+ * during the 15 minutes before the observation. A wind set by a scenario event, a thunderstorm or the ATIS editor
+ * is taken as it is; the next observation goes on from there.
  */
 
 export type CloudCover = 'FEW' | 'SCT' | 'BKN' | 'OVC';
@@ -50,7 +55,36 @@ export interface MetState {
   baseFt: number;
   /** End of the rain after a thunderstorm (simulation time; -Infinity: none). */
   rainUntil: number;
+  /** The changing surface wind. */
+  drift: WindDrift;
 }
+
+export interface WindDrift {
+  /** Off: the wind stays as it is (tutorials). */
+  enabled: boolean;
+  /** The prevailing wind of the session the changes return to. */
+  base: Wind;
+  /** The actual wind turns from `from` to `to` between `start` and `end` (simulation time). */
+  from: Wind;
+  to: Wind;
+  start: number;
+  end: number;
+  /** The wind set here last: a different actual wind was set from outside (an event, the ATIS editor). */
+  set: Wind;
+}
+
+/** Largest change of the wind direction from one routine observation to the next (degrees, before the pull back). */
+const WIND_DIR_STEP = 40;
+/** Largest change of the wind speed from one observation to the next (kt, before the pull back). */
+const WIND_SPEED_STEP = 5;
+/** Share of the difference to the prevailing wind that each observation takes back. */
+const WIND_PULL_BACK = 0.25;
+/** Strongest mean wind the changes lead to (kt). */
+const WIND_MAX_KT = 30;
+/** Gusts are possible from this mean wind on (kt); they are 10-15 kt above it. */
+const GUST_FROM_KT = 15;
+/** The actual wind turns to the next observed wind during this time before the observation (s). */
+export const WIND_CHANGE_S = 15 * 60;
 
 /** Interval of the routine observations (s). */
 export const METAR_INTERVAL_S = 30 * 60;
@@ -156,7 +190,50 @@ export function initialMet(sim: Simulation, qnh: number): MetState {
   const minute = sim.utc().getUTCMinutes() + sim.utc().getUTCSeconds() / 60;
   const since = ((minute - 20 + 60) % 30) * 60;
   const at = -since;
-  return { metar: observe(sim, at, qnh, baseFt, false, -Infinity), next: 1, nextAt: at + METAR_INTERVAL_S, baseFt, rainUntil: -Infinity };
+  const w = { ...sim.observedWind };
+  const drift: WindDrift = { enabled: true, base: { ...w }, from: { ...w }, to: { ...w }, start: 0, end: 0, set: { ...w } };
+  const state: MetState = { metar: observe(sim, at, qnh, baseFt, false, -Infinity), next: 1, nextAt: at + METAR_INTERVAL_S, baseFt, rainUntil: -Infinity, drift };
+  planWind(sim, state, 1, w);
+  return state;
+}
+
+/** The wind of routine observation `n` (due at `state.nextAt`), and the turn of the actual wind towards it. */
+function planWind(sim: Simulation, state: MetState, n: number, from: Wind): void {
+  const d = state.drift;
+  const v = (k: string) => sim.variation(`wind:${k}:${n}`);
+  const back = ((d.base.direction - from.direction + 540) % 360) - 180;
+  const turn = (2 * v('dir') - 1) * WIND_DIR_STEP + WIND_PULL_BACK * back;
+  const speedKt = Math.max(0, Math.min(WIND_MAX_KT, Math.round(from.speedKt + (2 * v('speed') - 1) * WIND_SPEED_STEP + WIND_PULL_BACK * (d.base.speedKt - from.speedKt))));
+  const direction = Math.round((from.direction + turn + 360) % 360) || 360;
+  const gustKt = speedKt >= GUST_FROM_KT && v('gust') < 0.5 ? speedKt + 10 + Math.round(5 * v('gustKt')) : undefined;
+  d.from = { ...from };
+  d.to = { direction, speedKt, ...(gustKt ? { gustKt } : {}) };
+  d.end = state.nextAt;
+  d.start = Math.max(sim.time, state.nextAt - WIND_CHANGE_S);
+}
+
+/** Turns the actual wind towards the next observed wind (every step). */
+export function updateWind(sim: Simulation): void {
+  const d = sim.met.drift;
+  if (!d.enabled || sim.storm) return;
+  const w = sim.observedWind;
+  // Set from outside (scenario event, thunderstorm, ATIS editor): taken as it is until the next observation.
+  if (w.direction !== d.set.direction || w.speedKt !== d.set.speedKt || w.gustKt !== d.set.gustKt) {
+    d.from = { ...w };
+    d.to = { ...w };
+    d.set = { ...w };
+    return;
+  }
+  if (sim.time < d.start || d.start >= d.end) return;
+  const k = Math.min(1, (sim.time - d.start) / (d.end - d.start));
+  const turn = ((d.to.direction - d.from.direction + 540) % 360) - 180;
+  const direction = Math.round((d.from.direction + k * turn + 360) % 360) || 360;
+  const speedKt = Math.round(d.from.speedKt + k * (d.to.speedKt - d.from.speedKt));
+  // Gusts come with the new wind in the second half of the change (and old ones go in the first half).
+  const gustKt = k >= 0.5 ? d.to.gustKt : d.from.gustKt;
+  const next: Wind = { direction, speedKt, ...(gustKt && gustKt >= speedKt + 10 ? { gustKt } : {}) };
+  sim.observedWind = next;
+  d.set = { ...next };
 }
 
 /** Issues the routine observation when it is due and tells the controller when the ATIS no longer matches. */
@@ -174,6 +251,7 @@ export function updateMet(sim: Simulation): void {
   m.metar = observe(sim, m.nextAt, qnh, m.baseFt, false, m.rainUntil);
   m.next = n + 1;
   m.nextAt += METAR_INTERVAL_S;
+  planWind(sim, m, m.next, sim.observedWind);
   announce(sim);
 }
 
@@ -187,10 +265,19 @@ export function issueSpeci(sim: Simulation): void {
 
 function announce(sim: Simulation): void {
   const diff = atisDifferences(sim);
-  sim.system(
-    `${formatMetar(sim, sim.met.metar)}${diff.length ? ` - differs from information ${sim.atisLetter} (${diff.join(', ')}): broadcast a new ATIS.` : ''}`,
-    'system',
-  );
+  sim.system(`${formatMetar(sim, sim.met.metar)}${diff.length ? ` - differs from information ${sim.atisLetter} (${diff.join(', ')}): broadcast a new ATIS.` : ''}${runwayHint(sim)}`, 'system');
+}
+
+/** Tailwind on the runway in use (more than TAILWIND_HINT_KT) while another one is into wind: a runway change hint. */
+export const TAILWIND_HINT_KT = 5;
+
+function runwayHint(sim: Simulation): string {
+  const w = sim.met.metar.wind;
+  const tail = Math.max(...sim.runways.map((r) => -sim.windComponents(r, w).headwind));
+  if (tail <= TAILWIND_HINT_KT) return '';
+  const best = sim.bestRunwayForWind(w);
+  if (sim.isRunwayInUse(best)) return '';
+  return ` Tailwind ${Math.round(tail)} kt on ${runwayWords(sim.runways)}: consider a runway change to ${runwayWords(runwayEndsOf(sim.defaultRunwayKey(best)))} (ATIS editor) and re-route the traffic.`;
 }
 
 // ------------------------------------------------------------------ comparison with the ATIS

@@ -114,4 +114,10 @@ describe('speech', () => {
       expect(p.commands).toEqual([{ type: 'askIntersection', name: 'D' }]);
     }
   });
+
+  it('parses "turn around" with a taxi instruction, before or after it', () => {
+    for (const text of ['DLH5AB turn around, taxi to stand 14 via N', 'DLH5AB taxi to stand 14 via N, turn around']) {
+      expect(parseTransmission(text, ctx).commands).toEqual([{ type: 'taxi', destination: { kind: 'stand', stand: '14' }, via: ['N'], holdShort: [], cross: [], turnAround: true }]);
+    }
+  });
 });

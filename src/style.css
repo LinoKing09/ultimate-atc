@@ -549,6 +549,61 @@ button.mic.listening {
   padding: 4px 6px;
   width: 100%;
 }
+/* ATIS editor: compact form (information and runway in one row), D-ATIS preview, spoken text on demand. */
+.dialog.atis-editor {
+  width: min(540px, 100%);
+}
+.dialog .dtitle .dim {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.dialog .sub.changed {
+  color: var(--warn);
+  margin-top: -4px;
+}
+.dialog .atis-form {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  gap: 8px 10px;
+  align-items: center;
+  margin: 10px 0 12px;
+}
+.dialog .atis-form .wind {
+  grid-column: span 3;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+}
+.dialog .atis-form .wind input {
+  width: 58px;
+}
+.dialog .atis-form .wind span {
+  white-space: nowrap;
+}
+.dialog .atis-form .hint {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.dialog .atis-form .hint.bad {
+  color: var(--danger);
+}
+.dialog details.spoken {
+  margin: 0 0 10px;
+  color: var(--text-dim);
+  font-size: 12px;
+}
+.dialog details.spoken summary {
+  cursor: pointer;
+}
+.dialog details.spoken .spoken {
+  margin-top: 6px;
+  line-height: 1.4;
+}
+.dialog.atis-editor .notice {
+  margin: 0 0 10px;
+}
 .dialog input.bad {
   color: var(--danger);
   border-color: var(--danger);

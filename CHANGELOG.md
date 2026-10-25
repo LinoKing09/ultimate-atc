@@ -19,6 +19,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- **ATIS editor** tidied up: information and runway in one row, wind with gusts and the head-/crosswind in one row, the METAR changes in one yellow line; the preview shows only the D-ATIS text (the spoken text unfolds on demand), and the runway-change note appears only when you select another runway.
 - **Stands and taxi routes after the soak test**: Bremen stands 12-17 and 12A and Cologne/Bonn A25-A35 stand behind their AIP nose wheel stop positions, clear of taxilanes S and L; at Cologne/Bonn aircraft below 36 m keep to the blue and orange guide lines (the centre lines M and N only for short links); at Leipzig/Halle the bridges E7 (northbound) and E8 (southbound) are one-way.
 - **Arrivals without a stand** taxi to the nearest free stand they can reach without turning around; the exit is chosen for one of the nearest stands that fit. A landing aircraft whose exit is blocked by an aircraft waiting at its holding point (to cross the runway there) takes another exit instead of waiting on the runway.
 - **Taxiing past parked aircraft**: an aircraft parked on its stand is passed with wingtip clearance (`0.3 · (spans) + 4 m` instead of `0.38 · (spans) + 6 m`).

@@ -1,6 +1,6 @@
 import type { AirportData, StationType } from '../core/airport/types';
 import { runwayChoices, runwayEndsOf } from '../core/runways';
-import { formatMetar } from '../core/met';
+import { altimeterOf, formatMetar } from '../core/met';
 import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
 import { closureProblems } from '../core/airport/validate';
 import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
@@ -482,16 +482,21 @@ export function showAtisEditor(sim: Simulation): void {
   // Pre-filled with the actual surface wind (it may have changed since the last broadcast).
   const dir = h('input', { type: 'number', min: '0', max: '360', step: '10', value: String(sim.observedWind.direction) });
   const spd = h('input', { type: 'number', min: '0', max: '60', value: String(sim.observedWind.speedKt) });
-  const gust = h('input', { type: 'number', min: '0', max: '80', value: sim.observedWind.gustKt ? String(sim.observedWind.gustKt) : '', placeholder: 'none' });
+  const gust = h('input', { type: 'number', min: '0', max: '80', value: sim.observedWind.gustKt ? String(sim.observedWind.gustKt) : '', placeholder: '-' });
   const windOf = () => {
     const g = Number(gust.value) || 0;
     const speedKt = Number(spd.value) || 0;
     return { direction: Number(dir.value) || 0, speedKt, ...(g > speedKt ? { gustKt: g } : {}) };
   };
   const qnh = h('input', { type: 'number', min: '950', max: '1060', value: String(sim.metar.qnh) });
-  const comps = h('div.sub');
+  const comps = h('span.hint');
+  const qnhHint = h('span.hint');
   const datis = h('pre.datis');
-  const spoken = h('div.sub');
+  const spoken = h('div.spoken');
+  // Only when the runway changes: what happens to the traffic.
+  const notice = h('div.notice', {
+    text: 'Runway change: departures not yet taxiing get the new runway and SID, Approach re-sequences arrivals beyond 3.5 NM. Aircraft already taxiing keep their route - re-route them.',
+  });
   const update = () => {
     const draft = { letter: letterSel.value, runway: rwySel.value, wind: windOf(), qnh: Number(qnh.value) || a.qnh, updatedAt: sim.time, metar: sim.metar };
     datis.textContent = sim.atisDatis(draft).join('\n');
@@ -500,47 +505,43 @@ export function showAtisEditor(sim: Simulation): void {
     const c = sim.windComponents(runwayEndsOf(rwySel.value)[0], wind);
     const hw = Math.round(c.headwind);
     const xw = Math.abs(Math.round(c.crosswind));
-    comps.textContent = `${hw >= 0 ? `Headwind ${hw} kt` : `Tailwind ${-hw} kt`}, crosswind ${xw} kt.`;
+    comps.textContent = `${hw >= 0 ? `head ${hw}` : `tail ${-hw}`} / cross ${xw} kt`;
+    comps.classList.toggle('bad', hw < -5);
     // Tailwind above 5 kt on the selected runway: wind direction and speed in red (as in the toolbar).
     for (const el of [dir, spd]) el.classList.toggle('bad', hw < -5);
+    qnhHint.textContent = sim.faa ? `hPa = A${altimeterOf(Number(qnh.value) || a.qnh)}` : 'hPa';
+    notice.hidden = rwySel.value === a.runway;
   };
   [dir, spd, gust, qnh, rwySel, letterSel].forEach((el) => el.addEventListener('input', update));
   update();
 
   const apply = h('button.primary', { type: 'submit', text: 'Broadcast ATIS' });
   const cancel = h('button', { type: 'button', text: 'Cancel' });
+  const diffs = sim.atisDifferences;
   const form = h(
-    'form.dialog',
+    'form.dialog.atis-editor',
     {},
-    h('div.dtitle', {}, h('span', { text: `ATIS ${sim.config.airport.icao} - currently information ${a.letter}` })),
+    h('div.dtitle', {}, h('span', { text: `ATIS ${sim.config.airport.icao}` }), h('span.dim', { text: `current: information ${a.letter}` })),
     h(
       'div.dbody',
       {},
       h('div.metar', { text: formatMetar(sim, sim.metar) }),
-      h('div.sub', { text: sim.atisDifferences.length ? `Information ${a.letter} differs from this METAR: ${sim.atisDifferences.join(', ')}.` : `Information ${a.letter} matches this METAR.` }),
+      ...(diffs.length ? [h('div.sub.changed', { text: `Changed since information ${a.letter}: ${diffs.join(', ')}` })] : []),
       h(
-        'div.grid',
+        'div.atis-form',
         {},
         h('label', { text: 'Information' }),
         letterSel,
-        h('label', { text: 'Runway in use' }),
+        h('label', { text: 'Runway' }),
         rwySel,
-        h('label', { text: 'Wind direction' }),
-        dir,
-        h('label', { text: 'Wind speed (kt)' }),
-        spd,
-        h('label', { text: 'Gusts (kt)' }),
-        gust,
-        h('label', { text: sim.faa ? 'QNH (hPa; broadcast as altimeter in inches)' : 'QNH (hPa)' }),
-        qnh,
+        h('label', { text: 'Wind' }),
+        h('div.wind', {}, dir, h('span', { text: '°' }), spd, h('span', { text: 'kt gust' }), gust, comps),
+        h('label', { text: 'QNH' }),
+        h('div.wind', {}, qnh, qnhHint),
       ),
-      comps,
-      h('div.sub', { text: 'New ATIS:' }),
+      notice,
       datis,
-      spoken,
-      h('div.notice', {
-        text: 'Changing the runway: departures that are not yet taxiing get the new runway and SID, arrivals further out than 3.5 NM are re-sequenced by Approach. Aircraft already taxiing keep their clearance - re-route them. With parallel runways, aircraft keep a runway that stays in use.',
-      }),
+      h('details.spoken', {}, h('summary', { text: 'Spoken text' }), spoken),
       h('div.actions', {}, cancel, apply),
     ),
   );

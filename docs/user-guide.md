@@ -88,17 +88,16 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 
 ### ATIS editor
 
-Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS. The top shows the latest METAR (`METAR EDDS 010950Z 25008KT CAVOK 21/11 Q1018 NOSIG`, new at minute 20 and 50 of every hour) and whether the current information matches it:
+Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS. The top shows the latest METAR (`METAR EDDS 010950Z 25008KT CAVOK 21/11 Q1018 NOSIG`, new at minute 20 and 50 of every hour) and, in yellow, what changed since the current information (`Changed since information N: visibility 6000`); the title shows the current letter.
 
 | Field           | Meaning                                                                                    |
 | --------------- | ------------------------------------------------------------------------------------------ |
 | Information     | The new ATIS letter (pre-set to the next letter)                                           |
-| Runway in use   | Runway for departures and arrivals. At airports with parallel runways (Leipzig/Halle) first the parallel runways used together (`Runways 26R + 26L`), then each runway alone - see [parallel runways](simulation.md#parallel-runways) |
-| Wind direction / speed | Surface wind; the dialog shows the head-/tailwind and crosswind for the selected runway. Direction and speed turn red when the tailwind on the selected runway is above 5 kt |
-| Gusts           | Peak gusts in knots (empty = none); broadcast as `gusting 32 knots`                        |
-| QNH             | Pressure setting (pre-filled from the METAR)                                               |
+| Runway          | Runway for departures and arrivals. At airports with parallel runways (Leipzig/Halle) first the parallel runways used together (`Runways 26R + 26L`), then each runway alone - see [parallel runways](simulation.md#parallel-runways) |
+| Wind            | Direction, speed and gusts (`-` = none; broadcast as `gusting 32 knots`) in one row, with the head-/tailwind and crosswind for the selected runway (`head 9 / cross 4 kt`). Direction, speed and the tailwind turn red when the tailwind on the selected runway is above 5 kt |
+| QNH             | Pressure setting in hPa (pre-filled from the METAR; at US airports the dialog also shows the altimeter setting it is broadcast as, `hPa = A3030`) |
 
-Below the fields the dialog previews the new ATIS as D-ATIS text and spoken, with the METAR's visibility, clouds, temperature and trend and the notices (closed taxiways, de-icing, A-CDM, DCL out of service, windshear, the runway of each apron with parallel runways). **Broadcast ATIS** publishes it. It appears in the message window, and crews that listen to the ATIS from now on quote the new letter. The ATIS does not change on its own.
+Below the fields the dialog previews the new ATIS as D-ATIS text, with the METAR's visibility, clouds, temperature and trend and the notices (closed taxiways, de-icing, A-CDM, DCL out of service, windshear, the runway of each apron with parallel runways); **Spoken text** unfolds the spoken version. When you select another runway, a short yellow note says what happens to the traffic (see *Runway change* below). **Broadcast ATIS** publishes it. It appears in the message window, and crews that listen to the ATIS from now on quote the new letter. The ATIS does not change on its own.
 
 Crews that listened before the broadcast still report the old letter (`..., information D, request pushback` with E current): the aircraft menu then offers `Information E is current` (`information E is current, QNH 1018`), or broadcast `all stations, information E is now current` with **ALL STN**. A crew that leaves your frequency with an old letter costs 3 points.
 

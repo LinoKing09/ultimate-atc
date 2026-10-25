@@ -297,7 +297,8 @@ export function atisDifferences(sim: Simulation): string[] {
   const a = sim.atis;
   const out: string[] = [];
   const faa = sim.config.airport.phraseology === 'faa';
-  if (m.qnh !== a.qnh) out.push(faa ? `altimeter ${altimeterOf(m.qnh)}` : `QNH ${m.qnh}`);
+  // At US airports the altimeter counts (the ATIS keeps the exact value set in inches).
+  if (faa ? altimeterOf(m.qnh) !== altimeterOf(a.qnh) : m.qnh !== a.qnh) out.push(faa ? `altimeter ${altimeterOf(m.qnh)}` : `QNH ${m.qnh}`);
   const w = m.wind;
   const dirDiff = Math.abs(((w.direction - a.wind.direction + 540) % 360) - 180);
   if ((dirDiff >= 30 && Math.max(w.speedKt, a.wind.speedKt) >= 10) || Math.abs(w.speedKt - a.wind.speedKt) >= 5 || Math.abs((w.gustKt ?? 0) - (a.wind.gustKt ?? 0)) >= 10) {
@@ -339,6 +340,11 @@ const tempGroup = (t: number) => (t < 0 ? `M${String(-t).padStart(2, '0')}` : St
 /** Altimeter setting in hundredths of an inch of mercury: 1013 hPa -> "2991". */
 export function altimeterOf(qnhHpa: number): string {
   return String(Math.round(qnhHpa * 2.953)).padStart(4, '0');
+}
+
+/** The QNH in hPa (not rounded) for an altimeter setting in inches of mercury: 29.92 -> 1013.2. */
+export function qnhFromAltimeter(inches: number): number {
+  return (inches * 100) / 2.953;
 }
 
 /** US visibility in statute miles: "10SM", "3SM", "1/2SM". */

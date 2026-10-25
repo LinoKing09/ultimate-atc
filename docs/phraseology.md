@@ -447,7 +447,7 @@ At US airports (`phraseology: 'faa'` in the airport data, so far San Diego KSAN)
 
 **No start-up approval:** after the clearance, the crew calls Delivery when ready - `stand 36, ready to push, request frequency` - and you hand it to Ground (`contact ground`), where it calls `ready to push`. Datalink clearances are called **PDC** (pre-departure clearance).
 
-**ATIS and weather:** the METAR has the US format (`METAR KSAN 251150Z 11007KT 10SM SCT030 14/10 A2983`: visibility in statute miles, `CLR` for no clouds, altimeter in inches, no trend); the ATIS starts with the weather, gives the altimeter in inches, "ILS approach runway 9 in use, departing runway 9" and ends with "Advise on initial contact you have information K". The toolbar shows `A2983` instead of the QNH.
+**ATIS and weather:** the METAR has the US format (`METAR KSAN 251150Z 11007KT 10SM SCT030 14/10 A2983`: visibility in statute miles, `CLR` for no clouds, altimeter in inches, no trend); the ATIS starts with the weather, gives the altimeter in inches, "ILS approach runway 9 in use, departing runway 9" and ends with "Advise on initial contact you have information K". The toolbar shows `A2983` instead of the QNH, and the ATIS editor takes the altimeter in inches (`29.83`) - hPa do not appear at US airports.
 
 ## Not supported (yet)
 

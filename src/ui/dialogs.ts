@@ -1,6 +1,6 @@
 import type { AirportData, StationType } from '../core/airport/types';
 import { runwayChoices, runwayEndsOf } from '../core/runways';
-import { altimeterOf, formatMetar } from '../core/met';
+import { altimeterOf, formatMetar, qnhFromAltimeter } from '../core/met';
 import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
 import { closureProblems } from '../core/airport/validate';
 import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
@@ -335,7 +335,7 @@ const FAA_REFERENCE: [string, string][] = [
   ['runway 27 at B1, line up and wait / wind 250 at 8, runway 27, cleared for takeoff', 'Tower; runways without a leading zero ("runway 9").'],
   ['turn left at B5 / cross runway 27 at C6', 'Vacate via B5; crossing where the crew holds.'],
   ['contact ground point niner / contact SoCal Departure', 'Hand-offs: abbreviated frequency, Departure.'],
-  ['altimeter 2992 / information K is current, altimeter 2992', 'Altimeter setting in inches (toolbar A2992); the METAR and ATIS are in US format.'],
+  ['altimeter 2992 / information K is current, altimeter 2992', 'Altimeter setting in inches (toolbar A2992, ATIS editor 29.92 - no hPa at US airports); the METAR and ATIS are in US format.'],
 ];
 
 const KEYS: [string, string][] = [
@@ -488,7 +488,11 @@ export function showAtisEditor(sim: Simulation): void {
     const speedKt = Number(spd.value) || 0;
     return { direction: Number(dir.value) || 0, speedKt, ...(g > speedKt ? { gustKt: g } : {}) };
   };
-  const qnh = h('input', { type: 'number', min: '950', max: '1060', value: String(sim.metar.qnh) });
+  // US airports: the altimeter setting in inches of mercury only (kept as hPa inside).
+  const qnh = sim.faa
+    ? h('input', { type: 'number', min: '28', max: '31', step: '0.01', value: (Number(altimeterOf(sim.metar.qnh)) / 100).toFixed(2) })
+    : h('input', { type: 'number', min: '950', max: '1060', value: String(sim.metar.qnh) });
+  const qnhOf = () => (Number(qnh.value) ? (sim.faa ? qnhFromAltimeter(Number(qnh.value)) : Number(qnh.value)) : a.qnh);
   const comps = h('span.hint');
   const qnhHint = h('span.hint');
   const datis = h('pre.datis');
@@ -498,7 +502,7 @@ export function showAtisEditor(sim: Simulation): void {
     text: 'Runway change: departures not yet taxiing get the new runway and SID, Approach re-sequences arrivals beyond 3.5 NM. Aircraft already taxiing keep their route - re-route them.',
   });
   const update = () => {
-    const draft = { letter: letterSel.value, runway: rwySel.value, wind: windOf(), qnh: Number(qnh.value) || a.qnh, updatedAt: sim.time, metar: sim.metar };
+    const draft = { letter: letterSel.value, runway: rwySel.value, wind: windOf(), qnh: qnhOf(), updatedAt: sim.time, metar: sim.metar };
     datis.textContent = sim.atisDatis(draft).join('\n');
     spoken.textContent = sim.atisText(draft);
     const wind = { direction: Number(dir.value) || 0, speedKt: Number(spd.value) || 0 };
@@ -509,7 +513,7 @@ export function showAtisEditor(sim: Simulation): void {
     comps.classList.toggle('bad', hw < -5);
     // Tailwind above 5 kt on the selected runway: wind direction and speed in red (as in the toolbar).
     for (const el of [dir, spd]) el.classList.toggle('bad', hw < -5);
-    qnhHint.textContent = sim.faa ? `hPa = A${altimeterOf(Number(qnh.value) || a.qnh)}` : 'hPa';
+    qnhHint.textContent = sim.faa ? 'inHg' : 'hPa';
     notice.hidden = rwySel.value === a.runway;
   };
   [dir, spd, gust, qnh, rwySel, letterSel].forEach((el) => el.addEventListener('input', update));
@@ -536,7 +540,7 @@ export function showAtisEditor(sim: Simulation): void {
         rwySel,
         h('label', { text: 'Wind' }),
         h('div.wind', {}, dir, h('span', { text: '°' }), spd, h('span', { text: 'kt gust' }), gust, comps),
-        h('label', { text: 'QNH' }),
+        h('label', { text: sim.faa ? 'Altimeter' : 'QNH' }),
         h('div.wind', {}, qnh, qnhHint),
       ),
       notice,
@@ -553,7 +557,7 @@ export function showAtisEditor(sim: Simulation): void {
       letter: letterSel.value,
       runway: rwySel.value,
       wind: windOf(),
-      qnh: Number(qnh.value) || a.qnh,
+      qnh: qnhOf(),
     });
     overlay.remove();
   });

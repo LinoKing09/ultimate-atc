@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Airport } from '../src/core/airport/airport';
-import { formatMetar } from '../src/core/met';
+import { altimeterOf, formatMetar, qnhFromAltimeter } from '../src/core/met';
 import { faaStyle } from '../src/core/phraseology/faa';
 import { parseTransmission } from '../src/core/phraseology/parser';
 import { Simulation } from '../src/core/simulation';
@@ -53,6 +53,13 @@ describe('San Diego (KSAN) after the FAA airport diagram', () => {
     expect(sim.atisText()).toMatch(/^San Diego International information [A-Z], \d{4} Zulu\. Wind .* altimeter \d{4}\. .*runway 9 in use, departing runway 9.*Advise on initial contact you have information [A-Z]\.$/);
     expect(sim.atisDatis()[0]).toMatch(/^KSAN ATIS INFO [A-Z] \d{4}Z$/);
     expect(sim.pressurePhrase(1013)).toBe('altimeter 2991');
+  });
+
+  it('keeps an altimeter set in inches exactly', () => {
+    for (let a = 2850; a <= 3100; a++) expect(altimeterOf(qnhFromAltimeter(a / 100))).toBe(String(a));
+    const sim = new Simulation({ airport: KSAN, position: 'GND', runway: '27', density: 'light', seed: 3, generateTraffic: false, events: false });
+    sim.updateAtis({ qnh: qnhFromAltimeter(Number(altimeterOf(sim.metar.qnh)) / 100) });
+    expect(sim.atisDifferences.filter((d) => d.startsWith('altimeter'))).toEqual([]);
   });
 
   it('runs an hour of traffic on each runway (scripted Ground, AI Tower) without collisions', () => {

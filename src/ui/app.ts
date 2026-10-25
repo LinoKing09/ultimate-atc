@@ -160,7 +160,7 @@ export class App {
       field('rwy', 'Active runway'),
       field('atis', 'Current ATIS'),
       field('wind', 'Surface wind'),
-      field('qnh', 'QNH'),
+      field('qnh', sim.faa ? 'Altimeter setting (inches of mercury)' : 'QNH (hPa)'),
       field('utc', 'Simulation time (UTC)'),
       h('span.sep'),
       this.pauseButton,

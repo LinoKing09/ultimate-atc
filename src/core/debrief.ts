@@ -87,7 +87,7 @@ export function debrief(sim: Simulation): Debrief {
     .map((m) => ({ time: m.time, text: m.text }))
     .slice(-12);
   return {
-    durationS: sim.time,
+    durationS: sim.time - sim.sessionStart,
     positions: sim.loggedInStations.map((t) => sim.airport.station(t)?.callsign ?? t),
     score: s.score,
     good,

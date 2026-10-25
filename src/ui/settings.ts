@@ -13,6 +13,8 @@ export interface Settings {
   density: Density;
   /** Random special events: step 0-4 (never ... often), see core/levels.ts. */
   eventLevel: number;
+  /** Session start: an empty airport, or taking over traffic in progress from the controller before you. */
+  start: 'empty' | 'handover';
   tts: boolean;
   ttsVolume: number;
   voiceAutoSend: boolean;
@@ -46,6 +48,7 @@ const DEFAULTS: Settings = {
   position: 'GND',
   density: 'medium',
   eventLevel: DEFAULT_EVENT_LEVEL,
+  start: 'empty',
   tts: false,
   ttsVolume: 1,
   voiceAutoSend: true,

@@ -27,7 +27,8 @@ This page describes how the simulated world behaves: AI pilots, the AI Tower, tr
 
 - The simulation advances in fixed **0.2 s steps**. Rendering is independent of the simulation rate.
 - The **simulation rate** (1x / 2x / 4x / 8x) multiplies the real elapsed time. A frame delta is capped at 0.5 s (and a single `tick` at 5 s), so a backgrounded browser tab doesn't cause huge jumps.
-- Simulation time starts at the real current UTC time.
+- Simulation time starts at the real current UTC time (or the start time of a scenario code).
+- **Take over** start (Connect dialog): before the session begins, the simulator runs every position itself for **20 minutes** (`HANDOVER_S` = 1200 s) of simulated traffic. The clock is set back by those 20 minutes, so it shows the chosen start time when you take over, and scheduled scenario events move 20 minutes later. Then your positions are handed to you: score, statistics, messages, incidents and the A-CDM flow counters are reset, the debriefing counts from the take-over, and every aircraft on your frequencies with a pending request calls again (staggered, the first within about a minute). An **empty airport** start skips this warm-up.
 - A seeded pseudo-random generator (mulberry32) drives every random decision. **The same seed and settings always give the same scenario**, as long as the controller's inputs are the same. A scenario code adds a fixed runway, traffic mix, more heavies and scheduled events, see [scenarios.md](scenarios.md).
 
 ## Aircraft life cycle

@@ -6,7 +6,7 @@ import { closureProblems } from '../core/airport/validate';
 import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
 import { levelSlider } from './levelSlider';
 import { TUTORIAL_AIRPORT, TUTORIALS, type TutorialId } from '../core/tutorial';
-import type { Density, Simulation } from '../core/simulation';
+import { HANDOVER_S, type Density, type Simulation } from '../core/simulation';
 import { regionOf } from '../data/regions';
 import { airportPicker, runwayList, trafficBars } from './airportPicker';
 import { h } from './dom';
@@ -32,6 +32,8 @@ export interface LoginResult {
   density: Density;
   /** Random special events, step 0-4 (never ... often). */
   eventLevel: number;
+  /** An empty airport, or taking over traffic in progress. */
+  start: 'empty' | 'handover';
   seed?: number;
   /** Training scenario from a scenario code (overrides density and events). */
   scenario?: Scenario;
@@ -105,6 +107,22 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     let eventLevel = settings.eventLevel;
     const densitySlider = levelSlider(DENSITIES.map((d) => d.label), densityIndex(density), (i) => (density = DENSITIES[i].value));
     const eventsSlider = levelSlider(EVENT_LEVELS.map((e) => e.label), eventLevel, (i) => (eventLevel = i));
+    // Start: an empty airport, or traffic in progress taken over from the controller before you.
+    let start = settings.start;
+    const startButtons = (
+      [
+        ['empty', 'Empty airport', 'Departures on their stands, the first arrivals on approach - the traffic builds up'],
+        ['handover', 'Take over', `Take over from the controller before you: the simulator works the airport for ${HANDOVER_S / 60} minutes first, so aircraft are already taxiing, holding, landing and pushing back`],
+      ] as const
+    ).map(([value, text, title]) => {
+      const b = h('button', { type: 'button', text, title });
+      b.classList.toggle('active', start === value);
+      b.addEventListener('click', () => {
+        start = value;
+        startButtons.forEach((x) => x.classList.toggle('active', x === b));
+      });
+      return b;
+    });
     const seedInput = h('input', { type: 'text', placeholder: 'random', spellcheck: 'false', autocomplete: 'off', value: initialScenario ?? '' });
     const builderBtn = h('button', { type: 'button', text: 'Scenario builder...', title: 'Choose what to train and get a scenario code' });
     const scenarioInfo = h('div.sub.scenario-info');
@@ -184,7 +202,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       b.addEventListener('click', () => {
         const ap = airports.find((x) => x.icao === TUTORIAL_AIRPORT) ?? airport();
         overlay.remove();
-        resolve({ airport: ap, position: t.position, positions: [t.position], density: 'light', eventLevel: 0, tutorial: t.id });
+        resolve({ airport: ap, position: t.position, positions: [t.position], density: 'light', eventLevel: 0, start: 'empty', tutorial: t.id });
       });
       return b;
     });
@@ -212,6 +230,8 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
           densitySlider.el,
           h('label', { text: 'Special events' }),
           eventsSlider.el,
+          h('label', { text: 'Start' }),
+          h('div.positions.start', {}, ...startButtons),
           h('label', { text: 'Scenario' }),
           h('div.rangerow', {}, seedInput, builderBtn),
           h('label', { text: 'Tutorial' }),
@@ -248,6 +268,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
         positions: selectedPositions(),
         density: r.scenario?.density ?? density,
         eventLevel: r.scenario?.eventLevel ?? eventLevel,
+        start,
         seed: r.seed,
         scenario: r.scenario,
       });
@@ -360,6 +381,7 @@ const KEYS: [string, string][] = [
   ['Aircraft menu: Request hand-off to TWR / GND', 'Ask the position the simulator runs for an aircraft now (e.g. a departure still with Ground, an arrival still with Approach).'],
   ['COORD (toolbar)', 'Landline to Approach / Ground: no more arrivals, or hold all departures, to make room. -2 points per minute each while it is on.'],
   ['Tutorial panel (tutorials only)', 'Shows the current step. "Show me" selects the aircraft and puts the example instruction into the command line; Back shows the previous step again, Next goes on (or skips the task), Skip tutorial ends it and starts live traffic; tap the title to fold it away. The panel disappears when the tutorial is finished. Start a tutorial in the Connect dialog.'],
+  ['Start (Connect dialog)', 'Empty airport: the session starts with only the parked aircraft. Take over: the simulator works the airport for 20 minutes first, so you take over traffic that is already taxiing, departing and on approach; the crews on your frequency call you again with their next request'],
   ['DISCONNECT (toolbar)', 'Debriefing of the session (what earned and what cost points, answer times, incidents, advice), then continue or end the session'],
   ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL and the ILS (localizer, glide path); switch them on or off. A runway without an ILS (Sylt 14) is always flown as an RNP approach'],
   ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, traffic density, special events'],

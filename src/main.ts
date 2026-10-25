@@ -29,6 +29,7 @@ async function start(): Promise<void> {
     settings.density = login.density;
     settings.eventLevel = login.eventLevel;
   }
+  settings.start = login.start;
   saveSettings(settings);
 
   const sim = new Simulation({
@@ -37,6 +38,7 @@ async function start(): Promise<void> {
     positions: login.positions,
     density: login.density,
     eventLevel: login.eventLevel,
+    start: login.start,
     seed: login.seed,
     runway: login.scenario?.runway,
     // A scenario start time is local airport time, today.

@@ -64,7 +64,16 @@ export interface SimConfig {
   eventLevel?: number;
   /** Training scenario: traffic mix, more heavies, scheduled events (see scenario.ts). */
   scenario?: ScenarioSetup;
+  /**
+   * How the session starts: 'empty' (default) - departures on their stands, the first arrivals on approach; or
+   * 'handover' - you take over from the controller before you: the simulator works the airport for
+   * HANDOVER_S first, so aircraft are already taxiing, holding, landing and pushing back.
+   */
+  start?: 'empty' | 'handover';
 }
+
+/** How long the simulator works the airport before you take over ('handover' start), seconds. */
+export const HANDOVER_S = 20 * 60;
 
 export type IncidentType = 'collision' | 'incursion' | 'goAround';
 
@@ -226,8 +235,10 @@ export class Simulation {
     return c.events === false ? 0 : 1;
   }
 
-  /** Simulation time in seconds since session start. */
+  /** Simulation time in seconds since the start of the simulation (with a 'handover' start, HANDOVER_S before yours). */
   time = 0;
+  /** Simulation time when you took over (0, or HANDOVER_S with a 'handover' start). */
+  sessionStart = 0;
   aircraft: Aircraft[] = [];
   readonly messages: RadioMessage[] = [];
   readonly incidents: Incident[] = [];
@@ -302,7 +313,8 @@ export class Simulation {
     this.loggedInStations = [...this.userStations];
     this.systems = defaultSystemStates(config.airport.systems);
     this.vehicles = createVehicles(this);
-    this.startEpochMs = (config.startTime ?? new Date()).getTime();
+    // With a hand-over, the simulator starts working the airport HANDOVER_S before your start time.
+    this.startEpochMs = (config.startTime ?? new Date()).getTime() - (config.start === 'handover' ? HANDOVER_S * 1000 : 0);
     this.utcOffsetMin = config.airport.timeZone ? utcOffsetMinutes(new Date(this.startEpochMs), config.airport.timeZone) : 0;
     for (const t of config.scenario?.closedTaxiways ?? []) {
       if (this.airport.taxiwayNames.has(t.toUpperCase())) this.airport.closedTaxiways.add(t.toUpperCase());
@@ -332,6 +344,36 @@ export class Simulation {
     this.scenarioPending = (config.scenario?.events ?? []).map((e) => ({ ...e })).sort((a, b) => a.atMin - b.atMin);
 
     if (config.generateTraffic !== false) this.traffic.populateInitial();
+    if (config.start === 'handover' && config.generateTraffic !== false) this.takeOver();
+  }
+
+  /**
+   * 'handover' start: the simulator runs every position for HANDOVER_S (as it does for positions you don't staff),
+   * then hands the airport over to you with its traffic in progress. Scores, statistics and messages start from
+   * there; scheduled scenario events are shifted by the same time.
+   */
+  private takeOver(): void {
+    const staffed = [...this.userStations];
+    this.userStations.clear();
+    for (const e of this.scenarioPending) e.atMin += HANDOVER_S / 60;
+    for (let t = 0; t < HANDOVER_S; t++) this.tick(1);
+    for (const st of staffed) this.userStations.add(st);
+    // What the simulator still had to answer is yours now: those crews call you again within the next half minute.
+    for (const a of this.aircraft) {
+      if (!this.userStations.has(a.frequency) || !a.request) continue;
+      a.requestSince = this.time;
+      a.callCount = 0;
+      a.lastCallAt = this.time - 90 + 30 * this.variation(`${a.callsign}:takeover`);
+    }
+    this.sessionStart = this.time;
+    this.messages.length = 0;
+    this.incidents.length = 0;
+    this.longestWaits.length = 0;
+    for (const k of Object.keys(this.stats) as (keyof Stats)[]) this.stats[k] = 0;
+    this.flow.arrivalSeconds = this.flow.departureSeconds = 0;
+    const moving = this.aircraft.filter((a) => a.onGround && ['pushback', 'taxi', 'holding', 'lineup', 'vacating'].includes(a.phase)).length;
+    const airborne = this.aircraft.filter((a) => !a.onGround && a.category === 'arrival').length;
+    this.system(`You take over from the controller before you: ${moving} aircraft ${moving === 1 ? 'is' : 'are'} moving on the ground, ${airborne} ${airborne === 1 ? 'arrival is' : 'arrivals are'} on approach. Check the lists and the scope - the crews call you with their next request.`);
   }
 
   // ------------------------------------------------------------------ events

@@ -382,6 +382,11 @@ export interface SidData {
    * Takes precedence over `towards`; an empty list means it is never planned automatically.
    */
   destinations?: string[];
+  /**
+   * Filed only by jets or only by propeller aircraft (Wellington: the jet SIDs ATVEV / UPLUD, the turboprop
+   * SIDs to other fixes). Omitted: any aircraft.
+   */
+  aircraft?: 'jet' | 'prop';
   /** Radar frequency departures on this SID contact after take-off (default: the APP station's frequency). */
   frequency?: string;
 }

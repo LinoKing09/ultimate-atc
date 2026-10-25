@@ -1,5 +1,6 @@
 import { faaStyle } from './phraseology/faa';
 import type { Aircraft } from './aircraft';
+import type { AircraftType } from '../data/aircraftTypes';
 import type { AirportData, SidData } from './airport/types';
 import { destinationBearing, destinationName, resolveDestination } from '../data/destinations';
 import type { Altitude, Command } from './phraseology/commands';
@@ -97,8 +98,9 @@ function inSector(bearing: number, [from, to]: [number, number]): boolean {
  * lies closest to it. SIDs restricted to other destinations are never chosen for it. Airports without
  * sectors in their data (or unknown destinations) get all SIDs of the runway.
  */
-export function sidsForDestination(airport: AirportData, runway: string, destination: string): SidData[] {
-  const sids = airport.sids.filter((s) => s.runway === runway);
+export function sidsForDestination(airport: AirportData, runway: string, destination: string, type?: AircraftType): SidData[] {
+  const prop = type?.silhouette === 'turboprop';
+  const sids = airport.sids.filter((s) => s.runway === runway && (!type || !s.aircraft || (s.aircraft === 'prop') === prop));
   const dest = destination.toUpperCase();
   const named = sids.filter((s) => s.destinations?.includes(dest));
   if (named.length) return named;
@@ -124,11 +126,28 @@ function routeFix(ac: Aircraft): string {
   return ac.flightPlan.route.split(' ')[0];
 }
 
-/** The SID the flight plan suggests for the aircraft's runway in use (same first fix). */
+/**
+ * The SID the flight plan suggests for the aircraft's runway in use: the one to the same first fix, else (the
+ * runways have SIDs to different fixes, Wellington) the one the traffic generator would file for the destination.
+ */
 export function suggestedSid(sim: Simulation, ac: Aircraft): string | undefined {
   const fix = routeFix(ac);
   const runway = sim.isRunwayInUse(ac.runway) ? ac.runway : sim.runway;
-  return sim.config.airport.sids.find((s) => s.runway === runway && s.fix === fix)?.name ?? ac.flightPlan.sid;
+  const sameFix = sim.config.airport.sids.find((s) => s.runway === runway && s.fix === fix);
+  if (sameFix) return sameFix.name;
+  if (runway && sim.config.airport.sids.some((s) => s.fix === fix && s.runway !== runway)) {
+    return sidsForDestination(sim.config.airport, runway, ac.flightPlan.destination, ac.type)[0]?.name ?? ac.flightPlan.sid;
+  }
+  return ac.flightPlan.sid;
+}
+
+/** The SID leads where the flight plan goes: to its first fix, or the runway in use has no SID to that fix and this one is filed for the destination. */
+function sidFitsRoute(sim: Simulation, ac: Aircraft, sid: SidData): boolean {
+  const fix = routeFix(ac);
+  if (sid.fix === fix) return true;
+  const airport = sim.config.airport;
+  if (airport.sids.some((s) => s.runway === sid.runway && s.fix === fix) || !airport.sids.some((s) => s.fix === fix)) return false;
+  return sidsForDestination(airport, sid.runway, ac.flightPlan.destination, ac.type).includes(sid);
 }
 
 /** "runway 25" / "runways 26R and 26L" in use, for the crews' queries. */
@@ -173,7 +192,7 @@ export function execClearance(sim: Simulation, ac: Aircraft, c: Extract<Command,
   if (!c.sid) queries.push('request departure route');
   else if (!sid) queries.push(`confirm ${c.sid} departure`);
   else if (!sim.isRunwayInUse(sid.runway)) queries.push(`confirm ${sid.name} departure, information ${sim.atisLetter} says ${inUseWords(sim)} in use`);
-  else if (sid.fix !== routeFix(ac)) queries.push(`confirm ${sid.name} departure, our flight plan is via ${routeFix(ac)}`);
+  else if (!sidFitsRoute(sim, ac, sid)) queries.push(`confirm ${sid.name} departure, our flight plan is via ${routeFix(ac)}`);
   if (c.runway && sim.airport.runwayEnd(c.runway) && !sim.isRunwayInUse(c.runway)) queries.push(`confirm runway ${c.runway}, information ${sim.atisLetter} says ${inUseWords(sim)}`);
   if (!c.climb) queries.push('confirm initial climb');
   if (!c.squawk) queries.push('request squawk');

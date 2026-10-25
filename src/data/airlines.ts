@@ -90,6 +90,12 @@ export const AIRLINES: Airline[] = [
   { icao: 'MAS', telephony: 'Malaysian', types: ['B738'], destinations: ['WMKK'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'JST', telephony: 'Jetstar', types: ['A321', 'B788'], destinations: ['YPPH', 'YMML', 'YSSY'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'VJC', telephony: 'Vietjet', types: ['A321'], destinations: ['VVTS'], weight: 1, callsignStyle: 'numeric' },
+  // New Zealand (Wellington).
+  { icao: 'ANZ', telephony: 'New Zealand', types: ['A320', 'A21N', 'AT76'], destinations: ['NZAA', 'NZCH', 'NZQN', 'NZDN'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'QFA', telephony: 'Qantas', types: ['B738'], destinations: ['YSSY', 'YMML', 'YBBN'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'FJI', telephony: 'Pacific', types: ['B38M'], destinations: ['NFFN'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'SDA', telephony: 'Sounds', types: ['C208', 'PC12'], destinations: ['NZNS', 'NZWB', 'NZPN'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'CVA', telephony: 'Chatham', types: ['AT76'], destinations: ['NZCI'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'NGA', telephony: '', types: ['C56X', 'CL35'], destinations: ['KLAS', 'KSJC', 'KSDL', 'KVNY', 'KTEB'], weight: 1, callsignStyle: 'reg', regPrefix: 'N' },
   { icao: 'DCX', telephony: '', types: ['C56X', 'CL35'], destinations: ['EDDB', 'LFMN', 'LSGG', 'EGLF', 'LIML'], weight: 1, callsignStyle: 'reg' },
 ];

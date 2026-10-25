@@ -2,7 +2,7 @@
 
 # Airports
 
-Every airport is built after the [airport recipe](../airport-data.md#adding-an-airport---the-recipe): OpenStreetMap layout, facts from the national AIP (DFS; AIP Thailand; in the US the FAA Chart Supplement), procedures after VATSIM, checked against the charts.
+Every airport is built after the [airport recipe](../airport-data.md#adding-an-airport---the-recipe): OpenStreetMap layout, facts from the national AIP (DFS; AIP Thailand; in the US the FAA Chart Supplement; for Wellington the VATNZ procedures, as the AIP New Zealand allows personal use only), procedures after VATSIM, checked against the charts.
 
 | Airport | FIR | Runways in use | Positions | What makes it special |
 | ------- | --- | -------------- | --------- | --------------------- |
@@ -14,6 +14,7 @@ Every airport is built after the [airport recipe](../airport-data.md#adding-an-a
 | [EDJA Memmingen](EDJA.md) | München | 06/24 | Ground, Tower | Departures and arrivals **backtrack** on the runway |
 | [EDXW Sylt](EDXW.md) | Bremen | 14/32 (06/24 crossed) | Tower only | Small island airport, crossing runways |
 | [KSAN San Diego](KSAN.md) | Los Angeles (KZLA) | 9/27 | Clearance Delivery, Ground, Tower | **FAA phraseology**, US weather and ATIS, busy single runway with displaced thresholds |
+| [NZWN Wellington](NZWN.md) | New Zealand (NZZC) | 16/34 | Delivery, Ground, Tower | Short runway between two bays, one parallel taxiway, separate SIDs for jets and turboprops, light turboprops on small stands |
 | [VTSP Phuket](VTSP.md) | Bangkok (VTBB) | 09/27 | Delivery, Ground, Tower | Holiday airport: displacement area, parallel taxiway P, a loop through the apron lanes, long-haul from the Gulf |
 
 Planned airports are listed as *Coming soon* in the airport menu; see the [roadmap](../roadmap.md).

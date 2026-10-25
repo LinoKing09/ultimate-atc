@@ -311,23 +311,31 @@ function readCode(c: Cursor): string | undefined {
   return /^\d{4}$/.test(s) ? s : undefined;
 }
 
-/** Reads a stand number such as "12", "1 2", "50a", or a lettered stand such as "g1" / "golf 1". */
+/**
+ * Reads a stand number such as "12", "1 2", "50a", "24an", or a lettered stand such as "g1" / "golf 1" / "r2s"
+ * (Wellington R2S, 24AN).
+ */
 function readStand(c: Cursor): string | undefined {
   let s = '';
   const first = c.peek();
-  if (first && (/^[a-z]\d+$/.test(first) || (/^[a-z]$/.test(first) && isDigit(c.peek(1))))) {
+  if (first && (/^[a-z]\d+[a-z]?$/.test(first) || (/^[a-z]$/.test(first) && isDigit(c.peek(1))))) {
     s = c.next()!;
+    if (/[a-z]$/.test(s.slice(1))) return s.toUpperCase();
     while (isDigit(c.peek()) && s.length < 4) s += c.next();
-    return s.toUpperCase();
+  } else {
+    while (isDigit(c.peek()) || (s === '' && c.peek() && /^\d+[a-z]{0,2}$/.test(c.peek()!))) {
+      s += c.next();
+      if (/[a-z]$/.test(s)) break;
+    }
   }
-  while (isDigit(c.peek()) || (s === '' && c.peek() && /^\d+[a-z]?$/.test(c.peek()!))) {
-    s += c.next();
-    if (/[a-z]$/.test(s)) break;
-  }
-  if (s && isSingle(c.peek()) && /[a-z]/.test(c.peek()!) && !KEYWORDS.has(c.peek()!)) {
-    // trailing stand suffix letter, e.g. "stand 1 2 alpha" -> 12A. Only if followed by nothing taxiway-like.
+  // Trailing stand suffix letters, e.g. "stand 1 2 alpha" -> 12A, "romeo 2 sierra" -> R2S, "24 alpha november" ->
+  // 24AN. Only if followed by nothing taxiway-like.
+  for (let n = 0; s && !/[a-z]{2}$/.test(s) && n < 2; n++) {
+    if (!isSingle(c.peek()) || !/[a-z]/.test(c.peek()!) || KEYWORDS.has(c.peek()!)) break;
     const nxt = c.peek(1);
     if (nxt === undefined || KEYWORDS.has(nxt)) s += c.next();
+    else if (n === 0 && /^\d/.test(s) && isSingle(nxt) && /[a-z]/.test(nxt) && !KEYWORDS.has(nxt) && (c.peek(2) === undefined || KEYWORDS.has(c.peek(2)!))) s += c.next();
+    else break;
   }
   return s ? s.toUpperCase() : undefined;
 }

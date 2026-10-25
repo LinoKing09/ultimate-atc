@@ -72,6 +72,15 @@ Asian operators and long-haul traffic (Phuket):
 | CPA  | Cathay      | ETD  | Etihad     | TVJ  | Thaiviet Jet |
 | UAE  | Emirates    | VJC  | Vietjet    |      |           |
 
+New Zealand (Wellington):
+
+| ICAO | Telephony   | ICAO | Telephony  | ICAO | Telephony |
+| ---- | ----------- | ---- | ---------- | ---- | --------- |
+| ANZ  | New Zealand | FJI  | Pacific    | SDA  | Sounds    |
+| CVA  | Chatham     | QFA  | Qantas     | JST  | Jetstar   |
+
+Stands with letters are said letter by letter in the phonetic alphabet: `taxi to stand romeo 2 sierra` (R2S), `stand 24 alpha november` (24AN); typed, `stand R2S` works too.
+
 General aviation aircraft use their registration as callsign, for example `DCMGB`, spoken "Delta Charlie Mike Golf Bravo"; in the US an N-number such as `N436GR`, spoken "November four three six Golf Romeo".
 
 ## Instructions

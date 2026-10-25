@@ -44,6 +44,9 @@ const types: AircraftType[] = [
   { icao: 'CRJ9', name: 'Bombardier CRJ900', wake: 'M', wingspanM: 24.9, lengthM: 36.2, silhouette: 'regional', taxiSpeedKt: 17, vrKt: 140, approachSpeedKt: 135, climbFpm: 2800, minRunwayM: 1900 },
   { icao: 'DH8D', name: 'Dash 8 Q400', wake: 'M', wingspanM: 28.4, lengthM: 32.8, silhouette: 'turboprop', taxiSpeedKt: 15, vrKt: 115, approachSpeedKt: 120, climbFpm: 2200, minRunwayM: 1400 },
   { icao: 'AT76', name: 'ATR 72-600', wake: 'M', wingspanM: 27.1, lengthM: 27.2, silhouette: 'turboprop', taxiSpeedKt: 14, vrKt: 105, approachSpeedKt: 112, climbFpm: 1600, minRunwayM: 1300 },
+  // Single-engine and light turboprops (Sounds Air at Wellington).
+  { icao: 'C208', name: 'Cessna 208 Caravan', wake: 'L', wingspanM: 15.9, lengthM: 12.7, silhouette: 'turboprop', taxiSpeedKt: 12, vrKt: 70, approachSpeedKt: 85, climbFpm: 900, minRunwayM: 700 },
+  { icao: 'PC12', name: 'Pilatus PC-12', wake: 'L', wingspanM: 16.3, lengthM: 14.4, silhouette: 'turboprop', taxiSpeedKt: 12, vrKt: 80, approachSpeedKt: 95, climbFpm: 1600, minRunwayM: 800 },
   { icao: 'A332', name: 'Airbus A330-200', wake: 'H', wingspanM: 60.3, lengthM: 58.8, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 150, approachSpeedKt: 140, climbFpm: 2200, minRunwayM: 2800 },
   { icao: 'B763', name: 'Boeing 767-300', wake: 'H', wingspanM: 47.6, lengthM: 54.9, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 150, approachSpeedKt: 140, climbFpm: 2200, minRunwayM: 2800 },
   // Freighters (Cologne/Bonn cargo hub).

@@ -156,6 +156,7 @@ runwayOps: [
 - `fix` is the exit fix; the generated flight plan route starts with it (`ROTWE DCT LEPA`), and Delivery checks that the cleared SID leads there.
 - `towards` (optional): the range of destination bearings (degrees true from the airport, clockwise from the first to the second value) the SID is planned for. The generator plans each departure via the SID whose sector contains the direction of its destination (positions in `src/data/destinations.ts`), or the nearest sector.
 - `destinations` (optional): the SID is planned only for these destinations (a fix restricted to a few airports); it takes precedence over the sectors. An empty list: never planned automatically.
+- `aircraft` (optional): `'jet'` or `'prop'` - the SID is planned only for jets or only for turboprops (Wellington: the jets fly ATVEV / UPLUD, the turboprops SIDs by direction). When the runway in use changes to one without a SID to the flight plan's first fix, the crews accept (and the strips suggest) the SID planned for their destination from the new runway.
 - `frequency` (optional): the radar frequency departures on this SID contact after take-off (EDDS southern departures: 119.200); default the `APP` station.
 
 The data check requires a SID for every destination of the airport's traffic on every runway, and a position for every destination when sectors are used.

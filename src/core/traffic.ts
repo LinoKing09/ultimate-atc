@@ -335,7 +335,7 @@ export class TrafficGenerator {
     const rwy = sim.runwayFor(stand.id, type);
     const destination = sim.rng.pick(airline.destinations);
     // The SID towards the destination (exit fix by direction, or a SID filed for this destination only).
-    const sids = sidsForDestination(sim.config.airport, rwy, destination);
+    const sids = sidsForDestination(sim.config.airport, rwy, destination, type);
     const sid = sids.length ? sim.rng.pick(sids) : undefined;
     const fp: FlightPlan = {
       departure: sim.config.airport.icao,

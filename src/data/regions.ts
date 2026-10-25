@@ -117,7 +117,6 @@ export const PLANNED_AIRPORTS: { icao: string; name: string; fir: string }[] = [
   { icao: 'YSSY', name: 'Sydney', fir: 'YMMM' },
   { icao: 'NZAA', name: 'Auckland', fir: 'NZZC' },
   { icao: 'NZQN', name: 'Queenstown', fir: 'NZZC' },
-  { icao: 'NZWN', name: 'Wellington', fir: 'NZZC' },
 ];
 
 export interface RegionPath {

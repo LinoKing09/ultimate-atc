@@ -1,6 +1,7 @@
 import type { Compass, StationType } from '../airport/types';
 import { AIRLINES, VEHICLE_TELEPHONY } from '../../data/airlines';
 import type { Altitude, Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './commands';
+import { VECTORS } from './format';
 
 /**
  * Parser for controller transmissions written (or dictated) in ICAO
@@ -235,7 +236,7 @@ function readRunway(c: Cursor): string | undefined {
 }
 
 /** Words that end the destination of an IFR clearance ("cleared to Frankfurt via ..."). */
-const CLEARANCE_STOP = new Set(['via', 'climb', 'maintain', 'squawk', 'runway', 'departure', 'then', 'and', 'ctot', 'slot', 'initially', 'initial', 'flight', 'expect', 'contact', 'sid']);
+const CLEARANCE_STOP = new Set(['via', 'climb', 'maintain', 'squawk', 'runway', 'departure', 'then', 'and', 'ctot', 'slot', 'initially', 'initial', 'flight', 'expect', 'contact', 'sid', 'radar']);
 
 /**
  * Matches a SID designator at the cursor: typed ("krh4b") or spelled
@@ -1137,6 +1138,12 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
           c.accept('to');
           c.accept('altitude');
           clr.climb = readAltitude(c);
+          continue;
+        }
+        // Quito 18: "radar vectors" instead of a SID.
+        if (c.peek() === 'radar' && ['vectors', 'vector', 'vectoring'].includes(c.peek(1) ?? '')) {
+          c.i += 2;
+          clr.sid = VECTORS;
           continue;
         }
         const sid = matchSid(c, ctx.sids, true);

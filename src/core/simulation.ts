@@ -12,7 +12,7 @@ import { Frequency, type MessageKind, type RadioMessage } from './radio';
 import { updateConflictAlerts, updateRunwayAlerts } from './conflicts';
 import { updateOppositeTraffic } from './opposite';
 import { scoreOf } from './debrief';
-import { updateSequencer, updateDeliveryAI } from './delivery';
+import { sidsForDestination, updateSequencer, updateDeliveryAI } from './delivery';
 import { updateGroundAI } from './groundAI';
 import { Rng } from './random';
 import { SYSTEMS, approachType, defaultSystemStates, type ApproachType, type SystemId, type SystemStates } from './systems';
@@ -957,7 +957,7 @@ export class Simulation {
         ac.runway = end;
         ac.flightPlan.runway = end;
         const fix = sids.find((x) => x.name === ac.flightPlan.sid)?.fix;
-        const sid = sids.find((x) => x.runway === end && x.fix === fix) ?? sids.find((x) => x.runway === end);
+        const sid = (fix && sids.find((x) => x.runway === end && x.fix === fix)) || sidsForDestination(this.config.airport, end, ac.flightPlan.destination, ac.type)[0];
         ac.flightPlan.sid = sid?.name;
       }
       // Approach re-sequences arrivals that are not yet on short final onto the new runway.

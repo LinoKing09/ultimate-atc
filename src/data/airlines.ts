@@ -90,6 +90,16 @@ export const AIRLINES: Airline[] = [
   { icao: 'MAS', telephony: 'Malaysian', types: ['B738'], destinations: ['WMKK'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'JST', telephony: 'Jetstar', types: ['A321', 'B788'], destinations: ['YPPH', 'YMML', 'YSSY'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'VJC', telephony: 'Vietjet', types: ['A321'], destinations: ['VVTS'], weight: 1, callsignStyle: 'numeric' },
+  // Ecuador and Latin America (Quito).
+  { icao: 'LNE', telephony: 'Aerolane', types: ['A319', 'A320', 'A321'], destinations: ['SEGU', 'SECU', 'SEGS', 'SEMT'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'GLG', telephony: 'Aerogal', types: ['A320', 'A20N'], destinations: ['SEGU', 'SECU', 'SEGS', 'SEST'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'AVA', telephony: 'Avianca', types: ['A320', 'A20N'], destinations: ['SKBO'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'CMP', telephony: 'Copa', types: ['B738', 'B38M', 'B39M'], destinations: ['MPTO'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'LPE', telephony: 'Lanperu', types: ['A320'], destinations: ['SPJC'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'IBE', telephony: 'Iberia', types: ['A332', 'A359'], destinations: ['LEMD'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'AEA', telephony: 'Europa', types: ['B788', 'B789'], destinations: ['LEMD'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'LCO', telephony: 'Lan Cargo', types: ['B763'], destinations: ['KMIA'], weight: 1, callsignStyle: 'numeric', cargo: true },
+  { icao: 'CLX', telephony: 'Cargolux', types: ['B748', 'B744'], destinations: ['KMIA', 'EHAM'], weight: 1, callsignStyle: 'numeric', cargo: true },
   // New Zealand (Wellington).
   { icao: 'ANZ', telephony: 'New Zealand', types: ['A320', 'A21N', 'AT76'], destinations: ['NZAA', 'NZCH', 'NZQN', 'NZDN'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'QFA', telephony: 'Qantas', types: ['B738'], destinations: ['YSSY', 'YMML', 'YBBN'], weight: 1, callsignStyle: 'numeric' },

@@ -104,7 +104,6 @@ export const PLANNED_AIRPORTS: { icao: string; name: string; fir: string }[] = [
   { icao: 'SLLP', name: 'La Paz', fir: 'SLLF' },
   { icao: 'SBPA', name: 'Porto Alegre', fir: 'SBCW' },
   { icao: 'SKRG', name: 'Medellín', fir: 'SKED' },
-  { icao: 'SEQM', name: 'Quito', fir: 'SEFG' },
   { icao: 'RJGG', name: 'Nagoya Chubu', fir: 'RJJJ' },
   { icao: 'WMKP', name: 'Penang', fir: 'WMFC' },
   { icao: 'VCBI', name: 'Colombo', fir: 'VCCF' },

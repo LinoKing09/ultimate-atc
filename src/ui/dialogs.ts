@@ -352,6 +352,7 @@ const REFERENCE: [string, string][] = [
 const FAA_REFERENCE: [string, string][] = [
   ['runway 27, taxi via B', 'Taxi to the runway (the runway in front is the clearance limit); "runway 9 at B8, taxi via B" to an intersection.'],
   ['push back approved, tail east', 'Pushback facing west ("tail" = the opposite of "facing"). There is no start-up approval: crews call Delivery "ready to push, request frequency", then Ground "ready to push".'],
+  ['cleared to Guayaquil, radar vectors, flight planned route, climb 17000 feet, squawk 4321', 'IFR clearance without a SID (Quito runway 18): radar vectors; typed, "RV" works as the SID too.'],
   ['cleared to KSFO airport, PADRZ2 departure, then as filed, climb via SID except maintain 5000, departure frequency 125.15, squawk 1234', 'IFR clearance; "then as filed", "expect FL350 10 minutes after departure" and the departure frequency are accepted. Datalink clearances are PDC.'],
   ['runway 27 at B1, line up and wait / wind 250 at 8, runway 27, cleared for takeoff', 'Tower; runways without a leading zero ("runway 9").'],
   ['turn left at B5 / cross runway 27 at C6', 'Vacate via B5; crossing where the crew holds.'],

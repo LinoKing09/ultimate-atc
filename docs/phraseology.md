@@ -72,6 +72,16 @@ Asian operators and long-haul traffic (Phuket):
 | CPA  | Cathay      | ETD  | Etihad     | TVJ  | Thaiviet Jet |
 | UAE  | Emirates    | VJC  | Vietjet    |      |           |
 
+Latin America and long-haul (Quito):
+
+| ICAO | Telephony   | ICAO | Telephony  | ICAO | Telephony |
+| ---- | ----------- | ---- | ---------- | ---- | --------- |
+| LNE  | Aerolane    | AVA  | Avianca    | IBE  | Iberia    |
+| GLG  | Aerogal     | CMP  | Copa       | AEA  | Europa    |
+| LPE  | Lanperu     | LCO  | Lan Cargo  | CLX  | Cargolux  |
+
+**Radar vectors instead of a SID** (Quito runway 18, which has no SID in the simulator): `cleared to Guayaquil, radar vectors, flight planned route, climb 17000 feet, squawk 4321` - typed, `RV` works as the SID too. The crew reads back "radar vectors"; departures on radar vectors are spaced 2 minutes apart like departures on the same SID.
+
 New Zealand (Wellington):
 
 | ICAO | Telephony   | ICAO | Telephony  | ICAO | Telephony |

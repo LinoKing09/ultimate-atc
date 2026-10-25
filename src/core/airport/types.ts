@@ -387,6 +387,11 @@ export interface SidData {
    * SIDs to other fixes). Omitted: any aircraft.
    */
   aircraft?: 'jet' | 'prop';
+  /**
+   * Not a SID: departures from this runway get "radar vectors" (named "RV", at most one per airport; Quito 18,
+   * where the AIP allows vectors and no SID is available to the simulator). `fix` is empty.
+   */
+  vectors?: boolean;
   /** Radar frequency departures on this SID contact after take-off (default: the APP station's frequency). */
   frequency?: string;
 }

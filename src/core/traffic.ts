@@ -340,7 +340,7 @@ export class TrafficGenerator {
     const fp: FlightPlan = {
       departure: sim.config.airport.icao,
       destination,
-      route: sid ? `${sid.fix} DCT ${destination}` : `DCT ${destination}`,
+      route: sid?.fix ? `${sid.fix} DCT ${destination}` : `DCT ${destination}`,
       sid: sid?.name,
       runway: rwy,
       cruiseFl: type.silhouette === 'turboprop' ? sim.rng.int(17, 25) * 10 : sim.rng.int(28, 39) * 10,

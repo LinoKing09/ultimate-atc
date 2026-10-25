@@ -4,7 +4,7 @@ import type { AircraftType } from '../data/aircraftTypes';
 import type { AirportData, SidData } from './airport/types';
 import { destinationBearing, destinationName, resolveDestination } from '../data/destinations';
 import type { Altitude, Command } from './phraseology/commands';
-import { formatAltitude, formatSidClimb } from './phraseology/format';
+import { formatAltitude, formatClearanceClimb, formatDepartureRoute } from './phraseology/format';
 import { runwayWords } from './runways';
 import type { Simulation } from './simulation';
 
@@ -135,7 +135,8 @@ export function suggestedSid(sim: Simulation, ac: Aircraft): string | undefined 
   const runway = sim.isRunwayInUse(ac.runway) ? ac.runway : sim.runway;
   const sameFix = sim.config.airport.sids.find((s) => s.runway === runway && s.fix === fix);
   if (sameFix) return sameFix.name;
-  if (runway && sim.config.airport.sids.some((s) => s.fix === fix && s.runway !== runway)) {
+  const current = sim.config.airport.sids.find((s) => s.name === ac.flightPlan.sid);
+  if (runway && current && current.runway !== runway) {
     return sidsForDestination(sim.config.airport, runway, ac.flightPlan.destination, ac.type)[0]?.name ?? ac.flightPlan.sid;
   }
   return ac.flightPlan.sid;
@@ -143,6 +144,7 @@ export function suggestedSid(sim: Simulation, ac: Aircraft): string | undefined 
 
 /** The SID leads where the flight plan goes: to its first fix, or the runway in use has no SID to that fix and this one is filed for the destination. */
 function sidFitsRoute(sim: Simulation, ac: Aircraft, sid: SidData): boolean {
+  if (sid.vectors) return true;
   const fix = routeFix(ac);
   if (sid.fix === fix) return true;
   const airport = sim.config.airport;
@@ -223,7 +225,7 @@ export function execClearance(sim: Simulation, ac: Aircraft, c: Extract<Command,
     const t = fromHhmm(sim, c.ctot);
     if (t !== undefined) ac.ctot = t;
   }
-  const parts = [`cleared to ${destinationName(fp.destination)}, ${sid!.name} departure, flight planned route`, formatSidClimb(c.climb!), `squawk ${said}`];
+  const parts = [`cleared to ${destinationName(fp.destination)}, ${formatDepartureRoute(sid!.name)}`, formatClearanceClimb(sid!.name, c.climb!), `squawk ${said}`];
   if (ac.ctot) parts.push(`CTOT ${hhmm(sim, ac.ctot)}`);
   return { readback: parts.join(', '), answers: ac.request === 'clearance' };
 }
@@ -280,7 +282,7 @@ export function sendDcl(sim: Simulation, ac: Aircraft, sidName: string, squawk: 
     sim.recordAnswer(ac);
     ac.request = null;
   }
-  const text = `DCL to ${ac.callsign}: cleared to ${destinationName(ac.flightPlan.destination)}, ${sid.name} departure, flight planned route, ${formatSidClimb(initialClimb(sim))}, squawk ${squawk}${ac.ctot ? `, CTOT ${hhmm(sim, ac.ctot)}` : ''} - WILCO.`;
+  const text = `DCL to ${ac.callsign}: cleared to ${destinationName(ac.flightPlan.destination)}, ${formatDepartureRoute(sid.name)}, ${formatClearanceClimb(sid.name, initialClimb(sim))}, squawk ${squawk}${ac.ctot ? `, CTOT ${hhmm(sim, ac.ctot)}` : ''} - WILCO.`;
   sim.system(
     // US: pre-departure clearance (PDC), in FAA wording.
     sim.faa ? faaStyle(text).replace(/^DCL/, 'PDC') : text,

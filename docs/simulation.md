@@ -272,7 +272,7 @@ The AI Ground also resolves circles of aircraft waiting for each other (A behind
    - nobody else is in the runway area, the preceding departure is airborne, and the preceding landing aircraft has vacated,
    - **departure separation** is met, measured from the moment the previous departure became airborne:
      - **2 minutes behind a heavy** (wake turbulence; 3 minutes if this departure starts from an intersection),
-     - otherwise **2 minutes** if both use the same departure route (same first SID fix) and **1 minute** if the routes diverge,
+     - otherwise **2 minutes** if both use the same departure route (same first SID fix, or both on radar vectors) and **1 minute** if the routes diverge,
    - the next arrival is more than `roll time + 8 s` from the threshold (about 2 NM).
 
    The aircraft then accelerates at 2.0 m/s². At its rotation speed it becomes airborne, climbs at its climb rate, and accelerates to 200 kt.

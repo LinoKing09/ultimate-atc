@@ -716,8 +716,9 @@ export class TowerAI {
     const fix = this.sim.config.airport.sids.find((s) => s.name === ac.flightPlan.sid)?.fix;
     // Wake turbulence: 2 minutes behind a heavy (3 minutes from an intersection).
     if ((prev.wake === 'H' || prev.wake === 'J') && ac.type.wake !== 'J') return ac.intersectionDeparture ? 180 : 120;
-    // Radar/route separation: 2 minutes on the same departure route, 1 minute on diverging routes.
-    return prev.fix && prev.fix === fix ? 120 : 60;
+    // Radar/route separation: 2 minutes on the same departure route (radar vectors count as one route, fix ''),
+    // 1 minute on diverging routes.
+    return prev.fix !== undefined && prev.fix === fix ? 120 : 60;
   }
 
   /** Time (s) from start of roll until the aircraft is airborne and well down the runway. */

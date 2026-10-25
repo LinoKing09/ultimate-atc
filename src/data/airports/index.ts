@@ -8,7 +8,8 @@ import { EDJA } from './edja';
 import { EDXW } from './edxw';
 import { KSAN } from './ksan';
 import { NZWN } from './nzwn';
+import { SEQM } from './seqm';
 import { VTSP } from './vtsp';
 
 /** Airports with complete data, selectable in the Connect dialog. */
-export const AIRPORTS: AirportData[] = [EDDS, EDDN, EDJA, EDXW, EDDW, EDDK, EDDP, KSAN, VTSP, NZWN];
+export const AIRPORTS: AirportData[] = [EDDS, EDDN, EDJA, EDXW, EDDW, EDDK, EDDP, KSAN, VTSP, NZWN, SEQM];

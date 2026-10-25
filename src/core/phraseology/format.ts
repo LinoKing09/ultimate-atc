@@ -138,6 +138,19 @@ export function formatAltitude(a: Altitude): string {
   return 'fl' in a ? `flight level ${a.fl}` : `${a.feet} feet`;
 }
 
+/** The departure route "SID" of a radar vectors departure (no SID published for the runway; Quito 18). */
+export const VECTORS = 'RV';
+
+/** "ETASA4B departure, flight planned route", or "radar vectors, flight planned route" for a radar vectors departure. */
+export function formatDepartureRoute(sid: string): string {
+  return `${sid === VECTORS ? 'radar vectors' : `${sid} departure`}, flight planned route`;
+}
+
+/** The initial climb of a clearance: "climb via SID to altitude 5000 feet", or "climb 17000 feet" with radar vectors. */
+export function formatClearanceClimb(sid: string | undefined, a: { feet: number } | { fl: number }): string {
+  return sid && sid !== VECTORS ? formatSidClimb(a) : `climb ${formatAltitude(a)}`;
+}
+
 /** "climb via SID to altitude 5000 feet" (German practice for the initial climb of a SID). */
 export function formatSidClimb(a: { feet: number } | { fl: number }): string {
   return `climb via SID to ${'fl' in a ? '' : 'altitude '}${formatAltitude(a)}`;
@@ -150,9 +163,9 @@ export function formatSidClimb(a: { feet: number } | { fl: number }): string {
 export function formatClearance(c: Extract<Command, { type: 'clearance' }>): string {
   const dest = c.destination ? (resolveDestination(c.destination) ? destinationName(resolveDestination(c.destination)!) : c.destination) : '';
   const parts = [`cleared to ${dest || '...'}`];
-  if (c.sid) parts.push(`${c.sid} departure`, 'flight planned route');
+  if (c.sid) parts.push(formatDepartureRoute(c.sid));
   if (c.runway) parts.push(`runway ${c.runway}`);
-  if (c.climb) parts.push(c.sid ? formatSidClimb(c.climb) : `climb ${formatAltitude(c.climb)}`);
+  if (c.climb) parts.push(formatClearanceClimb(c.sid, c.climb));
   if (c.squawk) parts.push(`squawk ${c.squawk}`);
   if (c.ctot) parts.push(`CTOT ${c.ctot}`);
   return parts.join(', ');

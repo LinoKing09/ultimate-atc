@@ -8,7 +8,7 @@ import { formatCommand } from '../core/phraseology/format';
 import { parseTransmission } from '../core/phraseology/parser';
 import { acknowledgeCatc, catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
 import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, sendDcl, sidsForDestination, suggestedSid } from '../core/delivery';
-import { formatSidClimb } from '../core/phraseology/format';
+import { formatClearanceClimb, formatDepartureRoute } from '../core/phraseology/format';
 import { previewTaxi } from '../core/pilot';
 import type { SystemId } from '../core/systems';
 import { needsDeicing, padUser } from '../core/deicing';
@@ -542,7 +542,7 @@ export class App {
       return hp ? `taxi to holding point ${hp}` : `taxi to runway ${sim.runway}`;
     }
     const sid = sidsForDestination(sim.config.airport, sim.runway, 'EDDF')[0]?.name ?? 'ETASA4B';
-    return `cleared to Frankfurt, ${sid} departure, flight planned route, ${formatSidClimb(initialClimb(sim))}, squawk 2312`;
+    return `cleared to Frankfurt, ${formatDepartureRoute(sid)}, ${formatClearanceClimb(sid, initialClimb(sim))}, squawk 2312`;
   }
 
   /** Mobile mode: one-tap buttons for the most common instructions to the selected aircraft. */
@@ -1387,14 +1387,13 @@ export class App {
   private deliveryItems(ac: Aircraft): MenuItem[] {
     const sim = this.sim;
     const items: MenuItem[] = [];
-    const climb = formatSidClimb(initialClimb(sim));
     // Keep the code of an earlier clearance; otherwise the next free code.
     const squawk = ac.clearance?.squawk || allocateSquawk(sim);
     const suggested = suggestedSid(sim, ac);
     const sids = sim.config.airport.sids
       .filter((sd) => sim.isRunwayInUse(sd.runway))
       .sort((a, b) => (a.name === suggested ? -1 : b.name === suggested ? 1 : a.name.localeCompare(b.name)));
-    const sidHint = (name: string, fix: string) => (name === suggested ? `${fix} - flight plan` : fix);
+    const sidHint = (name: string, fix: string) => (name === suggested ? `${fix || 'radar vectors'} - flight plan` : fix || 'radar vectors');
     const dest = destinationName(ac.flightPlan.destination);
     const ctot = ac.ctot !== undefined ? `, CTOT ${hhmm(sim, ac.ctot)}` : '';
     const dclRequest = ac.dcl && sim.systemOn('dcl') && !ac.cleared;
@@ -1421,7 +1420,7 @@ export class App {
         sids.map((sd) => ({
           label: sd.name,
           hint: sidHint(sd.name, sd.fix),
-          action: () => this.say(ac, `cleared to ${dest}, ${sd.name} departure, flight planned route, ${climb}, squawk ${squawk}${ctot}`),
+          action: () => this.say(ac, `cleared to ${dest}, ${formatDepartureRoute(sd.name)}, ${formatClearanceClimb(sd.name, initialClimb(sim))}, squawk ${squawk}${ctot}`),
         })),
     });
     items.push({ label: 'Readback correct', disabled: !ac.cleared || !!ac.readbackConfirmed, action: () => this.say(ac, 'readback correct') });

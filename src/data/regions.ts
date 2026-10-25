@@ -109,7 +109,6 @@ export const PLANNED_AIRPORTS: { icao: string; name: string; fir: string }[] = [
   { icao: 'WMKP', name: 'Penang', fir: 'WMFC' },
   { icao: 'VCBI', name: 'Colombo', fir: 'VCCF' },
   { icao: 'RCSS', name: 'Taipei Songshan', fir: 'RCAA' },
-  { icao: 'VTSP', name: 'Phuket', fir: 'VTBB' },
   { icao: 'YBBN', name: 'Brisbane', fir: 'YBBB' },
   { icao: 'YBCG', name: 'Gold Coast', fir: 'YBBB' },
   { icao: 'YMML', name: 'Melbourne', fir: 'YMMM' },

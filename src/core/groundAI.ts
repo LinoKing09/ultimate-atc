@@ -242,6 +242,8 @@ export function conflictResolution(sim: Simulation, ac: Aircraft, acrossRunway =
   if (!waitingOpposite && (!ac.blockedBy || ac.blockedSince === undefined || sim.time - ac.blockedSince < 40)) return undefined;
   const other = headOnPartner(sim, ac);
   if (!other) return undefined;
+  // The other one is rolling and not held up by us: it is passing (e.g. where two apron lanes meet) - wait.
+  if (other.speed > 1 && other.blockedBy !== ac.callsign) return undefined;
   // Resolve each conflict once: not again while a tug is coming or right after the last instruction.
   const recent = (a: Aircraft) => (a.tugUntil ?? 0) > sim.time || sim.time - (a.resolvedAt ?? -Infinity) < RESOLVE_AGAIN_S;
   if (recent(ac) || recent(other)) return undefined;

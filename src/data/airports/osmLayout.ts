@@ -31,6 +31,12 @@ export interface StandSpec {
   pushback: boolean;
   /** Lane node(s); default: the imported ones. */
   lanes?: string[];
+  /**
+   * Taxiways to put the lane node on when `pos` comes from the AIP and no lead-in line is imported: the lane node
+   * is the foot of the perpendicular from the stand onto the nearest of these taxiways (an existing node within
+   * 8 m, else a new node splitting that edge). Phuket.
+   */
+  snap?: string[];
   /** Position and heading; default: the imported ones. */
   pos?: LatLon;
   heading?: number;
@@ -246,13 +252,39 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     }
   }
 
+  /** The lane node of a stand on the nearest edge of the given taxiways (see StandSpec.snap). */
+  const snapLane = (id: string, stop: LatLon, names: Set<string>): string => {
+    const q = proj.toLocal(stop);
+    let best: { e: E; t: number; d: number } | undefined;
+    for (const e of edges) {
+      if ((e.kind !== 'taxiway' && e.kind !== 'taxilane') || !names.has(e.name)) continue;
+      const a = p(e.from);
+      const b = p(e.to);
+      const len2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2;
+      const t = len2 ? Math.max(0, Math.min(1, ((q.x - a.x) * (b.x - a.x) + (q.y - a.y) * (b.y - a.y)) / len2)) : 0;
+      const d = Math.hypot(a.x + (b.x - a.x) * t - q.x, a.y + (b.y - a.y) * t - q.y);
+      if (!best || d < best.d) best = { e, t, d };
+    }
+    if (!best) throw new Error(`stand ${id}: no taxiway ${[...names].join(', ')} to snap to`);
+    const { e, t } = best;
+    const a = p(e.from);
+    const b = p(e.to);
+    const foot = { x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t };
+    for (const n of [e.from, e.to]) if (distance(p(n), foot) < 8) return n;
+    const node = `${e.name || 'LANE'}@${id}`;
+    pos.set(node, proj.toLatLon(foot));
+    edges = edges.filter((x) => x !== e);
+    edges.push({ ...e, to: node }, { ...e, from: node });
+    return node;
+  };
+
   // Stands
   const stands: StandData[] = [];
   const standNodes: TaxiNodeData[] = [];
   for (const spec of o.stands) {
     const imp = layout.stands.find((s) => s.id === (spec.osm ?? spec.id));
-    const lanes = spec.lanes ?? imp?.lanes;
     const stop = spec.pos ?? (imp ? { lat: imp.pos[0], lon: imp.pos[1] } : undefined);
+    const lanes = spec.lanes ?? imp?.lanes ?? (spec.snap && stop ? [snapLane(spec.id, stop, new Set(spec.snap))] : undefined);
     if (!lanes?.length || !stop) throw new Error(`stand ${spec.id}: no position or lane`);
     const node = `STAND_${spec.id}`;
     const out = lanes[1] ?? lanes[0];

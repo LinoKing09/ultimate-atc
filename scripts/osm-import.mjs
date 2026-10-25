@@ -359,7 +359,7 @@ const simplifyPoly = (pts) => {
   return out;
 };
 const areaName = (t) =>
-  t.aeroway === 'apron' ? t.name ?? (t.ref ? `Apron ${t.ref}` : 'Apron') : t.aeroway === 'helipad' ? t.ref ?? t.name ?? 'Helipad' : t['area:aeroway'] === 'taxiway' ? t.ref ?? '' : '';
+  t.aeroway === 'apron' ? t['name:en'] ?? t.name ?? (t.ref ? `Apron ${t.ref}` : 'Apron') : t.aeroway === 'helipad' ? t.ref ?? t['name:en'] ?? t.name ?? 'Helipad' : t['area:aeroway'] === 'taxiway' ? t.ref ?? '' : '';
 // Grass (e.g. a grass parking area mapped as an apron) is the scope background: not an area.
 const grass = (t) => t.surface === 'grass' || t.landuse === 'grass';
 const areas = polygonWays
@@ -369,7 +369,7 @@ const aerowayBuilding = (t) => t.aeroway === 'terminal' || t.aeroway === 'hangar
 const buildings = polygonWays
   .filter((w) => w.nds.length > 3 && ((w.tags.building && w.tags.building !== 'no') || aerowayBuilding(w.tags)))
   .filter((w) => aerowayBuilding(w.tags) || onAerodrome(polygon(w)))
-  .map((w) => ({ name: w.tags.name ?? (w.tags.aeroway === 'tower' ? 'Tower' : w.tags.aeroway === 'terminal' || w.tags.building === 'terminal' ? 'Terminal' : ''), pts: simplifyPoly(polygon(w)) }));
+  .map((w) => ({ name: w.tags['name:en'] ?? w.tags.name ?? (w.tags.aeroway === 'tower' ? 'Tower' : w.tags.aeroway === 'terminal' || w.tags.building === 'terminal' ? 'Terminal' : ''), pts: simplifyPoly(polygon(w)) }));
 
 // ------------------------------------------------------------------ output
 const f6 = (v) => Number(v.toFixed(7));

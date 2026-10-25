@@ -56,6 +56,9 @@ const types: AircraftType[] = [
   { icao: 'E75L', name: 'Embraer E175', wake: 'M', wingspanM: 26.0, lengthM: 31.7, silhouette: 'regional', taxiSpeedKt: 17, vrKt: 130, approachSpeedKt: 125, climbFpm: 2600, minRunwayM: 1700 },
   { icao: 'A359', name: 'Airbus A350-900', wake: 'H', wingspanM: 64.8, lengthM: 66.8, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 150, approachSpeedKt: 140, climbFpm: 2300, minRunwayM: 2800 },
   { icao: 'B788', name: 'Boeing 787-8', wake: 'H', wingspanM: 60.1, lengthM: 56.7, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 150, approachSpeedKt: 140, climbFpm: 2300, minRunwayM: 2800 },
+  { icao: 'A333', name: 'Airbus A330-300', wake: 'H', wingspanM: 60.3, lengthM: 63.7, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 155, approachSpeedKt: 140, climbFpm: 2100, minRunwayM: 2800 },
+  { icao: 'B789', name: 'Boeing 787-9', wake: 'H', wingspanM: 60.1, lengthM: 62.8, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 155, approachSpeedKt: 145, climbFpm: 2200, minRunwayM: 2900 },
+  { icao: 'B77W', name: 'Boeing 777-300ER', wake: 'H', wingspanM: 64.8, lengthM: 73.9, silhouette: 'widebody', taxiSpeedKt: 16, vrKt: 165, approachSpeedKt: 150, climbFpm: 2000, minRunwayM: 3000 },
   { icao: 'C56X', name: 'Cessna Citation Excel', wake: 'L', wingspanM: 17.2, lengthM: 16.0, silhouette: 'bizjet', taxiSpeedKt: 15, vrKt: 105, approachSpeedKt: 115, climbFpm: 3500, minRunwayM: 1200 },
   { icao: 'CL35', name: 'Bombardier Challenger 350', wake: 'M', wingspanM: 21.0, lengthM: 20.9, silhouette: 'bizjet', taxiSpeedKt: 15, vrKt: 115, approachSpeedKt: 120, climbFpm: 3500, minRunwayM: 1500 },
 ];

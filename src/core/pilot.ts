@@ -487,15 +487,19 @@ function planPushback(sim: Simulation, ac: Aircraft, facing?: Compass): PushPlan
     const entry = sim.airport.runwayOps(rwy)?.departureEntries[0];
     const hp = entry ? sim.airport.holdingPoint(entry.holdingPoint) : undefined;
     if (hp) {
-      let bestLen = Infinity;
-      for (const o of options) {
-        const r = findRoute(sim.airport, { position: o.end, heading: o.nose }, hp, [], { flows: sim.airport.flowVectors(rwy) });
-        // A way out that needs a 180 degree turn (e.g. pushed towards the dead end of a taxilane) only if nothing else works.
-        const len = isRouteError(r) ? Infinity : r.length + (r.requiresUTurn ? UTURN_PUSH_PENALTY_M : 0);
-        if (len < bestLen) {
-          bestLen = len;
-          choice = o;
+      // Along the standard taxi flows if any way out allows it (an apron lane used one way), else the shortest.
+      for (const strictFlows of [true, false]) {
+        let bestLen = Infinity;
+        for (const o of options) {
+          const r = findRoute(sim.airport, { position: o.end, heading: o.nose }, hp, [], { flows: sim.airport.flowVectors(rwy), strictFlows });
+          // A way out that needs a 180 degree turn (e.g. pushed towards the dead end of a taxilane) only if nothing else works.
+          const len = isRouteError(r) ? Infinity : r.length + (r.requiresUTurn ? UTURN_PUSH_PENALTY_M : 0);
+          if (len < bestLen) {
+            bestLen = len;
+            choice = o;
+          }
         }
+        if (bestLen < Infinity) break;
       }
     }
   }

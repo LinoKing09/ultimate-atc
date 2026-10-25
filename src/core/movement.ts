@@ -254,6 +254,29 @@ function samplesOf(cache: SampleCache, b: Aircraft): { p: Vec2[]; h: number[] } 
   return c;
 }
 
+/** On the runway after touchdown or on its exit: it has to clear the runway - taxiing traffic gives way to it. */
+function exiting(x: Aircraft): boolean {
+  return x.onGround && !!x.path && (x.phase === 'landing' || x.phase === 'vacating');
+}
+
+/** An exiting aircraft's whole way to its exit stop (the roll-out and the exit, up to ~3 km), sampled once per step. */
+function exitSamplesOf(cache: SampleCache, b: Aircraft): { p: Vec2[]; h: number[] } {
+  let c = cache.get(b);
+  if (!c) {
+    const bp = b.path!;
+    c = { p: [], h: [] };
+    for (let d = 0; d <= bp.length - b.s; d += SAMPLE_STEP) {
+      c.p.push(bp.pointAt(b.s + d));
+      c.h.push(bp.headingAt(b.s + d));
+    }
+    cache.set(b, c);
+  }
+  return c;
+}
+const exitCache = new WeakMap<SampleCache, SampleCache>();
+/** Taxiing traffic this close (m) to a junction with the exit of an aircraft still rolling out moves on through it. */
+const EXIT_CLEAR_M = 60;
+
 function crossingConflict(sim: Simulation, a: Aircraft, ground: Aircraft[], look: number, cache: SampleCache): { by: Aircraft; dist: number } | undefined {
   const path = a.path!;
   let best: { by: Aircraft; dist: number } | undefined;
@@ -264,13 +287,19 @@ function crossingConflict(sim: Simulation, a: Aircraft, ground: Aircraft[], look
     own.h.push(path.headingAt(a.s + dA));
     own.d.push(dA);
   }
+  let exits = exitCache.get(cache);
+  if (!exits) exitCache.set(cache, (exits = new Map()));
   for (const b of ground) {
-    if (b === a || distance(a.pos, b.pos) > look + OTHER_LOOK + 40 || !intendsToMove(sim, b)) continue;
+    // A landing or vacating aircraft is seen along its whole way to the exit (taxiing traffic must keep the exit
+    // free in time); other traffic only near us and while it intends to move.
+    // (Runway traffic itself - line-up, crossing - is sequenced by Tower.)
+    const bExits = exiting(b) && (a.phase === 'taxi' || a.phase === 'pushback') && a.clearedToCross.size === 0;
+    if (b === a || (!bExits && (distance(a.pos, b.pos) > look + OTHER_LOOK + 40 || !intendsToMove(sim, b)))) continue;
     // It waits for us to pass (opposite traffic in a narrow part): we go first.
     if (b.oppositeStop?.other === a.callsign && b.oppositeStop.narrow) continue;
     const bp = b.path!;
     const r = (a.type.wingspanM + b.type.wingspanM) * 0.38 + 6;
-    const bs = samplesOf(cache, b);
+    const bs = bExits ? exitSamplesOf(exits, b) : samplesOf(cache, b);
     // Traffic whose path runs through our current position is behind us in the same lane: it follows us.
     // (Only traffic going the same way and coming from behind; oncoming traffic is never a follower.)
     const sameWay = Math.abs(((path.headingAt(a.s) - bp.headingAt(b.s) + 540) % 360) - 180) < 60;
@@ -302,7 +331,13 @@ function crossingConflict(sim: Simulation, a: Aircraft, ground: Aircraft[], look
     for (let i = 0; i < own.p.length && !bInside; i++) bInside = distance(own.p[i], b.pos) < r;
     // Priority: a decision, once made, is kept until the conflict is over (no flip-flopping as speeds change).
     let aYields: boolean;
-    if (aInside !== bInside) aYields = bInside;
+    // Taxiing traffic gives way to an aircraft clearing the runway (unless it is already in its way: then it goes
+    // on and makes room); the one clearing the runway never waits for taxiing traffic.
+    // Still rolling out on the runway, it takes a while to the exit: traffic close to the junction moves on and
+    // clears it rather than stopping in front of it (where the arrival turns onto the taxiway).
+    if (bExits) aYields = !aInside && !(b.phase === 'landing' && found.dA - (a.type.lengthM / 2 + 10) < EXIT_CLEAR_M);
+    else if (exiting(a) && !exiting(b)) aYields = false;
+    else if (aInside !== bInside) aYields = bInside;
     else if (yielding.get(a) === b.callsign) aYields = true;
     else if (yielding.get(b) === a.callsign) aYields = false;
     else {

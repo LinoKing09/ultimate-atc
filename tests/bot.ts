@@ -101,7 +101,8 @@ export function createBot(sim: Simulation): () => void {
         const r = previewTaxi(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.departureRunwayOf(ac) }, via: [], holdShort: [], cross: [] });
         if ('error' in r) return false;
         const c = routeHeadOn(sim, ac, sim.airport.polyline(r.route.nodes).points);
-        if (!c) return false;
+        // Traffic that waits behind us (blocked by us) is no reason to wait: we have to move first.
+        if (!c || c.other.blockedBy === cs) return false;
         // Per request: a new call (after a cancelled pushback, say) waits again.
         const key = `${cs}:${ac.request}:${ac.requestSince}`;
         held.set(key, held.get(key) ?? t);

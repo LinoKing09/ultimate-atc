@@ -7,6 +7,7 @@ import { EDDW } from './eddw';
 import { EDJA } from './edja';
 import { EDXW } from './edxw';
 import { KSAN } from './ksan';
+import { VTSP } from './vtsp';
 
 /** Airports with complete data, selectable in the Connect dialog. */
-export const AIRPORTS: AirportData[] = [EDDS, EDDN, EDJA, EDXW, EDDW, EDDK, EDDP, KSAN];
+export const AIRPORTS: AirportData[] = [EDDS, EDDN, EDJA, EDXW, EDDW, EDDK, EDDP, KSAN, VTSP];

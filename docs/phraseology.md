@@ -60,6 +60,18 @@ US operators (San Diego):
 | FDX  | Fedex       | NKS  | Spirit Wings | WJA | Westjet  |
 | FFT  | Frontier Flight | QXE | Horizon  | SCX  | Sun Country |
 
+Asian operators and long-haul traffic (Phuket):
+
+| ICAO | Telephony   | ICAO | Telephony  | ICAO | Telephony |
+| ---- | ----------- | ---- | ---------- | ---- | --------- |
+| AFL  | Aeroflot    | IGO  | Ifly       | QTR  | Qatari    |
+| AIQ  | Thai Asia   | JST  | Jetstar    | SIA  | Singapore |
+| AXM  | Red Cap     | KAL  | Koreanair  | TGW  | Scooter   |
+| BKP  | Bangkok Air | MAS  | Malaysian  | THA  | Thai      |
+| CES  | China Eastern | NOK | Nok Air   | TLM  | Mentari   |
+| CPA  | Cathay      | ETD  | Etihad     | TVJ  | Thaiviet Jet |
+| UAE  | Emirates    | VJC  | Vietjet    |      |           |
+
 General aviation aircraft use their registration as callsign, for example `DCMGB`, spoken "Delta Charlie Mike Golf Bravo"; in the US an N-number such as `N436GR`, spoken "November four three six Golf Romeo".
 
 ## Instructions

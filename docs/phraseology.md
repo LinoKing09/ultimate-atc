@@ -2,7 +2,7 @@
 
 # Phraseology reference
 
-Ultimate ATC understands controller instructions written or spoken in **ICAO phraseology** (ICAO Doc 4444 / Doc 9432 style, as used on VATSIM). This page lists everything the parser understands, what the pilots read back, and what the pilots say on their own.
+Ultimate ATC understands controller instructions written or spoken in **ICAO phraseology** (ICAO Doc 4444 / Doc 9432 style, as used on VATSIM) - and at US airports (San Diego) the **FAA** forms as well, see [FAA phraseology](#faa-phraseology-us-airports). This page lists everything the parser understands, what the pilots read back, and what the pilots say on their own.
 
 The parser lives in [`src/core/phraseology/parser.ts`](../src/core/phraseology/parser.ts). Its behaviour is covered by [`tests/parser.test.ts`](../tests/parser.test.ts).
 
@@ -13,6 +13,7 @@ The parser lives in [`src/core/phraseology/parser.ts`](../src/core/phraseology/p
 - [Pilot read-backs and replies](#pilot-read-backs-and-replies)
 - [Pilot calls](#pilot-calls)
 - [Spoken input](#spoken-input)
+- [FAA phraseology (US airports)](#faa-phraseology-us-airports)
 - [Not supported (yet)](#not-supported-yet)
 
 ---
@@ -48,7 +49,18 @@ Radiotelephony designators of the simulated operators:
 | CLH  | Hansaline   | KLM  | KLM        | TUI  | Tuijet    |
 | PGT  | Sunturk     | VLG  | Vueling    | WZZ  | Wizz Air  |
 
-General aviation aircraft use their registration as callsign, for example `DCMGB`, spoken "Delta Charlie Mike Golf Bravo".
+US operators (San Diego):
+
+| ICAO | Telephony   | ICAO | Telephony  | ICAO | Telephony |
+| ---- | ----------- | ---- | ---------- | ---- | --------- |
+| AAL  | American    | HAL  | Hawaiian   | SKW  | Skywest   |
+| ACA  | Air Canada  | JAL  | Japanair   | SWA  | Southwest |
+| ASA  | Alaska      | JBU  | Jetblue    | UAL  | United    |
+| DAL  | Delta       | MXY  | Moxy       | UPS  | UPS       |
+| FDX  | Fedex       | NKS  | Spirit Wings | WJA | Westjet  |
+| FFT  | Frontier Flight | QXE | Horizon  | SCX  | Sun Country |
+
+General aviation aircraft use their registration as callsign, for example `DCMGB`, spoken "Delta Charlie Mike Golf Bravo"; in the US an N-number such as `N436GR`, spoken "November four three six Golf Romeo".
 
 ## Instructions
 
@@ -401,6 +413,42 @@ Frequent misrecognitions are corrected before parsing:
 
 **Alternatives**: the client parses up to five recognition alternatives and transmits the one that scores best: recognised callsign, number of understood instructions, valid taxi route, no unknown words.
 
+## FAA phraseology (US airports)
+
+At US airports (`phraseology: 'faa'` in the airport data, so far San Diego KSAN) you work with the FAA forms (FAA JO 7110.65). The ICAO forms above are still understood, so mixing does no harm.
+
+| You say | Meaning |
+| ------- | ------- |
+| `runway 27, taxi via B` | Taxi to runway 27 (the runway in front is the clearance limit) |
+| `runway 9 at B8, taxi via B` | Taxi to the intersection B8 of runway 9 |
+| `push back approved, tail east` | Pushback facing west (`tail` = the opposite of `facing`) |
+| `cleared to KSFO airport, PADRZ2 departure, then as filed, climb via SID except maintain 5000, expect FL350 10 minutes after departure, departure frequency 125.15, squawk 1234` | IFR clearance; `then as filed`, `expect ...` and the departure frequency are accepted (the crew notes them) |
+| `runway 27 at B1, line up and wait` | Line up |
+| `wind 250 at 8, runway 27, cleared for takeoff` | Take-off clearance (wind in the FAA form `250 at 8`) |
+| `cross runway 27 at C6` | Crossing where the crew holds |
+| `turn left at B5` | Vacate via B5 (a landing aircraft) |
+| `contact ground point niner` | Hand-off with the abbreviated frequency |
+| `contact SoCal Departure` / `contact departure` | Hand-off to Departure (Approach) |
+| `altimeter 2992` / `altimeter 29.92`, `information K is current, altimeter 2992` | Altimeter setting in inches of mercury |
+
+**Runways** are written and said without a leading zero ("runway 9"); typing `runway 09` works too.
+
+**What the pilots say differently** (the same calls as elsewhere, in US wording):
+
+| ICAO wording | FAA wording |
+| ------------ | ----------- |
+| `Taxi to holding point B9 runway 09` | `Taxi to runway 9 at B9` |
+| `holding point B1, ready for departure` | `holding short at B1, ready` |
+| `runway 27 vacated via B5` | `clear of runway 27 at B5` |
+| `flight planned route, climb via SID to altitude 5000 feet` | `then as filed, climb via SID except maintain 5000` |
+| `request pushback` / `request push and start` | `ready to push` |
+| `QNH 1018`, `CTOT 1234` | `altimeter 3006`, `EDCT 1234` |
+| `Radar 125.150, goodbye` | `Departure 125.150, goodbye` (frequencies spoken with "point") |
+
+**No start-up approval:** after the clearance, the crew calls Delivery when ready - `stand 36, ready to push, request frequency` - and you hand it to Ground (`contact ground`), where it calls `ready to push`. Datalink clearances are called **PDC** (pre-departure clearance).
+
+**ATIS and weather:** the METAR has the US format (`METAR KSAN 251150Z 11007KT 10SM SCT030 14/10 A2983`: visibility in statute miles, `CLR` for no clouds, altimeter in inches, no trend); the ATIS starts with the weather, gives the altimeter in inches, "ILS approach runway 9 in use, departing runway 9" and ends with "Advise on initial contact you have information K". The toolbar shows `A2983` instead of the QNH.
+
 ## Not supported (yet)
 
 - Taxi via a runway (backtrack), `line up runway 25 at D` (intersection line-up by Tower), traffic information and wake turbulence cautions.
@@ -408,3 +456,4 @@ Frequent misrecognitions are corrected before parsing:
 - Expected-start-up phrases with a time (`expect start-up at 1452`); use `expect start-up in 5 minutes`.
 - Clearance amendments in parts (`climb amended ...`) - give the full clearance again.
 - Non-English phraseology (German "Rollkontrolle" phrases).
+- FAA: progressive taxi, `monitor` hand-offs without a call, and US runway designators in the flight strips and menus (they keep "09"; the toolbar, the ATIS and the pilots say "9").

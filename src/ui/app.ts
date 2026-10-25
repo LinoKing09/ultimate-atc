@@ -1,5 +1,6 @@
+import { altimeterOf } from '../core/met';
 import { otherEnd, type Airport, type TaxiNode } from '../core/airport/airport';
-import { capitalize, runwayWords } from '../core/runways';
+import { capitalize, runwayWords, usRunway } from '../core/runways';
 import type { Compass, StationType } from '../core/airport/types';
 import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
@@ -425,7 +426,7 @@ export class App {
         })
         .join(' + ') + (active.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '');
     if (this.fields.station.innerHTML !== html) this.fields.station.innerHTML = html;
-    this.fields.rwy.innerHTML = `RWY <b>${sim.runways.join(' ')}</b>`;
+    this.fields.rwy.innerHTML = `RWY <b>${sim.runways.map((r) => (sim.faa ? usRunway(r) : r)).join(' ')}</b>`;
     // A newer METAR the ATIS does not match yet: the letter in red, the differences in the tooltip.
     const diff = sim.atisDifferences;
     this.fields.atis.innerHTML = `ATIS <b${diff.length ? ' class="bad"' : ''}>${sim.atisLetter}</b>`;
@@ -439,7 +440,7 @@ export class App {
       : tail
         ? 'Tailwind above 5 kt on the runway in use - consider a runway change (click to edit the ATIS)'
         : 'Surface wind (click to edit the ATIS)';
-    this.fields.qnh.innerHTML = `Q<b>${sim.atis.qnh}</b>`;
+    this.fields.qnh.innerHTML = sim.faa ? `A<b>${altimeterOf(sim.atis.qnh)}</b>` : `Q<b>${sim.atis.qnh}</b>`;
     // With night rules, the local time is shown too (the curfew is in local time).
     this.fields.utc.innerHTML = `<b>${formatTime(sim.utc())}</b>Z${sim.config.scenario?.nightRules ? ` <b>${minutesToHhmm(sim.localMinutes())}</b>L` : ''}`;
     const s = sim.stats;
@@ -615,7 +616,7 @@ export class App {
       items.push(b);
     }
     if (mine && ac.request && !ac.requestAck) items.push(phrase('ROGER', 'roger'));
-    if (mine && ac.atisOutdated) items.push(phrase(`INFO ${this.sim.atisLetter}`, `information ${this.sim.atisLetter} is current, QNH ${this.sim.atis.qnh}`));
+    if (mine && ac.atisOutdated) items.push(phrase(`INFO ${this.sim.atisLetter}`, `information ${this.sim.atisLetter} is current, ${this.sim.pressurePhrase()}`));
     if (catcAlert(this.sim, ac)) items.push(btn('ACK', () => this.acknowledgeCatc(ac)));
     if (mine && this.sim.userTower && ac.frequency === this.sim.stationFor('tower')) {
       // Tower: the clearances of the moment as buttons.
@@ -989,7 +990,7 @@ export class App {
   private allStationsPhrases(): { label: string; short: string; phrase: string }[] {
     const sim = this.sim;
     return [
-      { label: `Information ${sim.atisLetter} is now current`, short: `INFO ${sim.atisLetter}`, phrase: `information ${sim.atisLetter} is now current, QNH ${sim.atis.qnh}` },
+      { label: `Information ${sim.atisLetter} is now current`, short: `INFO ${sim.atisLetter}`, phrase: `information ${sim.atisLetter} is now current, ${sim.pressurePhrase()}` },
       { label: `${capitalize(runwayWords(sim.runways))} in use`, short: `RWY ${sim.runways.join('/')}`, phrase: `${runwayWords(sim.runways)} in use` },
       { label: 'Standby', short: 'STBY', phrase: 'standby' },
       { label: 'Expect delays', short: 'DELAYS', phrase: 'expect delays' },
@@ -1175,7 +1176,7 @@ export class App {
     const tower = sim.airport.station(sim.stationFor('tower'));
     // The crew reported an old ATIS letter.
     if (ac.atisOutdated) {
-      items.push({ label: `Information ${sim.atisLetter} is current`, hint: `has ${ac.atisHeard}`, action: () => this.say(ac, `information ${sim.atisLetter} is current, QNH ${sim.atis.qnh}`) }, { divider: true, label: '' });
+      items.push({ label: `Information ${sim.atisLetter} is current`, hint: `has ${ac.atisHeard}`, action: () => this.say(ac, `information ${sim.atisLetter} is current, ${sim.pressurePhrase()}`) }, { divider: true, label: '' });
     }
 
     if (ac.frequency === sim.stationFor('delivery') && sim.stationFor('delivery') !== sim.stationFor('ground')) {

@@ -107,7 +107,7 @@ const KEYWORDS = new Set([
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
   'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise', 'climb', 'squawk',
   'readback', 'ctot', 'slot', 'tow', 'proceed', 'return', 'wind', 'go', 'vacate', 'abort', 'reduce', 'increase', 'maintain', 'resume', 'speed', 'no',
-  'backtrack', 'enter', 'information', 'qnh',
+  'backtrack', 'enter', 'information', 'qnh', 'altimeter',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -293,6 +293,13 @@ function readQnh(c: Cursor): number | undefined {
   c.accept('hectopascal', 'hectopascals', 'hpa');
   const q = Number(s);
   return s && q >= 900 && q <= 1100 ? q : undefined;
+}
+
+/** An altimeter setting in hundredths of an inch: "2992", "29 92", "2 9 9 2" or "29.92" (28.00-31.00). */
+function readAltimeter(c: Cursor): string | undefined {
+  let s = c.next()!.replace('.', '');
+  while (s.length < 4 && /^\d{1,2}$/.test(c.peek() ?? '')) s += c.next();
+  return /^\d{4}$/.test(s) && Number(s) >= 2800 && Number(s) <= 3100 ? s : undefined;
 }
 
 /** Reads a four-digit code (squawk, time): "2312" or "2 3 1 2". */
@@ -646,6 +653,8 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
   readCondition();
   /** "runway 25" in front of a take-off / landing clearance: "runway 25, cleared to land". */
   let pendingRunway: string | undefined;
+  /** FAA "runway 27 at B1, ...": the intersection of the runway in front of the instruction. */
+  let pendingEntry: string | undefined;
   /** "backtrack runway 24" / "enter runway 24 and backtrack": applies to the line-up / take-off / vacate of the transmission. */
   let backtrack = false;
 
@@ -656,13 +665,26 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     // Wind information in a clearance ("wind 250 degrees 8 knots") is information only.
     if (w === 'wind') {
       c.next();
-      while (!c.done() && (/^\d+$/.test(c.peek()!) || ['degrees', 'degree', 'knots', 'knot', 'calm', 'variable', 'gusting', 'gusts', 'maximum'].includes(c.peek()!))) c.next();
+      // ICAO "250 degrees 8 knots", FAA "250 at 8".
+      while (!c.done() && (/^\d+$/.test(c.peek()!) || ['degrees', 'degree', 'knots', 'knot', 'calm', 'variable', 'gusting', 'gusts', 'gust', 'maximum', 'at'].includes(c.peek()!))) c.next();
       continue;
     }
-    if (w === 'runway' && ['cleared', 'line'].includes(c.peek(2) ?? '')) {
+    // "runway 25, line up and wait", FAA "runway 27 at B1, line up and wait", "runway 27, taxi via B".
+    if (w === 'runway') {
+      const save = c.i;
       c.next();
-      pendingRunway = readRunway(c);
-      continue;
+      const r = readRunway(c);
+      let at: string | undefined;
+      if (r && c.peek() === 'at' && ctx.taxiways.has((c.peek(1) ?? '').toUpperCase())) {
+        at = c.peek(1)!.toUpperCase();
+        c.i += 2;
+      }
+      if (r && ['cleared', 'line', 'taxi'].includes(c.peek() ?? '')) {
+        pendingRunway = r;
+        pendingEntry = at;
+        continue;
+      }
+      c.i = save;
     }
     if (w === 'line' && c.peek(1) === 'up') {
       c.i += 2;
@@ -723,6 +745,12 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
         c.i += 2;
         backtrack = true;
       }
+      continue;
+    }
+    // FAA "turn left at B5" (a landing aircraft): vacate there.
+    if (w === 'turn' && (c.peek(1) === 'left' || c.peek(1) === 'right') && c.peek(2) === 'at' && ctx.taxiways.has((c.peek(3) ?? '').toUpperCase())) {
+      result.commands.push({ type: 'vacate', exit: c.peek(3)!.toUpperCase() });
+      c.i += 4;
       continue;
     }
     if (w === 'vacate') {
@@ -921,6 +949,10 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
         break;
       }
       if (turnAt >= 0) taxi.turnAround = true;
+      // FAA "runway 27, taxi via B": the runway in front is the clearance limit.
+      if (!taxi.destination && pendingRunway) {
+        taxi.destination = pendingEntry ? { kind: 'holdingPoint', name: pendingEntry, runway: pendingRunway } : { kind: 'runway', runway: pendingRunway };
+      }
       result.commands.push(taxi);
       continue;
     }
@@ -955,6 +987,8 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       c.next();
       c.accept('runway');
       const r = readRunway(c);
+      // FAA "cross runway 27 at C6": where the crew holds already.
+      if (r && c.peek() === 'at' && ctx.taxiways.has((c.peek(1) ?? '').toUpperCase())) c.i += 2;
       if (r) {
         if (taxi) taxi.cross.push(r);
         else pendingCross.push(r);
@@ -998,6 +1032,8 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
         }
       }
       c.accept('on');
+      // FAA abbreviated frequency: "contact ground point niner" (123.9).
+      if (c.peek() === 'point' && /^\d$/.test(c.peek(1) ?? '')) c.i += 2;
       const frequency = readFrequency(c);
       result.commands.push({ type: 'handoff', station, frequency });
       continue;
@@ -1053,9 +1089,33 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       const clr: Extract<Command, { type: 'clearance' }> = { type: 'clearance' };
       const dest: string[] = [];
       while (!c.done() && !CLEARANCE_STOP.has(c.peek()!) && !matchSid(c, ctx.sids, false)) dest.push(c.next()!);
+      // FAA: "cleared to the San Diego airport", "cleared to KSFO airport".
+      while (dest.length && ['airport', 'the'].includes(dest[dest.length - 1])) dest.pop();
+      if (dest[0] === 'the') dest.shift();
       if (dest.length) clr.destination = dest.join(' ');
       while (!c.done()) {
-        if (c.accept('via', 'and', 'then', 'departure', 'sid', 'initially', 'initial')) continue;
+        if (c.accept('via', 'and', 'then', 'departure', 'sid', 'initially', 'initial', 'the')) continue;
+        // FAA: "then as filed", "departure frequency 125.15" (the crew notes it), "expect FL350 10 minutes after
+        // departure".
+        if (c.peek() === 'as' && c.peek(1) === 'filed') {
+          c.i += 2;
+          continue;
+        }
+        if (c.peek() === 'frequency' && /^\d+\.\d+$/.test(c.peek(1) ?? '')) {
+          c.i += 2;
+          continue;
+        }
+        if (c.peek() === 'expect' && (/^(fl)?\d+$/.test(c.peek(1) ?? '') || c.peek(1) === 'flight' || c.peek(1) === 'fl')) {
+          c.next();
+          if (/^fl\d+$/.test(c.peek() ?? '')) c.next();
+          else readAltitude(c);
+          if (/^\d+$/.test(c.peek() ?? '') && ['minutes', 'minute'].includes(c.peek(1) ?? '')) {
+            c.i += 2;
+            c.accept('after');
+            c.accept('departure');
+          }
+          continue;
+        }
         // German style: "..., flight planned route, climb via SID to altitude 5000 feet, ...".
         if (c.peek() === 'flight' && c.peek(1) === 'planned' && c.peek(2) === 'route') {
           c.i += 3;
@@ -1063,6 +1123,9 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
         }
         if (c.peek() === 'climb' && c.peek(1) === 'via' && c.peek(2) === 'sid') {
           c.i += 3;
+          // FAA: "climb via SID except maintain 5000".
+          c.accept('except');
+          c.accept('maintain');
           c.accept('to');
           c.accept('altitude');
           clr.climb = readAltitude(c);
@@ -1117,11 +1180,15 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       c.accept('current');
       c.accept('and');
       let qnh: number | undefined;
+      let altimeter: string | undefined;
       if (c.peek() === 'qnh' && /^\d+$/.test(c.peek(1) ?? '')) {
         c.next();
         qnh = readQnh(c);
+      } else if (c.peek() === 'altimeter' && /^\d+(\.\d+)?$/.test(c.peek(1) ?? '')) {
+        c.next();
+        altimeter = readAltimeter(c);
       }
-      result.commands.push({ type: 'information', letter, qnh });
+      result.commands.push({ type: 'information', letter, qnh, ...(altimeter ? { altimeter } : {}) });
       continue;
     }
     if (w === 'qnh' && /^\d+$/.test(c.peek(1) ?? '')) {
@@ -1129,6 +1196,14 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       const qnh = readQnh(c);
       if (qnh) result.commands.push({ type: 'qnh', qnh });
       else result.unparsed.push('qnh');
+      continue;
+    }
+    // FAA: "altimeter 2992" (inches of mercury).
+    if (w === 'altimeter' && /^\d+(\.\d+)?$/.test(c.peek(1) ?? '')) {
+      c.next();
+      const altimeter = readAltimeter(c);
+      if (altimeter) result.commands.push({ type: 'qnh', qnh: Math.round(Number(altimeter) / 2.953), altimeter });
+      else result.unparsed.push('altimeter');
       continue;
     }
     if (w === 'readback' || (w === 'read' && c.peek(1) === 'back')) {

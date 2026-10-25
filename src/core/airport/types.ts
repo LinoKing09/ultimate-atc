@@ -87,6 +87,8 @@ export interface AirportData {
    * below `minWingspanM` use them only for short links (their cost counts several times).
    */
   largeAircraftTaxiways?: { taxiways: string[]; minWingspanM: number };
+  /** Phraseology of the region: 'icao' (default, Europe) or 'faa' (United States: "runway 27, taxi via B", altimeter in inches). */
+  phraseology?: 'icao' | 'faa';
   /** Night flying restrictions (applied in scenarios with night rules, see core/night.ts). */
   nightRestrictions?: NightRestrictions;
   /**

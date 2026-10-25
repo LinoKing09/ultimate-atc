@@ -16,6 +16,8 @@ export interface Airline {
   callsignStyle: 'alnum' | 'numeric' | 'reg';
   /** A cargo airline: parks on the cargo stands first. */
   cargo?: boolean;
+  /** Registrations (callsign style 'reg'): 'D' German (D-CABC, default), 'N' United States (N512AB). */
+  regPrefix?: 'D' | 'N';
 }
 
 export const AIRLINES: Airline[] = [
@@ -50,6 +52,24 @@ export const AIRLINES: Airline[] = [
   { icao: 'PAC', telephony: 'Polar', types: ['B77L', 'B744'], destinations: ['KCVG', 'VHHH'], weight: 1, callsignStyle: 'numeric', cargo: true },
   { icao: 'MNB', telephony: 'Black Sea', types: ['A332'], destinations: ['LTFM', 'OBBI'], weight: 1, callsignStyle: 'numeric', cargo: true },
   { icao: 'SRR', telephony: 'Whitestar', types: ['B763'], destinations: ['EKCH', 'ESSA', 'EGNX'], weight: 1, callsignStyle: 'numeric', cargo: true },
+  // United States and Canada (San Diego).
+  { icao: 'SWA', telephony: 'Southwest', types: ['B737', 'B738', 'B38M'], destinations: ['KOAK', 'KSJC', 'KSMF', 'KLAS', 'KPHX', 'KDEN'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'ASA', telephony: 'Alaska', types: ['B738', 'B739', 'B39M'], destinations: ['KSEA', 'KPDX', 'KSFO', 'PHNL'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'QXE', telephony: 'Horizon', types: ['E75L'], destinations: ['KSEA', 'KPDX', 'KBOI'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'AAL', telephony: 'American', types: ['A321', 'B738'], destinations: ['KDFW', 'KPHX', 'KCLT', 'KORD'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'DAL', telephony: 'Delta', types: ['A321', 'B739', 'A20N'], destinations: ['KATL', 'KSLC', 'KMSP', 'KJFK', 'KSEA'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'UAL', telephony: 'United', types: ['B738', 'B739', 'A320'], destinations: ['KSFO', 'KDEN', 'KIAH', 'KORD', 'KEWR'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'SKW', telephony: 'Skywest', types: ['E75L', 'CRJ9'], destinations: ['KSFO', 'KDEN', 'KSLC', 'KLAX'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'NKS', telephony: 'Spirit Wings', types: ['A320', 'A20N', 'A21N'], destinations: ['KLAS', 'KDTW', 'KFLL'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'JBU', telephony: 'Jetblue', types: ['A320', 'A21N'], destinations: ['KJFK', 'KBOS'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'FFT', telephony: 'Frontier Flight', types: ['A20N', 'A21N'], destinations: ['KDEN', 'KLAS'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'SCX', telephony: 'Sun Country', types: ['B738'], destinations: ['KMSP'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'MXY', telephony: 'Moxy', types: ['A20N'], destinations: ['KPVU', 'KSJC'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'HAL', telephony: 'Hawaiian', types: ['A21N', 'A332'], destinations: ['PHNL', 'PHOG'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'ACA', telephony: 'Air Canada', types: ['A320', 'B38M'], destinations: ['CYVR', 'CYYZ'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'WJA', telephony: 'Westjet', types: ['B738', 'B38M'], destinations: ['CYYC', 'CYVR'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'JAL', telephony: 'Japanair', types: ['B788'], destinations: ['RJAA'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'NGA', telephony: '', types: ['C56X', 'CL35'], destinations: ['KLAS', 'KSJC', 'KSDL', 'KVNY', 'KTEB'], weight: 1, callsignStyle: 'reg', regPrefix: 'N' },
   { icao: 'DCX', telephony: '', types: ['C56X', 'CL35'], destinations: ['EDDB', 'LFMN', 'LSGG', 'EGLF', 'LIML'], weight: 1, callsignStyle: 'reg' },
 ];
 

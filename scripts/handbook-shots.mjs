@@ -168,7 +168,7 @@ const pause = (page) => page.evaluate(() => window.atc.app.togglePause?.());
 }
 
 // Every airport, as the session starts (Tower at Sylt, Ground elsewhere).
-for (const [airport, position] of [['EDDS', 'GND'], ['EDDK', 'GND'], ['EDDN', 'GND'], ['EDDP', 'GND'], ['EDDW', 'GND'], ['EDJA', 'GND'], ['EDXW', 'TWR']]) {
+for (const [airport, position] of [['EDDS', 'GND'], ['EDDK', 'GND'], ['EDDN', 'GND'], ['EDDP', 'GND'], ['EDDW', 'GND'], ['EDJA', 'GND'], ['EDXW', 'TWR'], ['KSAN', 'GND']]) {
   const page = await session({ airport, position, secs: 600, style: 'phx-day' });
   await pause(page);
   await page.evaluate(() => {

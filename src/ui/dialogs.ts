@@ -196,7 +196,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
         'div.dbody',
         {},
         h('h1', { text: 'ULTIMATE ATC' }),
-        h('div.sub', { text: 'Air traffic control simulator - EuroScope style, ICAO phraseology.' }),
+        h('div.sub', { text: 'Air traffic control simulator - EuroScope style, ICAO phraseology (FAA at US airports).' }),
         h(
           'div.grid',
           {},
@@ -327,6 +327,17 @@ const REFERENCE: [string, string][] = [
   ['Aircraft menu: Resolve conflict with ...', 'Two aircraft face each other on a taxiway (A-SMGCS CATC alert: flashing red while both roll towards each other): turn one off via a junction, send it to another entry (departure) or a free stand nearby (arrival), or turn it around (a tug for an airliner, several minutes).'],
 ];
 
+/** FAA forms (US airports, San Diego). */
+const FAA_REFERENCE: [string, string][] = [
+  ['runway 27, taxi via B', 'Taxi to the runway (the runway in front is the clearance limit); "runway 9 at B8, taxi via B" to an intersection.'],
+  ['push back approved, tail east', 'Pushback facing west ("tail" = the opposite of "facing"). There is no start-up approval: crews call Delivery "ready to push, request frequency", then Ground "ready to push".'],
+  ['cleared to KSFO airport, PADRZ2 departure, then as filed, climb via SID except maintain 5000, departure frequency 125.15, squawk 1234', 'IFR clearance; "then as filed", "expect FL350 10 minutes after departure" and the departure frequency are accepted. Datalink clearances are PDC.'],
+  ['runway 27 at B1, line up and wait / wind 250 at 8, runway 27, cleared for takeoff', 'Tower; runways without a leading zero ("runway 9").'],
+  ['turn left at B5 / cross runway 27 at C6', 'Vacate via B5; crossing where the crew holds.'],
+  ['contact ground point niner / contact SoCal Departure', 'Hand-offs: abbreviated frequency, Departure.'],
+  ['altimeter 2992 / information K is current, altimeter 2992', 'Altimeter setting in inches (toolbar A2992); the METAR and ATIS are in US format.'],
+];
+
 const KEYS: [string, string][] = [
   ['Enter', 'Transmit the command line'],
   ['Esc', 'Clear the command line / deselect / close menus'],
@@ -388,6 +399,13 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
           h('table.ref', {}, ...TOWER_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
           h('h2', { text: 'Delivery' }),
           h('table.ref', {}, ...DELIVERY_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
+          ...(sim.faa
+            ? [
+                h('h2', { text: 'FAA phraseology (US)' }),
+                h('p', { text: 'At this airport the FAA forms apply too, and the pilots answer in US wording ("clear of runway 27 at B5", "holding short at B1, ready", "then as filed").' }),
+                h('table.ref', {}, ...FAA_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
+              ]
+            : []),
           h('h2', { text: 'Vehicles' }),
           h('table.ref', {}, ...VEHICLE_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
           h('p', { text: 'Radio discipline: after an instruction nobody else calls until the addressed station has read back.' }),
@@ -513,7 +531,7 @@ export function showAtisEditor(sim: Simulation): void {
         spd,
         h('label', { text: 'Gusts (kt)' }),
         gust,
-        h('label', { text: 'QNH (hPa)' }),
+        h('label', { text: sim.faa ? 'QNH (hPa; broadcast as altimeter in inches)' : 'QNH (hPa)' }),
         qnh,
       ),
       comps,

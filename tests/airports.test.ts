@@ -17,7 +17,7 @@ describe('airport data', () => {
       const ops = new Set((ap.traffic?.operators ?? []).map((o) => o.airline));
       if (ops.size) {
         for (const a of sim.aircraft) {
-          const known = [...ops].some((op) => a.callsign.startsWith(op)) || /^D[A-Z]{4}$/.test(a.callsign);
+          const known = [...ops].some((op) => a.callsign.startsWith(op)) || /^D[A-Z]{4}$/.test(a.callsign) || /^N\d{3}[A-Z]{2}$/.test(a.callsign);
           expect(known, a.callsign).toBe(true);
         }
       }

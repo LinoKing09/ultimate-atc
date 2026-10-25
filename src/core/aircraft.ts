@@ -114,6 +114,8 @@ export interface Aircraft {
   pendingTaxi?: Extract<Command, { type: 'taxi' }>;
   /** Runways the aircraft is cleared to cross on its current route. */
   clearedToCross: Set<string>;
+  /** When the last runway crossing clearance was read back (the AI Tower keeps the runway free for it). */
+  crossClearedAt?: number;
   holdPosition: boolean;
   giveWayTo?: string;
   giveWaySince?: number;

@@ -64,7 +64,7 @@ export function toSpoken(text: string): string {
       }
       if (/^(?=.*\d)[0-9A-Z]{1,5}$/.test(tok)) return spell(tok);
       if (/^[A-Z]$/.test(tok)) return PHONETIC[tok];
-      if (/^D[A-Z]{4}$/.test(tok)) return spell(tok);
+      if (/^D[A-Z]{4}$/.test(tok) || /^N\d{1,5}[A-Z]{0,2}$/.test(tok)) return spell(tok);
       return tok;
     })
     .join('');

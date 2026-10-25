@@ -47,7 +47,16 @@ export class Frequency {
   constructor(
     readonly frequency: string,
     private readonly emit: (m: RadioMessage) => void,
+    /** Wording of the pilots' transmissions (FAA style at US airports). */
+    private readonly pilotStyle: (text: string) => string = (t) => t,
+    /** US radio: frequencies with "point" instead of "decimal". */
+    private readonly usSpeech = false,
   ) {}
+
+  private spoken(text: string): string {
+    const s = toSpoken(text);
+    return this.usSpeech ? s.replace(/\bdecimal\b/g, 'point') : s;
+  }
 
   /** Approximate airtime of a message in seconds. */
   static duration(text: string): number {
@@ -72,7 +81,7 @@ export class Frequency {
       from: 'ATC',
       callsign,
       text,
-      spoken: toSpoken(text),
+      spoken: this.spoken(text),
       frequency: this.frequency,
     };
     this.busyUntil = Math.max(this.busyUntil, now) + Frequency.duration(text);
@@ -137,18 +146,19 @@ export class Frequency {
     const q = ready[0];
     this.queue.splice(this.queue.indexOf(q), 1);
     if (this.reserved?.callsign === q.callsign) this.reserved = undefined;
+    const text = this.pilotStyle(q.text);
     const m: RadioMessage = {
       id: this.nextId++,
       time: now,
       kind: 'pilot',
       from: q.callsign,
       callsign: q.callsign,
-      text: q.text,
-      spoken: toSpoken(q.text),
+      text,
+      spoken: this.spoken(text),
       frequency: this.frequency,
     };
     // small gap between transmissions
-    this.busyUntil = now + Frequency.duration(q.text) + 0.6;
+    this.busyUntil = now + Frequency.duration(text) + 0.6;
     q.onTransmit?.();
     this.emit(m);
   }

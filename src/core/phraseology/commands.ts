@@ -54,9 +54,9 @@ export type Command =
   /** Transponder code: "squawk 2312". */
   | { type: 'squawk'; code: string }
   /** "Information K is current[, QNH 1018]": corrects a crew that reported an old ATIS letter. */
-  | { type: 'information'; letter: string; qnh?: number }
-  /** "QNH 1018". */
-  | { type: 'qnh'; qnh: number }
+  | { type: 'information'; letter: string; qnh?: number; altimeter?: string }
+  /** "QNH 1018"; FAA "altimeter 2992" (`altimeter` in hundredths of an inch, `qnh` the hectopascals). */
+  | { type: 'qnh'; qnh: number; altimeter?: string }
   /** "Readback correct" after an IFR clearance. */
   | { type: 'readbackCorrect' }
   /** Calculated take-off time (ATFM slot): "CTOT 1435" / "slot time 1435". */

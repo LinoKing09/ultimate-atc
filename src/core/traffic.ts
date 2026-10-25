@@ -63,7 +63,9 @@ export class TrafficGenerator {
     // Airports without wide-body operators (Sylt) get their normal traffic.
     if (share > 0 && rng.chance(share) && this.operators.some(heavy)) {
       const airline = this.pickAirline(heavy);
-      return { airline, type: aircraftType(rng.pick(airline.types.filter((t) => aircraftType(t).wake === 'H'))) };
+      const type = aircraftType(rng.pick(airline.types.filter((t) => aircraftType(t).wake === 'H')));
+      // Only while a stand for it is free (a few wide-body stands, as at San Diego); else the normal traffic.
+      if (this.sim.freeStands(type.wingspanM).length) return { airline, type };
     }
     const airline = this.pickAirline();
     return { airline, type: aircraftType(rng.pick(airline.types)) };
@@ -262,7 +264,9 @@ export class TrafficGenerator {
       let cs: string;
       if (airline.callsignStyle === 'reg') {
         const L = () => String.fromCharCode(65 + rng.int(0, 25));
-        cs = `DC${L()}${L()}${L()}`;
+        // US registrations: N, three digits and two letters (no I or O).
+        const N = () => 'ABCDEFGHJKLMNPQRSTUVWXYZ'[rng.int(0, 23)];
+        cs = airline.regPrefix === 'N' ? `N${rng.int(1, 9)}${rng.int(0, 9)}${rng.int(0, 9)}${N()}${N()}` : `DC${L()}${L()}${L()}`;
       } else if (airline.callsignStyle === 'numeric') {
         cs = `${airline.icao}${rng.int(1, 9)}${rng.int(0, 9)}${rng.chance(0.6) ? rng.int(0, 9) : ''}${rng.chance(0.3) ? rng.int(0, 9) : ''}`;
       } else {

@@ -13,6 +13,11 @@ export function runwayWords(ends: string[]): string {
   return `runways ${ends.slice(0, -1).join(', ')} and ${ends[ends.length - 1]}`;
 }
 
+/** A runway designator the US way, without a leading zero: "09" -> "9", "09/27" -> "9/27". */
+export function usRunway(name: string): string {
+  return name.replace(/(^|\/)0(\d)/g, '$1$2');
+}
+
 /** First letter upper case. */
 export function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);

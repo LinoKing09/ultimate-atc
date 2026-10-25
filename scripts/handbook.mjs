@@ -24,7 +24,7 @@ const shots = JSON.parse(readFileSync(join(docs, 'images/handbook/shots.json'), 
  * The chapters in book order. `drop` removes sections (by heading text) that are for developers only, `figures`
  * puts a screenshot below a heading, `replace` swaps an image of the online docs for a handbook figure.
  */
-const airports = ['EDDS', 'EDDK', 'EDDN', 'EDDP', 'EDDW', 'EDJA', 'EDXW'];
+const airports = ['EDDS', 'EDDK', 'EDDN', 'EDDP', 'EDDW', 'EDJA', 'EDXW', 'KSAN'];
 const chapters = [
   { part: 'Playing', file: 'getting-started.md', drop: ['Tests', 'Deploying to GitHub Pages'] },
   {

@@ -1,3 +1,4 @@
+import { faaStyle } from './phraseology/faa';
 import type { Aircraft } from './aircraft';
 import type { AirportData, SidData } from './airport/types';
 import { destinationBearing, destinationName, resolveDestination } from '../data/destinations';
@@ -260,8 +261,10 @@ export function sendDcl(sim: Simulation, ac: Aircraft, sidName: string, squawk: 
     sim.recordAnswer(ac);
     ac.request = null;
   }
+  const text = `DCL to ${ac.callsign}: cleared to ${destinationName(ac.flightPlan.destination)}, ${sid.name} departure, flight planned route, ${formatSidClimb(initialClimb(sim))}, squawk ${squawk}${ac.ctot ? `, CTOT ${hhmm(sim, ac.ctot)}` : ''} - WILCO.`;
   sim.system(
-    `DCL to ${ac.callsign}: cleared to ${destinationName(ac.flightPlan.destination)}, ${sid.name} departure, flight planned route, ${formatSidClimb(initialClimb(sim))}, squawk ${squawk}${ac.ctot ? `, CTOT ${hhmm(sim, ac.ctot)}` : ''} - WILCO.`,
+    // US: pre-departure clearance (PDC), in FAA wording.
+    sim.faa ? faaStyle(text).replace(/^DCL/, 'PDC') : text,
     'system',
     ac.callsign,
   );

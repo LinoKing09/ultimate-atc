@@ -1237,6 +1237,7 @@ function execCross(sim: Simulation, ac: Aircraft, runway: string): ExecResult {
   const onRoute = ac.stoppedAt?.kind === 'runway' || ac.stops.some((s) => s.kind === 'runway' && s.target === name);
   if (!onRoute) return { unable: `confirm cross runway ${runway}, it is not on our route` };
   ac.clearedToCross.add(name);
+  ac.crossClearedAt = sim.time;
   ac.stops = ac.stops.filter((s) => !(s.kind === 'runway' && s.target === name));
   if (ac.stoppedAt?.kind === 'runway' && ac.stoppedAt.target === name) ac.stoppedAt = undefined;
   // Crossing on Tower frequency: the crew reports the runway vacated afterwards.
@@ -1631,6 +1632,11 @@ function deliveryCall(sim: Simulation, ac: Aircraft, stationName: string, tel: s
     }
     const st = sim.airport.stand(ac.stand ?? '');
     call(sim, ac, 'clearance', `${stationName}, ${tel}, ${ac.type.icao}, stand ${st?.id ?? ''}, information ${sim.atisLetterOf(ac)}, request clearance to ${destinationName(ac.flightPlan.destination)}`);
+    return;
+  }
+  // FAA: no start-up approval - when ready, the crew asks Delivery for the Ground frequency to push back.
+  if (sim.faa && !ac.startupApproved) {
+    if (now >= startupDue(sim, ac) && now - ac.lastCallAt > 20) call(sim, ac, 'frequency', `${stationName}, ${tel}, stand ${ac.stand ?? ''}, ready to push, request frequency`);
     return;
   }
   if (!ac.startupApproved) {

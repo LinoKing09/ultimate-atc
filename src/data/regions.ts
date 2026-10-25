@@ -96,7 +96,6 @@ export const PLANNED_AIRPORTS: { icao: string; name: string; fir: string }[] = [
   { icao: 'EDDF', name: 'Frankfurt', fir: 'EDGG' },
   { icao: 'EGLL', name: 'London Heathrow', fir: 'EGTT' },
   { icao: 'KLAX', name: 'Los Angeles', fir: 'KZLA' },
-  { icao: 'KSAN', name: 'San Diego', fir: 'KZLA' },
   { icao: 'KASE', name: 'Aspen', fir: 'KZDV' },
   { icao: 'KJAC', name: 'Jackson Hole', fir: 'KZLC' },
   { icao: 'KEYW', name: 'Key West', fir: 'KZMA' },

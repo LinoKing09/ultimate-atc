@@ -2,10 +2,11 @@ import { Airport, type Stand } from './airport/airport';
 import type { AirportData, ParallelRunwayData, StationData, StationType } from './airport/types';
 import type { AircraftType } from '../data/aircraftTypes';
 import { telephony, type Aircraft } from './aircraft';
-import { M_PER_NM, distance } from './geo';
+import { M_PER_NM, distance, projectOnSegment } from './geo';
 import { detectCollisions, updateMovement, updateSeparation } from './movement';
 import { createVehicles, executeVehicleTransmission, updateVehicles, type Vehicle } from './vehicles';
 import { parseTransmission } from './phraseology/parser';
+import { faaStyle } from './phraseology/faa';
 import { earliestIntersection, executeTransmission, updatePilot } from './pilot';
 import { Frequency, type MessageKind, type RadioMessage } from './radio';
 import { updateConflictAlerts, updateRunwayAlerts } from './conflicts';
@@ -22,9 +23,9 @@ import { EVENT_LEVELS, clampLevel, type Density } from './levels';
 import { updateNight } from './night';
 import { deicingActive } from './deicing';
 import { utcOffsetMinutes } from './time';
-import { atisDifferences, datisMet, initialMet, metWords, temperatureWords, trendWords, updateMet, updateWind, type Metar, type MetState } from './met';
+import { altimeterOf, atisDifferences, datisMet, initialMet, metWords, temperatureWords, trendWords, updateMet, updateWind, type Metar, type MetState } from './met';
 import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
-import { capitalize, defaultRunwayKey, runwayEndsOf, runwayWords } from './runways';
+import { capitalize, defaultRunwayKey, runwayEndsOf, runwayWords, usRunway } from './runways';
 
 export type { Density } from './levels';
 
@@ -306,7 +307,7 @@ export class Simulation {
     for (const t of config.scenario?.closedTaxiways ?? []) {
       if (this.airport.taxiwayNames.has(t.toUpperCase())) this.airport.closedTaxiways.add(t.toUpperCase());
     }
-    this.frequency = new Frequency(station.frequency, (m) => this.pushMessage(m));
+    this.frequency = new Frequency(station.frequency, (m) => this.pushMessage(m), config.airport.phraseology === 'faa' ? faaStyle : undefined, config.airport.phraseology === 'faa');
     this.tower = new TowerAI(this);
     this.traffic = new TrafficGenerator(this);
 
@@ -665,7 +666,7 @@ export class Simulation {
     if (!ac.atisOutdated) return;
     ac.atisOutdated = false;
     this.stats.atisNotCorrected++;
-    this.system(`${ac.callsign} left your frequency with information ${ac.atisHeard} - information ${this.atis.letter} is current. Tell crews with an old letter "information ${this.atis.letter} is current, QNH ${this.atis.qnh}".`, 'warning', ac.callsign);
+    this.system(`${ac.callsign} left your frequency with information ${ac.atisHeard} - information ${this.atis.letter} is current. Tell crews with an old letter "information ${this.atis.letter} is current, ${this.pressurePhrase()}".`, 'warning', ac.callsign);
     this.updateScore();
   }
 
@@ -799,6 +800,21 @@ export class Simulation {
     return t === 'ILS' ? 'ILS' : t === 'LOC' ? 'LOC' : 'RNP';
   }
 
+  /** The airport uses FAA phraseology (US): runways without a leading zero, altimeter in inches, US ATIS. */
+  get faa(): boolean {
+    return this.config.airport.phraseology === 'faa';
+  }
+
+  /** "QNH 1018", at FAA airports "altimeter 3006" (default: the ATIS value). */
+  pressurePhrase(qnh = this.atis.qnh): string {
+    return this.faa ? `altimeter ${altimeterOf(qnh)}` : `QNH ${qnh}`;
+  }
+
+  /** Name of the ATIS station ("San Diego International"), else the first word of the controller station. */
+  private atisStation(): string {
+    return this.config.airport.stations.find((s) => s.type === 'ATIS')?.name ?? this.station.name.split(' ')[0];
+  }
+
   /** Navigation aids out of service, as text ("ILS RWY 25 U/S") and spoken ("ILS runway 25 out of service"). */
   private navaidNotice(ends: string[]): { text: string; spoken: string } | undefined {
     const ils = ends.filter((e) => this.hasIls(e));
@@ -822,6 +838,17 @@ export class Simulation {
     const notices = this.atisNotices(ends).map((n) => `, ${n.spoken}`).join('');
     const m = info.metar;
     const L = info.letter;
+    if (this.faa) {
+      // FAA ATIS (JO 7110.65 2-9-3): weather first, altimeter in inches, runways without a leading zero.
+      const us = ends.map(usRunway);
+      return (
+        `${this.atisStation()} information ${L}, ${m.time.slice(2)} Zulu. ` +
+        `Wind ${windWords(info.wind)}, ${metWords(m, true)}, ${temperatureWords(m)}, altimeter ${altimeterOf(info.qnh)}. ` +
+        `${capitalize(this.approachesText(ends).replace(/\b0(\d)/g, '$1'))} in use, departing ${runwayWords(us)}` +
+        `${navaids ? `, ${navaids.spoken}` : ''}${notices}. ` +
+        `Advise on initial contact you have information ${L}.`
+      );
+    }
     return (
       `${this.station.name.split(' ')[0]} information ${L}, time ${m.time.slice(2)}. ` +
       `Expect ${this.approachesText(ends)}${navaids ? `, ${navaids.spoken}` : ''}${parallel}, ${inUse}${notices}. ` +
@@ -842,6 +869,17 @@ export class Simulation {
     const kind = mode === 'independent' || mode === 'dependent' ? `${mode.toUpperCase()} ` : '';
     const approach = types.size > 1 ? ends.map((e) => `${this.approachAbbr(e)} APCH RWY ${e}`).join(', ') : `${kind}${[...types][0]} APCH`;
     const m = info.metar;
+    if (this.faa) {
+      const us = ends.map(usRunway).join(' AND ');
+      return [
+        `${this.config.airport.icao} ATIS INFO ${info.letter} ${m.time.slice(2)}Z`,
+        datisMet(m, info.wind, info.qnh, true),
+        `${[...types].join(', ')} APCH RWY ${us} IN USE. DEPG RWY ${us}`,
+        ...(this.navaidNotice(ends) ? [this.navaidNotice(ends)!.text] : []),
+        ...this.atisNotices(ends).map((n) => n.text),
+        `ADVS YOU HAVE INFO ${info.letter}`,
+      ];
+    }
     return [
       `ATIS ${this.config.airport.icao} ${info.letter} ${m.time.slice(2)}`,
       `EXPECT ${approach}`,
@@ -1141,6 +1179,8 @@ export class Simulation {
       const span = occ.type.wingspanM;
       const clearance = Math.max(span, wingspanM) >= CODE_D_WINGSPAN ? STAND_CLEARANCE_D : STAND_CLEARANCE_C;
       if (d < (span + wingspanM) / 2 + clearance) return { aircraft: occ, stand: other };
+      // Fanned lead-in lines (one stand behind another): the way in passes the parked neighbour.
+      if (projectOnSegment(occ.pos, stand.lane.pos, stand.pos).dist < Math.max(span, wingspanM) / 2 + clearance) return { aircraft: occ, stand: other };
     }
     return undefined;
   }

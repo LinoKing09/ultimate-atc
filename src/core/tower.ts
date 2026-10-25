@@ -64,6 +64,10 @@ interface DepartureRecord {
 
 /** A landing aircraft waiting this long (s) on the runway for its blocked exit takes another one. */
 const EXIT_BLOCKED_S = 15;
+/** An aircraft waiting this long (s) to cross a runway gets the next gap before the departures (AI Tower). */
+const CROSSING_PRIORITY_S = 120;
+/** For this long (s) after a crossing clearance, until the aircraft is on the runway, no departure lines up. */
+const CROSSING_CLEARED_S = 30;
 
 /** Stands (nearest first) an exit is checked against when the arrival has none assigned. */
 const ONWARD_STANDS = 4;
@@ -237,7 +241,8 @@ export class TowerAI {
     if (!active) return true;
     const end = this.endFor(active);
     // Nor while a departure on it is cleared for take-off or line-up and not yet airborne.
-    const cleared = this.sim.aircraft.some((a) => a.onGround && (a.takeoffCleared || a.lineUpCleared) && this.sim.airport.runwayNameFor(a.runway ?? '') === runway);
+    // (Also one the AI Tower is lining up: phase 'lineup' without the clearance flag.)
+    const cleared = this.sim.aircraft.some((a) => a.onGround && (a.takeoffCleared || a.lineUpCleared || a.phase === 'lineup') && this.sim.airport.runwayNameFor(a.runway ?? '') === runway);
     return !cleared && !this.runwayBusy(undefined, end) && this.nextArrivalEta(end) > 90;
   }
 
@@ -756,7 +761,18 @@ export class TowerAI {
         .filter((a) => departureAllowed(sim, a, sim.time + 35 + this.rollTime(a)))
         .sort((a, b) => (a.holdingSince ?? 0) - (b.holdingSince ?? 0));
       const next = queue[0];
-      if (next && this.canLineUp(next)) this.lineUp(next);
+      // An aircraft that has waited long to cross this runway goes first (the next gap is kept for it).
+      // So does one being cleared to cross right now (its read-back pending) or just cleared (it may not have
+      // entered the runway yet).
+      const crossingWaits = sim.aircraft.some(
+        (a) =>
+          (a.stoppedAt?.kind === 'runway' &&
+            a.stoppedAt.target === end.runway &&
+            a.request === 'crossing' &&
+            (sim.time - a.requestSince > CROSSING_PRIORITY_S || sim.frequency.awaitingReplyFrom(sim.time) === a.callsign)) ||
+          (a.onGround && a.clearedToCross.has(end.runway) && a.crossClearedAt !== undefined && sim.time - a.crossClearedAt < CROSSING_CLEARED_S && !this.isInRunwayArea(a.pos)),
+      );
+      if (next && !crossingWaits && this.canLineUp(next)) this.lineUp(next);
     }
   }
 

@@ -296,14 +296,15 @@ export function atisDifferences(sim: Simulation): string[] {
   const m = sim.met.metar;
   const a = sim.atis;
   const out: string[] = [];
-  if (m.qnh !== a.qnh) out.push(`QNH ${m.qnh}`);
+  const faa = sim.config.airport.phraseology === 'faa';
+  if (m.qnh !== a.qnh) out.push(faa ? `altimeter ${altimeterOf(m.qnh)}` : `QNH ${m.qnh}`);
   const w = m.wind;
   const dirDiff = Math.abs(((w.direction - a.wind.direction + 540) % 360) - 180);
   if ((dirDiff >= 30 && Math.max(w.speedKt, a.wind.speedKt) >= 10) || Math.abs(w.speedKt - a.wind.speedKt) >= 5 || Math.abs((w.gustKt ?? 0) - (a.wind.gustKt ?? 0)) >= 10) {
     out.push(`wind ${metarWind(w)}`);
   }
   const old = a.metar;
-  if ((m.visibilityM < 5000) !== (old.visibilityM < 5000) || Math.abs(m.visibilityM - old.visibilityM) >= 3000) out.push(`visibility ${visibilityText(m.visibilityM)}`);
+  if ((m.visibilityM < 5000) !== (old.visibilityM < 5000) || Math.abs(m.visibilityM - old.visibilityM) >= 3000) out.push(`visibility ${faa ? visibilitySm(m.visibilityM) : visibilityText(m.visibilityM)}`);
   if (m.weather.join(' ') !== old.weather.join(' ')) out.push(m.weather.length ? m.weather.join(' ') : 'no weather');
   const c = ceiling(m);
   const co = ceiling(old);
@@ -335,8 +336,33 @@ function cloudGroups(m: Metar): string {
 
 const tempGroup = (t: number) => (t < 0 ? `M${String(-t).padStart(2, '0')}` : String(t).padStart(2, '0'));
 
-/** "METAR EDDS 221220Z 25008KT 9999 FEW035 12/06 Q1018 NOSIG". */
+/** Altimeter setting in hundredths of an inch of mercury: 1013 hPa -> "2991". */
+export function altimeterOf(qnhHpa: number): string {
+  return String(Math.round(qnhHpa * 2.953)).padStart(4, '0');
+}
+
+/** US visibility in statute miles: "10SM", "3SM", "1/2SM". */
+function visibilitySm(m: number): string {
+  if (m >= 9999) return '10SM';
+  const sm = m / 1609;
+  if (sm >= 1) return `${Math.round(sm)}SM`;
+  return sm >= 0.6 ? '3/4SM' : sm >= 0.4 ? '1/2SM' : '1/4SM';
+}
+
+/** US METAR / ATIS met groups: visibility in statute miles, "CLR" for no clouds, no CAVOK. */
+function usMiddle(m: Metar): string {
+  const clouds = m.clouds.length ? cloudGroups(m) : 'CLR';
+  return [visibilitySm(m.visibilityM), ...m.weather, clouds].join(' ');
+}
+
+/**
+ * "METAR EDDS 221220Z 25008KT 9999 FEW035 12/06 Q1018 NOSIG"; at FAA airports "METAR KSAN 221220Z 25008KT 10SM
+ * FEW035 12/06 A3006" (altimeter in inches, no trend).
+ */
 export function formatMetar(sim: Simulation, m: Metar): string {
+  if (sim.config.airport.phraseology === 'faa') {
+    return `${m.speci ? 'SPECI' : 'METAR'} ${sim.config.airport.icao} ${m.time}Z ${metarWind(m.wind)} ${usMiddle(m)} ${tempGroup(m.tempC)}/${tempGroup(m.dewC)} A${altimeterOf(m.qnh)}`;
+  }
   return `${m.speci ? 'SPECI' : 'METAR'} ${sim.config.airport.icao} ${m.time}Z ${metarWind(m.wind)} ${metMiddle(m)} ${tempGroup(m.tempC)}/${tempGroup(m.dewC)} Q${m.qnh} ${m.trend}`;
 }
 
@@ -346,8 +372,9 @@ function metMiddle(m: Metar): string {
   return [visibilityText(m.visibilityM), ...m.weather, cloudGroups(m)].join(' ');
 }
 
-/** The met line of the D-ATIS text: "25008KT 9999 FEW035 T12 DP06 QNH1018" (wind and QNH of the ATIS). */
-export function datisMet(m: Metar, wind: Wind, qnh: number): string {
+/** The met line of the D-ATIS text: "25008KT 9999 FEW035 T12 DP06 QNH1018" (wind and QNH of the ATIS); FAA: "... 10SM CLR 12/06 A3006". */
+export function datisMet(m: Metar, wind: Wind, qnh: number, faa = false): string {
+  if (faa) return `${metarWind(wind)} ${usMiddle(m)} ${tempGroup(m.tempC)}/${tempGroup(m.dewC)} A${altimeterOf(qnh)}`;
   return `${metarWind(wind)} ${metMiddle(m)} T${tempGroup(m.tempC)} DP${tempGroup(m.dewC)} QNH${qnh}`;
 }
 
@@ -357,8 +384,14 @@ const WEATHER_WORDS: Record<string, string> = {
 };
 const COVER_WORDS: Record<CloudCover, string> = { FEW: 'few', SCT: 'scattered', BKN: 'broken', OVC: 'overcast' };
 
-/** "visibility 10 kilometres, few 3500 feet" / "CAVOK" (spoken ATIS). */
-export function metWords(m: Metar): string {
+/** "visibility 10 kilometres, few 3500 feet" / "CAVOK" (spoken ATIS); FAA: "visibility 10, sky clear". */
+export function metWords(m: Metar, faa = false): string {
+  if (faa) {
+    const sm = visibilitySm(m.visibilityM).replace('SM', '');
+    const wx = m.weather.map((w) => WEATHER_WORDS[w] ?? w);
+    const clouds = m.clouds.length ? m.clouds.map((c) => `${COVER_WORDS[c.cover]} ${c.baseFt}${c.cb ? ' cumulonimbus' : ''}`) : ['sky clear'];
+    return [`visibility ${sm}`, ...wx, ...clouds].join(', ');
+  }
   if (isCavok(m)) return 'CAVOK';
   const vis = m.visibilityM >= 9999 ? 'visibility 10 kilometres or more' : m.visibilityM >= 5000 ? `visibility ${m.visibilityM / 1000} kilometres` : `visibility ${m.visibilityM} metres`;
   const wx = m.weather.map((w) => WEATHER_WORDS[w] ?? w);

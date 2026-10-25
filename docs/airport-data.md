@@ -30,6 +30,7 @@ Every airport is described by one `AirportData` object (`src/core/airport/types.
 | `traffic`              | `AirportTraffic`  | Optional operator mix of the airport (see [Traffic](#traffic))           |
 | `initialClimbFt`       | number            | Optional initial climb of the SIDs, used in IFR clearances (default 5000 ft) |
 | `systems`              | `SystemId[]`      | Optional: the [systems](systems.md) the airport has (`surveillance`, `rmca`, `catc`, `routing`, `acdm`, `dcl`, `loc`, `gp`). Omitted = all. Missing systems are off and cannot be switched on |
+| `phraseology`          | `'icao'` \| `'faa'` | Optional: `'faa'` for US airports - the FAA forms are understood, pilots answer in US wording, METAR and ATIS in US format (statute miles, altimeter in inches), runways without a leading zero in speech, no start-up approval. Runway designators stay two-digit in the data (`"09"`). Default `'icao'`. See [FAA phraseology](phraseology.md#faa-phraseology-us-airports). KSAN |
 | `timeZone`             | string            | Optional IANA time zone (`"Europe/Berlin"`) for local-time rules and scenario start times. Default UTC |
 | `deicingPads`          | `DeicingPadData[]` | Optional de-icing pads: `name` (`"DP1"`), `node` (taxi node of the pad, reached by one-way lead lines of kind `stand` named like the pad; a lead line may have several segments), `maxWingspanM`. Routes turn onto and off a lead line by at most 100°. Used with the scenario option [de-icing](scenarios.md#de-icing); the data check requires every pad to be reachable from a stand and to reach a full-length entry of every runway. EDDS: DP1 65 m, DP2 68.5 m, DP3 / DP4 36 m, entered from N, left onto S |
 | `runwayCrossings`      | string[]          | Optional runway nodes where automatic routes cross a runway (elsewhere only if there is no other way, e.g. a closed taxiway). EDDS: `['RWY_K']` - crossings only between K and Y. Your own `via` lists are not restricted |
@@ -201,7 +202,7 @@ traffic: {
 }
 ```
 
-- `airline` refers to an operator in [`src/data/airlines.ts`](../src/data/airlines.ts) (ICAO code, radiotelephony callsign, callsign style; `cargo: true` for cargo airlines, which park on the `cargo` stands first). Add new operators there.
+- `airline` refers to an operator in [`src/data/airlines.ts`](../src/data/airlines.ts) (ICAO code, radiotelephony callsign, callsign style; `cargo: true` for cargo airlines, which park on the `cargo` stands first; `regPrefix: 'N'` for US business jets with N-numbers such as `N436GR` - default German `D-` registrations). Add new operators there.
 - `weight` is the operator's share of the movements (any unit; passenger shares are fine). `types` and `destinations` override the operator's defaults; repeat an entry to make it more frequent.
 - Without `traffic`, the global operator list is used.
 - `rateFactor` (optional) scales the movements per hour of every density step (1 = the Stuttgart figures; Memmingen 0.35, Sylt 0.25).

@@ -100,9 +100,9 @@ export function formatCommand(c: Command): string {
     case 'squawk':
       return `squawk ${c.code}`;
     case 'information':
-      return `information ${c.letter.toUpperCase()}${c.qnh ? `, QNH ${c.qnh}` : ''}`;
+      return `information ${c.letter.toUpperCase()}${c.altimeter ? `, altimeter ${c.altimeter}` : c.qnh ? `, QNH ${c.qnh}` : ''}`;
     case 'qnh':
-      return `QNH ${c.qnh}`;
+      return c.altimeter ? `altimeter ${c.altimeter}` : `QNH ${c.qnh}`;
     case 'readbackCorrect':
       return 'readback correct';
     case 'ctot':

@@ -57,7 +57,7 @@ export function renderBriefing(sim: Simulation): HTMLElement {
   const w = sim.observedWind;
   const inUse = capitalize(runwayWords(sim.runways));
   const now: [string, string][] = [
-    ['Runway / ATIS', `${inUse}, information ${sim.atisLetter}, wind ${formatWind(w, true)}, QNH ${sim.atis.qnh}`],
+    ['Runway / ATIS', `${inUse}, information ${sim.atisLetter}, wind ${formatWind(w, true)}, ${sim.pressurePhrase()}`],
   ];
   const parallel = sim.parallelOps;
   if (parallel) {

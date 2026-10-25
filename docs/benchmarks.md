@@ -18,7 +18,7 @@ Every **major release** (1.0, 2.0, ...) gets a statistics section here that show
 - approves pushbacks when nothing taxis within 250 m, sends departures to the runway with the shortest route (`taxi to runway 25`), sends arrivals to their suggested stand, hands departures to Tower when they ask,
 - never sequences, never re-routes, never resolves a deadlock.
 
-So the numbers measure the **simulation**, not good controlling: a human controller does much better. They are comparable between versions because the controller and the sessions are always the same. `npm run soak` runs a harder test (since 1.5 in development): every airport, every runway direction, Ground alone and all positions together, with special events and more heavies in every third session, answered by a more careful scripted controller (`tests/bot.ts`: it waits for opposite traffic and resolves conflicts like the AI Ground). It fails on any collision and on any aircraft that has not moved for 20 minutes (stuck for good).
+So the numbers measure the **simulation**, not good controlling: a human controller does much better. They are comparable between versions because the controller and the sessions are always the same. `npm run soak` runs a harder test (since 1.5 in development): every airport, every runway direction, Ground alone and all positions together, with special events and more heavies in every third session, answered by a more careful scripted controller (`tests/bot.ts`: it waits for opposite traffic, holds pushbacks at the gate while four departures are queueing and resolves conflicts like the AI Ground). It fails on any collision and on any aircraft that has not moved for 20 minutes (stuck for good).
 
 | Measure | Meaning |
 | ------- | ------- |

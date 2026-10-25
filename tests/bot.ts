@@ -21,18 +21,26 @@ const CTOT_LEAD_S = 15 * 60;
 const HEAD_ON_WAIT_S = 240;
 /** How far a pushback moves the aircraft from its stand (m), roughly. */
 const PUSH_LENGTH_M = 40;
+/** Departures taxiing out or waiting at the runway at most (more wait on the stand: gate hold). */
+const QUEUE_MAX = 4;
+/** Under gate hold, pushbacks are approved one at a time, this far apart (s). */
+const GATE_HOLD_SPACING_S = 30;
 
 export function createBot(sim: Simulation): () => void {
   /** Last crossing clearance per runway: no take-off on it for 90 s after. */
   const crossed = new Map<string, number>();
   const answered = new Map<string, number>();
-  /** Since when a pushback / taxi waits for opposite traffic. */
+  /** Since when a pushback / taxi waits for opposite traffic (per call). */
   const held = new Map<string, number>();
   const staffed = (role: 'DEL' | 'GND' | 'TWR') => [sim.config.position, ...(sim.config.positions ?? [])].includes(role);
   const tower = staffed('TWR');
+  /** Last pushback approved while departures were queueing (gate hold: one at a time). */
+  let lastHeldPush = -Infinity;
   /** Without head-on traffic on the way: the arrival's stand, or else the nearest free one it can reach without (a careful Ground). */
   const standFor = (ac: Aircraft): string | undefined => {
-    const own = ac.assignedStand ?? reachableFreeStand(sim, ac)?.id;
+    // A stand the crew reported blocked (occupied, or a parked neighbour too close) is given up, like the AI Ground does.
+    const blocked = ac.standBlocked?.reported ? ac.standBlocked.stand : undefined;
+    const own = (ac.assignedStand !== blocked ? ac.assignedStand : undefined) ?? reachableFreeStand(sim, ac, (s) => s.id !== blocked)?.id;
     const clear = (stand: string) => {
       const r = previewTaxi(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] });
       if ('error' in r || r.route.requiresUTurn) return false;
@@ -46,8 +54,9 @@ export function createBot(sim: Simulation): () => void {
     const other = others.find((s) => clear(s.id))?.id;
     if (other) return other;
     // Nothing clear: the crew waits where it is (at most HEAD_ON_WAIT_S), then gets its stand anyway.
-    held.set(ac.callsign, held.get(ac.callsign) ?? sim.time);
-    return sim.time - held.get(ac.callsign)! < HEAD_ON_WAIT_S ? undefined : own;
+    const key = `${ac.callsign}:${ac.request}:${ac.requestSince}`;
+    held.set(key, held.get(key) ?? sim.time);
+    return sim.time - held.get(key)! < HEAD_ON_WAIT_S ? undefined : own;
   };
   return () => {
     const t = sim.time;
@@ -92,9 +101,11 @@ export function createBot(sim: Simulation): () => void {
         const r = previewTaxi(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.departureRunwayOf(ac) }, via: [], holdShort: [], cross: [] });
         if ('error' in r) return false;
         const c = routeHeadOn(sim, ac, sim.airport.polyline(r.route.nodes).points);
-        if (!c || c.other.speed < 1) return false;
-        held.set(cs, held.get(cs) ?? t);
-        return t - held.get(cs)! < HEAD_ON_WAIT_S;
+        if (!c) return false;
+        // Per request: a new call (after a cancelled pushback, say) waits again.
+        const key = `${cs}:${ac.request}:${ac.requestSince}`;
+        held.set(key, held.get(key) ?? t);
+        return t - held.get(key)! < HEAD_ON_WAIT_S;
       };
       // Traffic taxiing past the stand (its route ahead runs by): no pushback into its way.
       const pushInWay = () =>
@@ -104,6 +115,11 @@ export function createBot(sim: Simulation): () => void {
           for (let x = o.s; x <= o.path.length; x += 10) if (distance(o.path.pointAt(x), ac.pos) < r) return true;
           return false;
         });
+      // Gate hold: the runway queue is long enough already.
+      const queueFull = () => {
+        const n = sim.aircraft.filter((o) => o.category === 'departure' && ['pushback', 'taxi', 'holding', 'lineup'].includes(o.phase)).length;
+        return n >= QUEUE_MAX || (n >= QUEUE_MAX - 1 && t - lastHeldPush < GATE_HOLD_SPACING_S);
+      };
       const nearTaxi = () => sim.aircraft.some((o) => o !== ac && o.phase === 'taxi' && distance(o.pos, ac.pos) < 250);
       switch (ac.request) {
         case 'clearance': {
@@ -121,7 +137,10 @@ export function createBot(sim: Simulation): () => void {
           say(`${cs} contact ground`);
           break;
         case 'pushback':
-          if (!nearTaxi() && !early && !headOn() && !pushInWay()) say(`${cs} push and start approved`);
+          if (!nearTaxi() && !early && !queueFull() && !headOn() && !pushInWay()) {
+            say(`${cs} push and start approved`);
+            lastHeldPush = t;
+          }
           break;
         case 'tow':
           if (!nearTaxi()) say(`${cs} tow approved`);
@@ -158,8 +177,10 @@ export function createBot(sim: Simulation): () => void {
           break;
         case 'vacated':
           // Without a Ground of its own (or Ground staffed by the same controller) Tower gives the taxi instruction.
-          if (ac.category === 'arrival' && (!sim.airport.station('GND') || staffed('GND'))) say(`${cs} taxi to stand ${ac.assignedStand ?? reachableFreeStand(sim, ac)?.id}`);
-          else say(`${cs} contact ground`);
+          if (ac.category === 'arrival' && (!sim.airport.station('GND') || staffed('GND'))) {
+            const stand = standFor(ac);
+            if (stand) say(`${cs} taxi to stand ${stand}`);
+          } else say(`${cs} contact ground`);
           break;
         case 'radar':
           say(`${cs} contact radar`);

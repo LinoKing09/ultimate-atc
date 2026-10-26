@@ -82,6 +82,8 @@ Latin America and long-haul (Quito):
 
 **Radar vectors instead of a SID** (Quito runway 18, which has no SID in the simulator): `cleared to Guayaquil, radar vectors, flight planned route, climb 17000 feet, squawk 4321` - typed, `RV` works as the SID too. The crew reads back "radar vectors"; departures on radar vectors are spaced 2 minutes apart like departures on the same SID.
 
+Bolivia (La Paz): `BOV` - Boliviana.
+
 Caribbean (St. Maarten):
 
 | ICAO | Telephony   | ICAO | Telephony  | ICAO | Telephony |

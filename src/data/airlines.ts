@@ -90,6 +90,8 @@ export const AIRLINES: Airline[] = [
   { icao: 'MAS', telephony: 'Malaysian', types: ['B738'], destinations: ['WMKK'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'JST', telephony: 'Jetstar', types: ['A321', 'B788'], destinations: ['YPPH', 'YMML', 'YSSY'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'VJC', telephony: 'Vietjet', types: ['A321'], destinations: ['VVTS'], weight: 1, callsignStyle: 'numeric' },
+  // Bolivia (La Paz).
+  { icao: 'BOV', telephony: 'Boliviana', types: ['B737', 'B738', 'B38M'], destinations: ['SLVR', 'SLVR', 'SLCB', 'SLAL', 'SLTJ', 'SLCO', 'SLRI', 'SLUY', 'SAEZ', 'SBGR', 'SPJC'], weight: 1, callsignStyle: 'numeric' },
   // Caribbean and St. Maarten.
   { icao: 'WIA', telephony: 'Windward', types: ['DHC6', 'AT45', 'AT76'], destinations: ['TFFJ', 'TQPF', 'TKPK', 'TNCS', 'TNCE', 'TAPA', 'TJSJ'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'BWA', telephony: 'Caribbean', types: ['B38M', 'AT76'], destinations: ['TTPP'], weight: 1, callsignStyle: 'numeric' },

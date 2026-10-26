@@ -100,7 +100,6 @@ export const PLANNED_AIRPORTS: { icao: string; name: string; fir: string }[] = [
   { icao: 'KJAC', name: 'Jackson Hole', fir: 'KZLC' },
   { icao: 'KEYW', name: 'Key West', fir: 'KZMA' },
   { icao: 'SABE', name: 'Buenos Aires Aeroparque', fir: 'SAEF' },
-  { icao: 'SLLP', name: 'La Paz', fir: 'SLLF' },
   { icao: 'SBPA', name: 'Porto Alegre', fir: 'SBCW' },
   { icao: 'SKRG', name: 'Medellín', fir: 'SKED' },
   { icao: 'RJGG', name: 'Nagoya Chubu', fir: 'RJJJ' },

@@ -7,7 +7,7 @@ import { KT_TO_MS, M_PER_FT, M_PER_NM, add, distance, headingVector, length, sca
 import { vacateStopS } from './holdShort';
 import { findRoute, isRouteError } from './airport/routing';
 import { Path } from './path';
-import { call } from './pilot';
+import { call, requiredRunway } from './pilot';
 import type { Simulation } from './simulation';
 import { departureAllowed } from './night';
 import { WEATHER_DECISION_NM, takeoffsSuspended, weatherGoAround } from './weather';
@@ -182,7 +182,8 @@ export class TowerAI {
   runwayBusy(except?: Aircraft, end?: RunwayEnd): boolean {
     return (
       this.runwayOccupants(except, end).length > 0 ||
-      this.sim.aircraft.some((a) => a !== except && (a.phase === 'takeoff' || a.phase === 'landing') && this.sameRunway(a, end))
+      // Lining up includes a backtrack that has not reached the runway yet.
+      this.sim.aircraft.some((a) => a !== except && (a.phase === 'takeoff' || a.phase === 'landing' || a.phase === 'lineup') && this.sameRunway(a, end))
     );
   }
 
@@ -523,7 +524,8 @@ export class TowerAI {
       const target = ac.requestedExit
         ? behind.find((c) => c.ex.name.toUpperCase() === ac.requestedExit)
         : !usable.length
-          ? behind[0]
+          ? // The one with the shortest way on to the stand (St. Maarten: wide-bodies back to C).
+            ([...behind].filter((c) => this.leadsToStand(c.ex.path, ac)).sort((a, b) => this.onwardLength(a.ex.path, ac) - this.onwardLength(b.ex.path, ac))[0] ?? behind[0])
           : !onward.length
             ? behind.find((c) => this.leadsToStand(c.ex.path, ac))
             : undefined;
@@ -831,7 +833,10 @@ export class TowerAI {
     const entry = sim.airport.runwayOps(end.name)?.departureEntries.find((e) => e.holdingPoint === hp.holdingPoint?.name);
     // Backtrack: on your instruction, or (AI Tower) where the entry is used that way.
     const backtrack = (sim.userTower ? !!ac.backtrackCleared : !!entry?.backtrack) && this.canBacktrackFrom(hp.holdingPoint?.name ?? '', ac);
-    if (remaining < 1500 && !backtrack) {
+    // Enough runway ahead: the published take-off run from this entry for what this crew needs (St. Maarten 28 from E:
+    // 962 m, enough for a Twin Otter), else at least 1500 m (an entry at the wrong end of the runway).
+    const enough = entry?.toraM !== undefined && !entry.fullLength ? entry.toraM >= requiredRunway(sim, ac) : entry?.backtrack ? (entry.toraM ?? remaining) >= requiredRunway(sim, ac) : remaining >= 1500;
+    if (!enough && !backtrack) {
       if (sim.userTower) return `not enough runway at ${hp.holdingPoint?.name ?? ''} for departure ${end.name}`;
       // Wrong end of the runway: send the aircraft back to Ground.
       ac.frequency = sim.stationFor('ground');

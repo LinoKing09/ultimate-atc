@@ -204,6 +204,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - **done** - VTSP Phuket, the first airport in Asia (in development)
 - **done** - NZWN Wellington, the first airport in Australia / Oceania (in development)
 - **done** - SEQM Quito, the first airport in South America (in development)
+- **done** - TNCM St. Maarten (in development)
 - planned - Per-airport traffic mix (operators, destinations, fleet); regional phraseology differences: FAA **done** (San Diego, in development), others with their airports
 
 ### Client

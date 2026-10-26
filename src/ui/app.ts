@@ -652,7 +652,8 @@ export class App {
       if (ac.cleared && !ac.readbackConfirmed) items.push(phrase('RB OK', 'readback correct'));
       if (ac.cleared && !ac.startupApproved) items.push(phrase('START', 'start-up approved'));
       const ground = this.sim.airport.station(this.sim.stationFor('ground'));
-      if (ac.cleared && ground) items.push(phrase('GND', `contact ground ${ground.frequency}`));
+      // Without a Ground (St. Maarten) Delivery hands the crews to the Tower.
+      if (ac.cleared && ground) items.push(phrase(ground.type === 'TWR' ? 'TWR' : 'GND', `contact ${ground.type === 'TWR' ? 'tower' : 'ground'} ${ground.frequency}`));
     } else if (mine) {
       if (ac.phase === 'parked' && ac.category === 'tow') {
         items.push(phrase('TOW', 'tow approved'));
@@ -1444,7 +1445,8 @@ export class App {
     const ground = sim.airport.station(sim.stationFor('ground'));
     if (ground) {
       items.push({ divider: true, label: '' });
-      items.push({ label: `Contact Ground ${ground.frequency}`, disabled: !ac.cleared, action: () => this.say(ac, `contact ground ${ground.frequency}`) });
+      const word = ground.type === 'TWR' ? 'tower' : 'ground';
+      items.push({ label: `Contact ${ground.type === 'TWR' ? 'Tower' : 'Ground'} ${ground.frequency}`, disabled: !ac.cleared, action: () => this.say(ac, `contact ${word} ${ground.frequency}`) });
     }
     if (ac.request) items.push({ label: 'Standby', action: () => this.say(ac, 'standby') });
     items.push({ label: 'Say again', action: () => this.say(ac, 'say again') });

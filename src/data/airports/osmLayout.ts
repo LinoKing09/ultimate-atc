@@ -163,7 +163,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     const own = new Set(edges.filter((e) => e.kind === 'runway' && e.name === runway).flatMap((e) => [e.from, e.to]));
     if (fixed) {
       // A given runway node: one straight strip; the old connection to the runway is removed below.
-      const twy = edges.find((e) => e.kind !== 'runway' && (e.from === hp || e.to === hp))?.name ?? name;
+      const twy = edges.find((e) => e.kind !== 'runway' && (e.from === hp || e.to === hp))?.name || name;
       edges.push({ from: hp, to: fixed, name: twy, kind: 'runwayStrip' });
       runwayNodeOf[name] = fixed;
       continue;

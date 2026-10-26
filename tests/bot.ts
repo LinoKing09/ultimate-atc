@@ -60,6 +60,8 @@ export function createBot(sim: Simulation): () => void {
   };
   return () => {
     const t = sim.time;
+    // One take-off clearance per runway and round: the aircraft cleared has not moved yet (two backtracks at once).
+    const clearedNow = new Set<string>();
     for (const ac of sim.aircraft) {
       const cs = ac.callsign;
       if (!sim.isOnMyFrequency(ac)) continue;
@@ -68,8 +70,9 @@ export function createBot(sim: Simulation): () => void {
         // A backtrack needs the whole runway (and more time before the next arrival).
         const backtrack = /backtrack/.test(ac.lastTransmission ?? '');
         const free = backtrack ? !sim.tower.runwayBusy(ac, sim.tower.departureEnd(ac)) : !sim.tower.runwayBusyForDeparture(ac);
-        if (t - (crossed.get(rwy) ?? -999) > 90 && free && sim.tower.spacingRemaining(ac) <= 0 && sim.tower.nextArrivalEta(sim.tower.departureEnd(ac)) > (backtrack ? 180 : 90)) {
+        if (!clearedNow.has(rwy) && t - (crossed.get(rwy) ?? -999) > 90 && free && sim.tower.spacingRemaining(ac) <= 0 && sim.tower.nextArrivalEta(sim.tower.departureEnd(ac)) > (backtrack ? 180 : 90)) {
           sim.transmit(`${cs} ${backtrack ? 'backtrack ' : ''}runway ${ac.runway}, cleared for take-off`);
+          clearedNow.add(rwy);
           continue;
         }
       }
@@ -135,7 +138,8 @@ export function createBot(sim: Simulation): () => void {
           say(`${cs} start-up approved`);
           break;
         case 'frequency':
-          say(`${cs} contact ground`);
+          // Without a Ground (St. Maarten) Delivery hands the crews to the Tower.
+          say(`${cs} contact ${sim.stationFor('ground') === 'TWR' ? 'tower' : 'ground'}`);
           break;
         case 'pushback':
           if (!nearTaxi() && !early && !queueFull() && !headOn() && !pushInWay()) {
@@ -178,9 +182,11 @@ export function createBot(sim: Simulation): () => void {
           break;
         case 'vacated':
           // Without a Ground of its own (or Ground staffed by the same controller) Tower gives the taxi instruction.
-          if (ac.category === 'arrival' && (!sim.airport.station('GND') || staffed('GND'))) {
-            const stand = standFor(ac);
-            if (stand) say(`${cs} taxi to stand ${stand}`);
+          if (!sim.airport.station('GND') || staffed('GND')) {
+            if (ac.category === 'arrival') {
+              const stand = standFor(ac);
+              if (stand) say(`${cs} taxi to stand ${stand}`);
+            } else if (ac.category === 'departure' && !headOn()) say(`${cs} taxi to runway ${sim.departureRunwayOf(ac)}`);
           } else say(`${cs} contact ground`);
           break;
         case 'radar':

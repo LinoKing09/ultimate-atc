@@ -82,6 +82,14 @@ Latin America and long-haul (Quito):
 
 **Radar vectors instead of a SID** (Quito runway 18, which has no SID in the simulator): `cleared to Guayaquil, radar vectors, flight planned route, climb 17000 feet, squawk 4321` - typed, `RV` works as the SID too. The crew reads back "radar vectors"; departures on radar vectors are spaced 2 minutes apart like departures on the same SID.
 
+Caribbean (St. Maarten):
+
+| ICAO | Telephony   | ICAO | Telephony  | ICAO | Telephony |
+| ---- | ----------- | ---- | ---------- | ---- | --------- |
+| WIA  | Windward    | BWA  | Caribbean  | ACA  | Air Canada |
+
+At St. Maarten there is no Ground: Delivery hands the crews to the Tower (`contact tower`), which also gives the taxi instructions.
+
 New Zealand (Wellington):
 
 | ICAO | Telephony   | ICAO | Telephony  | ICAO | Telephony |

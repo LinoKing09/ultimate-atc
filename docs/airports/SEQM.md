@@ -35,7 +35,7 @@ The first airport in South America, and the highest in the simulator. The simula
 - the holding points at the runway ends are called "TWY A THR 18" and "TWY A THR 36" in the AIP (AD 2.9); the simulator names them **A18** and **A36** (both would be "A"),
 - **runway 18 has no SID** in the simulator: the conventional SIDs of the AIP (charts AD 2 SEQM 27.x) were not available. AD 2.22 allows radar vectors instead ("se utilizarán las salidas publicadas en la AIP o guía vectorial"), so departures from runway 18 are cleared with **radar vectors** - "cleared to Guayaquil, radar vectors, flight planned route, climb 17000 feet",
 - the RNAV SIDs of runway 36 are planned by the direction of the destination (sectors halfway between the bearings of the end fixes); where the AIP has an A and a B version (KETOM, REBEK, TEMOX, ORETA, MIDEX) both are offered,
-- only full-length departures (the AIP publishes no intersection take-off runs); the long runway at this altitude is needed anyway,
+- the AIP publishes no intersection take-off runs: the runs from **A1** (runway 36, 3010 m), **A3** (18, 2600 m) and **A2** (18, 1680 m) are measured on the map,
 - the rapid exit **A2** forks behind its holding point: the branch for runway 36 is used, the northern branch is drawn,
 - the **general aviation apron** (D, stands 90A-99, helicopter stand H3), the **maintenance apron**, the **isolated stand Z** (with T) and the way south to H3 are drawn, not used,
 - the overlapping larger positions 51A, 53A and 56A are separate stands; the AIP says they are towed in from C,
@@ -46,10 +46,10 @@ The first airport in South America, and the highest in the simulator. The simula
 
 ## Runway and approaches
 
-| Runway | TORA / TODA / ASDA / LDA (m) | Entry | Approaches |
+| Runway | TORA / TODA / ASDA / LDA (m) | Entries (take-off run, intersections measured) | Approaches |
 | ------ | ---------------------------- | ----- | ---------- |
-| 18 | 4098 / 4098 / 4098 / 4098 | A18 (north end) | ILS CAT I (glide path 3.2°) |
-| 36 | 4098 / 4098 / 4098 / 4098 | A36 (south end) | ILS CAT II (glide path 3.2°) |
+| 18 | 4098 / 4098 / 4098 / 4098 | A18 (north end); A3 (2600), A2 (1680) | ILS CAT I (glide path 3.2°) |
+| 36 | 4098 / 4098 / 4098 / 4098 | A36 (south end); A1 (3010) | ILS CAT II (glide path 3.2°) |
 
 All arrivals and departures use **runway 36** normally; runway 18 only with wind from the SSW to SSE of 8 kt or more (AD 2.22). Aircraft departing runway 36 must not turn right before the VOR QNV, those departing runway 18 never turn left.
 

@@ -30,7 +30,8 @@ The first airport in Asia. The simulator shows a condensed version of this page 
 - **Apron E** (private jet terminal, stands 51-54) is reached via **K**, across the runway: drawn, not used, like the Royal Thai Navy apron north of the runway; private jets are not simulated,
 - **taxi flows** (a simulator convention, not published): the apron lanes are a loop - in on **T2** southbound, round **T7**, out on **T1** northbound - so arrivals and departures do not meet head-on between the stands; P itself is used both ways,
 - **arrivals 27** roll on to **A** at the runway end (the aprons are at the west end, and P carries the departures east to J); the rapid exit E and the exit B are not used by the simulated traffic; **arrivals 09** vacate via the **western fillet of F**, G, H or J (the eastern fillet of F would leave them facing away from the aprons),
-- intersection departures only from **G** (2500 m, AIP AD 2.23); B and K are not offered for runway 09 (no published distance; K belongs to Apron E),
+- intersection departures from **G** (2500 m, AIP AD 2.23), and - without a published distance, measured on the map - from **F** (27, 2060 m) and **B** (09, 2790 m); K is not offered (it belongs to Apron E),
+- the lead-in line of **J** sweeps from the runway end onto the centre line 70 m further west: departures 27 line up there (the published 3100 m are kept),
 - the hot spots HS 1-3, the turn pad at the 27 threshold and the second fillets of G and H are drawn; low visibility rules on P (hold below 3000 m visibility) are not modelled,
 - traffic: estimated operator shares (Thai AirAsia about 30 %), about 90 % of Stuttgart's movements per density step (`rateFactor` 0.9).
 
@@ -40,8 +41,8 @@ The first airport in Asia. The simulator shows a condensed version of this page 
 
 | Runway | TORA / TODA / ASDA / LDA (m) | Entries | Approaches |
 | ------ | ---------------------------- | ------- | ---------- |
-| 09 | 3000 / 3000 / 3000 / 3000 | A (3000) | RNP (and VOR) - **no ILS**; approach over the Andaman Sea |
-| 27 | 3100 / 3100 / 3100 / 3000 | J (3100, end of the displacement area), H (3000, threshold), G (2500) | **ILS** (localizer offset 1.4°, glide path 3.2°), LOC, RNP; approach over the hills |
+| 09 | 3000 / 3000 / 3000 / 3000 | A (3000), B (2790, measured) | RNP (and VOR) - **no ILS**; approach over the Andaman Sea |
+| 27 | 3100 / 3100 / 3100 / 3000 | J (3100, end of the displacement area), H (3000, threshold), G (2500), F (2060, measured) | **ILS** (localizer offset 1.4°, glide path 3.2°), LOC, RNP; approach over the hills |
 
 The south-west monsoon (May-October) brings westerly winds and runway 27, the north-east monsoon easterly winds and runway 09.
 

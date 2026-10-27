@@ -29,7 +29,7 @@ The **AIP New Zealand** was not used: its conditions of use allow personal use o
 **Simplified, estimated or not modelled:**
 
 - the **stand sizes** are estimates (light turboprops 17 m, ATR 72 30 m, A320 / B737 36 m); the stand numbers and positions are those of OpenStreetMap,
-- the **take-off runs of the intersections** (A2 1745 m, A3 1455 m on runway 16; A10 1815 m, A9 1725 m on runway 34) are measured on the map, not published figures; the full-length runs (A1 1945 m, A11 1921 m) are the published ones,
+- the **take-off runs of the intersections** (A2 1745 m, A3 1455 m, A4 1180 m on runway 16; A10 1815 m, A9 1725 m, A8 1530 m on runway 34) are measured on the map, not published figures; the full-length runs (A1 1945 m, A11 1921 m) are the published ones,
 - the **SID designators** carry the version number 1 of the 2022 change (ATVEV1Q, UPLUD1P, ...); the real versions may be higher. IDVAL is spelled as in the VATNZ change list (the procedures also write IVDAL),
 - **SIDs by direction** (a simulator convention): jets fly ATVEV1Q (16) or UPLUD1P / UPLUD1R (34) whatever their destination; turboprops IDVAL1Q to Nelson, Blenheim and Picton, AGROR1Q to the south and UPROG1Q to the north (16), IPKEP1P to the west and URGEV1P to every other direction (34). The visual SIDs (IDVAL1U, IPKEP1T) and the radar departures are not used,
 - the **Western Apron** (general aviation, Life Flight, the air force, Execujet, helicopters) across the runway is drawn with M, N, M4 and M5, not used,
@@ -44,8 +44,8 @@ The **AIP New Zealand** was not used: its conditions of use allow personal use o
 
 | Runway | Take-off run (m) | Entries | Approaches |
 | ------ | ---------------- | ------- | ---------- |
-| 16 | 1945 from A1 | A1 (full length), A2, A3 | ILS, RNP - over Evans Bay |
-| 34 | 1921 from A11 | A11 (full length), A10 (threshold), A9 (angled) | ILS, RNP - over Lyall Bay and Cook Strait |
+| 16 | 1945 from A1 | A1 (full length), A2, A3, A4 | ILS, RNP - over Evans Bay |
+| 34 | 1921 from A11 | A11 (full length), A10 (threshold), A9 (angled), A8 | ILS, RNP - over Lyall Bay and Cook Strait |
 
 The prevailing northerly wind puts runway 34 in use most of the time; southerlies come with the fronts. The airport has a **curfew** from midnight to 6 am local time (international arrivals until 1 am).
 

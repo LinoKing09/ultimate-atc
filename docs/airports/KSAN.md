@@ -40,8 +40,10 @@ The first airport outside Europe. The simulator shows a condensed version of thi
 
 | Runway | Take-off run (m) | Landing distance (m) | Intersection take-offs | Approaches |
 | ------ | ---------------: | -------------------: | ---------------------- | ---------- |
-| 27 | 2865 (B1, C1) | 2313 | C2 2679, C3 2167, C4 / B4 1935 | LOC, RNAV - **no ILS**, over downtown |
-| 9 | 2524 (B10, B9) | 2560 | B8 2265, B7 1928, B6 1585 | ILS, LOC, RNAV |
+| 27 | 2865 (B1, C1) | 2313 | C2 2679, C3 2167, B2 2110\*, C4 / B4 1935 | LOC, RNAV - **no ILS**, over downtown |
+| 9 | 2524 (B10, B9) | 2560 | B8 2265, B7 1928, B6 1585, B5 / C5 1300\* | ILS, LOC, RNAV |
+
+\* not in the intersection table: measured on the map. C2 and C3 point east, away from runway 27: departures there roll a little east and turn around on the runway.
 
 West traffic (27) is used most of the time; east traffic (9) only with more than 10 kt tailwind on 27 (about 8 % of the sessions).
 

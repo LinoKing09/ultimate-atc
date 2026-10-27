@@ -55,13 +55,15 @@ const built = buildLayout(LAYOUT, {
     'HP.13370111757': 'J',
   },
   addNodes: [
-    // End of the 100 m displacement area before the 27 threshold: J meets the runway there (take-off run 3100 m).
+    // End of the 100 m displacement area before the 27 threshold (take-off run 3100 m): the runway ends here.
     ['RWY.J', 8.1145933, 98.3313089],
     [X, 8.107417, 98.3037319],
   ],
   addEdges: [
-    ['RWY.END.2', 'RWY.J', '09/27', 'runway'],
-    ['J.8', 'RWY.J', 'J', 'taxiway'],
+    // The lead-in line of J sweeps from the runway end onto the centre line 70 m further west (J.8): departures 27
+    // line up along it, arrivals 09 leave along it.
+    ['RWY.END.2', 'J.8', '09/27', 'runway'],
+    ['J.8', 'RWY.J', '09/27', 'runway'],
     // The X between the islands (parking chart): T5 and T3 from T1 to T2, T4 and T6 from T2 to T1.
     ['T3.3', X, 'T5', 'taxilane'],
     [X, 'T3.2', 'T3', 'taxilane'],
@@ -216,6 +218,8 @@ export const VTSP: AirportData = {
         { holdingPoint: 'J', intersection: 'J', fullLength: true, toraM: 3100 },
         { holdingPoint: 'H', intersection: 'H', fullLength: false, toraM: 3000 },
         { holdingPoint: 'G', intersection: 'G', fullLength: false, toraM: 2500 },
+        // F: not published - measured on the map.
+        { holdingPoint: 'F', intersection: 'F', fullLength: false, toraM: 2060 },
       ],
       // Landing west: the aprons are at the west end and P carries the departures east to J, so arrivals roll on
       // to B or A at the end (the rapid exit E would put them head-on with the departures on P; C and D are closed).
@@ -224,7 +228,11 @@ export const VTSP: AirportData = {
     },
     {
       runway: '09',
-      departureEntries: [{ holdingPoint: 'A', intersection: 'A', fullLength: true, toraM: 3000 }],
+      // B: not published - measured on the map.
+      departureEntries: [
+        { holdingPoint: 'A', intersection: 'A', fullLength: true, toraM: 3000 },
+        { holdingPoint: 'B', intersection: 'B', fullLength: false, toraM: 2790 },
+      ],
       // Landing east (AIP AD 2.23: "vacate via F, G or H"): the rapid exit F onto its western fillet (the aprons are
       // in the west; the eastern fillet would leave the aircraft facing away from them), then G, H, J.
       exits: [
@@ -288,7 +296,7 @@ export const VTSP: AirportData = {
     {
       title: 'Phuket in short',
       items: [
-        'One runway **09/27** (3000 m x 45 m) between the Andaman Sea (west) and the hills (east). A **100 m displacement area** lies before the 27 threshold: departures 27 from **J** have 3100 m, from **H** (at the threshold) 3000 m, from **G** 2500 m; departures 09 from **A** (3000 m).',
+        'One runway **09/27** (3000 m x 45 m) between the Andaman Sea (west) and the hills (east). A **100 m displacement area** lies before the 27 threshold: departures 27 from **J** have 3100 m, from **H** (at the threshold) 3000 m, from **G** 2500 m, from **F** about 2060 m; departures 09 from **A** (3000 m) or **B** (about 2790 m).',
         'Parallel taxiway **P** south of the runway, only 150 m from its centre line. The terminal aprons are at the west end: **B** (stands 1-6) along P, **A** (7-16, at the terminal) along taxilane **T2**, **D** (31-40) along **T1**; T3-T7 link T1 and T2.',
         'Arrivals 27 vacate via the rapid exit **E**, then **B** or **A**; arrivals 09 via the rapid exit **F**, then **G**, **H** or **J** - and taxi the whole length of P back to the aprons. **C** and **D** are closed.',
         'Only runway 27 has an ILS (offset 1.4°, glide path 3.2°); runway 09 is flown as an RNP approach. Transition altitude 11000 ft.',

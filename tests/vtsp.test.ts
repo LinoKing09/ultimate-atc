@@ -24,8 +24,8 @@ describe('Phuket (VTSP) after the AIP Thailand charts', () => {
 
   it('publishes the take-off run of every entry (AIP AD 2.13 / 2.23)', () => {
     const tora = (rwy: string) => Object.fromEntries(VTSP.runwayOps.find((o) => o.runway === rwy)!.departureEntries.map((e) => [e.holdingPoint, e.toraM]));
-    expect(tora('27')).toEqual({ J: 3100, H: 3000, G: 2500 });
-    expect(tora('09')).toEqual({ A: 3000 });
+    expect(tora('27')).toEqual({ J: 3100, H: 3000, G: 2500, F: 2060 });
+    expect(tora('09')).toEqual({ A: 3000, B: 2790 });
   });
 
   it('arrivals 09 vacate onto the western fillet of F, towards the aprons', () => {
@@ -49,7 +49,7 @@ describe('Phuket (VTSP) after the AIP Thailand charts', () => {
       expect(sim.stats.collisions, runway).toBe(0);
       expect(sim.stats.departuresAirborne, runway).toBeGreaterThan(6);
       // Arrivals 09 vacate at the far end and taxi 3 km back along P: fewer are parked within the first hour.
-      expect(sim.stats.arrivalsParked, runway).toBeGreaterThan(2);
+      expect(sim.stats.arrivalsParked, runway).toBeGreaterThan(runway === '09' ? 1 : 2);
     }
   }, 120000);
 });

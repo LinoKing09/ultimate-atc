@@ -281,13 +281,21 @@ export const SEQM: AirportData = {
   runwayOps: [
     {
       runway: '36',
-      departureEntries: [{ holdingPoint: 'A36', intersection: 'A', fullLength: true, toraM: 4098 }],
+      // Intersections: the AIP publishes no take-off runs from them - measured on the map.
+      departureEntries: [
+        { holdingPoint: 'A36', intersection: 'A', fullLength: true, toraM: 4098 },
+        { holdingPoint: 'A1', intersection: 'A1', fullLength: false, toraM: 3010 },
+      ],
       // Landing north: the rapid exits A2 and A3, else to the end.
       exits: [exitVia(built, 'A2', 'HP.5769871374'), exitVia(built, 'A3', 'HP.3329399338'), exitVia(built, 'A', 'HP.5769870833')],
     },
     {
       runway: '18',
-      departureEntries: [{ holdingPoint: 'A18', intersection: 'A', fullLength: true, toraM: 4098 }],
+      departureEntries: [
+        { holdingPoint: 'A18', intersection: 'A', fullLength: true, toraM: 4098 },
+        { holdingPoint: 'A3', intersection: 'A3', fullLength: false, toraM: 2600 },
+        { holdingPoint: 'A2', intersection: 'A2', fullLength: false, toraM: 1680 },
+      ],
       // Landing south: the rapid exit A1, else to the end.
       exits: [exitVia(built, 'A1', 'HP.3332491173'), exitVia(built, 'A', 'HP.3330072209')],
     },
@@ -342,7 +350,7 @@ export const SEQM: AirportData = {
       title: 'Quito in short',
       items: [
         'One runway **18/36**, 4098 m x 45 m, **7910 ft** above sea level in the Andes. Runway **36** is in use normally; **18** only with wind from the south of 8 kt or more (AIP AD 2.22).',
-        'Taxiway **A** runs the whole length on the west side; full-length departures from **A36** (south end) or **A18** (north end). Rapid exits **A2** and **A3** for runway 36, **A1** for runway 18.',
+        'Taxiway **A** runs the whole length on the west side; full-length departures from **A36** (south end) or **A18** (north end); intersections **A1** (36), **A3** and **A2** (18). Rapid exits **A2** and **A3** for runway 36, **A1** for runway 18.',
         'The second parallel **B** runs in front of the aprons, joined to A by **J**, **H**, **G**, **F** and **E**. The commercial apron lies along the apron lane **C** (stands 6-16 at the terminal, 51-60 opposite), stands 61-67 along B, 3-5 south of H; the cargo apron (80-85, up to the B747-8) along B further south.',
         'No 180-degree turns on the taxiways (AD 2.20). Every departure climbs to **17000 ft** at first; transition altitude 18000 ft. RNAV SIDs only from runway 36 (ARNOK, SIMOG, VURIS, KETOM, REBEK, TEMOX, ORETA, MIDEX, PALAD, NEGAL); from runway 18 departures get **radar vectors** ("cleared to Guayaquil, radar vectors, flight planned route, climb 17000 feet").',
         'Quito Ground also gives the clearances (no Delivery). Flower freighters to Miami and Amsterdam park on the cargo apron.',

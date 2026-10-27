@@ -3,7 +3,7 @@ import { CTOT_EARLY_S, CTOT_LATE_S, hhmm } from './delivery';
 import { wantsFollowMe } from './vehicles';
 import type { RunwayEnd, TaxiNode } from './airport/airport';
 import { moveFree, type Aircraft } from './aircraft';
-import { KT_TO_MS, M_PER_FT, M_PER_NM, add, distance, headingVector, length, scale } from './geo';
+import { KT_TO_MS, M_PER_FT, M_PER_NM, add, distance, headingOf, headingVector, length, scale, sub, type Vec2 } from './geo';
 import { vacateStopS } from './holdShort';
 import { findRoute, isRouteError } from './airport/routing';
 import { Path } from './path';
@@ -42,6 +42,16 @@ const BACKTRACK_TURN_RADIUS = 11;
 const BACKTRACK_TURN_ALONG = 30;
 /** A holding point at least this far from the runway end can be used with a backtrack (metres along the runway). */
 const BACKTRACK_MIN_ALONG = 120;
+/** Turn onto the runway (degrees) above which a departure enters backwards and turns around on the runway. */
+const REVERSE_ENTRY_TURN = 135;
+/** Distance a departure entering backwards rolls before its 180° turn (an intersection entry), metres. */
+const REVERSE_ENTRY_ROLL = 25;
+/** Smallest radius of the turn onto the runway at line-up, metres (the line-up point moves further along for it). */
+const LINEUP_MIN_RADIUS = 25;
+/** Radius of the turn onto the runway for a backtrack, metres. */
+const BACKTRACK_ENTRY_RADIUS = 15;
+/** Shape points of a strip this close to the runway node give way to one curve onto the runway, metres. */
+const LINEUP_SMOOTH_M = 30;
 /** An aircraft standing this far behind a departure's start point is not in its way (metres). */
 const BEHIND_MARGIN_M = 30;
 /** A landing aircraft may cross the threshold when a preceding departure is airborne and this far down the runway (RRSM). */
@@ -826,9 +836,17 @@ export class TowerAI {
     const strip = hp?.edges.find((e) => e.kind === 'runwayStrip');
     if (!hp || !strip) return 'we are not at a runway holding point';
     const rwyNode = strip.from === hp ? strip.to : strip.from;
-    // Shape points of a curved strip, from the holding point towards the runway.
-    const bend = strip.from === hp ? strip.shape : [...strip.shape].reverse();
-    const lineupPt = add(rwyNode.pos, scale(headingVector(end.heading), LINEUP_DISTANCE));
+    // Shape points of a curved strip, from the holding point towards the runway - without those close to the runway
+    // node: the turn onto the runway is drawn as one curve from there (short last segments made a sharp kink).
+    const shape = strip.from === hp ? strip.shape : [...strip.shape].reverse();
+    let keep = shape.length;
+    while (keep > 0 && distance(shape[keep - 1], rwyNode.pos) < LINEUP_SMOOTH_M) keep--;
+    const bend = shape.slice(0, keep);
+    // The turn onto the runway, as one curve; the line-up point lies beyond its end.
+    const last = bend.length ? bend[bend.length - 1] : hp.pos;
+    const turnDeg = Math.abs(((headingOf(sub(rwyNode.pos, last)) - end.heading + 540) % 360) - 180);
+    const onto = curveAt(last, rwyNode.pos, headingVector(end.heading), LINEUP_MIN_RADIUS);
+    const lineupPt = add(rwyNode.pos, scale(headingVector(end.heading), Math.max(LINEUP_DISTANCE, onto.tangent + 15)));
     const remaining = end.length - sim.airport.runwayCoordinates(end, lineupPt).along;
     const entry = sim.airport.runwayOps(end.name)?.departureEntries.find((e) => e.holdingPoint === hp.holdingPoint?.name);
     // Backtrack: on your instruction, or (AI Tower) where the entry is used that way.
@@ -855,15 +873,44 @@ export class TowerAI {
       // Back onto the centre line, then lined up straight along it.
       const merge = add(end.start, scale(u, BACKTRACK_TURN_ALONG + 30));
       const linePt = add(end.start, scale(u, BACKTRACK_TURN_ALONG + 50));
-      const path = new Path([ac.pos, ...bend, rwyNode.pos, add(end.start, scale(u, BACKTRACK_TURN_ALONG + 15)), ...turn, merge, linePt], [hp.id, ...bend.map(() => null), rwyNode.id, null, ...turn.map(() => null), null, null], 8);
+      // Onto the runway towards its start: one curve, or - where the taxiway points the take-off way - a 180° turn first.
+      const fromLeft = (rwyNode.pos.x - last.x) * u.y - (rwyNode.pos.y - last.y) * u.x > 0;
+      const first = turnDeg < 180 - REVERSE_ENTRY_TURN ? this.uTurn(add(rwyNode.pos, scale(u, REVERSE_ENTRY_ROLL)), u, fromLeft ? -1 : 1) : [];
+      const back = first.length ? { points: [rwyNode.pos], ids: (id: string) => [id] } : curveAt(last, rwyNode.pos, scale(u, -1), BACKTRACK_ENTRY_RADIUS);
+      const path = new Path(
+        [ac.pos, ...bend, ...back.points, ...first, add(end.start, scale(u, BACKTRACK_TURN_ALONG + 15)), ...turn, merge, linePt],
+        [hp.id, ...bend.map(() => null), ...back.ids(rwyNode.id), ...first.map(() => null), null, ...turn.map(() => null), null, null],
+        8,
+      );
       ac.path = path;
       ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
-      const sTurn = path.closestS(turn[0], 0);
-      ac.speedLimit = (s) => (s < sTurn ? Math.min(BACKTRACK_SPEED, Math.sqrt(BACKTRACK_TURN_SPEED ** 2 + 2 * 0.8 * (sTurn - s))) : BACKTRACK_TURN_SPEED);
+      const sFirst = first.length ? path.closestS(first[0], 0) : 0;
+      const sFirstEnd = first.length ? path.closestS(first[first.length - 1], sFirst) : 0;
+      const sTurn = path.closestS(turn[0], sFirstEnd);
+      ac.speedLimit = (s) => (s < sFirst ? Math.min(LINEUP_SPEED, Math.sqrt(BACKTRACK_TURN_SPEED ** 2 + 2 * 0.8 * (sFirst - s))) : s < sFirstEnd ? BACKTRACK_TURN_SPEED : s < sTurn ? Math.min(BACKTRACK_SPEED, Math.sqrt(BACKTRACK_TURN_SPEED ** 2 + 2 * 0.8 * (sTurn - s))) : BACKTRACK_TURN_SPEED);
       ac.backtrackCleared = false;
       return undefined;
     }
-    const path = new Path([ac.pos, ...bend, rwyNode.pos, lineupPt], [hp.id, ...bend.map(() => null), rwyNode.id, null], 35);
+    if (turnDeg > REVERSE_ENTRY_TURN) {
+      // The taxiway meets the runway pointing backwards (an angled exit used as an entry): along the runway a little -
+      // to its start from a full-length entry - then a 180° turn on the runway, swinging out to the far side first.
+      const u = headingVector(end.heading);
+      const along = sim.airport.runwayCoordinates(end, rwyNode.pos).along;
+      const roll = Math.max(10, entry?.fullLength ? along - BACKTRACK_TURN_RADIUS - 5 : Math.min(REVERSE_ENTRY_ROLL, along - BACKTRACK_TURN_RADIUS - 5));
+      const centre = add(rwyNode.pos, scale(u, -roll));
+      const fromLeft = (last.x - rwyNode.pos.x) * u.y - (last.y - rwyNode.pos.y) * u.x > 0;
+      const turn = this.uTurn(centre, scale(u, -1), fromLeft ? -1 : 1);
+      const merge = add(centre, scale(u, 25));
+      const linePt = add(centre, scale(u, 45));
+      const path = new Path([ac.pos, ...bend, rwyNode.pos, ...turn, merge, linePt], [hp.id, ...bend.map(() => null), rwyNode.id, ...turn.map(() => null), null, null], 20);
+      ac.path = path;
+      ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
+      const sTurn = path.closestS(turn[0], 0);
+      const sTurnEnd = path.closestS(turn[turn.length - 1], sTurn);
+      ac.speedLimit = (s) => (s < sTurn ? Math.min(LINEUP_SPEED, Math.sqrt(BACKTRACK_TURN_SPEED ** 2 + 2 * 0.8 * (sTurn - s))) : s < sTurnEnd ? BACKTRACK_TURN_SPEED : LINEUP_SPEED);
+      return undefined;
+    }
+    const path = new Path([ac.pos, ...bend, ...onto.points, lineupPt], [hp.id, ...bend.map(() => null), ...onto.ids(rwyNode.id), null], 35);
     ac.path = path;
     ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
     // "Cleared for immediate take-off": a brisk line-up.
@@ -892,10 +939,10 @@ export class TowerAI {
 
   /**
    * Points of a 180° turn on the runway: starting at `centre` offset to the left of the direction of
-   * travel `dir`, ending on its right, travelling in the opposite direction.
+   * travel `dir` (to the right with `side` -1), ending on the other side, travelling in the opposite direction.
    */
-  private uTurn(centre: { x: number; y: number }, dir: { x: number; y: number }): { x: number; y: number }[] {
-    const n = { x: -dir.y, y: dir.x };
+  private uTurn(centre: { x: number; y: number }, dir: { x: number; y: number }, side = 1): { x: number; y: number }[] {
+    const n = { x: -dir.y * side, y: dir.x * side };
     const r = BACKTRACK_TURN_RADIUS;
     const pts = [];
     for (let k = 0; k <= 8; k++) {
@@ -1031,4 +1078,26 @@ export class TowerAI {
     }
     this.inRunwayArea = now;
   }
+}
+
+/**
+ * The turn at `corner` from the leg coming from `prev` into the direction `dirOut`, as points of one curve (a quadratic
+ * Bézier) of about `radius` - tighter where the leg is short. `tangent` is how far the curve reaches along each leg;
+ * `ids` labels the middle point with the corner's id.
+ */
+function curveAt(prev: Vec2, corner: Vec2, dirOut: Vec2, radius: number): { points: Vec2[]; tangent: number; ids: (id: string) => (string | null)[] } {
+  const lin = distance(prev, corner);
+  const dirIn = lin > 0 ? scale(sub(corner, prev), 1 / lin) : dirOut;
+  const defl = Math.acos(Math.max(-1, Math.min(1, dirIn.x * dirOut.x + dirIn.y * dirOut.y)));
+  if (defl < 0.05 || lin === 0) return { points: [corner], tangent: 0, ids: (id) => [id] };
+  const tangent = Math.min(radius * Math.tan(Math.min(defl, 2.4) / 2), lin * 0.9);
+  const p1 = add(corner, scale(dirIn, -tangent));
+  const p2 = add(corner, scale(dirOut, tangent));
+  const steps = 2 * Math.max(2, Math.ceil((defl * 180) / Math.PI / 16));
+  const points: Vec2[] = [];
+  for (let k = 0; k <= steps; k++) {
+    const t = k / steps;
+    points.push({ x: (1 - t) * (1 - t) * p1.x + 2 * (1 - t) * t * corner.x + t * t * p2.x, y: (1 - t) * (1 - t) * p1.y + 2 * (1 - t) * t * corner.y + t * t * p2.y });
+  }
+  return { points, tangent, ids: (id) => points.map((_, k) => (k === steps / 2 ? id : null)) };
 }

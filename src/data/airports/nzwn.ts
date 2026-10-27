@@ -287,6 +287,8 @@ export const NZWN: AirportData = {
         { holdingPoint: 'A1', intersection: 'A1', fullLength: true, toraM: 1945 },
         { holdingPoint: 'A2', intersection: 'A2', fullLength: false, toraM: 1745 },
         { holdingPoint: 'A3', intersection: 'A3', fullLength: false, toraM: 1455 },
+        // A4: not published - measured on the map.
+        { holdingPoint: 'A4', intersection: 'A4', fullLength: false, toraM: 1180 },
       ],
       // Landing south, towards the terminal: A6 to A10 (from A6 on to B6 and B; A5 would put arrivals head-on with
       // the departures going north on A).
@@ -306,6 +308,8 @@ export const NZWN: AirportData = {
         { holdingPoint: 'A11', intersection: 'A11', fullLength: true, toraM: 1921 },
         { holdingPoint: 'A10', intersection: 'A10', fullLength: false, toraM: 1815 },
         { holdingPoint: 'A9', intersection: 'A9', fullLength: false, toraM: 1725 },
+        // A8: not published - measured on the map.
+        { holdingPoint: 'A8', intersection: 'A8', fullLength: false, toraM: 1530 },
       ],
       // Landing north, away from the terminal: A7 to A2, then back south on A.
       exits: [
@@ -351,7 +355,7 @@ export const NZWN: AirportData = {
       items: [
         'One runway **16/34** on the isthmus between Lyall Bay (south) and Evans Bay (north): 1815 m between the thresholds, plus 130 m before the 16 threshold and 106 m before the 34 threshold for the take-off run - full length **1945 m** from **A1** (16) and **1921 m** from **A11** (34).',
         'Taxiway **A** runs along the east side with the links **A1-A11**; **B** is the second parallel in front of the terminal, joined to A by **B5-B10**. **R, S, T, U** lead from B to the pier lanes **C** and **D**; the yellow pushback holding zones **Z1-Z6** are on B, R, S, T and U.',
-        'Holding points by type: runway 16 - jets **A1**, medium jets A1 or **A2**, turboprops A2 or **A3**; runway 34 - jets A11 / **A10**, turboprops A10 or **A9**.',
+        'Holding points by type: runway 16 - jets **A1**, medium jets A1 or **A2**, turboprops A2 or **A3** (also A4); runway 34 - jets A11 / **A10**, turboprops A10 or **A9** (also A8).',
         'Arrivals 16 land towards the terminal and vacate at **A5-A10**; arrivals 34 vacate at **A7-A2** and taxi back south on A.',
         'SIDs: jets **ATVEV1Q** (16) or **UPLUD1P / UPLUD1R** (34); turboprops **IDVAL1Q** (Nelson, Blenheim, Picton), **AGROR1Q** (south) or **UPROG1Q** (north) from 16, **IPKEP1P** (west) or **URGEV1P** (other directions) from 34. Transition altitude 13000 ft.',
         'The **Western Apron** (general aviation, the air force, helicopters) across the runway is drawn, not used. Curfew midnight to 6 am.',

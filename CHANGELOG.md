@@ -29,6 +29,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- **Intersection departures at the new airports**: entries the charts show but the simulator did not offer can now be taxied to - San Diego B2 (runway 27), B5 and C5 (9); Phuket F (27) and B (09); Wellington A4 (16) and A8 (34); Quito A1 (36), A3 and A2 (18). Their take-off runs are measured on the map (marked in the airport pages).
 - **ATIS editor** tidied up: information and runway in one row, wind with gusts and the head-/crosswind in one row, the METAR changes in one yellow line; the preview shows only the D-ATIS text (the spoken text unfolds on demand), and the runway-change note appears only when you select another runway.
 - **US airports show the altimeter only**: the ATIS editor takes the altimeter setting in inches (`29.92`) instead of the QNH in hPa; the value is kept exactly.
 - **Stands and taxi routes after the soak test**: Bremen stands 12-17 and 12A and Cologne/Bonn A25-A35 stand behind their AIP nose wheel stop positions, clear of taxilanes S and L; at Cologne/Bonn aircraft below 36 m keep to the blue and orange guide lines (the centre lines M and N only for short links); at Leipzig/Halle the bridges E7 (northbound) and E8 (southbound) are one-way.
@@ -46,6 +47,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- **Line-up paths**: aircraft turn onto the runway in one round curve instead of pivoting at a corner where the lead-in line has a short last leg. Where a taxiway meets the runway pointing backwards (angled exits used as entries: San Diego C2 / C3, Nuremberg B and E, Leipzig/Halle A5, Memmingen N, Cologne/Bonn A5), the aircraft rolls a little the other way and turns around on the runway instead of making an impossible hairpin turn; a backtrack from a taxiway that points the take-off way starts with such a turn. Phuket J: departures 27 follow the lead-in line onto the centre line instead of turning back to the end of the displacement area.
 - At an airport without a Ground position (St. Maarten) the Delivery menu offered "Contact Ground" (the crews asked "say again station"): it is "Contact Tower" there.
 - A departure at a holding point used with a backtrack was not lined up without one even when the published take-off run from there was enough for it (a fixed 1500 m was required).
 - A second departure could be cleared to backtrack while the first one was still turning on to the runway: lining-up aircraft now count as occupying the runway.

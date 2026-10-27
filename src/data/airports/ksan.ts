@@ -165,6 +165,8 @@ export const KSAN: AirportData = {
         { holdingPoint: 'C1', intersection: 'C1', fullLength: true, toraM: 2865 },
         { holdingPoint: 'C2', intersection: 'C2', fullLength: false, toraM: 2679 },
         { holdingPoint: 'C3', intersection: 'C3', fullLength: false, toraM: 2167 },
+        // B2: not in the table of the chart supplement - measured on the map.
+        { holdingPoint: 'B2', intersection: 'B2', fullLength: false, toraM: 2110 },
         { holdingPoint: 'C4', intersection: 'C4', fullLength: false, toraM: 1935 },
         { holdingPoint: 'B4', intersection: 'B4', fullLength: false, toraM: 1935 },
       ],
@@ -196,6 +198,9 @@ export const KSAN: AirportData = {
         { holdingPoint: 'B8', intersection: 'B8', fullLength: false, toraM: 2265 },
         { holdingPoint: 'B7', intersection: 'B7', fullLength: false, toraM: 1928 },
         { holdingPoint: 'B6', intersection: 'B6', fullLength: false, toraM: 1585 },
+        // B5 and C5: measured on the map.
+        { holdingPoint: 'B5', intersection: 'B5', fullLength: false, toraM: 1300 },
+        { holdingPoint: 'C5', intersection: 'C5', fullLength: false, toraM: 1300 },
       ],
       // B2, C2 and C3 fork behind the holding point: both branches (west towards the terminals, east).
       exits: [
@@ -262,7 +267,7 @@ export const KSAN: AirportData = {
         'You are **Lindbergh** Clearance Delivery, Ground or Tower - US phraseology (FAA): `runway 27, taxi via B`, `push approved, tail east`, `runway 27, line up and wait`, `runway 27, cleared for takeoff`, `contact SoCal Departure`. Altimeter in inches (`altimeter 2992`), transition altitude 18000 ft.',
         'One runway **9/27** (9401 ft / 2865 m, 200 ft wide), both thresholds displaced (9: 1000 ft, 27: 1810 ft). **West traffic (27) is preferred**; east traffic (9) only with more than 10 kt tailwind on 27. Runway 27 has no ILS: LOC and RNAV approaches over downtown.',
         'Taxiways: **B** along the south side of the runway (terminals), **C** along the north side, **A** in front of Terminal 1. Connectors B1-B10 and C1-C6 carry the names of the holding positions: `hold short of runway 27 at B4`; B4 / C4 and B6 / C6 are crossings.',
-        'Departures 27 from **B1** (south) or **C1** (north) - full length - or the intersections C2, C3, C4 / B4; departures 9 from **B10** / **B9**, intersections B8, B7, B6. West traffic: departures east on B and C (simulator convention); A both ways.',
+        'Departures 27 from **B1** (south) or **C1** (north) - full length - or the intersections C2, C3, B2, C4 / B4; departures 9 from **B10** / **B9**, intersections B8, B7, B6, B5 / C5. West traffic: departures east on B and C (simulator convention); A both ways.',
         'Arrivals 27 vacate to the south at B5-B10 (Terminal 2 at the west end, Terminal 1 via A), to the north at C5 / C6 (north apron).',
         'SIDs: runway 27 **PADRZ2** (north, west) or **ZZOOO4** (east, south); runway 9 **ECHHO2** (north-west), **MMOTO2** (oceanic) or **SAYOW2** (east). All "climb via SID"; SoCal Departure 119.6 (PADRZ), 125.15 (ZZOOO) or 124.35 (east traffic).',
       ],

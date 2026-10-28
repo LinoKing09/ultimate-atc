@@ -229,14 +229,19 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return { readback: formatCommand(c) };
     }
     case 'standby':
-    case 'roger':
-      // Acknowledged: the pilot waits (2 minutes after "standby", 4 after "roger") and stops flashing.
-      ac.standbyUntil = sim.time + (c.type === 'roger' ? 240 : 120);
+      // Acknowledged: the pilot waits 2 minutes and stops flashing.
+      ac.standbyUntil = sim.time + 120;
       if (ac.request) {
         sim.recordAnswer(ac);
         ac.requestSince = sim.time;
         ac.requestAck = true;
       }
+      return {};
+    case 'roger':
+      // Heard, but not answered: the aircraft stops flashing and the pilot waits 4 minutes before calling
+      // again. The request stays open, so its waiting time runs on (and counts once it is answered).
+      ac.standbyUntil = sim.time + 240;
+      if (ac.request) ac.requestAck = true;
       return {};
     case 'expedite':
       ac.expedite = true;

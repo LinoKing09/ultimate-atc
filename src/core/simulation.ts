@@ -74,6 +74,8 @@ export interface SimConfig {
 
 /** How long the simulator works the airport before you take over ('handover' start), seconds. */
 export const HANDOVER_S = 20 * 60;
+/** The positions you can staff (Approach and Radar to follow). */
+export const STAFFABLE: StationType[] = ['DEL', 'GND', 'TWR'];
 
 export type IncidentType = 'collision' | 'incursion' | 'goAround';
 
@@ -1009,6 +1011,30 @@ export class Simulation {
     const tower = this.stationFor('tower');
     // An airport without a Tower station has its runway run by Ground (and the AI Tower flies the aircraft).
     return this.userControls(tower) && (!!this.airport.station('TWR') || tower !== this.stationFor('ground'));
+  }
+
+  /** Positions of this airport you could still take over during the session (Delivery, Ground, Tower). */
+  get vacantStations(): StationType[] {
+    return STAFFABLE.filter((t) => !this.loggedInStations.includes(t) && this.airport.station(t));
+  }
+
+  /**
+   * Takes over one more position during the session (combined positions): its frequency is yours from now on.
+   * Crews with an open request on it call you again within the next half minute. Returns an error text if not possible.
+   */
+  addStation(type: StationType): string | undefined {
+    if (!this.vacantStations.includes(type)) return `${type} cannot be taken over.`;
+    this.loggedInStations.push(type);
+    this.userStations.add(type);
+    for (const a of this.aircraft) {
+      if (a.frequency !== type || !a.request) continue;
+      a.requestSince = this.time;
+      a.callCount = 0;
+      a.lastCallAt = this.time - 90 + 30 * this.variation(`${a.callsign}:add${type}`);
+    }
+    const st = this.airport.station(type);
+    this.system(`${st?.callsign ?? type} ${st?.frequency ?? ''} taken over - you work ${st?.name ?? type} too.`);
+    return undefined;
   }
 
   /**

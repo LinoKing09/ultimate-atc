@@ -668,6 +668,19 @@ button.mic.listening {
   color: var(--text-dim);
   text-decoration: line-through;
 }
+/* "+": take over another position. */
+.toolbar .stn-add {
+  cursor: pointer;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px dashed var(--panel-border);
+  border-radius: 3px;
+  font-weight: bold;
+}
+.toolbar .stn-add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
 .toolbar .combined-tag {
   color: #c9bfff;
   font-weight: bold;

@@ -134,6 +134,31 @@ describe('tower position', () => {
     expect(sim.messages.slice(n).filter((m) => m.kind === 'pilot').length).toBe(0);
   });
 
+  it('"roger" keeps the request open: its waiting time runs on', () => {
+    const sim = towerSim();
+    const ac = sim.traffic.spawnArrival(6, { callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    expect(runUntil(sim, () => ac.request === 'landing', 30)).toBe(true);
+    const since = ac.requestSince;
+    const answered = sim.stats.answeredRequests;
+    for (let t = 0; t < 5; t++) sim.tick(1);
+    sim.transmit('EWG7TK roger');
+    for (let t = 0; t < 8; t++) sim.tick(1);
+    expect(ac.requestAck).toBe(true);
+    expect(ac.requestSince).toBe(since);
+    expect(sim.stats.answeredRequests).toBe(answered);
+  });
+
+  it('takes over another position during the session', () => {
+    const sim = towerSim();
+    expect(sim.userControls('GND')).toBe(false);
+    expect(sim.vacantStations).toContain('GND');
+    expect(sim.addStation('GND')).toBeUndefined();
+    expect(sim.userControls('GND')).toBe(true);
+    expect(sim.loggedInStations).toContain('GND');
+    expect(sim.vacantStations).not.toContain('GND');
+    expect(sim.addStation('GND')).toBeDefined();
+  });
+
   it('takes off from the runway in its clearance after the ATIS changed the runway in use', () => {
     const sim = towerSim();
     const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'EWG8LM', type: 'A320' }) as Aircraft;

@@ -213,8 +213,13 @@ export class App {
 
     // ---------------------------------------------------------------- scope + panels
     const canvas = h('canvas.scope');
-    // Click a frequency in the toolbar: switch it off / on.
+    // Click a frequency in the toolbar: switch it off / on; "+": take over another position.
     this.fields.station.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('[data-add]')) {
+        const r = this.fields.station.getBoundingClientRect();
+        this.menu.open('TAKE OVER POSITION', this.addStationItems(), r.left, r.bottom + 2);
+        return;
+      }
       const el = (e.target as HTMLElement).closest<HTMLElement>('[data-station]');
       const type = el?.dataset.station as StationType | undefined;
       if (!type) return;
@@ -450,7 +455,9 @@ export class App {
           const on = sim.userControls(st.type);
           return `<span class="stn pos-${st.type}${on ? '' : ' off'}" data-station="${st.type}" title="${on ? 'Click to switch off' : 'Switched off (run by the simulator) - click to switch on'}"><b>${st.callsign}</b> ${st.frequency}${on ? '' : ' OFF'}</span>`;
         })
-        .join(' + ') + (active.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '');
+        .join(' + ') +
+      (active.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '') +
+      (sim.vacantStations.length ? '<span class="stn-add" data-add="1" title="Take over another position (its frequency is yours from now on)">+</span>' : '');
     if (this.fields.station.innerHTML !== html) this.fields.station.innerHTML = html;
     this.fields.rwy.innerHTML = `RWY <b>${sim.runways.map((r) => (sim.faa ? usRunway(r) : r)).join(' ')}</b>`;
     // A newer METAR the ATIS does not match yet: the letter in red, the differences in the tooltip.
@@ -698,10 +705,8 @@ export class App {
               { text: 'RDR', re: /^Contact (?!Ground)/ },
             ];
     const buttons = specs.map((s) => this.quickButton(s, items));
-    // The same at every position.
+    // The same at every position (ROGER and standby: the sidebar and MENU).
     buttons.push(
-      this.quickButton({ text: 'STBY', re: /^Standby$/ }, items),
-      mine && ac.request && !ac.requestAck ? { text: 'ROGER', kind: 'phrase', phrase: 'roger' } : { text: 'ROGER', kind: 'off' },
       mine && ac.atisOutdated ? { text: `INFO ${sim.atisLetter}`, kind: 'phrase', phrase: `information ${sim.atisLetter} is current, ${sim.pressurePhrase()}` } : { text: `INFO ${sim.atisLetter}`, kind: 'off' },
     );
     if (pos !== 'DEL') buttons.push(catcAlert(sim, ac) ? { text: 'ACK', kind: 'action', action: () => this.acknowledgeCatc(ac) } : { text: 'ACK', kind: 'off' });
@@ -713,7 +718,7 @@ export class App {
     return buttons;
   }
 
-  /** Follow-me car: always PROCEED, HOLD, CONT, BASE, STBY. */
+  /** Follow-me car: always PROCEED, HOLD, CONT, BASE. */
   private vehicleQuickButtons(v: Vehicle): QuickButton[] {
     const items = this.vehicleItems(v);
     return [
@@ -721,7 +726,6 @@ export class App {
       this.quickButton({ text: 'HOLD', re: /^Hold position$/ }, items),
       this.quickButton({ text: 'CONT', re: /^Continue$/ }, items),
       this.quickButton({ text: 'BASE', re: /^Return to base$/ }, items),
-      this.quickButton({ text: 'STBY', re: /^Standby$/ }, items),
       { text: 'MENU', kind: 'menu', title: vehicleTel(v).toUpperCase(), items: () => this.vehicleItems(v) },
     ];
   }
@@ -1091,6 +1095,22 @@ export class App {
       r.left - 220,
       r.top,
     );
+  }
+
+  /** The positions you can still take over, for the "+" next to your frequencies. */
+  private addStationItems(): MenuItem[] {
+    return this.sim.vacantStations.map((type) => {
+      const st = this.sim.airport.station(type)!;
+      return {
+        label: `${st.name} (${st.callsign})`,
+        hint: st.frequency,
+        action: () => {
+          const err = this.sim.addStation(type);
+          if (err) this.toast(err);
+          this.slowUpdate();
+        },
+      };
+    });
   }
 
   /** Coordination with the simulator-run neighbours: hold arrivals (Approach) or departures (Ground). */

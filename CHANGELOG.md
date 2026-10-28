@@ -32,6 +32,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- **Departures pass a slot flight waiting at the holding point**: a departure taxiing to a holding point where a slot flight waits (window more than 2 minutes away) is sent to another holding point of the runway that it accepts and reaches without turning around - by the simulator on its positions, on your frequency the crew asks for it (`... is waiting for its slot at holding point A, request taxi to holding point B`).
 - **Slot flights wait on the stand, not at the runway**: the AI Ground approves push and start for a flight with a CTOT only from 2 minutes before its TSAT (A-CDM) or, without A-CDM, from CTOT - 10 min - before, they stood 10-13 minutes (median) at the holding point and blocked the queue. Without A-CDM crews say their CTOT in the pushback request (`request pushback, CTOT 1045`), and the *Pushback approved* menu shows `CTOT 1045: not before 1035`.
 - **Departures in the sequence stop reminding Tower**: a departure that was heard (`roger`, `standby`, `number N`) does not call again every 4 minutes while other departures are ahead of it for the runway or its slot window is not open yet.
 - **Tower no longer taxis arrivals to their stand**: *Taxi to stand* on Tower frequency is replaced by *Taxi, hold short of* - on along the way to the stand up to a taxiway (`taxi via E, N, hold short of taxiway L`), the rest is Ground's.

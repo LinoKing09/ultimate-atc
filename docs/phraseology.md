@@ -422,7 +422,7 @@ Pilots on your frequency call on their own:
 | Thunderstorm, go-around on final                        | `Lufthansa 5AB, going around, windshear` (or `..., tailwind out of limits`) |
 | Rejected take-off (after vacating)                      | `Stuttgart Ground, Lufthansa 5AB, we rejected take-off due to a technical problem, vacated runway 25 via D, request taxi back to the stand` (or `..., problem solved, ..., request taxi for another departure`) |
 
-If you don't answer, pilots **call again** after 60-90 seconds, up to five times. Reminders are shorter: `Stuttgart Ground, Lufthansa 5AB, stand 14, request pushback`. `standby` stops the reminders for two minutes, `roger` for four. A departure Tower has heard does not remind it while it sees other departures ahead of it in the sequence (or its slot is not due yet). Without A-CDM a slot flight adds its CTOT to the pushback request: `..., request pushback, CTOT 1045`.
+If you don't answer, pilots **call again** after 60-90 seconds, up to five times. Reminders are shorter: `Stuttgart Ground, Lufthansa 5AB, stand 14, request pushback`. `standby` stops the reminders for two minutes, `roger` for four. A departure Tower has heard does not remind it while it sees other departures ahead of it in the sequence (or its slot is not due yet). Without A-CDM a slot flight adds its CTOT to the pushback request: `..., request pushback, CTOT 1045`. A crew taxiing to a holding point where a slot flight waits asks once for another one: `..., Turkish 480 is waiting for its slot at holding point A, request taxi to holding point B`.
 
 ## Spoken input
 

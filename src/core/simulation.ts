@@ -13,7 +13,7 @@ import { updateConflictAlerts, updateRunwayAlerts } from './conflicts';
 import { updateOppositeTraffic } from './opposite';
 import { scoreOf } from './debrief';
 import { sidsForDestination, updateSequencer, updateDeliveryAI } from './delivery';
-import { updateGroundAI } from './groundAI';
+import { updateGroundAI, updateSlotPassing } from './groundAI';
 import { Rng } from './random';
 import { SYSTEMS, approachType, defaultSystemStates, type ApproachType, type SystemId, type SystemStates } from './systems';
 import { SCENARIO_EVENT_TEXT, type ScenarioEvent, type ScenarioSetup } from './scenario';
@@ -473,6 +473,7 @@ export class Simulation {
       updateSequencer(this);
       updateDeliveryAI(this);
       updateGroundAI(this);
+      updateSlotPassing(this);
       this.checkAtisCorrections();
     }
     this.frequency.update(this.time);

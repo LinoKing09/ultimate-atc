@@ -51,4 +51,49 @@ describe('slots and the departure sequence', () => {
     expect(runUntil(sim, () => ac.request === 'pushback', 900)).toBe(true);
     expect(sim.messages.filter((m) => m.from === 'DLH5AB').at(-1)?.text).toMatch(/request (pushback|push and start), CTOT \d{4}$/);
   });
+
+  it('the simulator sends a departure heading for the holding point of an early slot flight to another one', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'DEL', runway: '25', density: 'medium', seed: 42, events: false, generateTraffic: false });
+    const a = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const b = sim.traffic.spawnDeparture(0, { stand: '13', callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    for (const ac of [a, b]) {
+      ac.ctot = undefined;
+      ac.cleared = true;
+      ac.frequency = 'GND';
+    }
+    b.readyAt = 60;
+    // A new slot for the first one once it taxis, far ahead: it waits at the holding point.
+    expect(runUntil(sim, () => a.phase === 'taxi', 600)).toBe(true);
+    a.ctot = sim.time + 40 * 60;
+    expect(runUntil(sim, () => a.phase === 'holding', 1200)).toBe(true);
+    const taken = a.stoppedAt?.holdingPoint;
+    // The one behind does not queue behind it.
+    expect(runUntil(sim, () => b.phase === 'holding' || b.phase === 'takeoff' || b.phase === 'climb', 1200)).toBe(true);
+    expect(a.phase).toBe('holding');
+    expect(b.flightPlan.runway === '25' && b.stoppedAt?.holdingPoint === taken).toBe(false);
+  });
+
+  it('on your frequency the crew heading for the holding point of an early slot flight asks for another one', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 42, events: false, generateTraffic: false });
+    const a = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const b = sim.traffic.spawnDeparture(0, { stand: '13', callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    for (const ac of [a, b]) ac.ctot = undefined;
+    expect(runUntil(sim, () => a.request === 'pushback', 900)).toBe(true);
+    sim.transmit('DLH5AB push and start approved');
+    expect(runUntil(sim, () => a.request === 'taxi', 600)).toBe(true);
+    sim.transmit('DLH5AB taxi to holding point A');
+    expect(runUntil(sim, () => a.phase === 'holding', 1200)).toBe(true);
+    a.ctot = sim.time + 40 * 60;
+    expect(runUntil(sim, () => b.request === 'pushback', 900)).toBe(true);
+    sim.transmit('EWG7TK push and start approved');
+    expect(runUntil(sim, () => b.request === 'taxi', 600)).toBe(true);
+    sim.transmit('EWG7TK taxi to holding point A');
+    expect(runUntil(sim, () => b.request === 'route', 900)).toBe(true);
+    const text = sim.messages.filter((m) => m.from === 'EWG7TK').at(-1)?.text ?? '';
+    expect(text).toMatch(/waiting for its slot at holding point A, request taxi to holding point \S+$/);
+    const hp = /request taxi to holding point (\S+)$/.exec(text)![1];
+    sim.transmit(`EWG7TK taxi to holding point ${hp}`);
+    expect(runUntil(sim, () => b.phase === 'holding', 900)).toBe(true);
+    expect(b.stoppedAt?.holdingPoint).toBe(hp);
+  });
 });

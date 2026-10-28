@@ -133,6 +133,8 @@ export interface Aircraft {
   /** Callsign of the aircraft currently blocking the path, if any. */
   blockedBy?: string;
   blockedSince?: number;
+  /** The slot flight whose holding point the crew asked to avoid (asked once). */
+  slotPassAsked?: string;
   /** Distance along the path the aircraft may still move before reaching traffic ahead. */
   blockDistance?: number;
   /** Give-way bookkeeping: last and smallest distance to the traffic so far. */

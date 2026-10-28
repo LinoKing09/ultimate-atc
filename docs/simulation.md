@@ -199,6 +199,8 @@ Source: `src/core/delivery.ts`.
 
 **A-CDM pre-departure sequencer** (every 5 s, when A-CDM is on): every parked departure without start-up approval gets a **TSAT** - not before its ready time, not before CTOT - 10 min (taxi time), rounded up to the minute and at least **90 s** from every other TSAT. A TSAT once issued is kept while it is still valid; flights that missed their TSAT (and new flights) only get a new one after that, in the earliest free slot - a late flight never bumps one that is on time. Start-ups already approved (and aircraft off-block) keep their slot. Crews call for start-up (on Delivery) or pushback (on Ground) 2 minutes before their TSAT. Without A-CDM there is no TSAT: crews call when ready, and a slot flight says its CTOT (`request pushback, CTOT 1045`) - keep it on the stand until CTOT - 10 min (the *Pushback approved* menu says `CTOT 1045: not before 1035`), or it waits at the holding point.
 
+**Passing a slot flight**: when a slot flight waits at a holding point and its window opens more than 2 minutes from now, a departure taxiing to the same holding point goes to another one of its runway - one the crew accepts (full length, or enough take-off run), reached without turning around and without passing the slot flight (the shortest such route). Positions run by the simulator (Ground, Tower) re-route it at once (checked every 5 s); on your frequency the crew asks once: `Turkish 480 is waiting for its slot at holding point A, request taxi to holding point B`. Where there is no such holding point the departure queues behind the slot flight.
+
 ## A-SMGCS
 
 Source: `src/core/conflicts.ts`. Each service can be switched off in the [systems window](systems.md).

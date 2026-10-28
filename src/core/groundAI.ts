@@ -3,7 +3,7 @@ import { blockCycle, headOnPartner, resolveOptions } from './conflicts';
 import { CTOT_EARLY_S, offBlockDue } from './delivery';
 import type { TaxiDestination } from './phraseology/commands';
 import { parseTransmission } from './phraseology/parser';
-import { aiInstruct, autoRoute, previewTaxi } from './pilot';
+import { aiInstruct, autoRoute, earlySlotAhead, passingEntry, previewTaxi } from './pilot';
 import type { Stand } from './airport/airport';
 import { distance } from './geo';
 import type { TaxiRoute } from './airport/routing';
@@ -40,6 +40,19 @@ export function updateGroundAI(sim: Simulation): void {
     else if (ac.category === 'tow') tow(sim, ac);
     else arrival(sim, ac);
     resolve(sim, ac);
+  }
+}
+
+/**
+ * Positions run by the simulator (Ground, Tower) send a departure queuing behind a slot flight that waits
+ * at the holding point to another holding point of the runway, where the airport has one it can take.
+ */
+export function updateSlotPassing(sim: Simulation): void {
+  for (const ac of sim.aircraft) {
+    if (sim.userControls(ac.frequency) || !ac.onGround) continue;
+    const slot = earlySlotAhead(sim, ac);
+    const alt = slot && passingEntry(sim, ac, slot);
+    if (alt) aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'holdingPoint', name: alt.name, runway: alt.runway }, via: [], holdShort: [], cross: [] });
   }
 }
 

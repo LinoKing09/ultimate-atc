@@ -1549,6 +1549,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       call(sim, ac, 'handoff', `${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`);
       return;
     }
+    if (askToPassSlot(sim, ac, tel)) return;
     if (ac.blockedBy && ac.blockedSince !== undefined && now - ac.blockedSince > 60 && ac.speed < 0.1) {
       const o = sim.find(ac.blockedBy);
       const headOn = o && Math.abs(headingDiff(ac.heading, o.heading)) > 120;
@@ -1574,6 +1575,11 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     ac.request = null;
     return;
   }
+  // The slot flight has gone (or we were re-routed): no other holding point to ask for any more.
+  if (ac.request === 'route' && ac.slotPassAsked && !earlySlotAhead(sim, ac)) {
+    ac.request = null;
+    return;
+  }
   // Crossed (or re-routed) meanwhile: no crossing to ask for any more.
   if (ac.request === 'crossing' && ac.stoppedAt?.kind !== 'runway' && ac.speed > 0.5) {
     ac.request = null;
@@ -1586,6 +1592,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     ac.assignedStand = sim.traffic.allocateStand(ac)?.id;
   }
 
+  if (ac.request === 'departure' && askToPassSlot(sim, ac, tel)) return;
   // Reminders when nobody answers - not from a departure that was heard and sees it is in the departure
   // sequence (traffic ahead of it for the runway, or its slot window not open yet): it waits for its turn.
   if (ac.requestAck && ac.request === 'departure' && inDepartureSequence(sim, ac)) return;
@@ -1613,6 +1620,57 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     const text = reminder[ac.request];
     if (text) call(sim, ac, ac.request, text);
   }
+}
+
+/**
+ * A slot flight waiting at the holding point this departure taxis to, if it cannot go for a while yet
+ * (its window opens more than 2 minutes from now): the departure would queue behind it.
+ */
+export function earlySlotAhead(sim: Simulation, ac: Aircraft): Aircraft | undefined {
+  const dest = ac.routeDestination;
+  if (ac.category !== 'departure' || ac.phase !== 'taxi' || dest?.kind !== 'holdingPoint') return undefined;
+  const hp = dest.name.toUpperCase();
+  return sim.aircraft.find(
+    (o) =>
+      o !== ac &&
+      o.category === 'departure' &&
+      o.phase === 'holding' &&
+      o.stoppedAt?.holdingPoint?.toUpperCase() === hp &&
+      o.ctot !== undefined &&
+      sim.time + 120 < o.ctot - CTOT_EARLY_S,
+  );
+}
+
+/**
+ * Another holding point of its runway for a departure stuck behind `other`: one the crew accepts, reached
+ * without turning around and without passing through `other`; the shortest route first.
+ */
+export function passingEntry(sim: Simulation, ac: Aircraft, other: Aircraft): { name: string; runway: string } | undefined {
+  const runway = sim.departureRunwayOf(ac);
+  const taken = other.stoppedAt?.holdingPoint?.toUpperCase();
+  const clear = (ac.type.wingspanM + other.type.wingspanM) / 2 + 10;
+  let best: { name: string; runway: string; length: number } | undefined;
+  for (const e of sim.airport.runwayOps(runway)?.departureEntries ?? []) {
+    if (e.holdingPoint.toUpperCase() === taken || !ableFrom(sim, ac, e.holdingPoint)) continue;
+    const route = autoRoute(sim, ac, { kind: 'holdingPoint', name: e.holdingPoint, runway });
+    if (!route || route.requiresUTurn || !route.nodes.length) continue;
+    const pts = sim.airport.polyline(route.nodes).points;
+    if (pts.some((p) => distance(p, other.pos) < clear)) continue;
+    if (!best || route.length < best.length) best = { name: e.holdingPoint, runway, length: route.length };
+  }
+  return best && { name: best.name, runway: best.runway };
+}
+
+/** On the way to a holding point where a slot flight waits: the crew asks (once) for another holding point. */
+function askToPassSlot(sim: Simulation, ac: Aircraft, tel: string): boolean {
+  const slot = earlySlotAhead(sim, ac);
+  if (!slot || ac.slotPassAsked === slot.callsign || sim.time - ac.lastCallAt < 20) return false;
+  const alt = passingEntry(sim, ac, slot);
+  if (!alt) return false;
+  ac.slotPassAsked = slot.callsign;
+  const hp = slot.stoppedAt?.holdingPoint ?? '';
+  call(sim, ac, 'route', `${tel}, ${sim.tel(slot)} is waiting for its slot at holding point ${hp}, request taxi to holding point ${alt.name}`);
+  return true;
 }
 
 /** ", CTOT 1045" in a pushback request without A-CDM (with A-CDM the TSAT already matches the slot). */

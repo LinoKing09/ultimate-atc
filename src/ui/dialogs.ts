@@ -323,6 +323,7 @@ const REFERENCE: [string, string][] = [
   ['cancel pushback / stop pushback / continue pushback', 'Cancel a pushback (a moving aircraft is towed back onto the stand), stop a moving pushback, resume it.'],
   ['taxi to holding point A [runway 25] via L2, S', 'Taxi to a runway holding point along the given taxiways.'],
   ['taxi to runway 25 via L2, S', 'Taxi to the runway; the pilot picks the full-length holding point.'],
+  ['Taxi to menu: destination > Hold short of L2', 'Click a destination for the whole route; its sub-menu limits it ("..., hold short of taxiway L2"). Tower only taxis a vacated arrival on to such a limit, the stand is Ground\'s.'],
   ['taxi to stand 14 via N, L2', 'Taxi an arrival to its stand. Lettered stands: "taxi to stand G1" / "stand golf 1" (Sylt), "stand R2S" / "stand romeo 2 sierra", "stand 24 alpha november" (Wellington).'],
   ['turn around, taxi to stand 208', 'The route starts the other way round: an airliner needs a tug for it (several minutes), a small aircraft turns on the spot. Resolve conflict uses it.'],
   ['taxi to de-icing pad DP2 via N', 'Winter scenarios (de-icing): taxi a departure that requests de-icing to a pad first (DP1-DP4; "taxi to de-icing" = a free pad). Status DEICE for 6-10 min, then "de-icing complete, ready for taxi" - now taxi it to the runway. Before that, crews refuse the runway.'],
@@ -371,7 +372,7 @@ const KEYS: [string, string][] = [
   ['Right click', 'Aircraft menu (pushback, taxi, handoff, ...)'],
   ['Double click on list row', 'Centre the scope on the aircraft'],
   ['Click a tag item', 'Callsign: flight plan + telephony; cleared-to: taxi menu; status: aircraft menu'],
-  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use - with parallel runways both together or one alone -, wind and gusts, QNH, information letter). The wind changes with the weather: a new METAR every 30 minutes, the ATIS letter turns red when it no longer matches, and a tailwind above 5 kt brings a runway change hint. "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
+  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use - with parallel runways both together or one alone -, wind and gusts, QNH, information letter; TRANSFER copies wind and QNH from the METAR). The wind changes with the weather: a new METAR every 30 minutes, the ATIS letter turns red when it no longer matches, and a tailwind above 5 kt brings a runway change hint. "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
   ['2215L after the UTC time', 'Local time, shown with night flying restrictions: jets must be airborne by 2300 local, landings until 2330 (delayed flights until 2400)'],
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
@@ -542,6 +543,16 @@ export function showAtisEditor(sim: Simulation): void {
   };
   [dir, spd, gust, qnh, rwySel, letterSel].forEach((el) => el.addEventListener('input', update));
   update();
+  // TRANSFER: wind (with gusts) and QNH of the latest METAR into the form.
+  const transfer = h('button', { type: 'button', text: 'TRANSFER', title: 'Copy wind, gusts and QNH of the METAR into the ATIS' });
+  transfer.addEventListener('click', () => {
+    const m = sim.metar;
+    dir.value = String(m.wind.direction);
+    spd.value = String(m.wind.speedKt);
+    gust.value = m.wind.gustKt ? String(m.wind.gustKt) : '';
+    qnh.value = sim.faa ? (Number(altimeterOf(m.qnh)) / 100).toFixed(2) : String(m.qnh);
+    update();
+  });
 
   const apply = h('button.primary', { type: 'submit', text: 'Broadcast ATIS' });
   const cancel = h('button', { type: 'button', text: 'Cancel' });
@@ -553,7 +564,7 @@ export function showAtisEditor(sim: Simulation): void {
     h(
       'div.dbody',
       {},
-      h('div.metar', { text: formatMetar(sim, sim.metar) }),
+      h('div.metar-row', {}, h('div.metar', { text: formatMetar(sim, sim.metar) }), transfer),
       ...(diffs.length ? [h('div.sub.changed', { text: `Changed since information ${a.letter}: ${diffs.join(', ')}` })] : []),
       h(
         'div.atis-form',

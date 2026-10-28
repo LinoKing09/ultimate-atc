@@ -1,6 +1,6 @@
 import type { Aircraft } from './aircraft';
 import { blockCycle, headOnPartner, resolveOptions } from './conflicts';
-import { CTOT_EARLY_S } from './delivery';
+import { CTOT_EARLY_S, offBlockDue } from './delivery';
 import type { TaxiDestination } from './phraseology/commands';
 import { parseTransmission } from './phraseology/parser';
 import { aiInstruct, autoRoute, previewTaxi } from './pilot';
@@ -60,7 +60,8 @@ function crossingDesignator(sim: Simulation, runway: string): string {
 function departure(sim: Simulation, ac: Aircraft): void {
   // Tower asked to hold all departures, or lightning stopped the ground handling: no pushbacks (aircraft already moving continue).
   if (ac.phase === 'parked' && (sim.flow.departuresStopped || apronClosed(sim))) return;
-  if (ac.phase === 'parked' && sim.time >= ac.readyAt && ac.cleared) {
+  // Slot flights wait on the stand (TSAT, or CTOT - taxi time), not at the holding point.
+  if (ac.phase === 'parked' && sim.time >= offBlockDue(sim, ac) && ac.cleared) {
     if (busyNearby(sim, ac, 250)) return; // the simplest pushback sequencing: wait for passing traffic
     if (needsDeicing(sim, ac) && !freePads(sim, ac).length) return; // all de-icing pads busy: stay on the stand
     if (headOnAhead(sim, ac)) return; // an arrival comes the other way on the taxiways out (single-lane taxiways)

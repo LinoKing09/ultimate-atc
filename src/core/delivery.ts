@@ -354,6 +354,16 @@ export function updateDeliveryAI(sim: Simulation): void {
 }
 
 /** Time the crew asks for start-up: at the TSAT with A-CDM, otherwise when ready (TOBT). */
+/**
+ * When a departure may leave its stand: at its TSAT with A-CDM; without, not before CTOT - taxi time,
+ * so that it reaches the runway when its slot window opens and does not wait at the holding point.
+ */
+export function offBlockDue(sim: Simulation, ac: Aircraft): number {
+  // From 2 minutes before the TSAT, like the crews' start-up call (the sequencer moves a TSAT that has passed).
+  if (sim.systemOn('acdm') && ac.tsat !== undefined) return ac.tsat - 120;
+  return ac.ctot !== undefined ? Math.max(ac.readyAt, ac.ctot - EXOT_S) : ac.readyAt;
+}
+
 export function startupDue(sim: Simulation, ac: Aircraft): number {
   return sim.systemOn('acdm') && ac.tsat !== undefined ? ac.tsat - 120 : ac.readyAt;
 }

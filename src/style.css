@@ -531,6 +531,15 @@ button.mic.listening {
   margin: 0 0 8px;
   white-space: pre-wrap;
 }
+/* ATIS editor: the METAR with the TRANSFER button next to it. */
+.dialog .metar-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.dialog .metar-row .metar {
+  flex: 1;
+}
 .dialog pre.datis {
   border-left: 2px solid var(--panel-border);
   padding-left: 8px;

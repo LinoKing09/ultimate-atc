@@ -7,7 +7,7 @@ import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { parseTransmission } from '../core/phraseology/parser';
 import { acknowledgeCatc, catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
-import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, sendDcl, sidsForDestination, suggestedSid } from '../core/delivery';
+import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, offBlockDue, sendDcl, sidsForDestination, suggestedSid } from '../core/delivery';
 import { formatClearanceClimb, formatDepartureRoute } from '../core/phraseology/format';
 import { previewTaxi } from '../core/pilot';
 import type { SystemId } from '../core/systems';
@@ -690,7 +690,7 @@ export class App {
               { text: 'TWR', re: /^Contact Tower/ },
             ]
           : [
-              { text: 'TAXI', re: /^Taxi to( stand)?$/ },
+              { text: 'TAXI', re: /^Taxi( to|, hold short of)$/ },
               { text: 'LUP', re: /^Line up and wait/ },
               { text: 'B/T', re: /^Backtrack .*line up/ },
               { text: 'T/O', re: /^Cleared for take-off/ },
@@ -1031,6 +1031,10 @@ export class App {
       this.menu.open(`${ac.callsign} - ${this.sim.tel(ac).toUpperCase()}`, this.flightPlanItems(ac), x, y);
     } else if (item === 'target') {
       if (!this.sim.isOnMyFrequency(ac)) return;
+      if (this.sim.userTower && ac.frequency === this.sim.stationFor('tower') && ac.category !== 'departure') {
+        this.menu.open(`${ac.callsign} - taxi, hold short of`, this.towerTaxiLimits(ac), x, y);
+        return;
+      }
       const items = ac.category === 'arrival' || ac.returnToStand ? this.standDestinations(ac) : this.taxiDestinations(ac);
       this.menu.open(ac.category === 'arrival' || ac.returnToStand ? `${ac.callsign} - taxi to stand` : `${ac.callsign} - taxi to`, items, x, y);
     } else {
@@ -1252,16 +1256,65 @@ export class App {
     const via = r.route.taxiways.filter((t) => this.sim.airport.taxiwayNames.has(t.toUpperCase()));
     const pts = routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition);
     const conflict = this.sim.systemOn('catc') ? routeHeadOn(this.sim, ac, pts) : undefined;
+    const phrase = `taxi to ${destText}${via.length ? ` via ${via.join(', ')}` : ''}`;
+    const onHover = (on: boolean) => {
+      this.menuPreview = on;
+      this.scope.preview = on ? { points: routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition), ok: true } : undefined;
+      if (!on) this.updatePreview();
+    };
+    // A click sends the whole route; the sub-menu limits it: "..., hold short of taxiway L".
+    const limits = this.holdShortLimits(ac, via, (t) => `${phrase}, hold short of taxiway ${t}`);
     return {
       label,
       hint: `${hint ?? `via ${via.join(' ')}`}${conflict ? `  ! head-on ${conflict.other.callsign}` : ''}`,
-      action: () => this.say(ac, `taxi to ${destText}${via.length ? ` via ${via.join(', ')}` : ''}`),
-      onHover: (on) => {
-        this.menuPreview = on;
-        this.scope.preview = on ? { points: routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition), ok: true } : undefined;
-        if (!on) this.updatePreview();
-      },
+      action: () => this.say(ac, phrase),
+      onHover,
+      submenu: limits.length ? () => [{ label: 'Whole route', hint: via.join(' '), action: () => this.say(ac, phrase), onHover }, { divider: true, label: '' }, ...limits] : undefined,
     };
+  }
+
+  /**
+   * "Hold short of" choices along a route: one per taxiway of the `via` list the aircraft is not on yet,
+   * each checked like a typed instruction (greyed out with the crew's answer if it would not work).
+   */
+  private holdShortLimits(ac: Aircraft, via: string[], phraseFor: (taxiway: string, index: number) => string | undefined): MenuItem[] {
+    const here = ac.phase === 'parked' ? undefined : this.sim.airport.nearestEdge(ac.pos)?.edge.name?.toUpperCase();
+    const items: MenuItem[] = [];
+    via.forEach((t, i) => {
+      if (t.toUpperCase() === here) return;
+      const phrase = phraseFor(t, i);
+      if (!phrase) return;
+      const cmd = parseTransmission(phrase, { callsigns: [], taxiways: this.sim.airport.taxiwayNames }).commands[0];
+      const r = cmd?.type === 'taxi' ? previewTaxi(this.sim, ac, cmd) : { error: 'invalid' };
+      if ('error' in r) {
+        items.push({ label: `Hold short of ${t}`, hint: r.error, disabled: true });
+        return;
+      }
+      items.push({
+        label: `Hold short of ${t}`,
+        action: () => this.say(ac, phrase),
+        onHover: (on) => {
+          this.menuPreview = on;
+          this.scope.preview = on ? { points: routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition), ok: true } : undefined;
+          if (!on) this.updatePreview();
+        },
+      });
+    });
+    return items;
+  }
+
+  /**
+   * Tower: a vacated arrival is not taxied to its stand (that is Ground's job) - only on to a
+   * clearance limit along the way to it, "taxi via E, N, hold short of taxiway L", then Ground.
+   */
+  private towerTaxiLimits(ac: Aircraft): MenuItem[] {
+    const stand = ac.assignedStand ?? this.sim.freeStands(ac.type.wingspanM, undefined, ac).sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos))[0]?.id;
+    const cmd = stand ? parseTransmission(`taxi to stand ${stand}`, { callsigns: [], taxiways: this.sim.airport.taxiwayNames }).commands[0] : undefined;
+    const r = cmd?.type === 'taxi' ? previewTaxi(this.sim, ac, cmd) : { error: 'no free stand' };
+    if ('error' in r) return [{ label: 'No route', hint: r.error, disabled: true }];
+    const via = r.route.taxiways.filter((t) => this.sim.airport.taxiwayNames.has(t.toUpperCase()));
+    const items = this.holdShortLimits(ac, via, (t, i) => (i > 0 ? `taxi via ${via.slice(0, i).join(', ')}, hold short of taxiway ${t}` : undefined));
+    return items.length ? items : [{ label: 'No taxiway to hold short of', hint: `stand ${stand}: Ground`, disabled: true }];
   }
 
   private menuItems(ac: Aircraft): MenuItem[] {
@@ -1326,8 +1379,11 @@ export class App {
       if (stand?.pushback === false) {
         items.push({ label: 'Taxi to', submenu: () => this.taxiDestinations(ac) });
       } else {
-        items.push({ label: 'Pushback approved', submenu: pushSub(false) });
-        items.push({ label: 'Push and start approved', submenu: pushSub(true) });
+        // A slot flight pushed now would wait at the holding point: the hint says from when it fits.
+        const due = offBlockDue(sim, ac);
+        const slot = ac.ctot !== undefined ? `CTOT ${hhmm(sim, ac.ctot)}${sim.time < due - 60 ? `: not before ${hhmm(sim, due)}` : ''}` : undefined;
+        items.push({ label: 'Pushback approved', hint: slot, submenu: pushSub(false) });
+        items.push({ label: 'Push and start approved', hint: slot, submenu: pushSub(true) });
       }
       items.push({ label: 'Start-up approved', action: () => this.say(ac, 'start-up approved') });
       items.push(this.ableItem(ac));
@@ -1401,9 +1457,9 @@ export class App {
     const radar = sim.airport.station('APP');
     const eta = sim.tower.nextArrivalEta(rwyEnd);
     const arrival = Number.isFinite(eta) ? `next arrival ${Math.round(eta)} s` : 'no arrival';
-    // Tower may give taxi instructions too: a vacated arrival to its stand, a crossing aircraft on.
+    // Tower may give taxi instructions too: a vacated arrival on to a point short of the next taxiway (the stand is Ground's).
     if (ac.onGround && ac.phase === 'taxi' && (ac.category !== 'departure' || ac.returnToStand)) {
-      items.push({ label: 'Taxi to stand', submenu: () => this.standDestinations(ac) });
+      items.push({ label: 'Taxi, hold short of', hint: ac.assignedStand ? `towards stand ${ac.assignedStand}` : undefined, submenu: () => this.towerTaxiLimits(ac) });
     }
     if (ac.category === 'departure' && ac.onGround && ['holding', 'lineup', 'taxi'].includes(ac.phase)) {
       const busy = sim.tower.runwayBusyForDeparture(ac);

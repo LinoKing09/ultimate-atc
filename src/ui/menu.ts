@@ -5,6 +5,7 @@ export interface MenuItem {
   /** Text on the right; a function is re-evaluated twice a second while the menu is open (e.g. a countdown). */
   hint?: string | (() => string | undefined);
   disabled?: boolean;
+  /** With a sub-menu as well: done when the entry is clicked while its sub-menu is open. */
   action?: () => void;
   submenu?: () => MenuItem[];
   /** Called while the item is hovered (e.g. to preview a route). */
@@ -92,11 +93,17 @@ export class PopupMenu {
       row.addEventListener('click', (e) => {
         e.stopPropagation();
         if (performance.now() - openedAt < TAP_GUARD_MS) return;
-        // Touch screens have no hover: a tap on a sub-menu entry opens it.
-        if (it.submenu && !it.disabled && !row.classList.contains('open')) enter();
-        if (it.disabled || it.submenu) return;
+        if (it.disabled) return;
+        // Touch screens have no hover: a tap on a sub-menu entry opens it. An entry with a sub-menu and an
+        // action of its own (a taxi destination: the whole route; the sub-menu limits it) does the action
+        // when clicked once its sub-menu is open - with a mouse right away, on touch with a second tap.
+        if (it.submenu && !row.classList.contains('open')) {
+          enter();
+          return;
+        }
+        if (!it.action) return;
         this.close();
-        it.action?.();
+        it.action();
       });
       el.append(row);
     }

@@ -7,7 +7,7 @@ import { KT_TO_MS, distance, headingDiff, headingOf, normalize, scale, add, sub,
 import { Path } from './path';
 import type { Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './phraseology/commands';
 import { STATION_WORD, capitalize, formatCommand, formatDestination, formatHoldShort } from './phraseology/format';
-import { CLEARANCE_LEAD_S, departureFrequency, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
+import { CLEARANCE_LEAD_S, CTOT_EARLY_S, departureFrequency, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
 import { destinationName } from '../data/destinations';
 import type { Simulation, TransmitResult } from './simulation';
 import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, locationOf, maybeStartTow } from './vehicles';
@@ -689,8 +689,13 @@ function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: stri
   }
   // Still waiting at the holding point without an open request (e.g. a take-off refused in a thunderstorm,
   // or a "roger" that has run out): the crew reminds Tower that it is ready.
-  if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && ac.towerContact && ac.request === null && now > ac.standbyUntil && now - ac.lastCallAt > DEPARTURE_RECALL_S) {
+  if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && ac.towerContact && ac.request === null && now > ac.standbyUntil && now - ac.lastCallAt > DEPARTURE_RECALL_S && !inDepartureSequence(sim, ac)) {
     call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure${backtrackWords(sim, ac, ac.stoppedAt?.holdingPoint)}`);
+    return true;
+  }
+  // Lined up and forgotten (e.g. lined up by the simulator before you took over): the crew reminds Tower.
+  if (ac.phase === 'lineup' && ac.category === 'departure' && !ac.takeoffCleared && ac.stoppedAt && ac.request === null && now > ac.standbyUntil && now - ac.lastCallAt > DEPARTURE_RECALL_S) {
+    call(sim, ac, 'departure', `${stationName}, ${tel}, lined up runway ${ac.runway ?? sim.runway}, ready for departure`);
     return true;
   }
   if (ac.phase === 'approach' && !ac.landingCleared) {
@@ -1530,7 +1535,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       if (stand && !stand.pushback) {
         call(sim, ac, 'taxi', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetterOf(ac)}, request taxi${deiceWords(sim, ac)}`);
       } else {
-        call(sim, ac, 'pushback', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetterOf(ac)}, request ${sim.rng.chance(0.2) ? 'push and start' : 'pushback'}`);
+        call(sim, ac, 'pushback', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetterOf(ac)}, request ${sim.rng.chance(0.2) ? 'push and start' : 'pushback'}${ctotWords(sim, ac)}`);
       }
       return;
     }
@@ -1581,11 +1586,13 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     ac.assignedStand = sim.traffic.allocateStand(ac)?.id;
   }
 
-  // Reminders when nobody answers
+  // Reminders when nobody answers - not from a departure that was heard and sees it is in the departure
+  // sequence (traffic ahead of it for the runway, or its slot window not open yet): it waits for its turn.
+  if (ac.requestAck && ac.request === 'departure' && inDepartureSequence(sim, ac)) return;
   const interval = 60 + (ac.callsign.charCodeAt(ac.callsign.length - 1) % 30);
   if (now > ac.standbyUntil && now - ac.lastCallAt > interval && ac.callCount < 5 && !sim.frequency.hasQueued(ac.callsign)) {
     const reminder: Partial<Record<PilotRequest, string>> = {
-      pushback: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request pushback`,
+      pushback: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request pushback${ctotWords(sim, ac)}`,
       taxi: `${stationName}, ${tel}, ready for taxi${deiceWords(sim, ac)}`,
       taxiIn: `${stationName}, ${tel}, request taxi to the stand`,
       handoff: `${stationName}, ${tel}, ${hpWords(ac)}, ready for departure${backtrackWords(sim, ac, ac.stoppedAt?.holdingPoint ?? (ac.routeDestination?.kind === 'holdingPoint' ? ac.routeDestination.name : undefined))}`,
@@ -1606,6 +1613,34 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     const text = reminder[ac.request];
     if (text) call(sim, ac, ac.request, text);
   }
+}
+
+/** ", CTOT 1045" in a pushback request without A-CDM (with A-CDM the TSAT already matches the slot). */
+function ctotWords(sim: Simulation, ac: Aircraft): string {
+  if (ac.ctot === undefined || (sim.systemOn('acdm') && ac.tsat !== undefined)) return '';
+  return `, CTOT ${hhmm(sim, ac.ctot)}`;
+}
+
+/**
+ * The departure can see that it is in the sequence for its runway: another departure is lined up or taking
+ * off, waits at a holding point of the same runway since before it, or stands right in front of it in the
+ * queue - or its own slot window (CTOT - 5 min) does not open within the next minute.
+ */
+export function inDepartureSequence(sim: Simulation, ac: Aircraft): boolean {
+  if (ac.category !== 'departure' || !ac.onGround) return false;
+  if (ac.ctot !== undefined && sim.time + 60 < ac.ctot - CTOT_EARLY_S) return true;
+  if (ac.phase !== 'holding' && ac.phase !== 'taxi') return false;
+  const ahead = sim.find(ac.blockedBy);
+  if (ahead?.category === 'departure' && ahead.onGround && ['taxi', 'holding', 'lineup'].includes(ahead.phase)) return true;
+  const rwy = sim.departureRunwayOf(ac);
+  const mySince = ac.phase === 'holding' ? (ac.holdingSince ?? sim.time) : Infinity;
+  return sim.aircraft.some(
+    (o) =>
+      o !== ac &&
+      o.category === 'departure' &&
+      sim.departureRunwayOf(o) === rwy &&
+      (o.phase === 'lineup' || o.phase === 'takeoff' || (o.phase === 'holding' && (o.holdingSince ?? 0) < mySince)),
+  );
 }
 
 /** ", request de-icing" while the departure still needs it. */

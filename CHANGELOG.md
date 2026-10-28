@@ -29,6 +29,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- **Quick-action bar standardised** (mobile mode): every position has a fixed set of buttons in a fixed order - Delivery `CLR DCL RB OK SQWK START GND`, Ground `PUSH TAXI HOLD CONT H/S CROSS GIVE WAY FLWM RESOLVE TOW TWR`, Tower `TAXI LUP B/T T/O HOLD STOP CROSS CONT LAND G/A VAC GND RDR`, then `STBY ROGER INFO ACK REQ H/O MENU` everywhere - whatever the aircraft is doing; buttons that do not apply are greyed out instead of left away. The bar shows the position. New buttons: `SQWK`, `H/S`, `CROSS` and `GIVE WAY` on Ground, `VAC` on Tower, `STBY`; follow-me cars always show `PROCEED HOLD CONT BASE STBY MENU`.
+- **Menus of the quick-action bar pick instead of transmitting**: a choice in `TAXI`, `CLR`, `SQWK`, `RESOLVE`, `MENU`, ... is written into the command line like a phrase button and sent with SEND together with the other picked phrases (e.g. a taxi route + `hold position`). A second choice from the same menu replaces the first.
+
 - **Intersection departures at the new airports**: entries the charts show but the simulator did not offer can now be taxied to - San Diego B2 (runway 27), B5 and C5 (9); Phuket F (27) and B (09); Wellington A4 (16) and A8 (34); Quito A1 (36), A3 and A2 (18). Their take-off runs are measured on the map (marked in the airport pages).
 - **ATIS editor** tidied up: information and runway in one row, wind with gusts and the head-/crosswind in one row, the METAR changes in one yellow line; the preview shows only the D-ATIS text (the spoken text unfolds on demand), and the runway-change note appears only when you select another runway.
 - **US airports show the altimeter only**: the ATIS editor takes the altimeter setting in inches (`29.92`) instead of the QNH in hPa; the value is kept exactly.
@@ -47,6 +50,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- *Taxi to* menu: a route without taxiways (the aircraft is already at the holding point) no longer says `via ,`.
 - **Line-up paths**: aircraft turn onto the runway in one round curve instead of pivoting at a corner where the lead-in line has a short last leg. Where a taxiway meets the runway pointing backwards (angled exits used as entries: San Diego C2 / C3, Nuremberg B and E, Leipzig/Halle A5, Memmingen N, Cologne/Bonn A5), the aircraft rolls a little the other way and turns around on the runway instead of making an impossible hairpin turn; a backtrack from a taxiway that points the take-off way starts with such a turn. Phuket J: departures 27 follow the lead-in line onto the centre line instead of turning back to the end of the displacement area.
 - At an airport without a Ground position (St. Maarten) the Delivery menu offered "Contact Ground" (the crews asked "say again station"): it is "Contact Tower" there.
 - A departure at a holding point used with a backtrack was not lined up without one even when the published take-off run from there was enough for it (a fixed 1500 m was required).

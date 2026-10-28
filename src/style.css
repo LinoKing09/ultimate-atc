@@ -1025,6 +1025,11 @@ body.mobile .quickbar button {
   min-height: 40px;
   min-width: 56px;
 }
+/* The position whose buttons the bar shows (DEL, GND, TWR). */
+body.mobile .quickbar .qpos {
+  color: var(--text-dim);
+  margin-right: 4px;
+}
 /* A picked phrase: sent with SEND, together with the other picked ones. */
 body.mobile .quickbar button.picked {
   background: var(--accent);

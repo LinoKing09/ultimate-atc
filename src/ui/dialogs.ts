@@ -387,6 +387,7 @@ const KEYS: [string, string][] = [
   ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL and the ILS (localizer, glide path); switch them on or off. A runway without an ILS (Sylt 14) is always flown as an RNP approach'],
   ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, traffic density, special events'],
   ['Mobile mode: tap / tap again / long press', 'Select the aircraft / open its menu (or the tag item) / open its menu; + and - buttons zoom'],
+  ['Mobile mode: quick-action bar', 'The same buttons for every aircraft of a position (DEL, GND, TWR), greyed out what does not apply; buttons and menu choices are picked into the command line and sent together with SEND'],
 ];
 
 export type HelpTab = 'briefing' | 'phraseology' | 'controls';

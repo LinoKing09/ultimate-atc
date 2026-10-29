@@ -138,6 +138,22 @@ export class TowerAI {
     return this.sim.aircraft.filter((a) => a !== except && a.onGround && a.phase !== 'gone' && this.isInRunwayArea(a.pos, end));
   }
 
+  /**
+   * Lined up and waiting: standing still on the runway without a take-off clearance. Crossing the runway
+   * elsewhere is allowed then (the take-off clearance has to wait until the crossing traffic is clear).
+   */
+  waitingLinedUp(a: Aircraft): boolean {
+    return a.phase === 'lineup' && !a.takeoffCleared && !!a.stoppedAt && a.speed < 0.1;
+  }
+
+  /** For a crossing: the runway is busy, apart from aircraft lined up and waiting on it. */
+  runwayBusyForCrossing(except: Aircraft, end: RunwayEnd): boolean {
+    return (
+      this.runwayOccupants(except, end).some((a) => !this.waitingLinedUp(a)) ||
+      this.sim.aircraft.some((a) => a !== except && (a.phase === 'takeoff' || a.phase === 'landing' || (a.phase === 'lineup' && !this.waitingLinedUp(a))) && this.sameRunway(a, end))
+    );
+  }
+
   /** The physical runway an aircraft takes off from or lands on right now (rolling, landing or on final). */
   private usedRunway(a: Aircraft): string | undefined {
     if (a.phase === 'takeoff' || a.phase === 'lineup') return this.departureEnd(a).runway;
@@ -1070,7 +1086,8 @@ export class TowerAI {
       // Newly entered the runway area. Only taxiing traffic can cause an incursion.
       if (ac.phase !== 'taxi') continue;
       const arrival = this.nearestArrivalNm(end);
-      const rolling = sim.aircraft.find((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing' || a.phase === 'lineup') && this.sameRunway(a, end));
+      // An aircraft lined up and waiting (no take-off clearance) does not make a crossing an incursion.
+      const rolling = sim.aircraft.find((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing' || (a.phase === 'lineup' && !this.waitingLinedUp(a))) && this.sameRunway(a, end));
       if (arrival < 2.5 || rolling) {
         const reason = rolling ? `${rolling.callsign} is using the runway` : `traffic on ${arrival.toFixed(1)} NM final`;
         sim.incident('incursion', `RUNWAY INCURSION: ${ac.callsign} entered runway ${end.runway} while ${reason}.`, [ac.callsign]);

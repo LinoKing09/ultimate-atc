@@ -302,13 +302,13 @@ Airports with parallel runways (`parallelRunways` in the airport data, Leipzig/H
 | Landing | Vacates on the side of its stand (not back across the runway) when it can reach such an exit |
 | AI Tower | Works each runway on its own: one line-up at a time per runway, occupancy, arrivals and departure spacing per runway (departures from parallel runways are independent - AIP: independent parallel departures). A crossing of a runway in use is cleared when nobody is on it or lining up and its next arrival is more than 90 s away (no departure lines up while an aircraft is being cleared to cross, nor for 30 s after the crossing clearance until it has entered the runway); runways not in use can always be crossed |
 | You on Tower | Your line-up, take-off and landing clearances name the aircraft's runway (`runway 26L, cleared for take-off`); the take-off menu shows the next arrival to that runway; RMCA warns per runway |
-| Runway incursion | Per runway: entering a runway in use while an arrival to that runway is within 2.5 NM or an aircraft is lining up, taking off or landing on it |
+| Runway incursion | Per runway: entering a runway in use while an arrival to that runway is within 2.5 NM or an aircraft is lining up, taking off or landing on it (an aircraft lined up and waiting without a take-off clearance does not count) |
 | Runway change | Aircraft whose runway stays in use keep it (e.g. from `26R + 26L` to `26L` only the northern ones change) |
 | ATIS | `ILS approach runways 26R and 26L, dependent parallel approaches in progress, runways 26R and 26L in use` (independent and dependent parallel approaches are announced, ICAO Doc 4444) |
 
 ## Runway incursions and go-arounds
 
-- **Runway incursion**: a taxiing aircraft (phase `taxi`) enters the runway area while an arrival is within 2.5 NM, or while another aircraft is lining up, taking off or landing. Taxiing aircraft only enter the runway area with a crossing clearance, so every incursion is caused by a crossing clearance given at the wrong moment. **-50 points.**
+- **Runway incursion**: a taxiing aircraft (phase `taxi`) enters the runway area while an arrival is within 2.5 NM, or while another aircraft is lining up, taking off or landing. An aircraft **lined up and waiting** (standing on the runway without a take-off clearance) does not count: crossing downfield of it is allowed - just don't clear it for take-off before the crossing traffic is clear (the take-off menu says `runway occupied!`). The RMCA alert ignores it the same way. Taxiing aircraft only enter the runway area with a crossing clearance, so every incursion is caused by a crossing clearance given at the wrong moment. **-50 points.**
 - **Go-around**: an arrival inside **0.5 NM** goes around if
   - any aircraft is on the ground inside the runway area: lined up, crossing, or a preceding landing aircraft that hasn't vacated yet,
   - except a departure on its take-off roll that is already beyond 1200 m or faster than 100 kt. That departure will be airborne and beyond 2400 m when the arrival crosses the threshold, which is the reduced runway separation rule.

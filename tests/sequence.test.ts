@@ -111,4 +111,30 @@ describe('slots and the departure sequence', () => {
     expect(waited).toBeGreaterThanOrEqual(120);
     expect(waited).toBeLessThan(195);
   });
+
+  it('crossing the runway while a departure is lined up and waiting is no incursion; while it rolls it is', () => {
+    const sim = towerSim();
+    const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const arr = sim.traffic.spawnDeparture(0, { stand: '13', callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    ac.ctot = undefined;
+    arr.readyAt = 1e9;
+    expect(runUntil(sim, () => ac.request === 'departure', 2400)).toBe(true);
+    sim.transmit('DLH5AB line up and wait runway 25');
+    expect(runUntil(sim, () => ac.phase === 'lineup' && !!ac.stoppedAt && ac.speed < 0.1, 300)).toBe(true);
+    // Another aircraft enters the runway half-way down (as a crossing would).
+    const end = sim.tower.endFor('25');
+    const mid = { x: (end.start.x + end.farEnd.x) / 2, y: (end.start.y + end.farEnd.y) / 2 };
+    arr.phase = 'taxi';
+    arr.onGround = true;
+    arr.pos = mid;
+    sim.tick(1);
+    expect(sim.stats.incursions).toBe(0);
+    // Off the runway again; the departure now cleared and rolling: entering is an incursion.
+    arr.pos = { x: mid.x + 5000, y: mid.y + 5000 };
+    sim.tick(1);
+    ac.takeoffCleared = true;
+    arr.pos = mid;
+    sim.tick(1);
+    expect(sim.stats.incursions).toBe(1);
+  });
 });

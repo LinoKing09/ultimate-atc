@@ -672,6 +672,9 @@ function execCancelTakeoff(sim: Simulation, ac: Aircraft): ExecResult {
  */
 /** A departure waiting at the holding point without an open request calls Tower again after this time (s). */
 const DEPARTURE_RECALL_S = 150;
+/** A departure lined up without a take-off clearance says so after this long on the runway (s; each crew differently). */
+const LINED_UP_CALL_MIN_S = 120;
+const LINED_UP_CALL_MAX_S = 180;
 
 function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: string): boolean {
   const now = sim.time;
@@ -693,8 +696,10 @@ function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: stri
     call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure${backtrackWords(sim, ac, ac.stoppedAt?.holdingPoint)}`);
     return true;
   }
-  // Lined up and forgotten (e.g. lined up by the simulator before you took over): the crew reminds Tower.
-  if (ac.phase === 'lineup' && ac.category === 'departure' && !ac.takeoffCleared && ac.stoppedAt && ac.request === null && now > ac.standbyUntil && now - ac.lastCallAt > DEPARTURE_RECALL_S) {
+  // Lined up and forgotten (e.g. lined up by the simulator before you took over): after 2-3 minutes on the
+  // runway (each crew differently) the crew reminds Tower - not sooner, and then again only after as long.
+  const linedUpWait = LINED_UP_CALL_MIN_S + (LINED_UP_CALL_MAX_S - LINED_UP_CALL_MIN_S) * sim.variation(`${ac.callsign}:linedUp`);
+  if (ac.phase === 'lineup' && ac.category === 'departure' && !ac.takeoffCleared && ac.linedUpAt !== undefined && ac.request === null && now > ac.standbyUntil && now - ac.linedUpAt >= linedUpWait && now - ac.lastCallAt >= linedUpWait) {
     call(sim, ac, 'departure', `${stationName}, ${tel}, lined up runway ${ac.runway ?? sim.runway}, ready for departure`);
     return true;
   }
@@ -1486,6 +1491,9 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     }
   }
 
+  // Since when it stands lined up on the runway (for the "lined up, ready for departure" call).
+  if (ac.phase === 'lineup' && ac.stoppedAt && ac.speed < 0.1) ac.linedUpAt ??= now;
+  else ac.linedUpAt = undefined;
   towerResolveStuck(sim, ac);
   checkStandAhead(sim, ac);
   updateDeicing(sim, ac);

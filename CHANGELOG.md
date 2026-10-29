@@ -58,7 +58,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
-- A departure lined up without a take-off clearance and without an open request (e.g. lined up by the simulator before you took over) no longer waits silently on the runway: it calls `lined up runway 25, ready for departure`.
+- A departure lined up without a take-off clearance and without an open request (e.g. lined up by the simulator before you took over) no longer waits silently on the runway: after 2-3 minutes lined up it calls `lined up runway 25, ready for departure` (not sooner).
 - *Taxi to* menu: a route without taxiways (the aircraft is already at the holding point) no longer says `via ,`.
 - **Line-up paths**: aircraft turn onto the runway in one round curve instead of pivoting at a corner where the lead-in line has a short last leg. Where a taxiway meets the runway pointing backwards (angled exits used as entries: San Diego C2 / C3, Nuremberg B and E, Leipzig/Halle A5, Memmingen N, Cologne/Bonn A5), the aircraft rolls a little the other way and turns around on the runway instead of making an impossible hairpin turn; a backtrack from a taxiway that points the take-off way starts with such a turn. Phuket J: departures 27 follow the lead-in line onto the centre line instead of turning back to the end of the displacement area.
 - At an airport without a Ground position (St. Maarten) the Delivery menu offered "Contact Ground" (the crews asked "say again station"): it is "Contact Tower" there.

@@ -135,6 +135,8 @@ export interface Aircraft {
   blockedSince?: number;
   /** The slot flight whose holding point the crew asked to avoid (asked once). */
   slotPassAsked?: string;
+  /** Since when the aircraft stands lined up on the runway (simulation time). */
+  linedUpAt?: number;
   /** Distance along the path the aircraft may still move before reaching traffic ahead. */
   blockDistance?: number;
   /** Give-way bookkeeping: last and smallest distance to the traffic so far. */

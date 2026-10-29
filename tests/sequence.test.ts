@@ -96,4 +96,19 @@ describe('slots and the departure sequence', () => {
     expect(runUntil(sim, () => b.phase === 'holding', 900)).toBe(true);
     expect(b.stoppedAt?.holdingPoint).toBe(hp);
   });
+
+  it('a crew lined up without a take-off clearance says so only after 2-3 minutes on the runway', () => {
+    const sim = towerSim();
+    const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    ac.ctot = undefined;
+    expect(runUntil(sim, () => ac.request === 'departure', 2400)).toBe(true);
+    sim.transmit('DLH5AB line up and wait runway 25');
+    expect(runUntil(sim, () => ac.phase === 'lineup' && !!ac.stoppedAt && ac.speed < 0.1, 300)).toBe(true);
+    const linedUp = sim.time;
+    const lined = () => sim.messages.filter((m) => m.from === 'DLH5AB' && /lined up runway 25, ready for departure/.test(m.text));
+    expect(runUntil(sim, () => lined().length > 0, 400)).toBe(true);
+    const waited = sim.time - linedUp;
+    expect(waited).toBeGreaterThanOrEqual(120);
+    expect(waited).toBeLessThan(195);
+  });
 });

@@ -1144,6 +1144,15 @@ export class App {
           if (err) this.hint(err);
         },
       },
+      {
+        label: `${f.sendIntersections ? '\u2611' : '\u2610'} ${gnd}: send departures to the earliest intersection`,
+        hint: sim.canHoldDepartures ? 'asks them too' : 'you staff Ground',
+        disabled: !sim.canHoldDepartures,
+        action: () => {
+          const err = sim.setSendIntersections(!f.sendIntersections);
+          if (err) this.hint(err);
+        },
+      },
     ];
   }
 

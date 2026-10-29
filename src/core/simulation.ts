@@ -223,7 +223,7 @@ export class Simulation {
    * Coordination with the neighbouring positions the simulator runs: you asked Approach to send
    * no more arrivals, or Ground to hold all departures (to make room). Each costs points per minute.
    */
-  readonly flow = { arrivalsStopped: false, departuresStopped: false, askIntersections: false, arrivalSeconds: 0, departureSeconds: 0 };
+  readonly flow = { arrivalsStopped: false, departuresStopped: false, askIntersections: false, sendIntersections: false, arrivalSeconds: 0, departureSeconds: 0 };
   /** The longest waits for an answer this session (debriefing). */
   readonly longestWaits: { callsign: string; seconds: number }[] = [];
   /** Follow-me cars (tugs are drawn with the aircraft they move). */
@@ -1157,7 +1157,22 @@ export class Simulation {
     if (on && !this.canHoldDepartures) return 'You staff Ground yourself - ask the crews ("advise able for departure from intersection B").';
     if (this.flow.askIntersections === on) return undefined;
     this.flow.askIntersections = on;
+    // Without asking there is nothing to send them to.
+    if (!on) this.flow.sendIntersections = false;
     this.system(`${this.stationName(this.stationFor('ground'))} (landline): roger, ${on ? 'we ask all departures for the earliest intersection they accept' : 'no more intersection checks'}.`);
+    return undefined;
+  }
+
+  /**
+   * Asks Ground (run by the simulator) to send every departure to the earliest intersection it accepts
+   * (full length if it accepts none), or to the full length again. Sending includes asking.
+   */
+  setSendIntersections(on: boolean): string | undefined {
+    if (on && !this.canHoldDepartures) return 'You staff Ground yourself - taxi the crews to the intersection ("taxi to holding point B").';
+    if (this.flow.sendIntersections === on) return undefined;
+    this.flow.sendIntersections = on;
+    if (on) this.flow.askIntersections = true;
+    this.system(`${this.stationName(this.stationFor('ground'))} (landline): roger, ${on ? 'we taxi all departures to the earliest intersection they accept' : 'departures to the full length again'}.`);
     return undefined;
   }
 

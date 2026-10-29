@@ -3,7 +3,7 @@ import { blockCycle, headOnPartner, resolveOptions } from './conflicts';
 import { CTOT_EARLY_S, offBlockDue } from './delivery';
 import type { TaxiDestination } from './phraseology/commands';
 import { parseTransmission } from './phraseology/parser';
-import { aiInstruct, autoRoute, earlySlotAhead, passingEntry, previewTaxi } from './pilot';
+import { aiInstruct, autoRoute, earliestIntersection, earlySlotAhead, passingEntry, previewTaxi } from './pilot';
 import type { Stand } from './airport/airport';
 import { distance } from './geo';
 import type { TaxiRoute } from './airport/routing';
@@ -36,6 +36,7 @@ export function updateGroundAI(sim: Simulation): void {
       aiInstruct(sim, ac, { type: 'cross', runway: crossingDesignator(sim, ac.stoppedAt.target) });
       continue;
     }
+    if (takeOverStopped(sim, ac)) continue;
     if (ac.category === 'departure') departure(sim, ac);
     else if (ac.category === 'tow') tow(sim, ac);
     else arrival(sim, ac);
@@ -56,13 +57,57 @@ export function updateSlotPassing(sim: Simulation): void {
   }
 }
 
+/** Seconds an aircraft stands at the end of another controller's instruction before the AI Ground takes it on. */
+const TAKE_OVER_S = 15;
+const stoppedSince = new WeakMap<Aircraft, number>();
+
+/**
+ * An aircraft handed to the AI Ground while it stands where another controller's instruction ended (e.g. Tower:
+ * "taxi via B, hold short of B8", or "hold position"): after a few seconds the AI Ground takes it on - "continue
+ * taxi" after an intermediate hold-short or hold, a new route after a clearance limit (departures to the runway,
+ * others to a stand). True if it gave an instruction.
+ */
+function takeOverStopped(sim: Simulation, ac: Aircraft): boolean {
+  // ("Give way" ends by itself once the other aircraft has passed.)
+  const stopped = ac.phase === 'taxi' && ac.speed < 0.1 && !ac.giveWayTo && ac.stoppedAt?.kind !== 'runway' && (ac.holdPosition || ac.stoppedAt?.kind === 'holdShort' || ac.routeDestination?.kind === 'holdShort');
+  if (!stopped || headOnPartner(sim, ac)) {
+    stoppedSince.delete(ac);
+    return false;
+  }
+  const since = stoppedSince.get(ac) ?? sim.time;
+  stoppedSince.set(ac, since);
+  if (sim.time - since < TAKE_OVER_S) return false;
+  stoppedSince.delete(ac);
+  // Held, or stopped at a hold-short on a route that goes on: continue.
+  if (ac.holdPosition || (ac.stoppedAt?.kind === 'holdShort' && ac.routeDestination?.kind !== 'holdShort')) return aiInstruct(sim, ac, { type: 'continue' });
+  // At the clearance limit: on to the runway, or to a stand.
+  if (!ac.stoppedAt) return false;
+  if (ac.category === 'departure' && !ac.returnToStand) return aiTaxi(sim, ac, outbound(sim, ac));
+  const stand = ac.assignedStand ?? reachableFreeStand(sim, ac)?.id;
+  return !!stand && aiTaxi(sim, ac, { kind: 'stand', stand });
+}
+
+/** Taxi instruction from the AI Ground; if the way there needs a U-turn the crew cannot make, with a tug turnaround. */
+function aiTaxi(sim: Simulation, ac: Aircraft, destination: TaxiDestination): boolean {
+  if (aiInstruct(sim, ac, { type: 'taxi', destination, via: [], holdShort: [], cross: [] })) return true;
+  return aiInstruct(sim, ac, { type: 'taxi', destination, via: [], holdShort: [], cross: [], turnAround: true });
+}
+
 function busyNearby(sim: Simulation, ac: Aircraft, radius: number): boolean {
   return sim.aircraft.some((o) => o !== ac && o.onGround && ['taxi', 'pushback'].includes(o.phase) && Math.hypot(o.pos.x - ac.pos.x, o.pos.y - ac.pos.y) < radius);
 }
 
 /** Where a departure taxis next: to a free de-icing pad first if it still needs de-icing (winter operations). */
 function outbound(sim: Simulation, ac: Aircraft): TaxiDestination {
-  return needsDeicing(sim, ac) ? { kind: 'deicing' } : { kind: 'runway', runway: sim.departureRunwayOf(ac) };
+  if (needsDeicing(sim, ac)) return { kind: 'deicing' };
+  const runway = sim.departureRunwayOf(ac);
+  // Coordination "send departures to the earliest intersection": the one the crew said it accepts.
+  if (sim.flow.sendIntersections) {
+    const hp = (ac.earliestIntersection ??= earliestIntersection(sim, ac));
+    const entry = sim.airport.runwayOps(runway)?.departureEntries.find((e) => e.holdingPoint.toUpperCase() === hp);
+    if (entry) return { kind: 'holdingPoint', name: entry.holdingPoint, runway };
+  }
+  return { kind: 'runway', runway };
 }
 
 /** How a runway is named in a crossing clearance: the end in use, else the lower-numbered end ("cross runway 24"). */
@@ -213,7 +258,7 @@ function arrival(sim: Simulation, ac: Aircraft): void {
     if (!ac.stoppedAt && ac.path) return;
   }
   const stand = ac.assignedStand ?? reachableFreeStand(sim, ac, (s) => s.id !== blocked)?.id;
-  if (stand) aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] });
+  if (stand) aiTaxi(sim, ac, { kind: 'stand', stand });
 }
 
 /** Free stands tried for a route (nearest first) before taking the nearest one anyway. */

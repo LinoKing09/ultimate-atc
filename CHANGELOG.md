@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **COORD: Ground sends departures to the earliest intersection**: a fourth coordination switch (free, while the simulator runs Ground) has the AI Ground taxi each departure to the earliest intersection it accepts instead of the full length; it switches the asking on and goes off with it.
 - **Hold-short limits in the taxi menu**: every destination of *Taxi to* / *Taxi to stand* has a sub-menu *Hold short of H*, *Hold short of N*, ... along its route (`taxi to holding point A via M, H, N, A, hold short of taxiway H`); clicking the destination itself still sends the whole route (touch: second tap). Each limit is checked like a typed instruction and previewed on hover.
 - **TRANSFER** in the ATIS editor: copies wind, gusts and QNH of the latest METAR into the form.
 - **Take over another position during the session**: `+` next to your frequencies in the toolbar lists the Delivery, Ground and Tower positions of the airport you do not staff yet; the one you pick is combined with yours from then on, and crews with an open request on it call you again within half a minute.
@@ -58,6 +59,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- **The AI Ground takes on aircraft Tower left at a clearance limit** (e.g. San Diego: `taxi via B, hold short of taxiway B4`, then `contact ground`): before, a departure stood there for good. Now, after 15 s, the AI Ground gives `continue taxi` after a hold-short or hold position, or a new route at a clearance limit - with a tug turnaround if the only way needs a U-turn.
 - **Crossing with an aircraft lined up and waiting** is no runway incursion any more (and no RMCA alert): only a departure cleared for take-off, lining up or rolling makes a crossing an incursion.
 - A departure lined up without a take-off clearance and without an open request (e.g. lined up by the simulator before you took over) no longer waits silently on the runway: after 2-3 minutes lined up it calls `lined up runway 25, ready for departure` (not sooner).
 - *Taxi to* menu: a route without taxiways (the aircraft is already at the holding point) no longer says `via ,`.

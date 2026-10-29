@@ -3,6 +3,7 @@ import type { Aircraft } from '../src/core/aircraft';
 import { inDepartureSequence } from '../src/core/pilot';
 import { Simulation } from '../src/core/simulation';
 import { EDDS } from '../src/data/airports/edds';
+import { KSAN } from '../src/data/airports/ksan';
 
 function runUntil(sim: Simulation, cond: () => boolean, max = 900): boolean {
   for (let t = 0; t < max && !cond(); t++) sim.tick(1);
@@ -136,5 +137,31 @@ describe('slots and the departure sequence', () => {
     arr.pos = mid;
     sim.tick(1);
     expect(sim.stats.incursions).toBe(1);
+  });
+
+  it('the AI Ground takes on a departure Tower left at a clearance limit (KSAN: taxi via B, hold short of B4)', () => {
+    const sim = new Simulation({ airport: KSAN, position: 'TWR', runway: '27', density: 'medium', seed: 42, events: false, generateTraffic: false });
+    const ac = sim.traffic.spawnDeparture(0, { callsign: 'SWA123', type: 'B738' }) as Aircraft;
+    ac.ctot = undefined;
+    expect(runUntil(sim, () => ac.request === 'departure', 1500)).toBe(true);
+    sim.transmit('SWA123 taxi via B, hold short of taxiway B4');
+    expect(runUntil(sim, () => ac.routeDestination?.kind === 'holdShort' && !!ac.stoppedAt && ac.speed < 0.1, 400)).toBe(true);
+    sim.transmit('SWA123 contact ground');
+    // Before, it stood there for good; now Ground taxis it on to the runway, where it calls Tower again.
+    expect(runUntil(sim, () => ac.phase === 'holding', 900)).toBe(true);
+  });
+
+  it('coordination: Ground sends departures to the earliest intersection they accept', () => {
+    const sim = towerSim();
+    expect(sim.setSendIntersections(true)).toBeUndefined();
+    expect(sim.flow.askIntersections).toBe(true);
+    const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    ac.ctot = undefined;
+    expect(runUntil(sim, () => ac.phase === 'holding', 2400)).toBe(true);
+    expect(ac.earliestIntersection).toBeDefined();
+    if (ac.earliestIntersection !== 'FULL') expect(ac.stoppedAt?.holdingPoint?.toUpperCase()).toBe(ac.earliestIntersection);
+    // Switching the asking off stops the sending too.
+    sim.setAskIntersections(false);
+    expect(sim.flow.sendIntersections).toBe(false);
   });
 });

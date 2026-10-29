@@ -6,15 +6,17 @@ import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { parseTransmission } from '../core/phraseology/parser';
-import { acknowledgeCatc, catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
-import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, offBlockDue, sendDcl, sidsForDestination, suggestedSid } from '../core/delivery';
+import { catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
+import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, offBlockDue, sidsForDestination, suggestedSid } from '../core/delivery';
 import { formatClearanceClimb, formatDepartureRoute } from '../core/phraseology/format';
 import { previewTaxi } from '../core/pilot';
 import type { SystemId } from '../core/systems';
 import { needsDeicing, padUser } from '../core/deicing';
 import { destinationName } from '../data/destinations';
 import type { RadioMessage } from '../core/radio';
-import type { Simulation } from '../core/simulation';
+import { perform, saveSession, type SessionAction } from '../core/session';
+import { addControlTime, AUTOSAVE_ID, countSession, downloadSession, formatDuration, loadStats, storeSession } from './sessionStore';
+import type { Simulation, TransmitResult } from '../core/simulation';
 import { REPO_URL, showAtisEditor, showHelp } from './dialogs';
 import { formatTime, h } from './dom';
 import { minutesToHhmm } from '../core/time';
@@ -33,6 +35,16 @@ import { PilotVoices, VoiceInput } from './voice';
 import { showDebrief } from './debriefDialog';
 
 const SPEEDS = [1, 2, 4, 8];
+/** How often the session is kept as the autosave (real time, ms). */
+const AUTOSAVE_MS = 2 * 60 * 1000;
+
+/** A saved session the App continues (main.ts restores it first). */
+export interface RestoredSession {
+  name: string;
+  controlSeconds: number;
+  /** False if the rebuilt traffic differs from the saved one. */
+  matches: boolean;
+}
 
 /** The positions with a quick-action bar of their own (Approach and Radar to follow). */
 type QuickPosition = 'DEL' | 'GND' | 'TWR';
@@ -106,6 +118,14 @@ export class App {
   private readonly voices = new PilotVoices();
   private readonly voiceIn: VoiceInput;
 
+  /** Your time on position in this session: real seconds while the simulation runs (not paused, page visible). */
+  private controlSeconds = 0;
+  /** Time on position and simulation time not yet added to the totals (sessionStore.ts). */
+  private statsPending = 0;
+  private statsSimTime = 0;
+  private lastStatsFlush = 0;
+  private lastAutosave = 0;
+  private readonly tutorial: boolean;
   private selected?: string;
   private speed = 1;
   private paused = false;
@@ -121,7 +141,13 @@ export class App {
     private readonly sim: Simulation,
     private readonly settings: Settings,
     tutorial?: TutorialRunner,
+    restored?: RestoredSession,
   ) {
+    this.tutorial = !!tutorial;
+    this.controlSeconds = restored?.controlSeconds ?? 0;
+    this.statsSimTime = sim.time;
+    // A restored session continues an earlier one: it is not counted again.
+    if (!restored) countSession();
     this.densitySetting = settings.density;
     this.eventsSetting = settings.eventLevel;
 
@@ -162,6 +188,9 @@ export class App {
     const briefBtn = h('button', { text: 'BRIEFING', title: 'Airport briefing: procedures and information for your position' });
     briefBtn.addEventListener('click', () => showHelp(this.sim, 'briefing'));
     const docsBtn = h('a', { href: REPO_URL, target: '_blank', rel: 'noopener' }, h('button', { text: 'DOCS', type: 'button' }));
+    const saveBtn = h('button', { text: 'SAVE', title: 'Save the session (continue it later from the Connect dialog, or download it as a file)' });
+    saveBtn.addEventListener('click', () => this.openSave());
+    if (tutorial) saveBtn.style.display = 'none';
     const disconnect = h('button', { text: 'DISCONNECT', title: 'End the session' });
     disconnect.addEventListener('click', () => {
       // The debriefing first: the simulation pauses while it is open.
@@ -173,6 +202,8 @@ export class App {
         },
         onEnd: () => {
           this.leaving = true;
+          this.flushStats();
+          this.autosave();
           location.reload();
         },
       });
@@ -188,6 +219,7 @@ export class App {
       field('wind', 'Surface wind'),
       field('qnh', sim.faa ? 'Altimeter setting (inches of mercury)' : 'QNH (hPa)'),
       field('utc', 'Simulation time (UTC)'),
+      field('ontime', 'Your time on position in this session (real time, without pauses)'),
       h('span.sep'),
       this.pauseButton,
       ...this.speedButtons,
@@ -203,6 +235,7 @@ export class App {
       field('score', 'Score: +10 per departure handed off / arrival parked, penalties for incidents, delays and "say again"'),
       helpBtn,
       docsBtn,
+      saveBtn,
       disconnect,
     );
 
@@ -223,7 +256,7 @@ export class App {
       const el = (e.target as HTMLElement).closest<HTMLElement>('[data-station]');
       const type = el?.dataset.station as StationType | undefined;
       if (!type) return;
-      const err = this.sim.setStationActive(type, !this.sim.userControls(type));
+      const err = this.act({ k: 'station', type, on: !this.sim.userControls(type) });
       if (err) this.toast(err);
       this.slowUpdate();
     });
@@ -399,8 +432,16 @@ export class App {
     const staffed = sim.config.airport.stations.filter((st) => sim.userControls(st.type)).map((st) => `${st.callsign} (${st.name}, ${st.frequency})`);
     if (tutorial) this.hint(`Tutorial ${tutorial.tutorial.title}: follow the steps in the tutorial panel. "Show me" puts the example instruction into the command line - send it with Enter or SEND.`);
     this.hint(`Connected as ${staffed.join(' + ')}. ${capitalize(runwayWords(sim.runways))} in use. BRIEFING shows the airport briefing, F1 the help. End the session with DISCONNECT - it shows your debriefing, which is not saved.`);
+    if (restored) {
+      this.hint(`Session "${restored.name}" restored - ${formatDuration(this.controlSeconds, true)} on position so far. Paused: press Space (or >) to continue.`);
+      this.togglePause();
+      if (!restored.matches) this.hint('The restored traffic differs slightly from the saved session (it was saved by an earlier version of the simulation).');
+    }
     // Reloading or closing the page ends the session without the debriefing: the browser asks first.
+    // The session is kept as the autosave, and the time on position is counted.
     window.addEventListener('beforeunload', (e) => {
+      this.flushStats();
+      this.autosave();
       if (this.leaving) return;
       e.preventDefault();
       e.returnValue = 'Please end the session with DISCONNECT - it shows your debriefing, which is not saved.';
@@ -432,7 +473,13 @@ export class App {
   private frame(t: number): void {
     const dt = Math.min(0.5, (t - this.last) / 1000);
     this.last = t;
-    if (!this.paused) this.sim.tick(dt * this.speed);
+    if (!this.paused) {
+      this.sim.tick(dt * this.speed);
+      if (!document.hidden) {
+        this.controlSeconds += dt;
+        this.statsPending += dt;
+      }
+    }
     this.scope.selected = this.selected;
     this.scope.render(t);
     if (t - this.lastSlowUpdate > 250) {
@@ -444,6 +491,16 @@ export class App {
 
   private slowUpdate(): void {
     const sim = this.sim;
+    this.fields.ontime.innerHTML = `ON <b>${formatDuration(this.controlSeconds, true)}</b>`;
+    const now = performance.now();
+    if (now - this.lastStatsFlush > 30_000) {
+      this.lastStatsFlush = now;
+      this.flushStats();
+    }
+    if (now - this.lastAutosave > AUTOSAVE_MS) {
+      this.lastAutosave = now;
+      this.autosave();
+    }
     for (const l of this.lists) l.update(sim, this.selected);
     this.tutorialPanel?.update(this.selected);
     // Your frequencies (combined positions: several). Switched-off ones are run by the simulator.
@@ -558,8 +615,8 @@ export class App {
     this.voices.volume = s.ttsVolume;
     this.voices.rate = s.ttsRate;
     this.voiceIn.lang = s.voiceLang;
-    if (s.density !== this.densitySetting) this.sim.config.density = this.densitySetting = s.density;
-    if (s.eventLevel !== this.eventsSetting) this.sim.config.eventLevel = this.eventsSetting = s.eventLevel;
+    if (s.density !== this.densitySetting) this.act({ k: 'density', density: (this.densitySetting = s.density) });
+    if (s.eventLevel !== this.eventsSetting) this.act({ k: 'eventLevel', level: (this.eventsSetting = s.eventLevel) });
     this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : `Type an instruction, e.g. "DLH5AB ${this.exampleInstruction()}" - F1 for help`;
     this.quickbarKey = '';
     this.updateQuickbar();
@@ -824,7 +881,7 @@ export class App {
 
   private transmit(text: string, fromVoice = false): void {
     this.clearQuickSel();
-    const res = this.sim.transmit(text, this.selected, { fallbackToLastCaller: fromVoice });
+    const res = perform(this.sim, { k: 'transmit', text, selected: this.selected, fallback: fromVoice || undefined }) as TransmitResult;
     if (res.hint) this.hint(res.hint);
     if (res.callsign && this.sim.find(res.callsign)) this.select(res.callsign);
   }
@@ -1109,7 +1166,7 @@ export class App {
         label: `${st.name} (${st.callsign})`,
         hint: st.frequency,
         action: () => {
-          const err = this.sim.addStation(type);
+          const err = this.act({ k: 'addStation', type });
           if (err) this.toast(err);
           this.slowUpdate();
         },
@@ -1124,7 +1181,7 @@ export class App {
     const app = sim.stationName('APP');
     const gnd = sim.stationName(sim.stationFor('ground'));
     const set = (kind: 'arrivals' | 'departures', stop: boolean) => () => {
-      const err = sim.setFlow(kind, stop);
+      const err = this.act({ k: 'flow', kind, stop });
       if (err) this.hint(err);
       this.slowUpdate();
     };
@@ -1140,7 +1197,7 @@ export class App {
         hint: sim.canHoldDepartures ? undefined : 'you staff Ground',
         disabled: !sim.canHoldDepartures,
         action: () => {
-          const err = sim.setAskIntersections(!f.askIntersections);
+          const err = this.act({ k: 'askIntersections', on: !f.askIntersections });
           if (err) this.hint(err);
         },
       },
@@ -1149,7 +1206,7 @@ export class App {
         hint: sim.canHoldDepartures ? 'asks them too' : 'you staff Ground',
         disabled: !sim.canHoldDepartures,
         action: () => {
-          const err = sim.setSendIntersections(!f.sendIntersections);
+          const err = this.act({ k: 'sendIntersections', on: !f.sendIntersections });
           if (err) this.hint(err);
         },
       },
@@ -1157,7 +1214,7 @@ export class App {
   }
 
   private requestHandoff(ac: Aircraft): void {
-    const err = this.sim.requestHandoff(ac);
+    const err = this.act({ k: 'handoff', callsign: ac.callsign });
     if (err) this.hint(err);
     this.quickbarKey = '';
     this.updateQuickbar();
@@ -1165,11 +1222,75 @@ export class App {
 
   /** Acknowledges the CATC alert of an aircraft (no flashing until the conflict ends). */
   private acknowledgeCatc(ac: Aircraft): void {
-    const alert = catcAlert(this.sim, ac);
-    if (!alert || !acknowledgeCatc(this.sim, ac)) return;
-    this.sim.system(`CATC alert ${alert.a.callsign} / ${alert.b.callsign} acknowledged.`, 'system', ac.callsign);
+    if (!catcAlert(this.sim, ac)) return;
+    this.act({ k: 'catcAck', callsign: ac.callsign });
     this.quickbarKey = '';
     this.updateQuickbar();
+  }
+
+  /** Adds the time on position since the last call to the totals (the start of the account statistics). */
+  private flushStats(): void {
+    if (this.statsPending <= 0) return;
+    const icao = this.sim.config.airport.icao;
+    const positions = this.sim.loggedInStations.filter((t) => this.sim.userControls(t));
+    addControlTime(this.statsPending, Math.max(0, this.sim.time - this.statsSimTime), icao, positions);
+    this.statsPending = 0;
+    this.statsSimTime = this.sim.time;
+    this.fields.ontime.title = `Your time on position in this session (real time, without pauses). In total: ${formatDuration(loadStats().controlSeconds)}`;
+  }
+
+  /** Keeps the session in the browser as the autosave (not tutorials). */
+  private autosave(): void {
+    if (this.tutorial || this.sim.steps === 0) return;
+    storeSession({ ...saveSession(this.sim, 'Autosave', this.controlSeconds), id: AUTOSAVE_ID });
+  }
+
+  /** SAVE: a name, then into the browser's storage and/or as a file. */
+  private openSave(): void {
+    this.menu.close();
+    const sim = this.sim;
+    const utc = sim.utc();
+    const positions = sim.loggedInStations.join('+');
+    const name = h('input', { type: 'text', value: `${sim.config.airport.icao} ${positions} ${String(utc.getUTCHours()).padStart(2, '0')}${String(utc.getUTCMinutes()).padStart(2, '0')}Z`, maxlength: '60' });
+    const save = h('button.primary', { type: 'submit', text: 'Save' });
+    const download = h('button', { type: 'button', text: 'Download file', title: 'Save it as a file (to keep it, or to continue on another device)' });
+    const cancel = h('button', { type: 'button', text: 'Cancel' });
+    const form = h(
+      'form.dialog',
+      {},
+      h('div.dtitle', {}, h('span', { text: 'Save session' })),
+      h(
+        'div.dbody',
+        {},
+        h('div.sub', { text: 'Continue it later with "Saved sessions" in the Connect dialog. The traffic is rebuilt from the start of the session, which takes a few seconds for a long session.' }),
+        h('div.grid', {}, h('label', { text: 'Name' }), name),
+        h('div.actions', {}, cancel, download, save),
+      ),
+    );
+    const overlay = h('div.overlay', {}, form);
+    const snapshot = () => saveSession(sim, name.value.trim() || 'Session', this.controlSeconds);
+    cancel.addEventListener('click', () => overlay.remove());
+    download.addEventListener('click', () => {
+      downloadSession(snapshot());
+      overlay.remove();
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const s = snapshot();
+      const err = storeSession(s);
+      overlay.remove();
+      this.flushStats();
+      this.hint(err ?? `Session "${s.name}" saved. Continue it later with "Saved sessions" in the Connect dialog.`);
+    });
+    document.body.append(overlay);
+    name.focus();
+    name.select();
+  }
+
+  /** Changes the simulation (logged for saving, see session.ts); returns an error text if it was not possible. */
+  private act(a: SessionAction): string | undefined {
+    const r = perform(this.sim, a);
+    return typeof r === 'string' ? r : undefined;
   }
 
   private say(ac: Aircraft | Vehicle, phrase: string): void {
@@ -1583,7 +1704,7 @@ export class App {
             label: sd.name,
             hint: sidHint(sd.name, sd.fix),
             action: () => {
-              const err = sendDcl(sim, ac, sd.name, squawk);
+              const err = this.act({ k: 'dcl', callsign: ac.callsign, sid: sd.name, squawk });
               if (err) this.toast(err);
               this.slowUpdate();
             },

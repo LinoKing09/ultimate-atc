@@ -1370,3 +1370,42 @@ body.mobile .tutorial {
   min-width: 150px;
   color: var(--text);
 }
+
+/* ------------------------------------------------------------------ saved sessions */
+.overlay.saved-overlay {
+  z-index: 1100;
+}
+.dialog.saved-sessions {
+  width: min(640px, calc(100vw - 32px));
+}
+.saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.saved-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 6px;
+}
+.saved-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.saved-info .dim {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.dialog .sub.error {
+  color: var(--warn);
+}
+.dialog.restoring {
+  min-width: 280px;
+}

@@ -328,7 +328,8 @@ export function backtrackEntry(sim: Simulation, holdingPoint: string): boolean {
 
 /** Take-off run this crew needs today (type figure varied per flight, -10 % / +15 %). */
 export function requiredRunway(sim: Simulation, ac: Aircraft): number {
-  ac.requiredRunwayM ??= Math.round(ac.type.minRunwayM * sim.rng.range(0.9, 1.15));
+  // From the session seed, not from `rng`: menus ask for it too, and a saved session must replay the same.
+  ac.requiredRunwayM ??= Math.round(ac.type.minRunwayM * (0.9 + 0.25 * sim.variation(`${ac.callsign}:runway`)));
   return ac.requiredRunwayM;
 }
 

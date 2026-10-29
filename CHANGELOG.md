@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Saved sessions**: `SAVE` stores the session in the browser under a name or downloads it as a file; it is also kept automatically every 2 minutes and when you leave as the *Autosave*. *Continue* in the Connect dialog (*Saved sessions*, *Load file...*) rebuilds it - the simulation is repeated from its seed with every action of the controller at the step it happened - and continues it paused, with messages, score and statistics. Up to 20 sessions per browser.
+- **Time on position**: `ON 0:42:10` in the toolbar counts your time controlling in this session (real time, without pauses). It is added up in the browser - in total, per airport and per position, with the number of sessions and the simulated traffic time - for the account statistics to come; the Connect dialog shows the total.
 - **COORD: Ground sends departures to the earliest intersection**: a fourth coordination switch (free, while the simulator runs Ground) has the AI Ground taxi each departure to the earliest intersection it accepts instead of the full length; it switches the asking on and goes off with it.
 - **Hold-short limits in the taxi menu**: every destination of *Taxi to* / *Taxi to stand* has a sub-menu *Hold short of H*, *Hold short of N*, ... along its route (`taxi to holding point A via M, H, N, A, hold short of taxiway H`); clicking the destination itself still sends the whole route (touch: second tap). Each limit is checked like a typed instruction and previewed on hover.
 - **TRANSFER** in the ATIS editor: copies wind, gusts and QNH of the latest METAR into the form.
@@ -33,6 +35,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- The take-off run a crew needs is drawn from the session seed per aircraft (no longer from the traffic's random sequence when it is first asked), so that opening a menu can never change the traffic of a saved session.
 - **Departures pass a slot flight waiting at the holding point**: a departure taxiing to a holding point where a slot flight waits (window more than 2 minutes away) is sent to another holding point of the runway that it accepts and reaches without turning around - by the simulator on its positions, on your frequency the crew asks for it (`... is waiting for its slot at holding point A, request taxi to holding point B`).
 - **Slot flights wait on the stand, not at the runway**: the AI Ground approves push and start for a flight with a CTOT only from 2 minutes before its TSAT (A-CDM) or, without A-CDM, from CTOT - 10 min - before, they stood 10-13 minutes (median) at the holding point and blocked the queue. Without A-CDM crews say their CTOT in the pushback request (`request pushback, CTOT 1045`), and the *Pushback approved* menu shows `CTOT 1045: not before 1035`.
 - **Departures in the sequence stop reminding Tower**: a departure that was heard (`roger`, `standby`, `number N`) does not call again every 4 minutes while other departures are ahead of it for the runway or its slot window is not open yet.

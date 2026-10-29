@@ -35,12 +35,19 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | **Start**         | **Empty airport** (default): the session starts with the parked aircraft only, the first departures call for their clearance and the first arrivals are on approach. **Take over**: you relieve the controller before you - the simulator works every position for 20 minutes first, so aircraft are already pushing back, taxiing, queueing at the holding points and on approach. The clock shows the start time you chose, the score starts at zero, and the crews on your frequencies call you again with their next request. See [simulation model](simulation.md#time). |
 | **Scenario**      | Optional. A **number** is a seed: the same seed with the same settings gives the same traffic. A **scenario code** (for example `EDDS-25-MB0-M10-K7Q2M`) also fixes the runway, traffic mix and scheduled events, and optionally the start time, night flying restrictions and closed taxiways. **Scenario builder...** creates one from presets or your own choices. Leave it empty for a random session. See [Scenarios and seeds](scenarios.md). |
 | **Tutorial**      | *Delivery*, *Ground*, *Tower*: starts a guided first session for that position right away (fixed traffic, a panel explains each step and shows the instruction). See [Tutorials](tutorials.md). |
+| **Continue**      | **Saved sessions (n)** lists the sessions saved in this browser - name, positions, simulation time, score, time on position, when saved - with *Continue*, *Download* (as a file) and `×` (delete). **Load file...** continues a downloaded session (also on another device). See [Saving sessions](#saving-sessions). |
 
 **Airport menu.** The menu opens in columns, each to the right of the previous one, so you can still change an earlier choice while the later columns are open: **Continent** (Europe, North America, South America, Asia, Australia / Oceania) → **Country** with its FIR (for example *United Kingdom - London FIR (EGTT)*) → for Germany the **FIR** (Bremen FIR EDWW, Langen FIR EDGG, München FIR EDMM) → **Airport**. Each airport shows its runways and **traffic bars**: four bars for the busiest airports (Leipzig/Halle about 29, Stuttgart and Cologne/Bonn about 26 movements per hour at medium traffic), one for the quietest (Sylt, about 7); hover for the number. Airports that are not available yet (Frankfurt, London Heathrow; Los Angeles, Aspen, Jackson Hole, Key West; Buenos Aires Aeroparque, Porto Alegre, Medellín; Nagoya Chubu, Penang, Colombo, Taipei Songshan; Sydney, Melbourne, Perth, Brisbane, Gold Coast, Hobart, Auckland, Queenstown) are listed as *Coming soon* and cannot be selected; continents, countries and FIRs without an airport say *Coming soon* too. The airport column ends with a lit stop bar - the row of red lights at a holding point - and *END OF LIST*. The menu always starts with the continents, whichever airport is selected: each column slides in with a short animation after a choice in the previous one (the dialog moves aside, so everything stays centred), and the selected airport is marked when you reach its column. Picking an airport closes the menu, so only the Connect dialog is left. Keyboard: arrow keys up / down within a column, right opens the next column, left goes back, Enter picks, Escape (or a click beside the menu) closes it without a change. The dialog and the menu are centred together; on a narrow screen the row scrolls sideways to the newest column. A shared scenario link selects its airport.
 
 ![Connect dialog with the airport menu open: Europe, Germany, Langen FIR, Stuttgart](images/screenshot-connect.png)
 
 There is no runway selection: the session starts with a random wind, and the **runway in use is the one with the most headwind** (runway 25 at EDDS unless the tailwind on it is above 3 kt; at Leipzig/Halle both parallel runways of that direction). The wind changes during the session with the weather (a new METAR every 30 minutes); when the tailwind on the runway in use grows above 5 kt, the METAR message suggests a runway change. You change the runway, wind, QNH and ATIS letter during the session in the [ATIS editor](#atis-editor).
+
+Below, once you have controlled for a minute, your **totals** over all sessions in this browser: `Your time on position: 12 h 05 min in 8 sessions (15 h 40 min of traffic)`.
+
+### Saving sessions
+
+`SAVE` in the toolbar stores the session under a name (pre-set to airport, positions and time, `EDDS GND+TWR 1432Z`) in the browser, or offers it as a **file** (*Download file*) to keep it or to continue on another device. The session is also kept automatically every 2 minutes and when you leave the page, as **Autosave**. To continue, pick it under *Saved sessions* (or *Load file...*) in the Connect dialog: the traffic is rebuilt from the start of the session - the simulation is repeated with the same seed and everything you did at the moment you did it, which takes a few seconds for a long session - and the session continues **paused** (press Space). The message window, score, statistics and your time on position continue where they were. Tutorials are not saved. Up to 20 sessions are kept in the browser (the oldest go first).
 
 The yellow notice shows how accurate the airport data is. Press **Connect** to start. The session begins immediately and the clock runs. Open the [airport briefing](#airport-briefing) (`BRIEFING`) to learn the local procedures.
 
@@ -51,7 +58,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 ```
 +--------------------------------------------------------------------------------------+
 | ULTIMATE ATC | EDDS_GND 118.605 | RWY 25 | ATIS E | 250/08KT | Q1013 | 14:32:10Z |  |
-|   II 1x 2x 4x 8x | TTS ROUTES ROT |            SCORE ... | HELP | DOCS | DISCONNECT       |
+|   ON II 1x 2x 4x 8x | TTS ROUTES ROT |       SCORE ... | HELP | DOCS | SAVE | DISCONNECT |
 +--------------------------------------------------------------------------------------+
 | [DEPARTURES list]                                              [ARRIVALS list]       |
 |                                                                                      |
@@ -73,6 +80,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `250/08KT`            | Surface wind (magnetic), with gusts `070/18G32KT`. Shown in red if the tailwind on the runway in use is above 5 kt, and with `TS` while a [thunderstorm](scenarios.md#thunderstorm) is active. Click to edit. |
 | `Q1013`               | QNH in hPa (US airports: `A2992`, the altimeter setting in inches). Click to edit.               |
 | `14:32:10Z`           | Simulation time in UTC. The session starts at the current real time, or at a scenario's start time. With [night flying restrictions](scenarios.md#start-time-and-night-flying-restrictions) the local time follows (`2215L`). |
+| `ON 0:42:10`          | Your **time on position** in this session: real time while the simulation runs (not while paused or while the page is hidden). It is added up over all sessions for your statistics (the tooltip and the Connect dialog show the total; also per airport and position, kept in this browser for the account statistics to come). A continued session goes on from its saved time. |
 | `II` / `>`            | Pause / resume. **Space** does the same when the command line is empty.                         |
 | `1x 2x 4x 8x`         | Simulation rate. Pilots and Tower run faster too; text-to-speech gets slightly faster.          |
 | `TTS`                 | Pilots read their transmissions aloud (text-to-speech). *Hidden in this version, see [Voice](#9-voice).* |
@@ -85,7 +93,8 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `SCORE ...`           | Score, departures handed off (`DEP`), arrivals parked (`ARR`) and incidents (`INC`). See [Score](#13-score). |
 | `HELP`                | Help window with the tabs *Airport briefing*, *Phraseology* and *Controls* (also **F1**; it opens on the tab you used last). |
 | `DOCS`                | Opens this documentation on GitHub.                                                             |
-| `DISCONNECT`          | Ends the session properly - reloading or closing the page asks first, because the debriefing is not saved. Opens the **debriefing** (the simulation pauses): *Continue session* goes back, *End session* returns to the Connect dialog. See [Debriefing](#debriefing). |
+| `SAVE`                | Saves the session - see [Saving sessions](#saving-sessions). |
+| `DISCONNECT`          | Ends the session properly - reloading or closing the page asks first, because the debriefing is not saved (the session itself is kept as the Autosave). Opens the **debriefing** (the simulation pauses): *Continue session* goes back, *End session* returns to the Connect dialog. See [Debriefing](#debriefing). |
 
 ### ATIS editor
 

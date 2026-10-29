@@ -1,3 +1,4 @@
+import type { SessionAction } from './session';
 import { Airport, type Stand } from './airport/airport';
 import type { AirportData, ParallelRunwayData, StationData, StationType } from './airport/types';
 import type { AircraftType } from '../data/aircraftTypes';
@@ -182,6 +183,15 @@ const STEP = 0.2;
 export class Simulation {
   /** Simulated seconds summed over all simulations in this process (test and benchmark statistics). */
   static simulatedSeconds = 0;
+  /**
+   * Simulation steps run so far (STEP seconds each). Everything the controller does is logged with the step it
+   * happened at (session.ts), so that a saved session can be rebuilt exactly from its seed.
+   */
+  steps = 0;
+  /** What the controller did, with the step it happened at (see session.ts). */
+  readonly actionLog: [number, SessionAction][] = [];
+  /** The configuration the session was started with (density and event level may change during it). */
+  readonly startConfig: Readonly<SimConfig>;
   readonly airport: Airport;
   readonly rng: Rng;
   readonly seed: number;
@@ -307,6 +317,7 @@ export class Simulation {
   constructor(readonly config: SimConfig) {
     this.airport = new Airport(config.airport);
     this.seed = config.seed ?? Math.floor(Math.random() * 2 ** 31);
+    this.startConfig = { ...config, seed: this.seed };
     this.rng = new Rng(this.seed);
     const station = this.airport.station(config.position);
     if (!station) throw new Error(`${config.airport.icao} has no ${config.position} station`);
@@ -443,7 +454,13 @@ export class Simulation {
     }
   }
 
+  /** Runs `n` simulation steps (STEP seconds each) at once - to replay a saved session. */
+  runSteps(n: number): void {
+    for (let i = 0; i < n; i++) this.step(STEP);
+  }
+
   private step(dt: number): void {
+    this.steps++;
     this.time += dt;
     Simulation.simulatedSeconds += dt;
     this.updateScenario();

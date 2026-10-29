@@ -1,3 +1,5 @@
+import { perform, type SavedSession } from '../core/session';
+import { deleteSession, downloadSession, formatDuration, listSessions, loadStats, readSessionFile } from './sessionStore';
 import type { AirportData, StationType } from '../core/airport/types';
 import { runwayChoices, runwayEndsOf } from '../core/runways';
 import { altimeterOf, formatMetar, qnhFromAltimeter } from '../core/met';
@@ -39,6 +41,8 @@ export interface LoginResult {
   scenario?: Scenario;
   /** Guided tutorial (sets position and traffic itself). */
   tutorial?: TutorialId;
+  /** A saved session to continue (everything else comes from it). */
+  saved?: SavedSession;
 }
 
 /** EuroScope-like "connect" dialog: pick airport, position and traffic. The runway follows the wind (ATIS). */
@@ -206,6 +210,39 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       });
       return b;
     });
+    // Saved sessions: continue one stored in this browser, or one from a downloaded file.
+    const resolveSaved = (s: SavedSession) => {
+      const ap = airports.find((x) => x.icao === s.airport);
+      if (!ap) return `Unknown airport ${s.airport}.`;
+      overlay.remove();
+      resolve({ airport: ap, position: s.config.position, positions: s.config.positions ?? [s.config.position], density: s.config.density, eventLevel: s.config.eventLevel ?? 0, start: s.config.start ?? 'empty', saved: s });
+      return undefined;
+    };
+    const savedBtn = h('button', { type: 'button' });
+    const updateSavedBtn = () => {
+      const n = listSessions().length;
+      savedBtn.textContent = `Saved sessions (${n})`;
+      savedBtn.disabled = !n;
+    };
+    updateSavedBtn();
+    savedBtn.addEventListener('click', () => showSavedSessions(resolveSaved, updateSavedBtn));
+    const fileInput = h('input', { type: 'file', accept: '.json,application/json', hidden: true });
+    const fileBtn = h('button', { type: 'button', text: 'Load file...', title: 'Continue a session you downloaded (SAVE > Download)' });
+    const fileError = h('div.sub.error');
+    fileBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      try {
+        const err = resolveSaved(await readSessionFile(file));
+        if (err) fileError.textContent = err;
+      } catch (e) {
+        fileError.textContent = (e as Error).message;
+      }
+      fileInput.value = '';
+    });
+    const totals = loadStats();
+    const statsLine = totals.controlSeconds >= 60 ? `Your time on position: ${formatDuration(totals.controlSeconds)} in ${totals.sessions} session${totals.sessions === 1 ? '' : 's'} (${formatDuration(totals.simulatedSeconds)} of traffic).` : '';
     const form = h(
       'form.dialog',
       {},
@@ -236,11 +273,15 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
           h('div.rangerow', {}, seedInput, builderBtn),
           h('label', { text: 'Tutorial' }),
           h('div.positions', {}, ...tutorialButtons),
+          h('label', { text: 'Continue' }),
+          h('div.positions', {}, savedBtn, fileBtn, fileInput),
         ),
+        fileError,
         h('div.sub', { text: 'New here? A tutorial guides you step by step through a first session as Delivery, Ground or Tower (about 5-15 minutes each).' }),
         scenarioInfo,
         h('div.sub', { text: 'The runway in use is chosen from the wind. You can change it at any time in the ATIS (click ATIS in the toolbar).' }),
         notice,
+        statsLine ? h('div.sub', { text: statsLine }) : null,
         h('div.actions', {}, h('a', { href: `${REPO_URL}#readme`, target: '_blank', rel: 'noopener', text: 'Documentation' }), connect),
       ),
     );
@@ -278,6 +319,55 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     update();
     connect.focus();
   });
+}
+
+/** The saved sessions of this browser: continue, download or delete one. */
+function showSavedSessions(onLoad: (s: SavedSession) => string | undefined, onChange: () => void): void {
+  const body = h('div.saved-list');
+  const error = h('div.sub.error');
+  const close = h('button', { type: 'button', text: 'Close' });
+  const dialog = h('div.dialog.saved-sessions', {}, h('div.dtitle', {}, h('span', { text: 'Saved sessions' })), h('div.dbody', {}, body, error, h('div.actions', {}, close)));
+  const overlay = h('div.overlay.saved-overlay', {}, dialog);
+  const render = () => {
+    const list = listSessions();
+    body.replaceChildren(
+      ...(list.length
+        ? list.map((s) => {
+            const load = h('button.primary', { type: 'button', text: 'Continue' });
+            const dl = h('button', { type: 'button', text: 'Download', title: 'Save it as a file (to keep it, or to continue on another device)' });
+            const del = h('button', { type: 'button', text: '\u00d7', title: 'Delete' });
+            load.addEventListener('click', () => {
+              const err = onLoad(s);
+              if (err) error.textContent = err;
+              else overlay.remove();
+            });
+            dl.addEventListener('click', () => downloadSession(s));
+            del.addEventListener('click', () => {
+              deleteSession(s.id);
+              onChange();
+              render();
+            });
+            const saved = new Date(s.savedAt);
+            return h(
+              'div.saved-row',
+              {},
+              h(
+                'div.saved-info',
+                {},
+                h('b', { text: s.name }),
+                h('span.dim', { text: `${s.summary.positions} - ${s.summary.utc}Z - score ${s.summary.score} - on position ${formatDuration(s.controlSeconds, true)} - saved ${saved.toLocaleDateString()} ${saved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` }),
+              ),
+              load,
+              dl,
+              del,
+            );
+          })
+        : [h('div.sub', { text: 'No saved sessions in this browser.' })]),
+    );
+  };
+  close.addEventListener('click', () => overlay.remove());
+  render();
+  document.body.append(overlay);
 }
 
 const TOWER_REFERENCE: [string, string][] = [
@@ -384,6 +474,7 @@ const KEYS: [string, string][] = [
   ['COORD (toolbar)', 'Landline to Approach / Ground: no more arrivals, or hold all departures, to make room. -2 points per minute each while it is on.'],
   ['Tutorial panel (tutorials only)', 'Shows the current step. "Show me" selects the aircraft and puts the example instruction into the command line; Back shows the previous step again, Next goes on (or skips the task), Skip tutorial ends it and starts live traffic; tap the title to fold it away. The panel disappears when the tutorial is finished. Start a tutorial in the Connect dialog.'],
   ['Start (Connect dialog)', 'Empty airport: the session starts with only the parked aircraft. Take over: the simulator works the airport for 20 minutes first, so you take over traffic that is already taxiing, departing and on approach; the crews on your frequency call you again with their next request'],
+  ['SAVE (toolbar)', 'Save the session (or download it as a file); continue it with "Saved sessions" or "Load file..." in the Connect dialog. Also kept automatically as the Autosave. ON 0:42:10 next to the clock is your time on position.'],
   ['DISCONNECT (toolbar)', 'Debriefing of the session (what earned and what cost points, answer times, incidents, advice), then continue or end the session'],
   ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL and the ILS (localizer, glide path); switch them on or off. A runway without an ILS (Sylt 14) is always flown as an RNP approach'],
   ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, traffic density, special events'],
@@ -588,12 +679,7 @@ export function showAtisEditor(sim: Simulation): void {
   cancel.addEventListener('click', () => overlay.remove());
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    sim.updateAtis({
-      letter: letterSel.value,
-      runway: rwySel.value,
-      wind: windOf(),
-      qnh: qnhOf(),
-    });
+    perform(sim, { k: 'atis', change: { letter: letterSel.value, runway: rwySel.value, wind: windOf(), qnh: qnhOf() } });
     overlay.remove();
   });
   document.body.append(overlay);

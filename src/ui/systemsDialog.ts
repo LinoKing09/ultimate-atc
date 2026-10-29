@@ -1,3 +1,4 @@
+import { perform } from '../core/session';
 import { SYSTEMS } from '../core/systems';
 import type { Simulation } from '../core/simulation';
 import { h } from './dom';
@@ -23,7 +24,7 @@ export function showSystems(sim: Simulation, onChange: () => void): void {
             const on = sim.systemOn(s.id);
             const toggle = h('button', { type: 'button', text: on ? 'ON' : 'OFF', class: on ? 'active' : '', disabled: !available, title: on ? 'Switch off' : 'Switch on' });
             toggle.addEventListener('click', () => {
-              sim.setSystem(s.id, !on);
+              perform(sim, { k: 'system', id: s.id, on: !on });
               onChange();
               render();
             });

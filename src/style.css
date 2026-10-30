@@ -158,6 +158,8 @@ button:disabled {
   border: 1px solid var(--panel-border);
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
   max-height: 45%;
+  /* Never wider than the scope area: the title bar (and its collapse button) stays on the screen, the table scrolls. */
+  max-width: calc(100% - 4px);
   display: flex;
   flex-direction: column;
   min-width: 260px;
@@ -170,6 +172,9 @@ button:disabled {
   padding: 2px 6px;
   cursor: move;
   user-select: none;
+  -webkit-user-select: none;
+  /* The finger drags the panel - the browser must not scroll or zoom instead. */
+  touch-action: none;
   color: #e5eef2;
 }
 .panel .title .count {
@@ -182,6 +187,9 @@ button:disabled {
 }
 .panel .body {
   overflow: auto;
+}
+.panel.front {
+  z-index: 2;
 }
 .panel.collapsed .body {
   display: none;

@@ -164,4 +164,26 @@ describe('slots and the departure sequence', () => {
     sim.setAskIntersections(false);
     expect(sim.flow.sendIntersections).toBe(false);
   });
+
+  it('KSAN: a departure cleared at the intersection B2 lines up in front of one waiting at B1, which waits for it', () => {
+    const sim = new Simulation({ airport: KSAN, position: 'TWR', runway: '27', density: 'medium', seed: 42, events: false, generateTraffic: false });
+    const a = sim.traffic.spawnDeparture(0, { callsign: 'SWA253', type: 'B38M' }) as Aircraft;
+    const b = sim.traffic.spawnDeparture(0, { callsign: 'DAL854', type: 'A20N' }) as Aircraft;
+    a.ctot = b.ctot = undefined;
+    b.readyAt = 200;
+    expect(runUntil(sim, () => a.request === 'departure', 1500)).toBe(true);
+    sim.transmit('SWA253 line up and wait runway 27');
+    expect(runUntil(sim, () => a.phase === 'lineup' && !!a.stoppedAt, 300)).toBe(true);
+    expect(runUntil(sim, () => b.request === 'departure', 1500)).toBe(true);
+    sim.transmit('DAL854 taxi to holding point B2');
+    expect(runUntil(sim, () => b.phase === 'holding', 600)).toBe(true);
+    sim.transmit('DAL854 runway 27, cleared for take-off');
+    expect(runUntil(sim, () => b.phase === 'lineup', 120)).toBe(true);
+    // Cleared for take-off now as well: it may not roll while DAL854 is on the runway in front of it.
+    sim.transmit('SWA253 runway 27, cleared for take-off');
+    expect(runUntil(sim, () => b.phase === 'takeoff', 180)).toBe(true);
+    expect(a.phase).toBe('lineup');
+    expect(runUntil(sim, () => b.phase === 'climb' || b.phase === 'gone', 180)).toBe(true);
+    expect(sim.stats.collisions).toBe(0);
+  });
 });

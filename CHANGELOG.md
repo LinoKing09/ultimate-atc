@@ -63,6 +63,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- **Intersection departure in front of a waiting one** (San Diego: cleared at B2 while another departure stands lined up at B1): the crew did not enter the runway, because the one at B1 stood within 400 m - now an aircraft lined up and waiting more than 150 m behind the entry (without a take-off clearance) no longer keeps it from lining up. And a departure cleared for take-off no longer rolls while another one is still lining up onto the runway in front of it (it only checked aircraft already on the runway).
 - **The AI Ground takes on aircraft Tower left at a clearance limit** (e.g. San Diego: `taxi via B, hold short of taxiway B4`, then `contact ground`): before, a departure stood there for good. Now, after 15 s, the AI Ground gives `continue taxi` after a hold-short or hold position, or a new route at a clearance limit - with a tug turnaround if the only way needs a U-turn.
 - **Crossing with an aircraft lined up and waiting** is no runway incursion any more (and no RMCA alert): only a departure cleared for take-off, lining up or rolling makes a crossing an incursion.
 - A departure lined up without a take-off clearance and without an open request (e.g. lined up by the simulator before you took over) no longer waits silently on the runway: after 2-3 minutes lined up it calls `lined up runway 25, ready for departure` (not sooner).

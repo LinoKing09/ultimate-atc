@@ -754,7 +754,8 @@ export class App {
               { text: 'HOLD', re: /^Hold position$/ },
               { text: 'STOP', re: /^Stop immediately/ },
               { text: 'CROSS', re: /^Cross runway/ },
-              { text: 'CONT', re: /^Continue approach$/ },
+              // On final: continue approach; on the ground: continue taxi (after hold position or a hold-short).
+              { text: 'CONT', re: /^Continue (approach|taxi)$/ },
               { text: 'LAND', re: /^Cleared to land/ },
               { text: 'G/A', re: /^Go around/ },
               { text: 'VAC', re: /^Vacate via/ },
@@ -1633,7 +1634,18 @@ export class App {
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for immediate take-off`),
       });
       if (ac.takeoffCleared || ac.lineUpCleared) items.push({ label: 'Cancel take-off', action: () => this.say(ac, 'hold position, cancel take-off') });
-      items.push({ label: 'Hold position', action: () => this.say(ac, 'hold position') });
+    }
+    // Taxiing traffic on Tower frequency (departures, vacated arrivals, crossings): hold, and continue again.
+    if (ac.onGround && ['taxi', 'holding', 'lineup'].includes(ac.phase)) {
+      items.push({ label: 'Hold position', disabled: ac.holdPosition, action: () => this.say(ac, 'hold position') });
+      if (ac.phase !== 'lineup') {
+        items.push({
+          label: 'Continue taxi',
+          hint: ac.holdPosition ? 'holding position' : ac.stoppedAt?.kind === 'holdShort' ? `holding short of ${ac.stoppedAt.target}` : undefined,
+          disabled: !(ac.holdPosition || ac.stoppedAt?.kind === 'holdShort' || ac.giveWayTo),
+          action: () => this.say(ac, 'continue taxi'),
+        });
+      }
     }
     if (ac.phase === 'takeoff') items.push({ label: 'Stop immediately', action: () => this.say(ac, 'stop immediately') });
     // Every aircraft in the air (departures, go-arounds) can be handed to Radar.

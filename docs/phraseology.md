@@ -225,8 +225,9 @@ DLH5AB, behind the A320 passing from left to right, push and start approved, fac
 EWG7TK, when clear of the Boeing, taxi to holding point A via L2, S
 ```
 
-- The pilot has to **identify the traffic**: a callsign must be on the ground; a type must match a moving (not parked) aircraft within 1500 m, and the nearest one is taken. If not, the reply is `Negative contact with the A320, say again` and nothing is executed.
-- Pushbacks, taxi instructions, crossings and *continue* then wait until the traffic **has passed**: it came closest and is now at least 40 m further away again, clear of the wingtips. They also start if the traffic stops more than 300 m away, or after at most 4 minutes.
+- The pilot has to **identify the traffic**: a callsign must be on the ground or landing (on final within 8 NM, or rolling out); a type must match a moving (not parked) aircraft within 1500 m - or, with `the landing ...` / `the arriving ...`, an aircraft on final - and the nearest one is taken. If not, the reply is `Negative contact with the A320, say again` and nothing is executed.
+- Pushbacks, taxi instructions, crossings, *continue*, line-ups and take-offs then wait until the traffic **has passed**: it came closest and is now at least 40 m further away again, clear of the wingtips, and its route ahead no longer comes close. They also start if the traffic stops more than 300 m away, or after at most 4 minutes.
+- **Behind landing traffic** (`behind landing EWG7TK, line up and wait behind`, `behind the landing A320, line up and wait behind`): the departure waits while the arrival is on final and lines up once it has landed and rolled past the departure's entry (or left the runway before it). After a go-around the condition no longer applies.
 - The read-back starts with the condition: `Behind the A320 passing from left to right, push and start approved, facing east, Lufthansa 5AB`.
 
 ### Give way / follow

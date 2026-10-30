@@ -4,6 +4,7 @@ import { inDepartureSequence } from '../src/core/pilot';
 import { Simulation } from '../src/core/simulation';
 import { EDDS } from '../src/data/airports/edds';
 import { KSAN } from '../src/data/airports/ksan';
+import { distance } from '../src/core/geo';
 
 function runUntil(sim: Simulation, cond: () => boolean, max = 900): boolean {
   for (let t = 0; t < max && !cond(); t++) sim.tick(1);
@@ -218,5 +219,45 @@ describe('slots and the departure sequence', () => {
       for (let t = 0; t < 5; t++) sim.tick(1);
       expect(ac.requestAck).toBe(true);
     }
+  });
+
+  for (const text of ['behind landing EWG7TK, line up and wait behind', 'behind the landing A320, line up and wait'])
+    it(`conditional line-up behind landing traffic on final: "${text}"`, () => {
+      const sim = towerSim();
+      const d = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+      d.ctot = undefined;
+      expect(runUntil(sim, () => d.phase === 'holding', 2000)).toBe(true);
+      const a = sim.traffic.spawnArrival(4, { callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+      expect(runUntil(sim, () => a.request === 'landing', 300)).toBe(true);
+      sim.transmit('EWG7TK runway 25, cleared to land');
+      const n = sim.messages.length;
+      sim.transmit(`DLH5AB ${text}`);
+      expect(runUntil(sim, () => sim.messages.slice(n).some((m) => m.from === 'DLH5AB'), 30)).toBe(true);
+      expect(sim.messages.slice(n).find((m) => m.from === 'DLH5AB')?.text).toMatch(/^Behind (landing Eurowings 7TK|the landing A320), line up and wait runway 25/);
+      expect(d.giveWayTo).toBe('EWG7TK');
+      // It enters the runway only once the arrival has landed and rolled past it.
+      expect(runUntil(sim, () => d.phase === 'lineup', 400)).toBe(true);
+      expect(a.onGround).toBe(true);
+      expect(sim.stats.incursions + sim.stats.goArounds + sim.stats.collisions).toBe(0);
+    });
+
+  it('conditional pushback: "behind DLH5AB, push and start approved" waits until it has passed', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 42, events: false, generateTraffic: false });
+    const a = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    const b = sim.traffic.spawnDeparture(0, { stand: '13', callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
+    a.ctot = b.ctot = undefined;
+    expect(runUntil(sim, () => a.request === 'pushback', 900)).toBe(true);
+    sim.transmit('DLH5AB push and start approved');
+    expect(runUntil(sim, () => a.request === 'taxi', 600)).toBe(true);
+    sim.transmit('DLH5AB taxi to holding point A');
+    expect(runUntil(sim, () => b.request === 'pushback', 900)).toBe(true);
+    sim.transmit('EWG7TK behind DLH5AB, push and start approved');
+    sim.tick(1);
+    expect(b.giveWayTo).toBe('DLH5AB');
+    const start = distance(a.pos, b.pos);
+    expect(runUntil(sim, () => !b.giveWayTo, 400)).toBe(true);
+    expect(distance(a.pos, b.pos)).toBeGreaterThan(start);
+    expect(runUntil(sim, () => b.phase === 'startup' || b.phase === 'taxi', 300)).toBe(true);
+    expect(sim.stats.collisions).toBe(0);
   });
 });

@@ -412,18 +412,46 @@ function typeMatches(word: string, icao: string): boolean {
   return icao.slice(0, 3) === w.slice(0, 3);
 }
 
-/** Finds the traffic a conditional clearance refers to. */
+/** Landing traffic a conditional clearance may refer to ("behind landing DLH5AB"): on final within this distance (NM). */
+const CONDITION_FINAL_NM = 8;
+
+/** On final (or rolling out) and close enough to be seen from the ground. */
+function landingTraffic(sim: Simulation, o: Aircraft): boolean {
+  return (o.phase === 'approach' && sim.distanceToThresholdNm(o) < CONDITION_FINAL_NM) || o.phase === 'landing';
+}
+
+/** Finds the traffic a conditional clearance refers to: on the ground nearby, or landing ("behind landing ..."). */
 function resolveConditionTraffic(sim: Simulation, ac: Aircraft, cond: NonNullable<ParsedTransmission['condition']>): Aircraft | undefined {
   if (cond.callsign) {
     const o = sim.find(cond.callsign);
-    return o && o !== ac && o.onGround ? o : undefined;
+    return o && o !== ac && (o.onGround || landingTraffic(sim, o)) ? o : undefined;
   }
   if (!cond.type) return undefined;
+  const landing = /\b(landing|arriving)\b/.test(cond.text);
   const candidates = sim.aircraft
-    .filter((o) => o !== ac && o.onGround && !['parked', 'arrived'].includes(o.phase) && typeMatches(cond.type!, o.type.icao))
-    .filter((o) => distance(o.pos, ac.pos) < 1500)
-    .sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos));
+    .filter((o) => o !== ac && typeMatches(cond.type!, o.type.icao))
+    .filter((o) => (landing ? landingTraffic(sim, o) : o.onGround && !['parked', 'arrived'].includes(o.phase) && distance(o.pos, ac.pos) < 1500))
+    .sort((a, b) => (landing ? sim.distanceToThresholdNm(a) - sim.distanceToThresholdNm(b) : distance(a.pos, ac.pos) - distance(b.pos, ac.pos)));
   return candidates[0];
+}
+
+/**
+ * Has the traffic of a conditional clearance (or "give way to") passed? Landing traffic: once it has rolled
+ * past the point where this aircraft enters the runway, or has left the runway. Traffic on the ground: once it
+ * came closest and is moving away again, and its way ahead no longer comes near this aircraft.
+ */
+function conditionPassed(sim: Simulation, ac: Aircraft, o: Aircraft, d: number): boolean {
+  if (!o.onGround) return false;
+  const clearance = (ac.type.wingspanM + o.type.wingspanM) / 2 + 40;
+  if (o.phase === 'landing') {
+    const end = sim.tower.endFor(o.runway);
+    const along = (p: Vec2) => sim.airport.runwayCoordinates(end, p).along;
+    return along(o.pos) > along(ac.pos) + clearance;
+  }
+  if (d - (ac.giveWayMinDist ?? d) <= 40 || d <= clearance) return false;
+  if (!o.path || o.speed < 0.2) return true;
+  for (let s = o.s; s < Math.min(o.path.length, o.s + 600); s += 20) if (distance(o.path.pointAt(s), ac.pos) < clearance) return false;
+  return true;
 }
 
 function execCancelPushback(sim: Simulation, ac: Aircraft): ExecResult {
@@ -1477,17 +1505,18 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
   if (ac.giveWayTo) {
     const o = sim.find(ac.giveWayTo);
     const since = now - (ac.giveWaySince ?? now);
-    if (!o || !o.onGround) {
+    // Landing traffic still in the air is waited for (up to 6 minutes); traffic that left (took off, went around) no more.
+    if (!o || (!o.onGround && !(o.phase === 'approach' && since < 360))) {
       ac.giveWayTo = undefined;
-    } else {
+      ac.giveWayMinDist = undefined;
+    } else if (o.onGround) {
       const d = distance(ac.pos, o.pos);
       ac.giveWayMinDist = Math.min(ac.giveWayMinDist ?? d, d);
       ac.giveWayLastDist = d;
-      const clearance = (ac.type.wingspanM + o.type.wingspanM) / 2 + 40;
-      // Passed = it came closest and is now clearly moving away again (or it stopped far away).
-      const passed = d - ac.giveWayMinDist > 40 && d > clearance;
-      const parkedAway = o.speed < 0.2 && d > 300 && since > 20;
-      if (passed || parkedAway || since > 240) {
+      // Passed (see conditionPassed), or it stopped far away; at most 4 minutes (8 behind a landing aircraft).
+      const passed = conditionPassed(sim, ac, o, d);
+      const parkedAway = o.speed < 0.2 && d > 300 && since > 20 && o.phase !== 'landing';
+      if (passed || parkedAway || since > (o.category === 'arrival' && o.phase === 'landing' ? 480 : 240)) {
         ac.giveWayTo = undefined;
         ac.giveWayMinDist = undefined;
       }

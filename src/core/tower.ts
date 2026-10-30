@@ -55,7 +55,7 @@ const LINEUP_SMOOTH_M = 30;
 /** An aircraft standing this far behind a departure's start point is not in its way (metres). */
 const BEHIND_MARGIN_M = 30;
 /** An aircraft lined up and waiting this far behind a departure's runway entry does not keep it from lining up (metres). */
-const ENTRY_BEHIND_M = 150;
+const ENTRY_BEHIND_M = 100;
 /** A landing aircraft may cross the threshold when a preceding departure is airborne and this far down the runway (RRSM). */
 const RRSM_DISTANCE = 2400;
 /** Short final: from here on the arrival goes around if the runway is not clear. */

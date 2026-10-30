@@ -55,6 +55,7 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 1.4.0 (2026-10-23) | 13.0 | 6.3 | 0 | 0 | 0 | 10.4 | 3.0 s |
 | 1.5.0 (2026-10-30) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 3.7 s |
 | 1.5.1 (2026-10-30) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 4.1 s |
+| 1.5.2 (2026-10-30) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 3.1 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -90,6 +91,8 @@ The second part of 1.1.0 (Nuremberg, Memmingen, Sylt, runway backtracking; relea
 
 **1.5.1** (lists on the phone): the simulation is unchanged, the Ground and Tower results are identical to 1.5.0 (13.1 / 6.5 and 12.9 / 10.3 per hour, no collisions, incursions, go-arounds or separation losses; 4.1 s computing time per simulated hour).
 
+**1.5.2** (parallel runway use in the ATIS, the runways as a list in the ATIS editor, own selection controls, all hold lines of the charts on the scope): the Ground and Tower results are identical to 1.5.0 (13.1 / 6.5 and 12.9 / 10.3 per hour, no collisions, incursions, go-arounds or separation losses) - Stuttgart has one runway, so the new parallel operation does not apply, and the rest is display. Leipzig in segregated operation is covered by its own test (one hour, landings and take-offs each on their own runway, no collisions).
+
 ### Tower benchmark (since 0.7)
 
 The same 20 sessions with you as **Tower** (Ground and Delivery run by the simulator) and a simple scripted Tower controller: it clears arrivals to land inside 4 NM when nobody is lined up, clears a departure for take-off when the runway is free, the next arrival is more than 110 s away, the departure spacing is met and its CTOT window is open, hands departures to Radar and arrivals to Ground when they ask, and clears crossings when the runway is free and the next arrival is more than 90 s away - never within 15 s of its own last take-off or crossing clearance (since 1.5: the crew reads a clearance back a few seconds later, and until then the runway does not count as busy).
@@ -109,6 +112,7 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 | 1.4.0 (2026-10-23) | 11.4 | 9.9 | 0 | 0 | 0 | 0 | 0 |
 | 1.5.0 (2026-10-30) | 12.9 | 10.3 | 0 | 0 | 0 | 0 | 0 |
 | 1.5.1 (2026-10-30) | 12.9 | 10.3 | 0 | 0 | 0 | 0 | 0 |
+| 1.5.2 (2026-10-30) | 12.9 | 10.3 | 0 | 0 | 0 | 0 | 0 |
 
 Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
 
@@ -169,6 +173,8 @@ How many hours of traffic have been simulated while developing and testing the s
 | **Total up to 1.5.0** | **~7700 h** | of which about 2900 h exactly measured |
 | 1.5.1: release benchmark (Ground + Tower) and the Tower benchmark runs of this release cycle (bisecting the same scripted-controller race) | 220 h | measured: 2 full runs (80 h), 7 Tower runs of 20 h |
 | **Total up to 1.5.1** | **~7920 h** | of which about 3120 h exactly measured |
+| 1.5.2: release benchmark, test-suite runs and the Leipzig soak | ~200 h | measured: 40 h benchmark, 4 h soak; test-suite runs (about 40 h each) estimated |
+| **Total up to 1.5.2** | **~8120 h** | of which about 3165 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

@@ -4,6 +4,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-30
+
+### Fixed
+
+- **Lists on the phone**: dragging the departure and arrival lists by the title bar works with the finger (the browser no longer takes the gesture for scrolling), and an expanded list can be collapsed again - its `_` button lay under the other, collapsed list or outside the screen. The list touched last now lies on top, a list is never wider than the screen (the table scrolls inside it), lists stay on the screen when dragged or when the phone is turned, and a tap on the title bar collapses or expands a list on touch screens.
+
 ## [1.5.0] - 2026-10-30
 
 ### Added

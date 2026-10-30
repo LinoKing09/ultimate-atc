@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.5.1] - 2026-10-30
+
 ### Added
 
 - **London Gatwick (EGKK)** - the busiest single runway in the world, the first airport in the United Kingdom: runway 08R/26L (3317 m, both thresholds displaced) with up to 55 movements an hour (traffic 1.4 times Stuttgart's per density step), departures from M1, A1, B1, C1 (26L) and J1, H1, G1 (08R) with the take-off runs of the AIP, the rapid exits ER, FR, GR and D, CR, BR; the standby runway 08L/26R drawn (arrivals cross it without a clearance); J along the north side, K and L between the piers, the South Terminal (Piers 1-3) and the North Terminal (Piers 4-6) with all 187 stands of the AIP stand list, remote and cargo stands. Gatwick Delivery, Ground, Tower and Director; the RNAV SIDs X from 26L and Z from 08R to twelve fixes. Traffic of easyJet, British Airways, Wizz Air UK, TUI, Jet2, Vueling, Emirates, Qatar, Turkish, WestJet, Cathay Pacific, JetBlue and others (new operators EZY, WUK, TOM, EXS, ICE, TAP, RAM; 22 new destinations). Built from OpenStreetMap and the UK AIP (NATS); stand sizes estimated. See `docs/airports/EGKK.md`.

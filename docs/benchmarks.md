@@ -53,6 +53,7 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 1.3.0 (2026-10-22) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 4.1 s |
 | 1.3.1 (2026-10-22) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 5.4 s |
 | 1.4.0 (2026-10-23) | 13.0 | 6.3 | 0 | 0 | 0 | 10.4 | 3.0 s |
+| 1.5.1 (2026-10-30) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 4.1 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -84,6 +85,8 @@ The second part of 1.1.0 (Nuremberg, Memmingen, Sylt, runway backtracking; relea
 
 **1.4.0** (parallel runways, three new airports, METAR and ATIS, hold short and rapid exits as on the charts): slightly fewer arrivals parked (6.3 instead of 6.6 per hour) - arrivals now stop clear of the parallel taxiway after vacating and hold short at the intermediate holding positions, and crews meeting on lanes too close for both wingspans wait; the automatic controller never re-routes them. Computing time is lower (3.0 s per simulated hour): see-and-avoid only checks traffic within reach. Still no collisions, incursions or go-arounds.
 
+**1.5.1** (seven new airports, take-over start, saved sessions, standardised quick-action bar, slot flights on the stand, conditional clearances behind landing traffic, intersection line-ups): the Ground benchmark at Stuttgart is unchanged within the variation - 13.1 departures and 6.5 arrivals per hour, no collisions, incursions or go-arounds, 9.7 deadlock calls per hour. In the **Tower benchmark** departures rise from 11.4 to 12.9 per hour (arrivals to Ground 10.6): the AI Ground now keeps slot flights on their stand until CTOT - 10 min instead of sending them to the holding point at their ready time, where they blocked the queue. The busier runway brings out a weakness of the deliberately simple scripted Tower controller, which is kept unchanged so that the versions stay comparable: it clears aircraft one after another within the same second, and each check still sees the runway free because the aircraft cleared a moment before is still behind the holding point. In 20 hours that happened three times - a take-off and a crossing cleared in the same second (2 incursions, the simulator reports them correctly), and two departures on the same SID cleared together (1 separation loss: the second crew waited until the runway in front of it was free and then rolled - keeping the departure spacing is the controller's job). Bisected over the commits since 1.4.0: the numbers change with the slot-flight commit alone (11.6 → 12.8 departures per hour, 0 → 3 incursions); the later line-up and crossing changes do not add any. The soak test controller (`tests/bot.ts`) does not make this mistake: Stuttgart and San Diego, 12 hours each, no collisions, no incursions, 1 go-around each.
+
 ### Tower benchmark (since 0.7)
 
 The same 20 sessions with you as **Tower** (Ground and Delivery run by the simulator) and a simple scripted Tower controller: it clears arrivals to land inside 4 NM when nobody is lined up, clears a departure for take-off when the runway is free, the next arrival is more than 110 s away, the departure spacing is met and its CTOT window is open, hands departures to Radar and arrivals to Ground when they ask, and clears crossings when the runway is free and the next arrival is more than 90 s away.
@@ -101,6 +104,7 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 | 1.3.0 (2026-10-22) | 11.7 | 9.9 | 0 | 0 | 0 | 0 | 0 |
 | 1.3.1 (2026-10-22) | 11.7 | 9.9 | 0 | 0 | 0 | 0 | 0 |
 | 1.4.0 (2026-10-23) | 11.4 | 9.9 | 0 | 0 | 0 | 0 | 0 |
+| 1.5.1 (2026-10-30) | 12.9 | 10.6 | 0 | 2 | 0 | 1 | 0 |
 
 Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
 
@@ -155,6 +159,7 @@ How many hours of traffic have been simulated while developing and testing the s
 | 1.3.1: release benchmark and soak test | 60 h | measured: 2 x 20 h and one soak run of 20 h |
 | 1.3.1: test-suite runs | ~110 h | 3 runs of 36.5 h |
 | **Total up to 1.3.1** | **~5710 h** | of which 2460 h exactly measured |
+| 1.5.1: release benchmark (Ground + Tower) and 7 Tower benchmark runs to bisect the change since 1.4.0 | 180 h | measured: 40 h + 7 x 20 h |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

@@ -206,4 +206,17 @@ describe('slots and the departure sequence', () => {
     expect(runUntil(sim, () => b.phase === 'climb', 300)).toBe(true);
     expect(sim.stats.collisions).toBe(0);
   });
+
+  it('"number 2 for pushback" / "expect ... in N minutes" stop the flashing like "standby"', () => {
+    for (const instr of ['number 2 for pushback', 'expect pushback in 3 minutes']) {
+      const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 42, events: false, generateTraffic: false });
+      const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+      ac.ctot = undefined;
+      expect(runUntil(sim, () => ac.request === 'pushback', 900)).toBe(true);
+      expect(ac.requestAck).toBeFalsy();
+      sim.transmit(`DLH5AB ${instr}`);
+      for (let t = 0; t < 5; t++) sim.tick(1);
+      expect(ac.requestAck).toBe(true);
+    }
+  });
 });

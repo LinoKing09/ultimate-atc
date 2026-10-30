@@ -225,6 +225,8 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       if (ac.request) {
         sim.recordAnswer(ac);
         ac.requestSince = sim.time;
+        // Heard: it stops flashing (like "standby") until the crew calls again.
+        ac.requestAck = true;
       }
       return { readback: formatCommand(c) };
     }

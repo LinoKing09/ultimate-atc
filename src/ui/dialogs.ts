@@ -427,7 +427,7 @@ const REFERENCE: [string, string][] = [
   ['hold position', 'Stop immediately.'],
   ['continue taxi', 'Resume after hold position / hold short of a taxiway.'],
   ['give way to DLH5AB', 'Wait until the named traffic has passed, then continue.'],
-  ['number 2 for pushback | taxi | departure', 'Queue position; the pilot waits without reminding you.'],
+  ['number 2 for pushback | taxi | departure', 'Queue position; the pilot waits without reminding you, and the aircraft stops flashing.'],
   ['expect pushback in 5 minutes', 'Expected delay; the pilot waits that long.'],
   ['contact tower [118.805]', 'Hand the aircraft over to Tower (do this at or before the holding point).'],
   ['follow the follow-me [to stand 14]', 'A follow-me car comes and leads the aircraft (crews unfamiliar with the airport ask for one).'],

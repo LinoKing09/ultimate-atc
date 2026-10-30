@@ -61,6 +61,9 @@ describe.skipIf(!RUN)('benchmark', () => {
     for (const runway of ['25', '07']) {
       for (let seed = 1; seed <= 10; seed++) {
         const sim = new Simulation({ airport: EDDS, position: 'TWR', runway, density: 'medium', seed, events: false });
+        // The controller's own last take-off or crossing clearance: the crew reads it back a few seconds later, so
+        // runwayBusy() does not see it yet - no second runway clearance in the meantime (since 1.5).
+        let lastRunwayClearance = -Infinity;
         for (let t = 0; t < 3600; t++) {
           sim.tick(1);
           for (const ac of sim.aircraft) {
@@ -71,10 +74,17 @@ describe.skipIf(!RUN)('benchmark', () => {
             if (ac.phase === 'approach' && !ac.landingCleared && sim.distanceToThresholdNm(ac) < 4 && !sim.aircraft.some((o) => o.phase === 'lineup')) sim.transmit(`${ac.callsign} cleared to land`);
             if (!ac.request || sim.time - ac.lastCallAt < 3) continue;
             const slotOk = ac.ctot === undefined || sim.time >= ac.ctot - 300;
-            if (ac.request === 'departure' && ac.phase === 'holding' && !ac.lineUpCleared && slotOk && !busy && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) sim.transmit(`${ac.callsign} cleared for take-off`);
+            const runwayFree = !busy && sim.time - lastRunwayClearance >= 15;
+            if (ac.request === 'departure' && ac.phase === 'holding' && !ac.lineUpCleared && slotOk && runwayFree && eta > 110 && sim.tower.spacingRemaining(ac) <= 0) {
+              sim.transmit(`${ac.callsign} cleared for take-off`);
+              lastRunwayClearance = sim.time;
+            }
             if (ac.request === 'radar') sim.transmit(`${ac.callsign} contact radar`);
             if (ac.request === 'vacated') sim.transmit(`${ac.callsign} contact ground`);
-            if (ac.request === 'crossing' && !busy && eta > 90) sim.transmit(`${ac.callsign} cross runway ${runway}`);
+            if (ac.request === 'crossing' && runwayFree && eta > 90) {
+              sim.transmit(`${ac.callsign} cross runway ${runway}`);
+              lastRunwayClearance = sim.time;
+            }
           }
         }
         const s = sim.stats;

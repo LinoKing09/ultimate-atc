@@ -639,7 +639,8 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     c.i += isWhenClear ? 2 : 1;
     c.accept('of');
     c.accept('the');
-    c.accept('landing', 'departing', 'arriving');
+    // "behind (the) landing ...": kept in the condition text (the crew looks for landing traffic then).
+    const qualifier = ['landing', 'departing', 'arriving'].includes(c.peek() ?? '') ? c.next()! : undefined;
     let callsign: string | undefined;
     let type: string | undefined;
     const m = matchCallsign(c.t, c.i, ctx.callsigns);
@@ -662,7 +663,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
     }
     const words = c.t.slice(startIdx, startIdx + (c.i - startIdx - descr.length));
     const lead = words[0] === 'when' ? 'when clear of' : words[0];
-    const subject = callsign ?? `the ${type}`;
+    const subject = `${callsign ? '' : 'the '}${qualifier ? `${qualifier} ` : ''}${callsign ?? type}`;
     const tail = descr.filter((d) => !['and', 'then'].includes(d)).join(' ');
     result.condition = { callsign, type, text: `${lead} ${subject}${tail ? ` ${tail}` : ''}` };
   };

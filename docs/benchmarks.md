@@ -53,7 +53,7 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 1.3.0 (2026-10-22) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 4.1 s |
 | 1.3.1 (2026-10-22) | 13.1 | 6.6 | 0 | 0 | 0 | 9.8 | 5.4 s |
 | 1.4.0 (2026-10-23) | 13.0 | 6.3 | 0 | 0 | 0 | 10.4 | 3.0 s |
-| 1.5.0 (2026-10-30) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 3.6 s |
+| 1.5.0 (2026-10-30) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 3.7 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -159,7 +159,7 @@ How many hours of traffic have been simulated while developing and testing the s
 | 1.3.1: release benchmark and soak test | 60 h | measured: 2 x 20 h and one soak run of 20 h |
 | 1.3.1: test-suite runs | ~110 h | 3 runs of 36.5 h |
 | **Total up to 1.3.1** | **~5710 h** | of which 2460 h exactly measured |
-| 1.4.0 - 1.5.0: release benchmark and the Tower benchmark runs that found the scripted-controller race (8 commits bisected) | 240 h | measured: one full run (40 h), 10 Tower runs of 20 h |
+| 1.4.0 - 1.5.0: release benchmark and the Tower benchmark runs that found the scripted-controller race (8 commits bisected) | 280 h | measured: two full runs (80 h), 10 Tower runs of 20 h |
 | 1.4.0 - 1.5.0: soak tests (every airport, from 1.5 on) | ~450 h | measured runs of 52-156 h each, partly estimated |
 | 1.4.0 - 1.5.0: test-suite runs and airport diagnostics (seven new airports) | ~1300 h | estimate: about 30 runs of 40 h each, plus diagnostic sessions |
 | **Total up to 1.5.0** | **~7700 h** | of which about 2900 h exactly measured |

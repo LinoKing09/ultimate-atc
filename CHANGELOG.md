@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Parallel runway operation in the ATIS** (first step of 1.6): with parallel runways the ATIS editor sets how they share the traffic - **mixed** (take-offs and landings on both), **segregated** (landings on one, take-offs on the other) or **semi-mixed** (one mixed, the other for take-offs only), each way round - and the approach mode - **independent**, **dependent** (1.5 NM diagonal between the finals) or **staggered** (3 NM); modes the runway spacing does not allow (ICAO: 1035 m independent, 915 m dependent) are greyed out. The ATIS says it (`arrival runway 26R, departure runway 26L`, D-ATIS `ARR RWY 26R` / `DEP RWY 26L`, `independent parallel approaches in progress`; FAA `simultaneous parallel approaches in use`), the toolbar shows `ARR 26R DEP 26L`, and the simulation follows it: Approach puts arrivals only on the runways for landings and spaces the finals after the chosen mode, departures get a runway for take-offs, a new operation re-assigns the departures on their stands and the arrivals further out, Delivery's crews query a SID of a runway for landings only.
+
 ## [1.5.0] - 2026-10-30
 
 ### Added

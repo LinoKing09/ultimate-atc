@@ -174,6 +174,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - planned - Smarter AI Tower after a rejected take-off; partial taxiway closures; a taxiway blocked during the session (special event)
 - **done** (1.4) - **Cologne/Bonn (EDDK)** with its cargo hub (UPS, FedEx, DHL; cargo airlines park on the cargo aprons) and the parallel guide lines of Terminal 2, and **Bremen (EDDW)**, both after the airport recipe (sources first, the charts as tests)
 - **done** (1.4) - **Parallel runways in use at the same time** (mixed mode, dependent / staggered / independent approaches, runway per apron and size, AI Tower per runway, ATIS) and **Leipzig/Halle (EDDP)** with the DHL hub
+- planned (1.6) - **Airports with two runways in parallel operation** - independent, dependent or segregated. First step **done** (in development): the ATIS sets the runway use (mixed, segregated, semi-mixed) and the approach mode, and the simulation follows it; next: airports that use it
 - planned - Further airports (the single-runway airports on the other continents listed as *Coming soon*) and the Approach / Departure position - see [Road to 2.0](#road-to-20); Frankfurt comes with [3.0](#road-to-30)
 
 ## Next steps

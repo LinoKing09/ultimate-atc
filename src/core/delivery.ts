@@ -5,7 +5,7 @@ import type { AirportData, SidData } from './airport/types';
 import { destinationBearing, destinationName, resolveDestination } from '../data/destinations';
 import type { Altitude, Command } from './phraseology/commands';
 import { formatAltitude, formatClearanceClimb, formatDepartureRoute } from './phraseology/format';
-import { runwayWords } from './runways';
+import { runwayUseWords, runwayWords } from './runways';
 import type { Simulation } from './simulation';
 
 /**
@@ -132,7 +132,7 @@ function routeFix(ac: Aircraft): string {
  */
 export function suggestedSid(sim: Simulation, ac: Aircraft): string | undefined {
   const fix = routeFix(ac);
-  const runway = sim.isRunwayInUse(ac.runway) ? ac.runway : sim.runway;
+  const runway = sim.departureRunwayOf(ac);
   const sameFix = sim.config.airport.sids.find((s) => s.runway === runway && s.fix === fix);
   if (sameFix) return sameFix.name;
   const current = sim.config.airport.sids.find((s) => s.name === ac.flightPlan.sid);
@@ -153,8 +153,10 @@ function sidFitsRoute(sim: Simulation, ac: Aircraft, sid: SidData): boolean {
 }
 
 /** "runway 25" / "runways 26R and 26L" in use, for the crews' queries. */
+/** "runway 25 in use", "runways 26R and 26L in use", "arrival runway 26R, departure runway 26L". */
 function inUseWords(sim: Simulation): string {
-  return runwayWords(sim.runways);
+  const ends = sim.runways;
+  return sim.departureRunways.length === ends.length && sim.arrivalRunways.length === ends.length ? `${runwayWords(ends)} in use` : runwayUseWords(ends, sim.parallelUse);
 }
 
 /** The departure gets the runway of its SID (with parallel runways the SID designator names the runway). */
@@ -193,9 +195,9 @@ export function execClearance(sim: Simulation, ac: Aircraft, c: Extract<Command,
   const sid = c.sid ? sim.config.airport.sids.find((s) => s.name === c.sid) : undefined;
   if (!c.sid) queries.push('request departure route');
   else if (!sid) queries.push(`confirm ${c.sid} departure`);
-  else if (!sim.isRunwayInUse(sid.runway)) queries.push(`confirm ${sid.name} departure, information ${sim.atisLetter} says ${inUseWords(sim)} in use`);
+  else if (!sim.isDepartureRunway(sid.runway)) queries.push(`confirm ${sid.name} departure, information ${sim.atisLetter} says ${inUseWords(sim)}`);
   else if (!sidFitsRoute(sim, ac, sid)) queries.push(`confirm ${sid.name} departure, our flight plan is via ${routeFix(ac)}`);
-  if (c.runway && sim.airport.runwayEnd(c.runway) && !sim.isRunwayInUse(c.runway)) queries.push(`confirm runway ${c.runway}, information ${sim.atisLetter} says ${inUseWords(sim)}`);
+  if (c.runway && sim.airport.runwayEnd(c.runway) && !sim.isDepartureRunway(c.runway)) queries.push(`confirm runway ${c.runway}, information ${sim.atisLetter} says ${inUseWords(sim)}`);
   if (!c.climb) queries.push('confirm initial climb');
   if (!c.squawk) queries.push('request squawk');
   else if (!isValidSquawk(c.squawk)) queries.push(`confirm squawk ${c.squawk}`);

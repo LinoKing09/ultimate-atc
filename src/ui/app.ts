@@ -214,7 +214,7 @@ export class App {
       {},
       h('span.brand', { text: 'ULTIMATE ATC' }),
       field('station', 'Your frequencies - click one to switch it off (the simulator takes the position over) or on again'),
-      field('rwy', 'Active runway'),
+      field('rwy', 'Runway(s) in use - with parallel runways for landings (ARR) or take-offs (DEP) only, both'),
       field('atis', 'Current ATIS'),
       field('wind', 'Surface wind'),
       field('qnh', sim.faa ? 'Altimeter setting (inches of mercury)' : 'QNH (hPa)'),
@@ -516,7 +516,10 @@ export class App {
       (active.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '') +
       (sim.vacantStations.length ? '<span class="stn-add" data-add="1" title="Take over another position (its frequency is yours from now on)">+</span>' : '');
     if (this.fields.station.innerHTML !== html) this.fields.station.innerHTML = html;
-    this.fields.rwy.innerHTML = `RWY <b>${sim.runways.map((r) => (sim.faa ? usRunway(r) : r)).join(' ')}</b>`;
+    // Parallel runways for landings or take-offs only: "ARR 26R DEP 26L" (a mixed runway in both lists).
+    const rw = (list: string[]) => list.map((r) => (sim.faa ? usRunway(r) : r)).join(' ');
+    const roles = sim.arrivalRunways.length < sim.runways.length || sim.departureRunways.length < sim.runways.length;
+    this.fields.rwy.innerHTML = roles ? `ARR <b>${rw(sim.arrivalRunways)}</b> DEP <b>${rw(sim.departureRunways)}</b>` : `RWY <b>${rw(sim.runways)}</b>`;
     // A newer METAR the ATIS does not match yet: the letter in red, the differences in the tooltip.
     const diff = sim.atisDifferences;
     this.fields.atis.innerHTML = `ATIS <b${diff.length ? ' class="bad"' : ''}>${sim.atisLetter}</b>`;
@@ -1701,7 +1704,7 @@ export class App {
     const squawk = ac.clearance?.squawk || allocateSquawk(sim);
     const suggested = suggestedSid(sim, ac);
     const sids = sim.config.airport.sids
-      .filter((sd) => sim.isRunwayInUse(sd.runway))
+      .filter((sd) => sim.isDepartureRunway(sd.runway))
       .sort((a, b) => (a.name === suggested ? -1 : b.name === suggested ? 1 : a.name.localeCompare(b.name)));
     const sidHint = (name: string, fix: string) => (name === suggested ? `${fix || 'radar vectors'} - flight plan` : fix || 'radar vectors');
     const dest = destinationName(ac.flightPlan.destination);
@@ -1777,7 +1780,7 @@ export class App {
       for (const e of ops.departureEntries) {
         const label = `${e.holdingPoint}  RWY ${ops.runway}${e.fullLength ? '' : ' (intersection)'}`;
         const item = this.routeItem(ac, label, `holding point ${e.holdingPoint} runway ${ops.runway}`);
-        if (!sim.isRunwayInUse(ops.runway)) item.label += ' - not in use';
+        if (!sim.isDepartureRunway(ops.runway)) item.label += sim.isRunwayInUse(ops.runway) ? ' - landings only' : ' - not in use';
         items.push(item);
       }
     }

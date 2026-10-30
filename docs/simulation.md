@@ -293,20 +293,34 @@ The **runway area** used for occupancy checks extends 70 m either side of the ce
 
 ## Parallel runways
 
-Airports with parallel runways (`parallelRunways` in the airport data, Leipzig/Halle) use both at the same time, each for take-offs and landings (mixed mode). The ATIS editor offers the parallel runways (`Runways 26R + 26L`, the default for the direction of the wind) and each runway on its own.
+Airports with parallel runways (`parallelRunways` in the airport data, Leipzig/Halle) use both at the same time. The ATIS editor offers the parallel runways (`Runways 26R + 26L`, the default for the direction of the wind) and each runway on its own, and for the parallel runways how they share the traffic and the approach mode:
+
+| Operation | Runways |
+| --------- | ------- |
+| Mixed (default) | Take-offs and landings on both |
+| Segregated | One runway for landings only, the other for take-offs only (either way round) |
+| Semi-mixed | One runway mixed, the other for take-offs only (either way round) |
+
+| Approaches (with more than one runway for landings) | Between the finals | Smallest distance between the centre lines (ICAO Annex 14 / Doc 9643) |
+| --------------------------------------------------- | ------------------ | ------------------- |
+| Independent | No separation | 1035 m |
+| Dependent | 1.5 NM diagonal | 915 m |
+| Staggered | 3 NM diagonal | - |
+
+Approach modes the runway spacing does not allow cannot be chosen (Leipzig, 2.1 km apart: all three; default the airport's, Leipzig dependent after the AIP). At least one runway stays for landings and one for take-offs.
 
 | Topic | Rule |
 | ----- | ---- |
-| Runway of an aircraft | The runway of its apron (Leipzig: apron 1 and 3 the northern runway, the cargo aprons 2, 4, 5 the southern one); aircraft from a given wingspan always the runway named for them (Leipzig: 63 m and more, the southern runway); otherwise the runway nearest to its stand. Departures get it when they appear, with the SID of that runway (at Leipzig the SID letter names the runway) |
-| Delivery | The SID of a clearance must belong to a runway in use; it sets the departure's runway (`DRN3S` = 26L) |
+| Runway of an aircraft | Among the runways for its role (take-off or landing, after the ATIS operation): the runway of its apron (Leipzig: apron 1 and 3 the northern runway, the cargo aprons 2, 4, 5 the southern one); aircraft from a given wingspan always the runway named for them (Leipzig: 63 m and more, the southern runway); otherwise the runway nearest to its stand. Departures get it when they appear, with the SID of that runway (at Leipzig the SID letter names the runway) |
+| Delivery | The SID of a clearance must belong to a runway in use for take-offs (else the crew asks `confirm DRN3S departure, information K says arrival runway 26R, departure runway 26L`); it sets the departure's runway (`DRN3S` = 26L) |
 | Ground | `taxi to runway 26L` / `taxi to holding point S9` sends a departure to the other runway: it now departs from there, with the SID of that runway to the same exit fix (a message says so) |
-| Approach | Puts each arrival on the runway of its stand. If there is no gap on that final but on the other, it uses the other (not for the aircraft bound to one runway by their size). The spacing on each final is the same as with one runway (wake, departure gaps from the departures waiting for *that* runway, approach type of that runway). Between the finals: **dependent parallel approaches** (Leipzig, AIP) keep **1.5 NM** diagonal radar separation to the arrivals on the adjacent final, **staggered** approaches **3 NM**, **independent** approaches none. With centre lines `d` NM apart the required stagger along the final is `sqrt(diagonal² - d²)` (Leipzig: 2.1 km apart, 0.97 NM). Wake turbulence spacing applies on each final only (the simulator assumes parallel runways more than 760 m apart, as at Leipzig) |
+| Approach | Puts each arrival on the runway of its stand among the runways for landings. If there is no gap on that final but on the other, it uses the other (not for the aircraft bound to one runway by their size). The spacing on each final is the same as with one runway (wake, departure gaps from the departures waiting for *that* runway, approach type of that runway). Between the finals: **dependent parallel approaches** (Leipzig, AIP) keep **1.5 NM** diagonal radar separation to the arrivals on the adjacent final, **staggered** approaches **3 NM**, **independent** approaches none. With centre lines `d` NM apart the required stagger along the final is `sqrt(diagonal² - d²)` (Leipzig: 2.1 km apart, 0.97 NM). Wake turbulence spacing applies on each final only (the simulator assumes parallel runways more than 760 m apart, as at Leipzig) |
 | Landing | Vacates on the side of its stand (not back across the runway) when it can reach such an exit |
 | AI Tower | Works each runway on its own: one line-up at a time per runway, occupancy, arrivals and departure spacing per runway (departures from parallel runways are independent - AIP: independent parallel departures). A crossing of a runway in use is cleared when nobody is on it or lining up and its next arrival is more than 90 s away (no departure lines up while an aircraft is being cleared to cross, nor for 30 s after the crossing clearance until it has entered the runway); runways not in use can always be crossed |
 | You on Tower | Your line-up, take-off and landing clearances name the aircraft's runway (`runway 26L, cleared for take-off`); the take-off menu shows the next arrival to that runway; RMCA warns per runway |
 | Runway incursion | Per runway: entering a runway in use while an arrival to that runway is within 2.5 NM or an aircraft is lining up, taking off or landing on it (an aircraft lined up and waiting without a take-off clearance does not count) |
-| Runway change | Aircraft whose runway stays in use keep it (e.g. from `26R + 26L` to `26L` only the northern ones change) |
-| ATIS | `ILS approach runways 26R and 26L, dependent parallel approaches in progress, runways 26R and 26L in use` (independent and dependent parallel approaches are announced, ICAO Doc 4444) |
+| Runway change | Aircraft whose runway stays in use for their role keep it (e.g. from `26R + 26L` to `26L` only the northern ones change). A new operation (e.g. mixed to segregated) re-assigns the departures not yet taxiing to a runway for take-offs and Approach re-sequences the arrivals beyond 3.5 NM onto a runway for landings |
+| ATIS | Mixed: `ILS approach runways 26R and 26L, dependent parallel approaches in progress, runways 26R and 26L in use` (D-ATIS `EXPECT DEPENDENT ILS APCH`, `RWYS 26R AND 26L`; independent and dependent parallel approaches are announced, ICAO Doc 4444). Segregated: `ILS approach runway 26R, arrival runway 26R, departure runway 26L` (`ARR RWY 26R`, `DEP RWY 26L`); semi-mixed: `arrival runway 26R, departure runways 26R and 26L`. The runway of each apron and of the large aircraft only in mixed operation. FAA: `ILS runway 27L approach in use, simultaneous parallel approaches in use, departing runway 27R` (`SIMUL PARALLEL APCHS IN USE`) |
 
 ## Runway incursions and go-arounds
 

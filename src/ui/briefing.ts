@@ -60,9 +60,16 @@ export function renderBriefing(sim: Simulation): HTMLElement {
     ['Runway / ATIS', `${inUse}, information ${sim.atisLetter}, wind ${formatWind(w, true)}, ${sim.pressurePhrase()}`],
   ];
   const parallel = sim.parallelOps;
-  if (parallel) {
-    const mode = { independent: 'independent (no spacing between the finals)', dependent: 'dependent (1.5 NM diagonal between the finals)', staggered: 'staggered (3 NM diagonal between the finals)' }[parallel.approaches];
-    now.push(['Parallel runways', `Take-offs and landings on both; each aircraft gets the runway of its apron (or the nearest one), wide-bodies from ${parallel.largeAircraft?.minWingspanM ?? '-'} m the ${parallel.largeAircraft?.runway ?? '-'} runway. Approaches ${mode}; departures from the two runways are independent.`]);
+  const use = sim.parallelUse;
+  if (use) {
+    const mode = { independent: 'independent (no spacing between the finals)', dependent: 'dependent (1.5 NM diagonal between the finals)', staggered: 'staggered (3 NM diagonal between the finals)' }[use.approaches];
+    const arr = sim.arrivalRunways;
+    const dep = sim.departureRunways;
+    const mixed = arr.length === sim.runways.length && dep.length === sim.runways.length;
+    const share = mixed
+      ? `Take-offs and landings on both; each aircraft gets the runway of its apron (or the nearest one)${parallel?.largeAircraft ? `, wide-bodies from ${parallel.largeAircraft.minWingspanM} m the ${parallel.largeAircraft.runway} runway` : ''}.`
+      : `Landings on ${arr.join(' and ')}, take-offs on ${dep.join(' and ')} (set with the ATIS); with more than one runway for a role, the runway of the apron (or the nearest one).`;
+    now.push(['Parallel runways', `${share}${arr.length > 1 ? ` Approaches ${mode};` : ''} departures from the two runways are independent. Change the runway use in the ATIS editor.`]);
   }
   // Scenario conditions: closed taxiways, night rules, thunderstorm.
   const closed = [...sim.airport.closedTaxiways].sort();

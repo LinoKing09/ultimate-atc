@@ -584,6 +584,12 @@ button.mic.listening {
   gap: 6px;
   color: var(--text-dim);
 }
+.dialog .atis-form .span3 {
+  grid-column: span 3;
+}
+.dialog .atis-form [hidden] {
+  display: none;
+}
 .dialog .atis-form .wind input {
   width: 58px;
 }

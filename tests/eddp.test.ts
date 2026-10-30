@@ -94,15 +94,15 @@ describe('Leipzig/Halle (EDDP) after the AIP charts', () => {
     expect(sim.runways).toEqual(['26R', '26L']);
     const a320 = { wingspanM: 35.8 } as Parameters<Simulation['runwayFor']>[1];
     const b748 = { wingspanM: 68.4 } as Parameters<Simulation['runwayFor']>[1];
-    expect(sim.runwayFor('130', a320)).toBe('26R');
-    expect(sim.runwayFor('305', a320)).toBe('26R');
-    expect(sim.runwayFor('441', a320)).toBe('26L');
-    expect(sim.runwayFor('305', b748)).toBe('26L');
+    expect(sim.runwayFor('130', a320, 'departure')).toBe('26R');
+    expect(sim.runwayFor('305', a320, 'departure')).toBe('26R');
+    expect(sim.runwayFor('441', a320, 'departure')).toBe('26L');
+    expect(sim.runwayFor('305', b748, 'departure')).toBe('26L');
     expect(sim.atisText()).toMatch(/ILS approach runways 26R and 26L, dependent parallel approaches in progress, runways 26R and 26L in use/);
     // The ATIS can put a single runway in use.
     sim.updateAtis({ runway: '26L' });
     expect(sim.runways).toEqual(['26L']);
-    expect(sim.runwayFor('130', a320)).toBe('26L');
+    expect(sim.runwayFor('130', a320, 'departure')).toBe('26L');
     expect(sim.atisText()).toMatch(/runway in use 26L/);
   });
 

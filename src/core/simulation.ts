@@ -26,7 +26,7 @@ import { deicingActive } from './deicing';
 import { utcOffsetMinutes } from './time';
 import { altimeterOf, atisDifferences, datisMet, initialMet, metWords, temperatureWords, trendWords, updateMet, updateWind, type Metar, type MetState } from './met';
 import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
-import { capitalize, defaultRunwayKey, runwayEndsOf, runwayWords, usRunway } from './runways';
+import { allowedApproachModes, arrivalEnds, capitalize, defaultRunwayKey, departureEnds, roleOf, runwayEndsOf, runwayUseWords, runwayWords, sameRoles, usRunway, type ParallelUse } from './runways';
 
 export type { Density } from './levels';
 
@@ -53,6 +53,11 @@ export interface SimConfig {
    * is chosen from the wind (with its parallel runway where the airport has one).
    */
   runway?: string;
+  /**
+   * How parallel runways in use share the traffic (ATIS): the role of each runway end (mixed, arrivals,
+   * departures) and the approach mode. Default: every runway mixed, the airport's approach mode.
+   */
+  parallelUse?: ParallelUse;
   density: Density;
   seed?: number;
   /** UTC start time of the session; defaults to the current time (a scenario start time sets it, see time.ts). */
@@ -150,11 +155,15 @@ export interface AtisInfo {
   updatedAt: number;
   /** The METAR the information was made from (visibility, weather, clouds, temperature, trend). */
   metar: Metar;
+  /** Parallel runways in use: their roles and the approach mode. */
+  use?: ParallelUse;
 }
 
 export interface AtisChange {
   letter?: string;
   runway?: string;
+  /** Parallel runways: their roles and the approach mode (default: all mixed, the airport's approach mode). */
+  use?: ParallelUse;
   wind?: Wind;
   qnh?: number;
 }
@@ -350,11 +359,12 @@ export class Simulation {
     const runway = config.runway?.toUpperCase() ?? this.defaultRunwayKey(this.bestRunwayForWind(wind));
     for (const end of runwayEndsOf(runway)) if (!this.airport.runwayEnd(end)) throw new Error(`Unknown runway ${end}`);
     this.config.runway = runway;
+    this.config.parallelUse = this.checkedUse(runway, config.parallelUse);
     const letter = String.fromCharCode(65 + this.rng.int(0, 25));
     const qnh = this.rng.int(1003, 1028);
     this.observedWind = { ...wind };
     this.met = initialMet(this, qnh);
-    this.atis = { letter, runway, wind, qnh, updatedAt: 0, metar: this.met.metar };
+    this.atis = { letter, runway, wind, qnh, updatedAt: 0, metar: this.met.metar, use: this.config.parallelUse };
     this.atisHistory.push({ letter, at: -Infinity });
     this.scenarioPending = (config.scenario?.events ?? []).map((e) => ({ ...e })).sort((a, b) => a.atMin - b.atMin);
 
@@ -698,9 +708,49 @@ export class Simulation {
     return this.config.airport.parallelRunways?.find((p) => p.ends.length === ends.length && p.ends.every((e) => ends.includes(e)));
   }
 
-  /** The runway a departure taxis to: its assigned one if that is in use, else the one of its stand. */
+  /** How the parallel runways in use share the traffic (undefined with one runway in use). */
+  get parallelUse(): ParallelUse | undefined {
+    return this.runways.length > 1 ? this.config.parallelUse : undefined;
+  }
+
+  /** The runway ends in use that take arrivals. */
+  get arrivalRunways(): string[] {
+    return arrivalEnds(this.runways, this.parallelUse);
+  }
+
+  /** The runway ends in use that take departures. */
+  get departureRunways(): string[] {
+    return departureEnds(this.runways, this.parallelUse);
+  }
+
+  /** True if this runway end is in use for arrivals / for departures. */
+  isArrivalRunway(end: string | undefined): boolean {
+    return this.isRunwayInUse(end) && roleOf(this.parallelUse, end!) !== 'departures';
+  }
+  isDepartureRunway(end: string | undefined): boolean {
+    return this.isRunwayInUse(end) && roleOf(this.parallelUse, end!) !== 'arrivals';
+  }
+
+  /**
+   * The parallel use for a runway key, checked: roles only for ends of the key, at least one runway for arrivals
+   * and one for departures, an approach mode the runway spacing allows (else the airport's, else the first
+   * allowed). Undefined for one runway.
+   */
+  checkedUse(key: string, use: ParallelUse | undefined): ParallelUse | undefined {
+    const ends = runwayEndsOf(key);
+    if (ends.length < 2) return undefined;
+    const roles: ParallelUse['roles'] = {};
+    for (const e of ends) if (use?.roles[e] && use.roles[e] !== 'mixed') roles[e] = use.roles[e];
+    const ok = arrivalEnds(ends, { roles, approaches: 'staggered' }).length > 0 && departureEnds(ends, { roles, approaches: 'staggered' }).length > 0;
+    const allowed = allowedApproachModes(this.airport, ends);
+    const preferred = this.parallelOpsOf(ends)?.approaches ?? 'staggered';
+    const approaches = use && allowed.includes(use.approaches) ? use.approaches : allowed.includes(preferred) ? preferred : (allowed[0] ?? 'staggered');
+    return { roles: ok ? roles : {}, approaches };
+  }
+
+  /** The runway a departure taxis to: its assigned one if that is in use for departures, else the one of its stand. */
   departureRunwayOf(ac: Aircraft): string {
-    return this.isRunwayInUse(ac.runway) ? ac.runway!.toUpperCase() : this.runwayFor(ac.stand, ac.type);
+    return this.isDepartureRunway(ac.runway) ? ac.runway!.toUpperCase() : this.runwayFor(ac.stand, ac.type, 'departure');
   }
 
   /** Runway key for a direction of operation: the parallel runways of this end where the airport has them. */
@@ -709,14 +759,15 @@ export class Simulation {
   }
 
   /**
-   * The runway in use an aircraft of this stand and type departs from or lands on: the runway of its apron or
-   * size (parallel runway data), else the one nearest to the stand.
+   * The runway in use an aircraft of this stand and type departs from or lands on: among the runways in use for
+   * departures or arrivals (ATIS), the runway of its apron or size (parallel runway data), else the one nearest
+   * to the stand.
    */
-  runwayFor(standId: string | undefined, type: AircraftType): string {
-    const ends = this.runways;
+  runwayFor(standId: string | undefined, type: AircraftType, role: 'departure' | 'arrival'): string {
+    const ends = role === 'departure' ? this.departureRunways : this.arrivalRunways;
     if (ends.length === 1) return ends[0];
     const p = this.parallelOps;
-    const onRunway = (runway: string | undefined) => this.activeEndOn(runway);
+    const onRunway = (runway: string | undefined) => ends.find((e) => this.airport.runwayEnd(e)?.runway === runway);
     if (p?.largeAircraft && type.wingspanM >= p.largeAircraft.minWingspanM) {
       const e = onRunway(p.largeAircraft.runway);
       if (e) return e;
@@ -794,7 +845,11 @@ export class Simulation {
    */
   updateAtis(change: AtisChange): void {
     const a = this.atis;
-    const runwayChanged = change.runway !== undefined && change.runway.toUpperCase() !== a.runway;
+    const key = (change.runway ?? a.runway).toUpperCase();
+    for (const end of runwayEndsOf(key)) if (!this.airport.runwayEnd(end)) throw new Error(`Unknown runway ${end}`);
+    const use = this.checkedUse(key, change.use ?? (key === a.runway ? this.config.parallelUse : undefined));
+    const useChanged = !!use !== !!a.use || (!!use && (use.approaches !== a.use!.approaches || !sameRoles(use.roles, a.use!.roles, runwayEndsOf(key))));
+    const runwayChanged = key !== a.runway || useChanged;
     if (change.wind) {
       a.wind = { ...change.wind };
       this.observedWind = { ...change.wind };
@@ -803,10 +858,9 @@ export class Simulation {
     a.qnh = change.qnh ?? this.met.metar.qnh;
     a.metar = this.met.metar;
     if (runwayChanged) {
-      const key = change.runway!.toUpperCase();
-      for (const end of runwayEndsOf(key)) if (!this.airport.runwayEnd(end)) throw new Error(`Unknown runway ${end}`);
       a.runway = key;
-      this.changeRunway(key);
+      a.use = use;
+      this.changeRunway(key, use);
     }
     a.letter = change.letter ?? nextLetter(a.letter);
     a.updatedAt = this.time;
@@ -852,7 +906,7 @@ export class Simulation {
    * The approaches of the runways in use for the ATIS: "ILS approach runway 25", "ILS approach runways 26R and
    * 26L" (the same procedure on both), or each runway's own.
    */
-  approachesText(ends = this.runways): string {
+  approachesText(ends = this.arrivalRunways): string {
     if (ends.length === 1) return this.approachName(ends[0]);
     const types = new Set(ends.map((e) => this.approachTypeFor(e)));
     if (types.size > 1) return ends.map((e) => this.approachName(e)).join(', ');
@@ -864,9 +918,11 @@ export class Simulation {
    * The notices of an ATIS after the runway in use, as D-ATIS text and spoken: runway assignment of parallel
    * runways, closed taxiways, de-icing, A-CDM, datalink clearances out of service, windshear.
    */
-  private atisNotices(ends: string[]): { text: string; spoken: string }[] {
+  private atisNotices(ends: string[], use: ParallelUse | undefined): { text: string; spoken: string }[] {
     const out: { text: string; spoken: string }[] = [];
-    const p = ends.length > 1 ? this.parallelOps : undefined;
+    // The runway of each apron and of the large aircraft: only while every runway in use is mixed.
+    const mixed = ends.every((e) => roleOf(use, e) === 'mixed');
+    const p = ends.length > 1 && mixed ? this.parallelOpsOf(ends) : undefined;
     if (p?.aprons) {
       const byRunway = new Map<string, string[]>();
       for (const [apron, runway] of Object.entries(p.aprons)) {
@@ -931,28 +987,31 @@ export class Simulation {
    */
   atisText(info: AtisInfo = this.atis): string {
     const ends = runwayEndsOf(info.runway);
-    const navaids = this.navaidNotice(ends);
-    // Independent and dependent parallel approaches are announced (ICAO Doc 4444, 6.7.3.2.4).
-    const mode = ends.length > 1 ? this.parallelOpsOf(ends)?.approaches : undefined;
-    const parallel = mode === 'independent' || mode === 'dependent' ? `, ${mode} parallel approaches in progress` : '';
-    const inUse = ends.length > 1 ? `${runwayWords(ends)} in use` : `runway in use ${ends[0]}`;
-    const notices = this.atisNotices(ends).map((n) => `, ${n.spoken}`).join('');
+    const use = ends.length > 1 ? info.use : undefined;
+    const arr = arrivalEnds(ends, use);
+    const dep = departureEnds(ends, use);
+    const navaids = this.navaidNotice(arr);
+    // Independent and dependent parallel approaches are announced (ICAO Doc 4444, 6.7.3.2.4) - with more than one
+    // runway for arrivals.
+    const mode = arr.length > 1 ? use?.approaches : undefined;
+    const notices = this.atisNotices(ends, use).map((n) => `, ${n.spoken}`).join('');
     const m = info.metar;
     const L = info.letter;
     if (this.faa) {
       // FAA ATIS (JO 7110.65 2-9-3): weather first, altimeter in inches, runways without a leading zero.
-      const us = ends.map(usRunway);
+      const simul = mode === 'independent' ? ', simultaneous parallel approaches in use' : mode === 'dependent' ? ', dependent parallel approaches in use' : '';
       return (
         `${this.atisStation()} information ${L}, ${m.time.slice(2)} Zulu. ` +
         `Wind ${windWords(info.wind)}, ${metWords(m, true)}, ${temperatureWords(m)}, altimeter ${altimeterOf(info.qnh)}. ` +
-        `${capitalize(this.approachesText(ends).replace(/\b0(\d)/g, '$1'))} in use, departing ${runwayWords(us)}` +
+        `${capitalize(this.approachesText(arr).replace(/\b0(\d)/g, '$1'))} in use${simul}, departing ${runwayWords(dep.map(usRunway))}` +
         `${navaids ? `, ${navaids.spoken}` : ''}${notices}. ` +
         `Advise on initial contact you have information ${L}.`
       );
     }
+    const parallel = mode === 'independent' || mode === 'dependent' ? `, ${mode} parallel approaches in progress` : '';
     return (
       `${this.station.name.split(' ')[0]} information ${L}, time ${m.time.slice(2)}. ` +
-      `Expect ${this.approachesText(ends)}${navaids ? `, ${navaids.spoken}` : ''}${parallel}, ${inUse}${notices}. ` +
+      `Expect ${this.approachesText(arr)}${navaids ? `, ${navaids.spoken}` : ''}${parallel}, ${runwayUseWords(ends, use)}${notices}. ` +
       `Transition level ${this.transitionLevel(info.qnh)}. ` +
       `Wind ${windWords(info.wind)}, ${metWords(m)}, ${temperatureWords(m)}, QNH ${info.qnh}. ` +
       `Trend ${trendWords(m.trend)}. Information ${L} out.`
@@ -960,33 +1019,40 @@ export class Simulation {
   }
 
   /**
-   * D-ATIS text, one line per item: "ATIS EDDS K 1220", "EXPECT ILS APCH", "RWY 25", notices, "TRL 70",
-   * "25008KT CAVOK T12 DP06 QNH1018", "TREND NOSIG".
+   * D-ATIS text, one line per item: "ATIS EDDS K 1220", "EXPECT ILS APCH", "RWY 25" (parallel runways: "RWYS 26R
+   * AND 26L", or "ARR RWY 26R" and "DEP RWY 26L"), notices, "TRL 70", "25008KT CAVOK T12 DP06 QNH1018", "TREND NOSIG".
    */
   atisDatis(info: AtisInfo = this.atis): string[] {
     const ends = runwayEndsOf(info.runway);
-    const types = new Set(ends.map((e) => this.approachAbbr(e)));
-    const mode = ends.length > 1 ? this.parallelOpsOf(ends)?.approaches : undefined;
+    const use = ends.length > 1 ? info.use : undefined;
+    const arr = arrivalEnds(ends, use);
+    const dep = departureEnds(ends, use);
+    const types = new Set(arr.map((e) => this.approachAbbr(e)));
+    const mode = arr.length > 1 ? use?.approaches : undefined;
     const kind = mode === 'independent' || mode === 'dependent' ? `${mode.toUpperCase()} ` : '';
-    const approach = types.size > 1 ? ends.map((e) => `${this.approachAbbr(e)} APCH RWY ${e}`).join(', ') : `${kind}${[...types][0]} APCH`;
+    const approach = types.size > 1 ? arr.map((e) => `${this.approachAbbr(e)} APCH RWY ${e}`).join(', ') : `${kind}${[...types][0]} APCH`;
     const m = info.metar;
+    const navaids = this.navaidNotice(arr);
+    const segregated = arr.length < ends.length || dep.length < ends.length;
+    const rwys = (list: string[]) => `${list.length > 1 ? 'RWYS' : 'RWY'} ${list.join(' AND ')}`;
     if (this.faa) {
-      const us = ends.map(usRunway).join(' AND ');
+      const us = (list: string[]) => list.map(usRunway).join(' AND ');
       return [
         `${this.config.airport.icao} ATIS INFO ${info.letter} ${m.time.slice(2)}Z`,
         datisMet(m, info.wind, info.qnh, true),
-        `${[...types].join(', ')} APCH RWY ${us} IN USE. DEPG RWY ${us}`,
-        ...(this.navaidNotice(ends) ? [this.navaidNotice(ends)!.text] : []),
-        ...this.atisNotices(ends).map((n) => n.text),
+        `${[...types].join(', ')} APCH RWY ${us(arr)} IN USE. DEPG RWY ${us(dep)}`,
+        ...(mode === 'independent' ? ['SIMUL PARALLEL APCHS IN USE'] : mode === 'dependent' ? ['DEPENDENT PARALLEL APCHS IN USE'] : []),
+        ...(navaids ? [navaids.text] : []),
+        ...this.atisNotices(ends, use).map((n) => n.text),
         `ADVS YOU HAVE INFO ${info.letter}`,
       ];
     }
     return [
       `ATIS ${this.config.airport.icao} ${info.letter} ${m.time.slice(2)}`,
       `EXPECT ${approach}`,
-      ...(this.navaidNotice(ends) ? [this.navaidNotice(ends)!.text] : []),
-      ends.length > 1 ? `RWYS ${ends.join(' AND ')}` : `RWY ${ends[0]}`,
-      ...this.atisNotices(ends).map((n) => n.text),
+      ...(navaids ? [navaids.text] : []),
+      ...(segregated ? [`ARR ${rwys(arr)}`, `DEP ${rwys(dep)}`] : [rwys(ends)]),
+      ...this.atisNotices(ends, use).map((n) => n.text),
       `TRL ${this.transitionLevel(info.qnh)}`,
       datisMet(m, info.wind, info.qnh),
       `TREND ${m.trend}`,
@@ -1003,16 +1069,17 @@ export class Simulation {
     return this.config.airport.parallelRunways?.find((p) => p.ends.length === ends.length && p.ends.every((e) => ends.includes(e)));
   }
 
-  private changeRunway(key: string): void {
+  private changeRunway(key: string, use: ParallelUse | undefined): void {
     this.config.runway = key;
+    this.config.parallelUse = use;
     const sids = this.config.airport.sids;
     for (const ac of this.aircraft) {
       // Intersection answers were for the old runway.
       ac.earliestIntersection = undefined;
       ac.ableIntersection = undefined;
       // Aircraft whose runway is still in use keep it (e.g. one of two parallel runways closed).
-      if (ac.category === 'departure' && ['parked', 'pushback', 'startup'].includes(ac.phase) && !ac.pendingTaxi && !this.isRunwayInUse(ac.runway)) {
-        const end = this.runwayFor(ac.stand, ac.type);
+      if (ac.category === 'departure' && ['parked', 'pushback', 'startup'].includes(ac.phase) && !ac.pendingTaxi && !this.isDepartureRunway(ac.runway)) {
+        const end = this.runwayFor(ac.stand, ac.type, 'departure');
         ac.runway = end;
         ac.flightPlan.runway = end;
         const fix = sids.find((x) => x.name === ac.flightPlan.sid)?.fix;
@@ -1020,14 +1087,15 @@ export class Simulation {
         ac.flightPlan.sid = sid?.name;
       }
       // Approach re-sequences arrivals that are not yet on short final onto the new runway.
-      if (ac.phase === 'approach' && this.distanceToThresholdNm(ac) > 3.5 && !this.isRunwayInUse(ac.runway)) {
+      if (ac.phase === 'approach' && this.distanceToThresholdNm(ac) > 3.5 && !this.isArrivalRunway(ac.runway)) {
         const freq = ac.frequency;
-        this.tower.setupApproach(ac, Math.max(6, this.distanceToThresholdNm(ac)), this.runwayFor(ac.assignedStand, ac.type));
+        this.tower.setupApproach(ac, Math.max(6, this.distanceToThresholdNm(ac)), this.runwayFor(ac.assignedStand, ac.type, 'arrival'));
         if (freq !== 'APP') ac.frequency = freq; // already talking to Tower: it stays there
       }
     }
     const ends = this.runways;
-    this.system(`${ends.length > 1 ? `${capitalize(runwayWords(ends))} are` : `Runway in use is`} now ${ends.length > 1 ? 'in use' : ends[0]}. Taxiing departures keep their clearance - re-route them if needed.`);
+    const inUse = ends.length > 1 ? `${capitalize(runwayUseWords(ends, use))}${use && this.arrivalRunways.length > 1 ? `, ${use.approaches} parallel approaches` : ''}` : `Runway in use is ${ends[0]}`;
+    this.system(`${inUse}. Taxiing departures keep their clearance - re-route them if needed.`);
   }
 
   // ------------------------------------------------------------------ queries

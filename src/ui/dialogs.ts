@@ -1,7 +1,8 @@
 import { perform, type SavedSession } from '../core/session';
 import { deleteSession, downloadSession, formatDuration, listSessions, loadStats, readSessionFile } from './sessionStore';
 import type { AirportData, StationType } from '../core/airport/types';
-import { runwayChoices, runwayEndsOf } from '../core/runways';
+import { allowedApproachModes, arrivalEnds, parallelRoleChoices, runwayChoices, runwayEndsOf, sameRoles, type ParallelUse } from '../core/runways';
+import type { ParallelApproachMode } from '../core/airport/types';
 import { altimeterOf, formatMetar, qnhFromAltimeter } from '../core/met';
 import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
 import { closureProblems } from '../core/airport/validate';
@@ -462,7 +463,7 @@ const KEYS: [string, string][] = [
   ['Right click', 'Aircraft menu (pushback, taxi, handoff, ...)'],
   ['Double click on list row', 'Centre the scope on the aircraft'],
   ['Click a tag item', 'Callsign: flight plan + telephony; cleared-to: taxi menu; status: aircraft menu'],
-  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use - with parallel runways both together or one alone -, wind and gusts, QNH, information letter; TRANSFER copies wind and QNH from the METAR). The wind changes with the weather: a new METAR every 30 minutes, the ATIS letter turns red when it no longer matches, and a tailwind above 5 kt brings a runway change hint. "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
+  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use - with parallel runways both together or one alone, mixed, segregated or semi-mixed, with independent, dependent or staggered approaches -, wind and gusts, QNH, information letter; TRANSFER copies wind and QNH from the METAR). The wind changes with the weather: a new METAR every 30 minutes, the ATIS letter turns red when it no longer matches, and a tailwind above 5 kt brings a runway change hint. "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
   ['2215L after the UTC time', 'Local time, shown with night flying restrictions: jets must be airborne by 2300 local, landings until 2330 (delayed flights until 2400)'],
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
@@ -595,6 +596,39 @@ export function showAtisEditor(sim: Simulation): void {
   // Parallel runways used together first ("Runways 26R + 26L"), then each runway on its own.
   for (const c of runwayChoices(sim.config.airport)) rwySel.append(h('option', { value: c.key, text: c.label }));
   rwySel.value = a.runway;
+  // Parallel runways: how they share the traffic, and the approach mode the runway spacing allows.
+  const useSel = h('select.span3');
+  const apprSel = h('select.span3');
+  const APPROACH_LABELS: Record<ParallelApproachMode, string> = {
+    independent: 'Independent (no spacing between the finals)',
+    dependent: 'Dependent (1.5 NM diagonal between the finals)',
+    staggered: 'Staggered (3 NM between the finals)',
+  };
+  const useRow = [h('label', { text: 'Operation' }), useSel];
+  const apprRow = [h('label', { text: 'Approaches' }), apprSel];
+  /** Fills the operation and approach choices for the selected runways (keeping the current choice where it fits). */
+  const fillUse = () => {
+    const ends = runwayEndsOf(rwySel.value);
+    const current = rwySel.value === a.runway ? a.use : sim.checkedUse(rwySel.value, undefined);
+    const choices = parallelRoleChoices(ends);
+    useSel.replaceChildren(...choices.map((c, i) => h('option', { value: String(i), text: c.label })));
+    useSel.value = String(Math.max(0, choices.findIndex((c) => current && sameRoles(c.roles, current.roles, ends))));
+    const allowed = allowedApproachModes(sim.airport, ends);
+    apprSel.replaceChildren(
+      ...(['independent', 'dependent', 'staggered'] as ParallelApproachMode[]).map((m) =>
+        h('option', { value: m, text: allowed.includes(m) ? APPROACH_LABELS[m] : `${APPROACH_LABELS[m]} - runways too close`, ...(allowed.includes(m) ? {} : { disabled: 'true' }) }),
+      ),
+    );
+    apprSel.value = current?.approaches ?? allowed[0] ?? 'staggered';
+    for (const el of useRow) el.hidden = ends.length < 2;
+  };
+  const useOf = (): ParallelUse | undefined => {
+    const ends = runwayEndsOf(rwySel.value);
+    if (ends.length < 2) return undefined;
+    const roles = parallelRoleChoices(ends)[Number(useSel.value)]?.roles ?? {};
+    return sim.checkedUse(rwySel.value, { roles, approaches: apprSel.value as ParallelApproachMode });
+  };
+  fillUse();
   // Pre-filled with the actual surface wind (it may have changed since the last broadcast).
   const dir = h('input', { type: 'number', min: '0', max: '360', step: '10', value: String(sim.observedWind.direction) });
   const spd = h('input', { type: 'number', min: '0', max: '60', value: String(sim.observedWind.speedKt) });
@@ -615,10 +649,13 @@ export function showAtisEditor(sim: Simulation): void {
   const spoken = h('div.spoken');
   // Only when the runway changes: what happens to the traffic.
   const notice = h('div.notice', {
-    text: 'Runway change: departures not yet taxiing get the new runway and SID, Approach re-sequences arrivals beyond 3.5 NM. Aircraft already taxiing keep their route - re-route them.',
+    text: 'Runway change: departures not yet taxiing get the new runway and SID, Approach re-sequences arrivals beyond 3.5 NM onto the runways for landing. Aircraft already taxiing keep their route - re-route them.',
   });
   const update = () => {
-    const draft = { letter: letterSel.value, runway: rwySel.value, wind: windOf(), qnh: qnhOf(), updatedAt: sim.time, metar: sim.metar };
+    const use = useOf();
+    // The approach mode only matters with more than one runway for landings.
+    for (const el of apprRow) el.hidden = !use || arrivalEnds(runwayEndsOf(rwySel.value), use).length < 2;
+    const draft = { letter: letterSel.value, runway: rwySel.value, wind: windOf(), qnh: qnhOf(), updatedAt: sim.time, metar: sim.metar, use };
     datis.textContent = sim.atisDatis(draft).join('\n');
     spoken.textContent = sim.atisText(draft);
     const wind = { direction: Number(dir.value) || 0, speedKt: Number(spd.value) || 0 };
@@ -630,9 +667,11 @@ export function showAtisEditor(sim: Simulation): void {
     // Tailwind above 5 kt on the selected runway: wind direction and speed in red (as in the toolbar).
     for (const el of [dir, spd]) el.classList.toggle('bad', hw < -5);
     qnhHint.textContent = sim.faa ? 'inHg' : 'hPa';
-    notice.hidden = rwySel.value === a.runway;
+    const ends = runwayEndsOf(rwySel.value);
+    notice.hidden = rwySel.value === a.runway && (!use || (!!a.use && use.approaches === a.use.approaches && sameRoles(use.roles, a.use.roles, ends)));
   };
-  [dir, spd, gust, qnh, rwySel, letterSel].forEach((el) => el.addEventListener('input', update));
+  rwySel.addEventListener('input', fillUse);
+  [dir, spd, gust, qnh, rwySel, letterSel, useSel, apprSel].forEach((el) => el.addEventListener('input', update));
   update();
   // TRANSFER: wind (with gusts) and QNH of the latest METAR into the form.
   const transfer = h('button', { type: 'button', text: 'TRANSFER', title: 'Copy wind, gusts and QNH of the METAR into the ATIS' });
@@ -664,6 +703,8 @@ export function showAtisEditor(sim: Simulation): void {
         letterSel,
         h('label', { text: 'Runway' }),
         rwySel,
+        ...useRow,
+        ...apprRow,
         h('label', { text: 'Wind' }),
         h('div.wind', {}, dir, h('span', { text: '°' }), spd, h('span', { text: 'kt gust' }), gust, comps),
         h('label', { text: sim.faa ? 'Altimeter' : 'QNH' }),
@@ -679,7 +720,7 @@ export function showAtisEditor(sim: Simulation): void {
   cancel.addEventListener('click', () => overlay.remove());
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    perform(sim, { k: 'atis', change: { letter: letterSel.value, runway: rwySel.value, wind: windOf(), qnh: qnhOf() } });
+    perform(sim, { k: 'atis', change: { letter: letterSel.value, runway: rwySel.value, use: useOf(), wind: windOf(), qnh: qnhOf() } });
     overlay.remove();
   });
   document.body.append(overlay);

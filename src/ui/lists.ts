@@ -49,8 +49,21 @@ export class TrafficList {
     this.el = h('div.panel', {}, titleBar, h('div.body', {}, table));
     this.el.classList.add(title.toLowerCase());
     Object.assign(this.el.style, position);
-    collapse.addEventListener('click', () => this.el.classList.toggle('collapsed'));
-    makeDraggable(this.el, titleBar);
+    // The list you touch comes to the front: an expanded list must not lie under another one
+    // (on a phone the collapsed arrivals list covered the collapse button of the expanded departures list).
+    this.el.addEventListener('pointerdown', () => bringToFront(this.el), true);
+    collapse.addEventListener('click', () => {
+      this.el.classList.toggle('collapsed');
+      bringToFront(this.el);
+      keepInside(this.el);
+    });
+    // Turning the phone (or resizing the window) must not leave a list outside the screen.
+    window.addEventListener('resize', () => requestAnimationFrame(() => keepInside(this.el)));
+    makeDraggable(this.el, titleBar, () => {
+      this.el.classList.toggle('collapsed');
+      bringToFront(this.el);
+      keepInside(this.el);
+    });
   }
 
   update(sim: Simulation, selected?: string): void {
@@ -145,22 +158,64 @@ function syncRows(
   });
 }
 
-function makeDraggable(panel: HTMLElement, handle: HTMLElement): void {
-  let start: { x: number; y: number; left: number; top: number } | undefined;
+/** The list touched last lies on top of the other lists (`.panel.front`, still below menus and dialogs). */
+function bringToFront(panel: HTMLElement): void {
+  if (panel.classList.contains('front')) return;
+  panel.parentElement?.querySelectorAll('.panel.front').forEach((p) => p.classList.remove('front'));
+  panel.classList.add('front');
+}
+
+/** A finger that moves less than this (px) taps the title bar instead of dragging it. */
+const TAP_SLOP_PX = 8;
+
+/**
+ * Drag a panel by its title bar (mouse, pen or finger). It stays inside the scope area, so its title bar - and
+ * the collapse button - can always be reached. On touch screens a tap on the title bar calls `onTap`.
+ */
+function makeDraggable(panel: HTMLElement, handle: HTMLElement, onTap: () => void): void {
+  let start: { x: number; y: number; left: number; top: number; id: number; touch: boolean; moved: boolean } | undefined;
   handle.addEventListener('pointerdown', (e) => {
-    if ((e.target as HTMLElement).tagName === 'BUTTON') return;
+    if ((e.target as HTMLElement).closest('button')) return;
     const r = panel.getBoundingClientRect();
     const parent = panel.offsetParent?.getBoundingClientRect() ?? { left: 0, top: 0 };
-    start = { x: e.clientX, y: e.clientY, left: r.left - parent.left, top: r.top - parent.top };
+    start = { x: e.clientX, y: e.clientY, left: r.left - parent.left, top: r.top - parent.top, id: e.pointerId, touch: e.pointerType !== 'mouse', moved: false };
     handle.setPointerCapture(e.pointerId);
+    e.preventDefault();
   });
   handle.addEventListener('pointermove', (e) => {
-    if (!start) return;
+    if (!start || e.pointerId !== start.id) return;
+    const dx = e.clientX - start.x;
+    const dy = e.clientY - start.y;
+    if (!start.moved && Math.hypot(dx, dy) < TAP_SLOP_PX) return;
+    start.moved = true;
     panel.style.right = '';
-    panel.style.left = `${Math.max(0, start.left + e.clientX - start.x)}px`;
-    panel.style.top = `${Math.max(0, start.top + e.clientY - start.y)}px`;
+    panel.style.left = `${start.left + dx}px`;
+    panel.style.top = `${start.top + dy}px`;
+    keepInside(panel);
   });
-  handle.addEventListener('pointerup', () => (start = undefined));
+  const end = (e: PointerEvent, cancelled: boolean) => {
+    if (!start || e.pointerId !== start.id) return;
+    const tap = !start.moved && start.touch && !cancelled;
+    start = undefined;
+    if (tap) onTap();
+  };
+  handle.addEventListener('pointerup', (e) => end(e, false));
+  handle.addEventListener('pointercancel', (e) => end(e, true));
+}
+
+/** Moves a panel back inside its parent (the scope area) where it sticks out. */
+function keepInside(panel: HTMLElement): void {
+  const parent = panel.offsetParent as HTMLElement | null;
+  if (!parent) return;
+  const p = parent.getBoundingClientRect();
+  const r = panel.getBoundingClientRect();
+  const left = Math.min(Math.max(0, r.left - p.left), Math.max(0, p.width - r.width));
+  const top = Math.min(Math.max(0, r.top - p.top), Math.max(0, p.height - r.height));
+  if (Math.abs(left - (r.left - p.left)) > 0.5 || panel.style.left) {
+    panel.style.right = '';
+    panel.style.left = `${left}px`;
+  }
+  if (Math.abs(top - (r.top - p.top)) > 0.5 || panel.style.top) panel.style.top = `${top}px`;
 }
 
 function reqCell(ac: Aircraft, sim: Simulation): string {

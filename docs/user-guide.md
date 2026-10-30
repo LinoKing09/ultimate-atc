@@ -173,7 +173,7 @@ Mobile mode is made for touch screens, above all the **iPad** (a phone screen is
 
 **Menus on touch screens**: a sub-menu opens with a tap (not when the finger merely passes over a row) next to its menu, or below the tapped row if there is no room beside it. A tap right after a menu opened is ignored, so one tap never selects an entry of the menu that just appeared.
 - Larger buttons, menu entries, list rows, symbol hit areas and tags; sub-menus open with a tap. List rows react to the first tap (they are updated in place, never rebuilt under your finger).
-- On narrow screens (portrait) the departure and arrival lists start collapsed so the scope has room.
+- On narrow screens (portrait) the departure and arrival lists start collapsed so the scope has room. Tap a list's title bar to expand or collapse it, drag it with the finger to move it.
 - The command-line preview is hidden; use voice (`MIC`), the menus or a keyboard.
 
 **iPad with a hardware (Bluetooth) keyboard**: just start typing, the first letter already goes into the command line. Tapping the command line does not push the page up any more: the layout shrinks to the area above the keyboard bar. The command line is not a form field, so Safari shows no AutoFill buttons (passwords, cards, contacts) and no form arrows for it. The small bar iPadOS shows at the bottom while a hardware keyboard is connected (language switch, shortcuts) belongs to the system and cannot be removed by a web page; iPadOS can hide the shortcut part under *Settings > General > Keyboard > Shortcuts*.
@@ -295,7 +295,7 @@ The PHX styles use the ground states of the DFS PHOENIX display (as in the VATSI
 
 ## 5. Departure and arrival lists
 
-The lists work like EuroScope's departure and arrival lists, with the columns in the order of the VATSIM Germany profile (the request and its waiting time first). Aircraft waiting for you are sorted to the top, the longest-waiting first. Drag a list by its title bar; the `_` button collapses it. **Cells with a function** (underlined when the mouse is over them) open it with a click, like the items of a data tag: `REQ` and `STS` the aircraft menu, `C/S` and `ATYP` the flight plan card, `SID`, `ASSR` and `C` the clearance menu (on your Delivery frequency; otherwise the flight plan card), `TAXI` / `STND` the taxi menu.
+The lists work like EuroScope's departure and arrival lists, with the columns in the order of the VATSIM Germany profile (the request and its waiting time first). Aircraft waiting for you are sorted to the top, the longest-waiting first. Drag a list by its title bar (mouse or finger; it stays on the screen); the `_` button collapses it - on a touch screen a tap on the title bar does too. The list you touched last lies on top of the other one, and a list is never wider than the screen (the table scrolls sideways inside it), so its `_` button can always be reached. **Cells with a function** (underlined when the mouse is over them) open it with a click, like the items of a data tag: `REQ` and `STS` the aircraft menu, `C/S` and `ATYP` the flight plan card, `SID`, `ASSR` and `C` the clearance menu (on your Delivery frequency; otherwise the flight plan card), `TAXI` / `STND` the taxi menu.
 
 **DEPARTURES**
 

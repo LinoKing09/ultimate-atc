@@ -75,6 +75,8 @@ export interface SimConfig {
 
 /** How long the simulator works the airport before you take over ('handover' start), seconds. */
 export const HANDOVER_S = 20 * 60;
+/** At the hand-over an arrival this close to the threshold (NM) has its landing clearance if the runway is free. */
+const HANDOVER_LANDING_NM = 4;
 /** The positions you can staff (Approach and Radar to follow). */
 export const STAFFABLE: StationType[] = ['DEL', 'GND', 'TWR'];
 
@@ -371,13 +373,7 @@ export class Simulation {
     for (const e of this.scenarioPending) e.atMin += HANDOVER_S / 60;
     for (let t = 0; t < HANDOVER_S; t++) this.tick(1);
     for (const st of staffed) this.userStations.add(st);
-    // What the simulator still had to answer is yours now: those crews call you again within the next half minute.
-    for (const a of this.aircraft) {
-      if (!this.userStations.has(a.frequency) || !a.request) continue;
-      a.requestSince = this.time;
-      a.callCount = 0;
-      a.lastCallAt = this.time - 90 + 30 * this.variation(`${a.callsign}:takeover`);
-    }
+    this.cleanHandover();
     this.sessionStart = this.time;
     this.messages.length = 0;
     this.incidents.length = 0;
@@ -387,6 +383,49 @@ export class Simulation {
     const moving = this.aircraft.filter((a) => a.onGround && ['pushback', 'taxi', 'holding', 'lineup', 'vacating'].includes(a.phase)).length;
     const airborne = this.aircraft.filter((a) => !a.onGround && a.category === 'arrival').length;
     this.system(`You take over from the controller before you: ${moving} aircraft ${moving === 1 ? 'is' : 'are'} moving on the ground, ${airborne} ${airborne === 1 ? 'arrival is' : 'arrivals are'} on approach. Check the lists and the scope - the crews call you with their next request.`);
+  }
+
+  /**
+   * The controller before you leaves a tidy picture, as in a real position hand-over: departures already airborne
+   * are with Radar, an arrival on short final has its landing clearance, departures taxiing to the runway on Tower
+   * frequency have called and know their place in the sequence, and everybody else calls you over the next
+   * 3-4 minutes, not all at once.
+   */
+  private cleanHandover(): void {
+    const tower = this.stationFor('tower');
+    for (const a of this.aircraft) {
+      if (!this.userStations.has(a.frequency)) continue;
+      const v = this.variation(`${a.callsign}:takeover`);
+      if (a.category === 'departure' && !a.onGround && (a.phase === 'climb' || a.phase === 'takeoff') && this.airport.station('APP')) {
+        a.frequency = 'APP';
+        a.request = null;
+        continue;
+      }
+      if (a.phase === 'approach' && a.frequency === tower) {
+        if (this.distanceToThresholdNm(a) < HANDOVER_LANDING_NM && !this.tower.runwayBusy(a, this.tower.endFor(a.runway))) {
+          a.landingCleared = true;
+          a.towerContact = true;
+        }
+        continue;
+      }
+      if (a.category === 'departure' && a.onGround && a.frequency === tower && (a.phase === 'holding' || (a.phase === 'taxi' && a.routeDestination?.kind === 'holdingPoint'))) {
+        // Called the controller before you: waiting for the departure, heard (no flashing, no reminders while in the sequence).
+        a.towerContact = true;
+        a.request = 'departure';
+        a.requestSince = this.time;
+        a.requestAck = true;
+        a.callCount = 1;
+        a.lastCallAt = this.time;
+        continue;
+      }
+      // Everybody else (first calls and open requests): spread over the next 15-225 s.
+      a.standbyUntil = Math.max(a.standbyUntil, this.time + 15 + 210 * v);
+      if (a.request) {
+        a.requestSince = this.time;
+        a.callCount = 0;
+        a.lastCallAt = this.time - 60;
+      }
+    }
   }
 
   // ------------------------------------------------------------------ events

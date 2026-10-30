@@ -428,6 +428,10 @@ export class TowerAI {
     // Also an aircraft that is just lining up from the other side (K / Y share the same runway point):
     // it may not have reached the runway yet, but its line-up point is.
     if (this.sim.aircraft.some((o) => o !== ac && o.phase === 'lineup' && !waitingBehind(o) && this.sameRunway(o, end) && o.path && near(o.path.pointAt(o.path.length)))) return true;
+    // Taking off from behind this entry (it will roll past it) - or about to (lined up with its take-off clearance):
+    // not in front of it. Only one already past the entry rolls away from it.
+    const along = (p: { x: number; y: number }) => this.sim.airport.runwayCoordinates(end, p).along;
+    if (this.sim.aircraft.some((o) => o !== ac && this.sameRunway(o, end) && ((o.phase === 'takeoff' && o.onGround) || (o.phase === 'lineup' && o.takeoffCleared)) && along(o.pos) < here)) return true;
     return this.runwayOccupants(ac, end).some((o) => {
       if (o.phase === 'takeoff' || waitingBehind(o)) return false;
       return near(o.pos);

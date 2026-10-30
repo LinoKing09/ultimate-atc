@@ -327,7 +327,7 @@ A wrong frequency gets `confirm frequency 118.700 for Tower`. Departures that ar
 | You say          | Effect                                                                         |
 | ---------------- | ------------------------------------------------------------------------------ |
 | `standby`        | Acknowledges a request; the pilot doesn't call again for 2 minutes            |
-| `roger`          | Acknowledges a call without an instruction (no read-back); the pilot doesn't call again for 4 minutes and stops flashing on the scope |
+| `roger`          | Acknowledges a call without an instruction (no read-back); the pilot doesn't call again for 4 minutes and stops flashing on the scope; the request stays open (its waiting time runs on) |
 | `number 2 [for pushback\|start-up\|taxi\|departure]` | Queue position in busy periods. The pilot reads it back (`Number 2 for pushback`) and waits 60 s + 45 s per position before reminding you. The number is shown in the tag (`#2`) and in the list. |
 | `expect pushback\|start-up\|taxi\|departure in 5 minutes` | Expected delay. The pilot waits that long (plus 20 s) before reminding you. |
 | `say again`      | The pilot repeats their last transmission                                      |
@@ -432,7 +432,7 @@ Pilots on your frequency call on their own:
 | Thunderstorm, go-around on final                        | `Lufthansa 5AB, going around, windshear` (or `..., tailwind out of limits`) |
 | Rejected take-off (after vacating)                      | `Stuttgart Ground, Lufthansa 5AB, we rejected take-off due to a technical problem, vacated runway 25 via D, request taxi back to the stand` (or `..., problem solved, ..., request taxi for another departure`) |
 
-If you don't answer, pilots **call again** after 60-90 seconds, up to five times. Reminders are shorter: `Stuttgart Ground, Lufthansa 5AB, stand 14, request pushback`. `standby` stops the reminders for two minutes.
+If you don't answer, pilots **call again** after 60-90 seconds, up to five times. Reminders are shorter: `Stuttgart Ground, Lufthansa 5AB, stand 14, request pushback`. `standby` stops the reminders for two minutes, `roger` for four. A departure Tower has heard does not remind it while it sees other departures ahead of it in the sequence (or its slot is not due yet). Without A-CDM a slot flight adds its CTOT to the pushback request: `..., request pushback, CTOT 1045`. A crew taxiing to a holding point where a slot flight waits asks once for another one: `..., Turkish 480 is waiting for its slot at holding point A, request taxi to holding point B`.
 
 ## Spoken input
 

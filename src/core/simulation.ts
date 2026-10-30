@@ -1,3 +1,4 @@
+import type { SessionAction } from './session';
 import { Airport, type Stand } from './airport/airport';
 import type { AirportData, ParallelRunwayData, StationData, StationType } from './airport/types';
 import type { AircraftType } from '../data/aircraftTypes';
@@ -13,7 +14,7 @@ import { updateConflictAlerts, updateRunwayAlerts } from './conflicts';
 import { updateOppositeTraffic } from './opposite';
 import { scoreOf } from './debrief';
 import { sidsForDestination, updateSequencer, updateDeliveryAI } from './delivery';
-import { updateGroundAI } from './groundAI';
+import { updateGroundAI, updateSlotPassing } from './groundAI';
 import { Rng } from './random';
 import { SYSTEMS, approachType, defaultSystemStates, type ApproachType, type SystemId, type SystemStates } from './systems';
 import { SCENARIO_EVENT_TEXT, type ScenarioEvent, type ScenarioSetup } from './scenario';
@@ -74,6 +75,10 @@ export interface SimConfig {
 
 /** How long the simulator works the airport before you take over ('handover' start), seconds. */
 export const HANDOVER_S = 20 * 60;
+/** At the hand-over an arrival this close to the threshold (NM) has its landing clearance if the runway is free. */
+const HANDOVER_LANDING_NM = 4;
+/** The positions you can staff (Approach and Radar to follow). */
+export const STAFFABLE: StationType[] = ['DEL', 'GND', 'TWR'];
 
 export type IncidentType = 'collision' | 'incursion' | 'goAround';
 
@@ -180,6 +185,15 @@ const STEP = 0.2;
 export class Simulation {
   /** Simulated seconds summed over all simulations in this process (test and benchmark statistics). */
   static simulatedSeconds = 0;
+  /**
+   * Simulation steps run so far (STEP seconds each). Everything the controller does is logged with the step it
+   * happened at (session.ts), so that a saved session can be rebuilt exactly from its seed.
+   */
+  steps = 0;
+  /** What the controller did, with the step it happened at (see session.ts). */
+  readonly actionLog: [number, SessionAction][] = [];
+  /** The configuration the session was started with (density and event level may change during it). */
+  readonly startConfig: Readonly<SimConfig>;
   readonly airport: Airport;
   readonly rng: Rng;
   readonly seed: number;
@@ -221,7 +235,7 @@ export class Simulation {
    * Coordination with the neighbouring positions the simulator runs: you asked Approach to send
    * no more arrivals, or Ground to hold all departures (to make room). Each costs points per minute.
    */
-  readonly flow = { arrivalsStopped: false, departuresStopped: false, askIntersections: false, arrivalSeconds: 0, departureSeconds: 0 };
+  readonly flow = { arrivalsStopped: false, departuresStopped: false, askIntersections: false, sendIntersections: false, arrivalSeconds: 0, departureSeconds: 0 };
   /** The longest waits for an answer this session (debriefing). */
   readonly longestWaits: { callsign: string; seconds: number }[] = [];
   /** Follow-me cars (tugs are drawn with the aircraft they move). */
@@ -305,6 +319,7 @@ export class Simulation {
   constructor(readonly config: SimConfig) {
     this.airport = new Airport(config.airport);
     this.seed = config.seed ?? Math.floor(Math.random() * 2 ** 31);
+    this.startConfig = { ...config, seed: this.seed };
     this.rng = new Rng(this.seed);
     const station = this.airport.station(config.position);
     if (!station) throw new Error(`${config.airport.icao} has no ${config.position} station`);
@@ -358,13 +373,7 @@ export class Simulation {
     for (const e of this.scenarioPending) e.atMin += HANDOVER_S / 60;
     for (let t = 0; t < HANDOVER_S; t++) this.tick(1);
     for (const st of staffed) this.userStations.add(st);
-    // What the simulator still had to answer is yours now: those crews call you again within the next half minute.
-    for (const a of this.aircraft) {
-      if (!this.userStations.has(a.frequency) || !a.request) continue;
-      a.requestSince = this.time;
-      a.callCount = 0;
-      a.lastCallAt = this.time - 90 + 30 * this.variation(`${a.callsign}:takeover`);
-    }
+    this.cleanHandover();
     this.sessionStart = this.time;
     this.messages.length = 0;
     this.incidents.length = 0;
@@ -374,6 +383,49 @@ export class Simulation {
     const moving = this.aircraft.filter((a) => a.onGround && ['pushback', 'taxi', 'holding', 'lineup', 'vacating'].includes(a.phase)).length;
     const airborne = this.aircraft.filter((a) => !a.onGround && a.category === 'arrival').length;
     this.system(`You take over from the controller before you: ${moving} aircraft ${moving === 1 ? 'is' : 'are'} moving on the ground, ${airborne} ${airborne === 1 ? 'arrival is' : 'arrivals are'} on approach. Check the lists and the scope - the crews call you with their next request.`);
+  }
+
+  /**
+   * The controller before you leaves a tidy picture, as in a real position hand-over: departures already airborne
+   * are with Radar, an arrival on short final has its landing clearance, departures taxiing to the runway on Tower
+   * frequency have called and know their place in the sequence, and everybody else calls you over the next
+   * 3-4 minutes, not all at once.
+   */
+  private cleanHandover(): void {
+    const tower = this.stationFor('tower');
+    for (const a of this.aircraft) {
+      if (!this.userStations.has(a.frequency)) continue;
+      const v = this.variation(`${a.callsign}:takeover`);
+      if (a.category === 'departure' && !a.onGround && (a.phase === 'climb' || a.phase === 'takeoff') && this.airport.station('APP')) {
+        a.frequency = 'APP';
+        a.request = null;
+        continue;
+      }
+      if (a.phase === 'approach' && a.frequency === tower) {
+        if (this.distanceToThresholdNm(a) < HANDOVER_LANDING_NM && !this.tower.runwayBusy(a, this.tower.endFor(a.runway))) {
+          a.landingCleared = true;
+          a.towerContact = true;
+        }
+        continue;
+      }
+      if (a.category === 'departure' && a.onGround && a.frequency === tower && (a.phase === 'holding' || (a.phase === 'taxi' && a.routeDestination?.kind === 'holdingPoint'))) {
+        // Called the controller before you: waiting for the departure, heard (no flashing, no reminders while in the sequence).
+        a.towerContact = true;
+        a.request = 'departure';
+        a.requestSince = this.time;
+        a.requestAck = true;
+        a.callCount = 1;
+        a.lastCallAt = this.time;
+        continue;
+      }
+      // Everybody else (first calls and open requests): spread over the next 15-225 s.
+      a.standbyUntil = Math.max(a.standbyUntil, this.time + 15 + 210 * v);
+      if (a.request) {
+        a.requestSince = this.time;
+        a.callCount = 0;
+        a.lastCallAt = this.time - 60;
+      }
+    }
   }
 
   // ------------------------------------------------------------------ events
@@ -441,7 +493,13 @@ export class Simulation {
     }
   }
 
+  /** Runs `n` simulation steps (STEP seconds each) at once - to replay a saved session. */
+  runSteps(n: number): void {
+    for (let i = 0; i < n; i++) this.step(STEP);
+  }
+
   private step(dt: number): void {
+    this.steps++;
     this.time += dt;
     Simulation.simulatedSeconds += dt;
     this.updateScenario();
@@ -471,6 +529,7 @@ export class Simulation {
       updateSequencer(this);
       updateDeliveryAI(this);
       updateGroundAI(this);
+      updateSlotPassing(this);
       this.checkAtisCorrections();
     }
     this.frequency.update(this.time);
@@ -1011,6 +1070,30 @@ export class Simulation {
     return this.userControls(tower) && (!!this.airport.station('TWR') || tower !== this.stationFor('ground'));
   }
 
+  /** Positions of this airport you could still take over during the session (Delivery, Ground, Tower). */
+  get vacantStations(): StationType[] {
+    return STAFFABLE.filter((t) => !this.loggedInStations.includes(t) && this.airport.station(t));
+  }
+
+  /**
+   * Takes over one more position during the session (combined positions): its frequency is yours from now on.
+   * Crews with an open request on it call you again within the next half minute. Returns an error text if not possible.
+   */
+  addStation(type: StationType): string | undefined {
+    if (!this.vacantStations.includes(type)) return `${type} cannot be taken over.`;
+    this.loggedInStations.push(type);
+    this.userStations.add(type);
+    for (const a of this.aircraft) {
+      if (a.frequency !== type || !a.request) continue;
+      a.requestSince = this.time;
+      a.callCount = 0;
+      a.lastCallAt = this.time - 90 + 30 * this.variation(`${a.callsign}:add${type}`);
+    }
+    const st = this.airport.station(type);
+    this.system(`${st?.callsign ?? type} ${st?.frequency ?? ''} taken over - you work ${st?.name ?? type} too.`);
+    return undefined;
+  }
+
   /**
    * Switches one of your frequencies off (the simulator takes the position over) or on again
    * (you take it back). At least one frequency stays on. Returns an error text if not possible.
@@ -1130,7 +1213,22 @@ export class Simulation {
     if (on && !this.canHoldDepartures) return 'You staff Ground yourself - ask the crews ("advise able for departure from intersection B").';
     if (this.flow.askIntersections === on) return undefined;
     this.flow.askIntersections = on;
+    // Without asking there is nothing to send them to.
+    if (!on) this.flow.sendIntersections = false;
     this.system(`${this.stationName(this.stationFor('ground'))} (landline): roger, ${on ? 'we ask all departures for the earliest intersection they accept' : 'no more intersection checks'}.`);
+    return undefined;
+  }
+
+  /**
+   * Asks Ground (run by the simulator) to send every departure to the earliest intersection it accepts
+   * (full length if it accepts none), or to the full length again. Sending includes asking.
+   */
+  setSendIntersections(on: boolean): string | undefined {
+    if (on && !this.canHoldDepartures) return 'You staff Ground yourself - taxi the crews to the intersection ("taxi to holding point B").';
+    if (this.flow.sendIntersections === on) return undefined;
+    this.flow.sendIntersections = on;
+    if (on) this.flow.askIntersections = true;
+    this.system(`${this.stationName(this.stationFor('ground'))} (landline): roger, ${on ? 'we taxi all departures to the earliest intersection they accept' : 'departures to the full length again'}.`);
     return undefined;
   }
 

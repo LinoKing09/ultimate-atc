@@ -6,15 +6,17 @@ import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { parseTransmission } from '../core/phraseology/parser';
-import { acknowledgeCatc, catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
-import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, sendDcl, sidsForDestination, suggestedSid } from '../core/delivery';
+import { catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
+import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, offBlockDue, sidsForDestination, suggestedSid } from '../core/delivery';
 import { formatClearanceClimb, formatDepartureRoute } from '../core/phraseology/format';
 import { previewTaxi } from '../core/pilot';
 import type { SystemId } from '../core/systems';
 import { needsDeicing, padUser } from '../core/deicing';
 import { destinationName } from '../data/destinations';
 import type { RadioMessage } from '../core/radio';
-import type { Simulation } from '../core/simulation';
+import { perform, saveSession, type SessionAction } from '../core/session';
+import { addControlTime, AUTOSAVE_ID, countSession, downloadSession, formatDuration, loadStats, storeSession } from './sessionStore';
+import type { Simulation, TransmitResult } from '../core/simulation';
 import { REPO_URL, showAtisEditor, showHelp } from './dialogs';
 import { formatTime, h } from './dom';
 import { minutesToHhmm } from '../core/time';
@@ -33,6 +35,37 @@ import { PilotVoices, VoiceInput } from './voice';
 import { showDebrief } from './debriefDialog';
 
 const SPEEDS = [1, 2, 4, 8];
+/** How often the session is kept as the autosave (real time, ms). */
+const AUTOSAVE_MS = 2 * 60 * 1000;
+
+/** A saved session the App continues (main.ts restores it first). */
+export interface RestoredSession {
+  name: string;
+  controlSeconds: number;
+  /** False if the rebuilt traffic differs from the saved one. */
+  matches: boolean;
+}
+
+/** The positions with a quick-action bar of their own (Approach and Radar to follow). */
+type QuickPosition = 'DEL' | 'GND' | 'TWR';
+/** A button of a position's quick-action bar: its text and the menu item (by label) it stands for. */
+interface QuickSpec {
+  text: string;
+  re?: RegExp;
+  /** Sent instead of what the menu item says (e.g. PUSH without a facing). */
+  phrase?: string;
+  /** Greyed out even if the menu item is there. */
+  off?: boolean;
+}
+/** phrase: picked and sent with SEND; menu: opens a menu whose choice is picked; action: done at once; off: greyed out. */
+interface QuickButton {
+  text: string;
+  kind: 'phrase' | 'menu' | 'action' | 'off';
+  title?: string;
+  phrase?: string;
+  items?: () => MenuItem[];
+  action?: () => void;
+}
 /** Keys that work as push-to-talk (held down). */
 const PTT_KEYS = new Set(['Backquote', 'ControlRight', 'Insert']);
 /**
@@ -66,8 +99,13 @@ export class App {
   /** Mobile mode: actions for the selected aircraft. */
   private readonly quickbar: HTMLElement;
   private quickbarKey = '';
-  /** Quick-action bar: phrases picked for the selected aircraft or vehicle, sent together with SEND. */
-  private quickSel: { cs: string; phrases: string[] } | null = null;
+  /**
+   * Quick-action bar: phrases picked for the selected aircraft or vehicle, sent together with SEND.
+   * `group`: the menu button the phrase was chosen from (one choice per menu, e.g. one taxi route).
+   */
+  private quickSel: { cs: string; picks: { phrase: string; group?: string }[] } | null = null;
+  /** While set, say() picks the phrase for the quick-action bar instead of transmitting it (a menu opened from there). */
+  private picking: { cs: string; group: string } | null = null;
   /** While set, say() collects the phrase instead of transmitting it (to learn what a menu action would say). */
   private capture: string[] | null = null;
   /** Mobile mode: the quick-action bar shows the ALL STATIONS broadcasts. */
@@ -80,6 +118,14 @@ export class App {
   private readonly voices = new PilotVoices();
   private readonly voiceIn: VoiceInput;
 
+  /** Your time on position in this session: real seconds while the simulation runs (not paused, page visible). */
+  private controlSeconds = 0;
+  /** Time on position and simulation time not yet added to the totals (sessionStore.ts). */
+  private statsPending = 0;
+  private statsSimTime = 0;
+  private lastStatsFlush = 0;
+  private lastAutosave = 0;
+  private readonly tutorial: boolean;
   private selected?: string;
   private speed = 1;
   private paused = false;
@@ -95,7 +141,13 @@ export class App {
     private readonly sim: Simulation,
     private readonly settings: Settings,
     tutorial?: TutorialRunner,
+    restored?: RestoredSession,
   ) {
+    this.tutorial = !!tutorial;
+    this.controlSeconds = restored?.controlSeconds ?? 0;
+    this.statsSimTime = sim.time;
+    // A restored session continues an earlier one: it is not counted again.
+    if (!restored) countSession();
     this.densitySetting = settings.density;
     this.eventsSetting = settings.eventLevel;
 
@@ -136,6 +188,9 @@ export class App {
     const briefBtn = h('button', { text: 'BRIEFING', title: 'Airport briefing: procedures and information for your position' });
     briefBtn.addEventListener('click', () => showHelp(this.sim, 'briefing'));
     const docsBtn = h('a', { href: REPO_URL, target: '_blank', rel: 'noopener' }, h('button', { text: 'DOCS', type: 'button' }));
+    const saveBtn = h('button', { text: 'SAVE', title: 'Save the session (continue it later from the Connect dialog, or download it as a file)' });
+    saveBtn.addEventListener('click', () => this.openSave());
+    if (tutorial) saveBtn.style.display = 'none';
     const disconnect = h('button', { text: 'DISCONNECT', title: 'End the session' });
     disconnect.addEventListener('click', () => {
       // The debriefing first: the simulation pauses while it is open.
@@ -147,6 +202,8 @@ export class App {
         },
         onEnd: () => {
           this.leaving = true;
+          this.flushStats();
+          this.autosave();
           location.reload();
         },
       });
@@ -162,6 +219,7 @@ export class App {
       field('wind', 'Surface wind'),
       field('qnh', sim.faa ? 'Altimeter setting (inches of mercury)' : 'QNH (hPa)'),
       field('utc', 'Simulation time (UTC)'),
+      field('ontime', 'Your time on position in this session (real time, without pauses)'),
       h('span.sep'),
       this.pauseButton,
       ...this.speedButtons,
@@ -177,6 +235,7 @@ export class App {
       field('score', 'Score: +10 per departure handed off / arrival parked, penalties for incidents, delays and "say again"'),
       helpBtn,
       docsBtn,
+      saveBtn,
       disconnect,
     );
 
@@ -187,12 +246,17 @@ export class App {
 
     // ---------------------------------------------------------------- scope + panels
     const canvas = h('canvas.scope');
-    // Click a frequency in the toolbar: switch it off / on.
+    // Click a frequency in the toolbar: switch it off / on; "+": take over another position.
     this.fields.station.addEventListener('click', (e) => {
+      if ((e.target as HTMLElement).closest('[data-add]')) {
+        const r = this.fields.station.getBoundingClientRect();
+        this.menu.open('TAKE OVER POSITION', this.addStationItems(), r.left, r.bottom + 2);
+        return;
+      }
       const el = (e.target as HTMLElement).closest<HTMLElement>('[data-station]');
       const type = el?.dataset.station as StationType | undefined;
       if (!type) return;
-      const err = this.sim.setStationActive(type, !this.sim.userControls(type));
+      const err = this.act({ k: 'station', type, on: !this.sim.userControls(type) });
       if (err) this.toast(err);
       this.slowUpdate();
     });
@@ -368,8 +432,16 @@ export class App {
     const staffed = sim.config.airport.stations.filter((st) => sim.userControls(st.type)).map((st) => `${st.callsign} (${st.name}, ${st.frequency})`);
     if (tutorial) this.hint(`Tutorial ${tutorial.tutorial.title}: follow the steps in the tutorial panel. "Show me" puts the example instruction into the command line - send it with Enter or SEND.`);
     this.hint(`Connected as ${staffed.join(' + ')}. ${capitalize(runwayWords(sim.runways))} in use. BRIEFING shows the airport briefing, F1 the help. End the session with DISCONNECT - it shows your debriefing, which is not saved.`);
+    if (restored) {
+      this.hint(`Session "${restored.name}" restored - ${formatDuration(this.controlSeconds, true)} on position so far. Paused: press Space (or >) to continue.`);
+      this.togglePause();
+      if (!restored.matches) this.hint('The restored traffic differs slightly from the saved session (it was saved by an earlier version of the simulation).');
+    }
     // Reloading or closing the page ends the session without the debriefing: the browser asks first.
+    // The session is kept as the autosave, and the time on position is counted.
     window.addEventListener('beforeunload', (e) => {
+      this.flushStats();
+      this.autosave();
       if (this.leaving) return;
       e.preventDefault();
       e.returnValue = 'Please end the session with DISCONNECT - it shows your debriefing, which is not saved.';
@@ -401,7 +473,13 @@ export class App {
   private frame(t: number): void {
     const dt = Math.min(0.5, (t - this.last) / 1000);
     this.last = t;
-    if (!this.paused) this.sim.tick(dt * this.speed);
+    if (!this.paused) {
+      this.sim.tick(dt * this.speed);
+      if (!document.hidden) {
+        this.controlSeconds += dt;
+        this.statsPending += dt;
+      }
+    }
     this.scope.selected = this.selected;
     this.scope.render(t);
     if (t - this.lastSlowUpdate > 250) {
@@ -413,6 +491,16 @@ export class App {
 
   private slowUpdate(): void {
     const sim = this.sim;
+    this.fields.ontime.innerHTML = `ON <b>${formatDuration(this.controlSeconds, true)}</b>`;
+    const now = performance.now();
+    if (now - this.lastStatsFlush > 30_000) {
+      this.lastStatsFlush = now;
+      this.flushStats();
+    }
+    if (now - this.lastAutosave > AUTOSAVE_MS) {
+      this.lastAutosave = now;
+      this.autosave();
+    }
     for (const l of this.lists) l.update(sim, this.selected);
     this.tutorialPanel?.update(this.selected);
     // Your frequencies (combined positions: several). Switched-off ones are run by the simulator.
@@ -424,7 +512,9 @@ export class App {
           const on = sim.userControls(st.type);
           return `<span class="stn pos-${st.type}${on ? '' : ' off'}" data-station="${st.type}" title="${on ? 'Click to switch off' : 'Switched off (run by the simulator) - click to switch on'}"><b>${st.callsign}</b> ${st.frequency}${on ? '' : ' OFF'}</span>`;
         })
-        .join(' + ') + (active.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '');
+        .join(' + ') +
+      (active.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '') +
+      (sim.vacantStations.length ? '<span class="stn-add" data-add="1" title="Take over another position (its frequency is yours from now on)">+</span>' : '');
     if (this.fields.station.innerHTML !== html) this.fields.station.innerHTML = html;
     this.fields.rwy.innerHTML = `RWY <b>${sim.runways.map((r) => (sim.faa ? usRunway(r) : r)).join(' ')}</b>`;
     // A newer METAR the ATIS does not match yet: the letter in red, the differences in the tooltip.
@@ -525,8 +615,8 @@ export class App {
     this.voices.volume = s.ttsVolume;
     this.voices.rate = s.ttsRate;
     this.voiceIn.lang = s.voiceLang;
-    if (s.density !== this.densitySetting) this.sim.config.density = this.densitySetting = s.density;
-    if (s.eventLevel !== this.eventsSetting) this.sim.config.eventLevel = this.eventsSetting = s.eventLevel;
+    if (s.density !== this.densitySetting) this.act({ k: 'density', density: (this.densitySetting = s.density) });
+    if (s.eventLevel !== this.eventsSetting) this.act({ k: 'eventLevel', level: (this.eventsSetting = s.eventLevel) });
     this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : `Type an instruction, e.g. "DLH5AB ${this.exampleInstruction()}" - F1 for help`;
     this.quickbarKey = '';
     this.updateQuickbar();
@@ -545,14 +635,19 @@ export class App {
     return `cleared to Frankfurt, ${formatDepartureRoute(sid)}, ${formatClearanceClimb(sid, initialClimb(sim))}, squawk 2312`;
   }
 
-  /** Mobile mode: one-tap buttons for the most common instructions to the selected aircraft. */
+  /**
+   * Mobile mode: the quick-action bar of the selected aircraft. Every position (DEL, GND, TWR) has a
+   * fixed set of buttons in a fixed order, whatever the aircraft is doing: what does not apply right
+   * now is greyed out instead of left away, so a button is always in the same place.
+   */
   private updateQuickbar(): void {
-    if (this.allStationsMode && this.settings.device === 'mobile' && !this.selected) {
+    const mobile = this.settings.device === 'mobile';
+    if (this.allStationsMode && mobile && !this.selected) {
       const key = `ALL|${this.sim.atisLetter}|${this.sim.runwayKey}`;
       this.quickbar.classList.add('show');
       if (key === this.quickbarKey) return;
       this.quickbarKey = key;
-      const close = h('button', { text: '\u00d7', type: 'button', title: 'Close' });
+      const close = h('button', { text: '×', type: 'button', title: 'Close' });
       close.addEventListener('click', () => {
         this.allStationsMode = false;
         this.clearInput();
@@ -567,115 +662,159 @@ export class App {
     }
     this.allStationsMode = false;
     const v = this.sim.findVehicle(this.selected);
-    if (v && this.settings.device === 'mobile') {
-      // Follow-me car: the vehicle phrases as buttons.
-      const key = `${v.callsign}|${v.state}|${v.request}|${v.holding}`;
-      this.quickbar.classList.add('show');
-      if (key === this.quickbarKey) return;
-      this.quickbarKey = key;
-      const short: Record<string, string> = { 'Return to base': 'BASE', 'Hold position': 'HOLD', Continue: 'CONT', Standby: 'STBY' };
-      const buttons = this.vehicleItems(v)
-        .filter((i) => i.action && !i.disabled && i.label !== 'Centre view')
-        .map((i) => {
-          const text = short[i.label] ?? (i.label.startsWith('Proceed') ? 'PROCEED' : i.label);
-          const phrase = this.phraseOf(i.action!);
-          if (phrase) return this.quickPhrase(v.callsign, text, phrase);
-          const b = h('button', { text, type: 'button' });
-          b.addEventListener('click', () => i.action!());
-          return b;
-        });
-      this.quickbar.replaceChildren(h('span.qcs', { text: v.callsign }), ...buttons);
-      return;
-    }
     const ac = this.sim.find(this.selected);
-    const show = this.settings.device === 'mobile' && !!ac;
+    const show = mobile && (!!v || !!ac);
     this.quickbar.classList.toggle('show', show);
-    if (!show || !ac) {
+    if (!show) {
       this.quickbarKey = '';
       return;
     }
-    const mine = this.sim.isOnMyFrequency(ac);
-    const key = `${ac.callsign}|${ac.phase}|${ac.onGround}|${ac.request}|${mine}|${ac.frequency}|${ac.cleared}|${ac.startupApproved}|${ac.wantsFollowMe}|${ac.lineUpCleared}|${ac.takeoffCleared}|${ac.landingCleared}|${ac.stoppedAt?.kind}|${headOnPartner(this.sim, ac)?.callsign ?? ''}|${catcAlert(this.sim, ac)?.key ?? ''}|${ac.requestAck}|${this.sim.handoffPending(ac)}|${ac.continueApproachGiven}|${ac.readbackConfirmed}|${ac.holdPosition}|${ac.giveWayTo}`;
+    const cs = (v ?? ac)!.callsign;
+    if (this.quickSel && this.quickSel.cs !== cs) this.clearQuickSel();
+    const pos = v ? 'GND' : this.quickPosition(ac!);
+    const buttons = v ? this.vehicleQuickButtons(v) : this.aircraftQuickButtons(ac!, pos);
+    // Rebuilt only when a button changes its state (not for every new wind in a clearance) or a pick changes.
+    const picks = this.quickSel?.cs === cs ? this.quickSel.picks.map((p) => `${p.group ?? ''}:${p.phrase}`).join(';') : '';
+    const key = `${cs}|${pos}|${picks}|${buttons.map((b) => `${b.text}:${b.kind}`).join('|')}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
-    if (this.quickSel && this.quickSel.cs !== ac.callsign) this.clearQuickSel();
-    const phrase = (text: string, p: string) => this.quickPhrase(ac.callsign, text, p);
-    const btn = (text: string, fn: (b: HTMLButtonElement) => void) => {
-      const b = h('button', { text, type: 'button' });
-      b.addEventListener('click', () => fn(b));
-      return b;
-    };
     const at = (b: HTMLButtonElement): [number, number] => {
       const r = b.getBoundingClientRect();
       return [r.left, r.top];
     };
-    const items: HTMLElement[] = [h('span.qcs', { text: ac.callsign })];
-    if (!mine && this.sim.handoffTarget(ac)) {
-      const b = btn(this.sim.handoffPending(ac) ? 'H/O REQ...' : 'REQ H/O', () => this.requestHandoff(ac));
-      b.disabled = this.sim.handoffPending(ac);
-      items.push(b);
+    const els = buttons.map((q) => {
+      if (q.kind === 'phrase') return this.quickPhrase(cs, q.text, q.phrase!);
+      const b = h('button', { text: q.text, type: 'button', title: q.title ?? q.text });
+      if (q.kind === 'off') b.disabled = true;
+      else if (q.kind === 'action') b.addEventListener('click', () => q.action!());
+      else {
+        // Menus: what is chosen there is picked like a phrase button and sent with SEND.
+        if (this.quickSel?.cs === cs && this.quickSel.picks.some((p) => p.group === q.text)) b.classList.add('picked');
+        b.addEventListener('click', () => this.menu.open(`${cs} - ${q.title ?? q.text}`, this.pickable(cs, q.text, q.items!()), ...at(b)));
+      }
+      return b;
+    });
+    this.quickbar.replaceChildren(h('span.qcs', { text: cs }), h('span.qpos', { text: pos }), ...els);
+  }
+
+  /** The position whose quick-action bar an aircraft gets: the frequency it is on, or the one of yours it comes to next. */
+  private quickPosition(ac: Aircraft): QuickPosition {
+    const sim = this.sim;
+    const del = sim.stationFor('delivery');
+    const gnd = sim.stationFor('ground');
+    const twr = sim.stationFor('tower');
+    const freq = sim.isOnMyFrequency(ac) ? ac.frequency : sim.handoffTarget(ac);
+    if (freq) {
+      if (freq === del && del !== gnd) return 'DEL';
+      if (sim.userTower && freq === twr) return 'TWR';
+      return sim.userControls(gnd) || !sim.userTower ? 'GND' : 'TWR';
     }
-    if (mine && ac.request && !ac.requestAck) items.push(phrase('ROGER', 'roger'));
-    if (mine && ac.atisOutdated) items.push(phrase(`INFO ${this.sim.atisLetter}`, `information ${this.sim.atisLetter} is current, ${this.sim.pressurePhrase()}`));
-    if (catcAlert(this.sim, ac)) items.push(btn('ACK', () => this.acknowledgeCatc(ac)));
-    if (mine && this.sim.userTower && ac.frequency === this.sim.stationFor('tower')) {
-      // Tower: the clearances of the moment as buttons.
-      const short: [RegExp, string][] = [
-        [/^Line up/, 'LUP'],
-        [/^Backtrack .*line up/, 'B/T'],
-        [/^Cleared for take-off/, 'T/O'],
-        [/^Cleared to land/, 'LAND'],
-        [/^Continue approach/, 'CONT'],
-        [/^Go around/, 'G/A'],
-        [/^Cross runway/, 'CROSS'],
-        [/^Contact Ground/, 'GND'],
-        [/^Contact .*Radar/, 'RDR'],
-        [/^Stop immediately/, 'STOP'],
-        [/^Hold position/, 'HOLD'],
-      ];
-      for (const i of this.towerItems(ac)) {
-        const s = short.find(([re]) => re.test(i.label));
-        if (!s || !i.action || i.disabled) continue;
-        const p = this.phraseOf(i.action);
-        items.push(p ? phrase(s[1], p) : btn(s[1], () => i.action!()));
-      }
-      if (ac.onGround && (ac.phase === 'taxi' || ac.phase === 'holding')) {
-        const toStand = ac.category !== 'departure' || ac.returnToStand;
-        items.push(btn('TAXI', (b) => this.menu.open(`${ac.callsign} - taxi to${toStand ? ' stand' : ''}`, toStand ? this.standDestinations(ac) : this.taxiDestinations(ac), ...at(b))));
-      }
-    } else if (mine && ac.frequency === this.sim.stationFor('delivery') && this.sim.stationFor('delivery') !== this.sim.stationFor('ground')) {
-      const del = this.deliveryItems(ac);
-      const sub = (label: string) => del.find((i) => i.label === label);
-      const clr = sub('Send DCL (datalink)') ?? sub('IFR clearance') ?? sub('IFR clearance by voice') ?? sub('Amend IFR clearance');
-      if (clr && !ac.cleared) items.push(btn(clr.label.startsWith('Send') ? 'DCL' : 'CLR', (b) => this.menu.open(`${ac.callsign} - ${clr.label}`, clr.submenu!(), ...at(b))));
-      // One-time instructions disappear once given.
-      if (ac.cleared && !ac.readbackConfirmed) items.push(phrase('RB OK', 'readback correct'));
-      if (ac.cleared && !ac.startupApproved) items.push(phrase('START', 'start-up approved'));
-      const ground = this.sim.airport.station(this.sim.stationFor('ground'));
-      // Without a Ground (St. Maarten) Delivery hands the crews to the Tower.
-      if (ac.cleared && ground) items.push(phrase(ground.type === 'TWR' ? 'TWR' : 'GND', `contact ${ground.type === 'TWR' ? 'tower' : 'ground'} ${ground.frequency}`));
-    } else if (mine) {
-      if (ac.phase === 'parked' && ac.category === 'tow') {
-        items.push(phrase('TOW', 'tow approved'));
-      } else if (ac.phase === 'parked' && ac.category === 'departure') {
-        const stand = this.sim.airport.stand(ac.stand ?? '');
-        if (stand?.pushback === false) items.push(btn('TAXI', (b) => this.menu.open(`${ac.callsign} - taxi to`, this.taxiDestinations(ac), ...at(b))));
-        else items.push(phrase('PUSH', 'push and start approved'));
-      } else if (ac.onGround && ['pushback', 'startup', 'taxi', 'holding'].includes(ac.phase)) {
-        const arr = ac.category === 'arrival' || ac.returnToStand || ac.category === 'tow';
-        items.push(btn('TAXI', (b) => this.menu.open(arr ? `${ac.callsign} - taxi to stand` : `${ac.callsign} - taxi to`, arr ? this.standDestinations(ac) : this.taxiDestinations(ac), ...at(b))));
-        // HOLD while it may move, CONT only when it waits for it (hold position, hold short, give way).
-        if (!ac.holdPosition) items.push(phrase('HOLD', 'hold position'));
-        const partner = headOnPartner(this.sim, ac);
-        if (ac.wantsFollowMe && !ac.followMe) items.push(phrase('FLWM', 'follow the follow-me'));
-        if (partner) items.push(btn('RESOLVE', (b) => this.menu.open(`${ac.callsign} - resolve conflict`, this.resolveItem(ac, partner).submenu!(), ...at(b))));
-        if (ac.holdPosition || ac.stoppedAt?.kind === 'holdShort' || ac.giveWayTo) items.push(phrase('CONT', 'continue taxi'));
-        const tower = this.sim.airport.station(this.sim.stationFor('tower'));
-        if (ac.category === 'departure' && tower && ['taxi', 'holding'].includes(ac.phase)) items.push(phrase('TWR', `contact tower ${tower.frequency}`));
-      }
-    }
-    items.push(btn('MENU', (b) => this.openMenu(ac.callsign, ...at(b))));
-    this.quickbar.replaceChildren(...items);
+    if (sim.userTower && (!ac.onGround || !sim.userControls(gnd))) return 'TWR';
+    if (sim.userControls(gnd)) return 'GND';
+    return del !== gnd && sim.userControls(del) ? 'DEL' : 'TWR';
+  }
+
+  /** The fixed buttons of a position, filled from the aircraft menu of the moment. */
+  private aircraftQuickButtons(ac: Aircraft, pos: QuickPosition): QuickButton[] {
+    const sim = this.sim;
+    const mine = sim.isOnMyFrequency(ac);
+    const items = !mine ? [] : pos === 'DEL' ? this.deliveryItems(ac) : pos === 'TWR' ? this.towerItems(ac) : this.menuItems(ac);
+    const ground = sim.airport.station(sim.stationFor('ground'));
+    const specs: QuickSpec[] =
+      pos === 'DEL'
+        ? [
+            { text: 'CLR', re: /^(IFR clearance|IFR clearance by voice|Amend IFR clearance)$/ },
+            { text: 'DCL', re: /^Send DCL/ },
+            { text: 'RB OK', re: /^Readback correct/ },
+            { text: 'SQWK', re: /^Squawk$/ },
+            { text: 'START', re: /^Start-up approved/ },
+            // Without a Ground (St. Maarten) Delivery hands the crews to the Tower.
+            { text: ground?.type === 'TWR' ? 'TWR' : 'GND', re: /^Contact (Ground|Tower)/ },
+          ]
+        : pos === 'GND'
+          ? [
+              { text: 'PUSH', re: /^Push and start approved/, phrase: 'push and start approved' },
+              { text: 'TAXI', re: /^Taxi to( stand)?$/ },
+              // HOLD while it may move, CONT only when it waits for it (hold position, hold short, give way).
+              { text: 'HOLD', re: /^Hold position$/, off: ac.holdPosition },
+              { text: 'CONT', re: /^Continue taxi$/, off: !(ac.holdPosition || ac.stoppedAt?.kind === 'holdShort' || ac.giveWayTo) },
+              { text: 'H/S', re: /^Hold short of$/ },
+              { text: 'CROSS', re: /^Cross runway/ },
+              { text: 'GIVE WAY', re: /^Give way to$/ },
+              { text: 'FLWM', re: /^Follow the follow-me$/ },
+              { text: 'RESOLVE', re: /^Resolve conflict/ },
+              { text: 'TOW', re: /^Tow approved to stand( \S+)?$/, phrase: 'tow approved' },
+              { text: 'TWR', re: /^Contact Tower/ },
+            ]
+          : [
+              { text: 'TAXI', re: /^Taxi( to|, hold short of)$/ },
+              { text: 'LUP', re: /^Line up and wait/ },
+              { text: 'B/T', re: /^Backtrack .*line up/ },
+              { text: 'T/O', re: /^Cleared for take-off/ },
+              { text: 'HOLD', re: /^Hold position$/ },
+              { text: 'STOP', re: /^Stop immediately/ },
+              { text: 'CROSS', re: /^Cross runway/ },
+              // On final: continue approach; on the ground: continue taxi (after hold position or a hold-short).
+              { text: 'CONT', re: /^Continue (approach|taxi)$/ },
+              { text: 'LAND', re: /^Cleared to land/ },
+              { text: 'G/A', re: /^Go around/ },
+              { text: 'VAC', re: /^Vacate via/ },
+              { text: 'GND', re: /^Contact Ground/ },
+              { text: 'RDR', re: /^Contact (?!Ground)/ },
+            ];
+    const buttons = specs.map((s) => this.quickButton(s, items));
+    // The same at every position (ROGER and standby: the sidebar and MENU).
+    buttons.push(
+      mine && ac.atisOutdated ? { text: `INFO ${sim.atisLetter}`, kind: 'phrase', phrase: `information ${sim.atisLetter} is current, ${sim.pressurePhrase()}` } : { text: `INFO ${sim.atisLetter}`, kind: 'off' },
+    );
+    if (pos !== 'DEL') buttons.push(catcAlert(sim, ac) ? { text: 'ACK', kind: 'action', action: () => this.acknowledgeCatc(ac) } : { text: 'ACK', kind: 'off' });
+    const pending = sim.handoffPending(ac);
+    buttons.push(
+      !mine && sim.handoffTarget(ac) && !pending ? { text: 'REQ H/O', kind: 'action', action: () => this.requestHandoff(ac) } : { text: pending ? 'H/O REQ...' : 'REQ H/O', kind: 'off' },
+      { text: 'MENU', kind: 'menu', title: `${sim.tel(ac).toUpperCase()}`, items: () => this.menuItems(ac) },
+    );
+    return buttons;
+  }
+
+  /** Follow-me car: always PROCEED, HOLD, CONT, BASE. */
+  private vehicleQuickButtons(v: Vehicle): QuickButton[] {
+    const items = this.vehicleItems(v);
+    return [
+      this.quickButton({ text: 'PROCEED', re: /^Proceed to/ }, items),
+      this.quickButton({ text: 'HOLD', re: /^Hold position$/ }, items),
+      this.quickButton({ text: 'CONT', re: /^Continue$/ }, items),
+      this.quickButton({ text: 'BASE', re: /^Return to base$/ }, items),
+      { text: 'MENU', kind: 'menu', title: vehicleTel(v).toUpperCase(), items: () => this.vehicleItems(v) },
+    ];
+  }
+
+  /** A quick-action button from the menu item its spec names: greyed out if there is none (or it is disabled). */
+  private quickButton(spec: QuickSpec, items: MenuItem[]): QuickButton {
+    const it = spec.re ? items.find((i) => !i.divider && spec.re!.test(i.label)) : undefined;
+    if (!it || it.disabled || spec.off) return { text: spec.text, kind: 'off', title: it?.label };
+    if (spec.phrase) return { text: spec.text, kind: 'phrase', phrase: spec.phrase, title: it.label };
+    if (it.submenu) return { text: spec.text, kind: 'menu', title: it.label, items: it.submenu };
+    if (!it.action) return { text: spec.text, kind: 'off', title: it.label };
+    const phrase = this.phraseOf(it.action);
+    return phrase ? { text: spec.text, kind: 'phrase', phrase, title: it.label } : { text: spec.text, kind: 'action', action: it.action, title: it.label };
+  }
+
+  /** A menu opened from the quick-action bar: its instructions are picked (sent with SEND), not transmitted at once. */
+  private pickable(cs: string, group: string, items: MenuItem[]): MenuItem[] {
+    return items.map((it) => ({
+      ...it,
+      submenu: it.submenu && (() => this.pickable(cs, group, it.submenu!())),
+      action:
+        it.action &&
+        (() => {
+          this.picking = { cs, group };
+          try {
+            it.action!();
+          } finally {
+            this.picking = null;
+          }
+        }),
+    }));
   }
 
   private select(cs: string | undefined): void {
@@ -743,7 +882,7 @@ export class App {
 
   private transmit(text: string, fromVoice = false): void {
     this.clearQuickSel();
-    const res = this.sim.transmit(text, this.selected, { fallbackToLastCaller: fromVoice });
+    const res = perform(this.sim, { k: 'transmit', text, selected: this.selected, fallback: fromVoice || undefined }) as TransmitResult;
     if (res.hint) this.hint(res.hint);
     if (res.callsign && this.sim.find(res.callsign)) this.select(res.callsign);
   }
@@ -950,6 +1089,10 @@ export class App {
       this.menu.open(`${ac.callsign} - ${this.sim.tel(ac).toUpperCase()}`, this.flightPlanItems(ac), x, y);
     } else if (item === 'target') {
       if (!this.sim.isOnMyFrequency(ac)) return;
+      if (this.sim.userTower && ac.frequency === this.sim.stationFor('tower') && ac.category !== 'departure') {
+        this.menu.open(`${ac.callsign} - taxi, hold short of`, this.towerTaxiLimits(ac), x, y);
+        return;
+      }
       const items = ac.category === 'arrival' || ac.returnToStand ? this.standDestinations(ac) : this.taxiDestinations(ac);
       this.menu.open(ac.category === 'arrival' || ac.returnToStand ? `${ac.callsign} - taxi to stand` : `${ac.callsign} - taxi to`, items, x, y);
     } else {
@@ -1016,6 +1159,22 @@ export class App {
     );
   }
 
+  /** The positions you can still take over, for the "+" next to your frequencies. */
+  private addStationItems(): MenuItem[] {
+    return this.sim.vacantStations.map((type) => {
+      const st = this.sim.airport.station(type)!;
+      return {
+        label: `${st.name} (${st.callsign})`,
+        hint: st.frequency,
+        action: () => {
+          const err = this.act({ k: 'addStation', type });
+          if (err) this.toast(err);
+          this.slowUpdate();
+        },
+      };
+    });
+  }
+
   /** Coordination with the simulator-run neighbours: hold arrivals (Approach) or departures (Ground). */
   private coordItems(): MenuItem[] {
     const sim = this.sim;
@@ -1023,7 +1182,7 @@ export class App {
     const app = sim.stationName('APP');
     const gnd = sim.stationName(sim.stationFor('ground'));
     const set = (kind: 'arrivals' | 'departures', stop: boolean) => () => {
-      const err = sim.setFlow(kind, stop);
+      const err = this.act({ k: 'flow', kind, stop });
       if (err) this.hint(err);
       this.slowUpdate();
     };
@@ -1039,7 +1198,16 @@ export class App {
         hint: sim.canHoldDepartures ? undefined : 'you staff Ground',
         disabled: !sim.canHoldDepartures,
         action: () => {
-          const err = sim.setAskIntersections(!f.askIntersections);
+          const err = this.act({ k: 'askIntersections', on: !f.askIntersections });
+          if (err) this.hint(err);
+        },
+      },
+      {
+        label: `${f.sendIntersections ? '\u2611' : '\u2610'} ${gnd}: send departures to the earliest intersection`,
+        hint: sim.canHoldDepartures ? 'asks them too' : 'you staff Ground',
+        disabled: !sim.canHoldDepartures,
+        action: () => {
+          const err = this.act({ k: 'sendIntersections', on: !f.sendIntersections });
           if (err) this.hint(err);
         },
       },
@@ -1047,7 +1215,7 @@ export class App {
   }
 
   private requestHandoff(ac: Aircraft): void {
-    const err = this.sim.requestHandoff(ac);
+    const err = this.act({ k: 'handoff', callsign: ac.callsign });
     if (err) this.hint(err);
     this.quickbarKey = '';
     this.updateQuickbar();
@@ -1055,16 +1223,84 @@ export class App {
 
   /** Acknowledges the CATC alert of an aircraft (no flashing until the conflict ends). */
   private acknowledgeCatc(ac: Aircraft): void {
-    const alert = catcAlert(this.sim, ac);
-    if (!alert || !acknowledgeCatc(this.sim, ac)) return;
-    this.sim.system(`CATC alert ${alert.a.callsign} / ${alert.b.callsign} acknowledged.`, 'system', ac.callsign);
+    if (!catcAlert(this.sim, ac)) return;
+    this.act({ k: 'catcAck', callsign: ac.callsign });
     this.quickbarKey = '';
     this.updateQuickbar();
+  }
+
+  /** Adds the time on position since the last call to the totals (the start of the account statistics). */
+  private flushStats(): void {
+    if (this.statsPending <= 0) return;
+    const icao = this.sim.config.airport.icao;
+    const positions = this.sim.loggedInStations.filter((t) => this.sim.userControls(t));
+    addControlTime(this.statsPending, Math.max(0, this.sim.time - this.statsSimTime), icao, positions);
+    this.statsPending = 0;
+    this.statsSimTime = this.sim.time;
+    this.fields.ontime.title = `Your time on position in this session (real time, without pauses). In total: ${formatDuration(loadStats().controlSeconds)}`;
+  }
+
+  /** Keeps the session in the browser as the autosave (not tutorials). */
+  private autosave(): void {
+    if (this.tutorial || this.sim.steps === 0) return;
+    storeSession({ ...saveSession(this.sim, 'Autosave', this.controlSeconds), id: AUTOSAVE_ID });
+  }
+
+  /** SAVE: a name, then into the browser's storage and/or as a file. */
+  private openSave(): void {
+    this.menu.close();
+    const sim = this.sim;
+    const utc = sim.utc();
+    const positions = sim.loggedInStations.join('+');
+    const name = h('input', { type: 'text', value: `${sim.config.airport.icao} ${positions} ${String(utc.getUTCHours()).padStart(2, '0')}${String(utc.getUTCMinutes()).padStart(2, '0')}Z`, maxlength: '60' });
+    const save = h('button.primary', { type: 'submit', text: 'Save' });
+    const download = h('button', { type: 'button', text: 'Download file', title: 'Save it as a file (to keep it, or to continue on another device)' });
+    const cancel = h('button', { type: 'button', text: 'Cancel' });
+    const form = h(
+      'form.dialog',
+      {},
+      h('div.dtitle', {}, h('span', { text: 'Save session' })),
+      h(
+        'div.dbody',
+        {},
+        h('div.sub', { text: 'Continue it later with "Saved sessions" in the Connect dialog. The traffic is rebuilt from the start of the session, which takes a few seconds for a long session.' }),
+        h('div.grid', {}, h('label', { text: 'Name' }), name),
+        h('div.actions', {}, cancel, download, save),
+      ),
+    );
+    const overlay = h('div.overlay', {}, form);
+    const snapshot = () => saveSession(sim, name.value.trim() || 'Session', this.controlSeconds);
+    cancel.addEventListener('click', () => overlay.remove());
+    download.addEventListener('click', () => {
+      downloadSession(snapshot());
+      overlay.remove();
+    });
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const s = snapshot();
+      const err = storeSession(s);
+      overlay.remove();
+      this.flushStats();
+      this.hint(err ?? `Session "${s.name}" saved. Continue it later with "Saved sessions" in the Connect dialog.`);
+    });
+    document.body.append(overlay);
+    name.focus();
+    name.select();
+  }
+
+  /** Changes the simulation (logged for saving, see session.ts); returns an error text if it was not possible. */
+  private act(a: SessionAction): string | undefined {
+    const r = perform(this.sim, a);
+    return typeof r === 'string' ? r : undefined;
   }
 
   private say(ac: Aircraft | Vehicle, phrase: string): void {
     if (this.capture) {
       this.capture.push(phrase);
+      return;
+    }
+    if (this.picking?.cs === ac.callsign) {
+      this.pick(ac.callsign, phrase, this.picking.group);
       return;
     }
     this.transmit(`${ac.callsign} ${phrase}`);
@@ -1088,19 +1324,29 @@ export class App {
    */
   private quickPhrase(cs: string, text: string, phrase: string): HTMLButtonElement {
     const b = h('button', { text, type: 'button', title: phrase });
-    b.dataset.phrase = phrase;
-    if (this.quickSel?.cs === cs && this.quickSel.phrases.includes(phrase)) b.classList.add('picked');
-    b.addEventListener('click', () => {
-      if (this.quickSel?.cs !== cs) this.quickSel = { cs, phrases: [] };
-      const list = this.quickSel.phrases;
-      const i = list.indexOf(phrase);
-      if (i >= 0) list.splice(i, 1);
-      else list.push(phrase);
-      b.classList.toggle('picked', i < 0);
-      this.input.value = list.length ? `${cs} ${list.join(', ')}` : '';
-      this.updatePreview();
-    });
+    if (this.quickSel?.cs === cs && this.quickSel.picks.some((p) => p.phrase === phrase)) b.classList.add('picked');
+    b.addEventListener('click', () => this.pick(cs, phrase));
     return b;
+  }
+
+  /**
+   * Picks a phrase for the quick-action bar (or unpicks it if it is picked already). A phrase
+   * chosen in a menu replaces the earlier choice from the same menu; the aircraft menu (MENU)
+   * collects any number.
+   */
+  private pick(cs: string, phrase: string, group?: string): void {
+    if (this.quickSel?.cs !== cs) this.quickSel = { cs, picks: [] };
+    const sel = this.quickSel;
+    const i = sel.picks.findIndex((p) => p.phrase === phrase);
+    if (i >= 0) sel.picks.splice(i, 1);
+    else {
+      if (group && group !== 'MENU') sel.picks = sel.picks.filter((p) => p.group !== group);
+      sel.picks.push({ phrase, group });
+    }
+    this.input.value = sel.picks.length ? `${cs} ${sel.picks.map((p) => p.phrase).join(', ')}` : '';
+    this.updatePreview();
+    this.quickbarKey = '';
+    this.updateQuickbar();
   }
 
   private clearQuickSel(): void {
@@ -1141,16 +1387,65 @@ export class App {
     const via = r.route.taxiways.filter((t) => this.sim.airport.taxiwayNames.has(t.toUpperCase()));
     const pts = routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition);
     const conflict = this.sim.systemOn('catc') ? routeHeadOn(this.sim, ac, pts) : undefined;
+    const phrase = `taxi to ${destText}${via.length ? ` via ${via.join(', ')}` : ''}`;
+    const onHover = (on: boolean) => {
+      this.menuPreview = on;
+      this.scope.preview = on ? { points: routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition), ok: true } : undefined;
+      if (!on) this.updatePreview();
+    };
+    // A click sends the whole route; the sub-menu limits it: "..., hold short of taxiway L".
+    const limits = this.holdShortLimits(ac, via, (t) => `${phrase}, hold short of taxiway ${t}`);
     return {
       label,
       hint: `${hint ?? `via ${via.join(' ')}`}${conflict ? `  ! head-on ${conflict.other.callsign}` : ''}`,
-      action: () => this.say(ac, `taxi to ${destText} via ${via.join(', ')}`),
-      onHover: (on) => {
-        this.menuPreview = on;
-        this.scope.preview = on ? { points: routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition), ok: true } : undefined;
-        if (!on) this.updatePreview();
-      },
+      action: () => this.say(ac, phrase),
+      onHover,
+      submenu: limits.length ? () => [{ label: 'Whole route', hint: via.join(' '), action: () => this.say(ac, phrase), onHover }, { divider: true, label: '' }, ...limits] : undefined,
     };
+  }
+
+  /**
+   * "Hold short of" choices along a route: one per taxiway of the `via` list the aircraft is not on yet,
+   * each checked like a typed instruction (greyed out with the crew's answer if it would not work).
+   */
+  private holdShortLimits(ac: Aircraft, via: string[], phraseFor: (taxiway: string, index: number) => string | undefined): MenuItem[] {
+    const here = ac.phase === 'parked' ? undefined : this.sim.airport.nearestEdge(ac.pos)?.edge.name?.toUpperCase();
+    const items: MenuItem[] = [];
+    via.forEach((t, i) => {
+      if (t.toUpperCase() === here) return;
+      const phrase = phraseFor(t, i);
+      if (!phrase) return;
+      const cmd = parseTransmission(phrase, { callsigns: [], taxiways: this.sim.airport.taxiwayNames }).commands[0];
+      const r = cmd?.type === 'taxi' ? previewTaxi(this.sim, ac, cmd) : { error: 'invalid' };
+      if ('error' in r) {
+        items.push({ label: `Hold short of ${t}`, hint: r.error, disabled: true });
+        return;
+      }
+      items.push({
+        label: `Hold short of ${t}`,
+        action: () => this.say(ac, phrase),
+        onHover: (on) => {
+          this.menuPreview = on;
+          this.scope.preview = on ? { points: routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition), ok: true } : undefined;
+          if (!on) this.updatePreview();
+        },
+      });
+    });
+    return items;
+  }
+
+  /**
+   * Tower: a vacated arrival is not taxied to its stand (that is Ground's job) - only on to a
+   * clearance limit along the way to it, "taxi via E, N, hold short of taxiway L", then Ground.
+   */
+  private towerTaxiLimits(ac: Aircraft): MenuItem[] {
+    const stand = ac.assignedStand ?? this.sim.freeStands(ac.type.wingspanM, undefined, ac).sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos))[0]?.id;
+    const cmd = stand ? parseTransmission(`taxi to stand ${stand}`, { callsigns: [], taxiways: this.sim.airport.taxiwayNames }).commands[0] : undefined;
+    const r = cmd?.type === 'taxi' ? previewTaxi(this.sim, ac, cmd) : { error: 'no free stand' };
+    if ('error' in r) return [{ label: 'No route', hint: r.error, disabled: true }];
+    const via = r.route.taxiways.filter((t) => this.sim.airport.taxiwayNames.has(t.toUpperCase()));
+    const items = this.holdShortLimits(ac, via, (t, i) => (i > 0 ? `taxi via ${via.slice(0, i).join(', ')}, hold short of taxiway ${t}` : undefined));
+    return items.length ? items : [{ label: 'No taxiway to hold short of', hint: `stand ${stand}: Ground`, disabled: true }];
   }
 
   private menuItems(ac: Aircraft): MenuItem[] {
@@ -1215,8 +1510,11 @@ export class App {
       if (stand?.pushback === false) {
         items.push({ label: 'Taxi to', submenu: () => this.taxiDestinations(ac) });
       } else {
-        items.push({ label: 'Pushback approved', submenu: pushSub(false) });
-        items.push({ label: 'Push and start approved', submenu: pushSub(true) });
+        // A slot flight pushed now would wait at the holding point: the hint says from when it fits.
+        const due = offBlockDue(sim, ac);
+        const slot = ac.ctot !== undefined ? `CTOT ${hhmm(sim, ac.ctot)}${sim.time < due - 60 ? `: not before ${hhmm(sim, due)}` : ''}` : undefined;
+        items.push({ label: 'Pushback approved', hint: slot, submenu: pushSub(false) });
+        items.push({ label: 'Push and start approved', hint: slot, submenu: pushSub(true) });
       }
       items.push({ label: 'Start-up approved', action: () => this.say(ac, 'start-up approved') });
       items.push(this.ableItem(ac));
@@ -1290,9 +1588,9 @@ export class App {
     const radar = sim.airport.station('APP');
     const eta = sim.tower.nextArrivalEta(rwyEnd);
     const arrival = Number.isFinite(eta) ? `next arrival ${Math.round(eta)} s` : 'no arrival';
-    // Tower may give taxi instructions too: a vacated arrival to its stand, a crossing aircraft on.
+    // Tower may give taxi instructions too: a vacated arrival on to a point short of the next taxiway (the stand is Ground's).
     if (ac.onGround && ac.phase === 'taxi' && (ac.category !== 'departure' || ac.returnToStand)) {
-      items.push({ label: 'Taxi to stand', submenu: () => this.standDestinations(ac) });
+      items.push({ label: 'Taxi, hold short of', hint: ac.assignedStand ? `towards stand ${ac.assignedStand}` : undefined, submenu: () => this.towerTaxiLimits(ac) });
     }
     if (ac.category === 'departure' && ac.onGround && ['holding', 'lineup', 'taxi'].includes(ac.phase)) {
       const busy = sim.tower.runwayBusyForDeparture(ac);
@@ -1336,7 +1634,18 @@ export class App {
         action: () => this.say(ac, `${this.windPhrase()}, runway ${rwy}, cleared for immediate take-off`),
       });
       if (ac.takeoffCleared || ac.lineUpCleared) items.push({ label: 'Cancel take-off', action: () => this.say(ac, 'hold position, cancel take-off') });
-      items.push({ label: 'Hold position', action: () => this.say(ac, 'hold position') });
+    }
+    // Taxiing traffic on Tower frequency (departures, vacated arrivals, crossings): hold, and continue again.
+    if (ac.onGround && ['taxi', 'holding', 'lineup'].includes(ac.phase)) {
+      items.push({ label: 'Hold position', disabled: ac.holdPosition, action: () => this.say(ac, 'hold position') });
+      if (ac.phase !== 'lineup') {
+        items.push({
+          label: 'Continue taxi',
+          hint: ac.holdPosition ? 'holding position' : ac.stoppedAt?.kind === 'holdShort' ? `holding short of ${ac.stoppedAt.target}` : undefined,
+          disabled: !(ac.holdPosition || ac.stoppedAt?.kind === 'holdShort' || ac.giveWayTo),
+          action: () => this.say(ac, 'continue taxi'),
+        });
+      }
     }
     if (ac.phase === 'takeoff') items.push({ label: 'Stop immediately', action: () => this.say(ac, 'stop immediately') });
     // Every aircraft in the air (departures, go-arounds) can be handed to Radar.
@@ -1407,7 +1716,7 @@ export class App {
             label: sd.name,
             hint: sidHint(sd.name, sd.fix),
             action: () => {
-              const err = sendDcl(sim, ac, sd.name, squawk);
+              const err = this.act({ k: 'dcl', callsign: ac.callsign, sid: sd.name, squawk });
               if (err) this.toast(err);
               this.slowUpdate();
             },

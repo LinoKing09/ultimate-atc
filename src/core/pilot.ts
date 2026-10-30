@@ -7,7 +7,7 @@ import { KT_TO_MS, distance, headingDiff, headingOf, normalize, scale, add, sub,
 import { Path } from './path';
 import type { Command, HoldShortTarget, ParsedTransmission, TaxiDestination } from './phraseology/commands';
 import { STATION_WORD, capitalize, formatCommand, formatDestination, formatHoldShort } from './phraseology/format';
-import { CLEARANCE_LEAD_S, departureFrequency, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
+import { CLEARANCE_LEAD_S, CTOT_EARLY_S, departureFrequency, execClearance, execCtot, execReadbackCorrect, execSquawk, hhmm, missReadbackError, startupDue } from './delivery';
 import { destinationName } from '../data/destinations';
 import type { Simulation, TransmitResult } from './simulation';
 import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, locationOf, maybeStartTow } from './vehicles';
@@ -229,14 +229,19 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return { readback: formatCommand(c) };
     }
     case 'standby':
-    case 'roger':
-      // Acknowledged: the pilot waits (2 minutes after "standby", 4 after "roger") and stops flashing.
-      ac.standbyUntil = sim.time + (c.type === 'roger' ? 240 : 120);
+      // Acknowledged: the pilot waits 2 minutes and stops flashing.
+      ac.standbyUntil = sim.time + 120;
       if (ac.request) {
         sim.recordAnswer(ac);
         ac.requestSince = sim.time;
         ac.requestAck = true;
       }
+      return {};
+    case 'roger':
+      // Heard, but not answered: the aircraft stops flashing and the pilot waits 4 minutes before calling
+      // again. The request stays open, so its waiting time runs on (and counts once it is answered).
+      ac.standbyUntil = sim.time + 240;
+      if (ac.request) ac.requestAck = true;
       return {};
     case 'expedite':
       ac.expedite = true;
@@ -323,7 +328,8 @@ export function backtrackEntry(sim: Simulation, holdingPoint: string): boolean {
 
 /** Take-off run this crew needs today (type figure varied per flight, -10 % / +15 %). */
 export function requiredRunway(sim: Simulation, ac: Aircraft): number {
-  ac.requiredRunwayM ??= Math.round(ac.type.minRunwayM * sim.rng.range(0.9, 1.15));
+  // From the session seed, not from `rng`: menus ask for it too, and a saved session must replay the same.
+  ac.requiredRunwayM ??= Math.round(ac.type.minRunwayM * (0.9 + 0.25 * sim.variation(`${ac.callsign}:runway`)));
   return ac.requiredRunwayM;
 }
 
@@ -667,6 +673,9 @@ function execCancelTakeoff(sim: Simulation, ac: Aircraft): ExecResult {
  */
 /** A departure waiting at the holding point without an open request calls Tower again after this time (s). */
 const DEPARTURE_RECALL_S = 150;
+/** A departure lined up without a take-off clearance says so after this long on the runway (s; each crew differently). */
+const LINED_UP_CALL_MIN_S = 120;
+const LINED_UP_CALL_MAX_S = 180;
 
 function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: string): boolean {
   const now = sim.time;
@@ -684,8 +693,15 @@ function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: stri
   }
   // Still waiting at the holding point without an open request (e.g. a take-off refused in a thunderstorm,
   // or a "roger" that has run out): the crew reminds Tower that it is ready.
-  if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && ac.towerContact && ac.request === null && now > ac.standbyUntil && now - ac.lastCallAt > DEPARTURE_RECALL_S) {
+  if (ac.phase === 'holding' && ac.category === 'departure' && !ac.lineUpCleared && ac.towerContact && ac.request === null && now > ac.standbyUntil && now - ac.lastCallAt > DEPARTURE_RECALL_S && !inDepartureSequence(sim, ac)) {
     call(sim, ac, 'departure', `${stationName}, ${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure${backtrackWords(sim, ac, ac.stoppedAt?.holdingPoint)}`);
+    return true;
+  }
+  // Lined up and forgotten (e.g. lined up by the simulator before you took over): after 2-3 minutes on the
+  // runway (each crew differently) the crew reminds Tower - not sooner, and then again only after as long.
+  const linedUpWait = LINED_UP_CALL_MIN_S + (LINED_UP_CALL_MAX_S - LINED_UP_CALL_MIN_S) * sim.variation(`${ac.callsign}:linedUp`);
+  if (ac.phase === 'lineup' && ac.category === 'departure' && !ac.takeoffCleared && ac.linedUpAt !== undefined && ac.request === null && now > ac.standbyUntil && now - ac.linedUpAt >= linedUpWait && now - ac.lastCallAt >= linedUpWait) {
+    call(sim, ac, 'departure', `${stationName}, ${tel}, lined up runway ${ac.runway ?? sim.runway}, ready for departure`);
     return true;
   }
   if (ac.phase === 'approach' && !ac.landingCleared) {
@@ -1476,6 +1492,9 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     }
   }
 
+  // Since when it stands lined up on the runway (for the "lined up, ready for departure" call).
+  if (ac.phase === 'lineup' && ac.stoppedAt && ac.speed < 0.1) ac.linedUpAt ??= now;
+  else ac.linedUpAt = undefined;
   towerResolveStuck(sim, ac);
   checkStandAhead(sim, ac);
   updateDeicing(sim, ac);
@@ -1525,7 +1544,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       if (stand && !stand.pushback) {
         call(sim, ac, 'taxi', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetterOf(ac)}, request taxi${deiceWords(sim, ac)}`);
       } else {
-        call(sim, ac, 'pushback', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetterOf(ac)}, request ${sim.rng.chance(0.2) ? 'push and start' : 'pushback'}`);
+        call(sim, ac, 'pushback', `${stationName}, ${tel}, stand ${ac.stand}, information ${sim.atisLetterOf(ac)}, request ${sim.rng.chance(0.2) ? 'push and start' : 'pushback'}${ctotWords(sim, ac)}`);
       }
       return;
     }
@@ -1539,6 +1558,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       call(sim, ac, 'handoff', `${tel}, holding point ${ac.stoppedAt?.holdingPoint ?? ''}, ready for departure`);
       return;
     }
+    if (askToPassSlot(sim, ac, tel)) return;
     if (ac.blockedBy && ac.blockedSince !== undefined && now - ac.blockedSince > 60 && ac.speed < 0.1) {
       const o = sim.find(ac.blockedBy);
       const headOn = o && Math.abs(headingDiff(ac.heading, o.heading)) > 120;
@@ -1564,6 +1584,11 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     ac.request = null;
     return;
   }
+  // The slot flight has gone (or we were re-routed): no other holding point to ask for any more.
+  if (ac.request === 'route' && ac.slotPassAsked && !earlySlotAhead(sim, ac)) {
+    ac.request = null;
+    return;
+  }
   // Crossed (or re-routed) meanwhile: no crossing to ask for any more.
   if (ac.request === 'crossing' && ac.stoppedAt?.kind !== 'runway' && ac.speed > 0.5) {
     ac.request = null;
@@ -1576,11 +1601,14 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     ac.assignedStand = sim.traffic.allocateStand(ac)?.id;
   }
 
-  // Reminders when nobody answers
+  if (ac.request === 'departure' && askToPassSlot(sim, ac, tel)) return;
+  // Reminders when nobody answers - not from a departure that was heard and sees it is in the departure
+  // sequence (traffic ahead of it for the runway, or its slot window not open yet): it waits for its turn.
+  if (ac.requestAck && ac.request === 'departure' && inDepartureSequence(sim, ac)) return;
   const interval = 60 + (ac.callsign.charCodeAt(ac.callsign.length - 1) % 30);
   if (now > ac.standbyUntil && now - ac.lastCallAt > interval && ac.callCount < 5 && !sim.frequency.hasQueued(ac.callsign)) {
     const reminder: Partial<Record<PilotRequest, string>> = {
-      pushback: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request pushback`,
+      pushback: `${stationName}, ${tel}, stand ${ac.stand ?? ''}, request pushback${ctotWords(sim, ac)}`,
       taxi: `${stationName}, ${tel}, ready for taxi${deiceWords(sim, ac)}`,
       taxiIn: `${stationName}, ${tel}, request taxi to the stand`,
       handoff: `${stationName}, ${tel}, ${hpWords(ac)}, ready for departure${backtrackWords(sim, ac, ac.stoppedAt?.holdingPoint ?? (ac.routeDestination?.kind === 'holdingPoint' ? ac.routeDestination.name : undefined))}`,
@@ -1601,6 +1629,85 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     const text = reminder[ac.request];
     if (text) call(sim, ac, ac.request, text);
   }
+}
+
+/**
+ * A slot flight waiting at the holding point this departure taxis to, if it cannot go for a while yet
+ * (its window opens more than 2 minutes from now): the departure would queue behind it.
+ */
+export function earlySlotAhead(sim: Simulation, ac: Aircraft): Aircraft | undefined {
+  const dest = ac.routeDestination;
+  if (ac.category !== 'departure' || ac.phase !== 'taxi' || dest?.kind !== 'holdingPoint') return undefined;
+  const hp = dest.name.toUpperCase();
+  return sim.aircraft.find(
+    (o) =>
+      o !== ac &&
+      o.category === 'departure' &&
+      o.phase === 'holding' &&
+      o.stoppedAt?.holdingPoint?.toUpperCase() === hp &&
+      o.ctot !== undefined &&
+      sim.time + 120 < o.ctot - CTOT_EARLY_S,
+  );
+}
+
+/**
+ * Another holding point of its runway for a departure stuck behind `other`: one the crew accepts, reached
+ * without turning around and without passing through `other`; the shortest route first.
+ */
+export function passingEntry(sim: Simulation, ac: Aircraft, other: Aircraft): { name: string; runway: string } | undefined {
+  const runway = sim.departureRunwayOf(ac);
+  const taken = other.stoppedAt?.holdingPoint?.toUpperCase();
+  const clear = (ac.type.wingspanM + other.type.wingspanM) / 2 + 10;
+  let best: { name: string; runway: string; length: number } | undefined;
+  for (const e of sim.airport.runwayOps(runway)?.departureEntries ?? []) {
+    if (e.holdingPoint.toUpperCase() === taken || !ableFrom(sim, ac, e.holdingPoint)) continue;
+    const route = autoRoute(sim, ac, { kind: 'holdingPoint', name: e.holdingPoint, runway });
+    if (!route || route.requiresUTurn || !route.nodes.length) continue;
+    const pts = sim.airport.polyline(route.nodes).points;
+    if (pts.some((p) => distance(p, other.pos) < clear)) continue;
+    if (!best || route.length < best.length) best = { name: e.holdingPoint, runway, length: route.length };
+  }
+  return best && { name: best.name, runway: best.runway };
+}
+
+/** On the way to a holding point where a slot flight waits: the crew asks (once) for another holding point. */
+function askToPassSlot(sim: Simulation, ac: Aircraft, tel: string): boolean {
+  const slot = earlySlotAhead(sim, ac);
+  if (!slot || ac.slotPassAsked === slot.callsign || sim.time - ac.lastCallAt < 20) return false;
+  const alt = passingEntry(sim, ac, slot);
+  if (!alt) return false;
+  ac.slotPassAsked = slot.callsign;
+  const hp = slot.stoppedAt?.holdingPoint ?? '';
+  call(sim, ac, 'route', `${tel}, ${sim.tel(slot)} is waiting for its slot at holding point ${hp}, request taxi to holding point ${alt.name}`);
+  return true;
+}
+
+/** ", CTOT 1045" in a pushback request without A-CDM (with A-CDM the TSAT already matches the slot). */
+function ctotWords(sim: Simulation, ac: Aircraft): string {
+  if (ac.ctot === undefined || (sim.systemOn('acdm') && ac.tsat !== undefined)) return '';
+  return `, CTOT ${hhmm(sim, ac.ctot)}`;
+}
+
+/**
+ * The departure can see that it is in the sequence for its runway: another departure is lined up or taking
+ * off, waits at a holding point of the same runway since before it, or stands right in front of it in the
+ * queue - or its own slot window (CTOT - 5 min) does not open within the next minute.
+ */
+export function inDepartureSequence(sim: Simulation, ac: Aircraft): boolean {
+  if (ac.category !== 'departure' || !ac.onGround) return false;
+  if (ac.ctot !== undefined && sim.time + 60 < ac.ctot - CTOT_EARLY_S) return true;
+  if (ac.phase !== 'holding' && ac.phase !== 'taxi') return false;
+  const ahead = sim.find(ac.blockedBy);
+  if (ahead?.category === 'departure' && ahead.onGround && ['taxi', 'holding', 'lineup'].includes(ahead.phase)) return true;
+  const rwy = sim.departureRunwayOf(ac);
+  const mySince = ac.phase === 'holding' ? (ac.holdingSince ?? sim.time) : Infinity;
+  return sim.aircraft.some(
+    (o) =>
+      o !== ac &&
+      o.category === 'departure' &&
+      sim.departureRunwayOf(o) === rwy &&
+      (o.phase === 'lineup' || o.phase === 'takeoff' || (o.phase === 'holding' && (o.holdingSince ?? 0) < mySince)),
+  );
 }
 
 /** ", request de-icing" while the departure still needs it. */

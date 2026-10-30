@@ -54,6 +54,8 @@ const BACKTRACK_ENTRY_RADIUS = 15;
 const LINEUP_SMOOTH_M = 30;
 /** An aircraft standing this far behind a departure's start point is not in its way (metres). */
 const BEHIND_MARGIN_M = 30;
+/** An aircraft lined up and waiting this far behind a departure's runway entry does not keep it from lining up (metres). */
+const ENTRY_BEHIND_M = 150;
 /** A landing aircraft may cross the threshold when a preceding departure is airborne and this far down the runway (RRSM). */
 const RRSM_DISTANCE = 2400;
 /** Short final: from here on the arrival goes around if the runway is not clear. */
@@ -136,6 +138,22 @@ export class TowerAI {
   /** Aircraft on the ground inside the runway area of one runway, or of any in use (optionally excluding one). */
   runwayOccupants(except?: Aircraft, end?: RunwayEnd): Aircraft[] {
     return this.sim.aircraft.filter((a) => a !== except && a.onGround && a.phase !== 'gone' && this.isInRunwayArea(a.pos, end));
+  }
+
+  /**
+   * Lined up and waiting: standing still on the runway without a take-off clearance. Crossing the runway
+   * elsewhere is allowed then (the take-off clearance has to wait until the crossing traffic is clear).
+   */
+  waitingLinedUp(a: Aircraft): boolean {
+    return a.phase === 'lineup' && !a.takeoffCleared && !!a.stoppedAt && a.speed < 0.1;
+  }
+
+  /** For a crossing: the runway is busy, apart from aircraft lined up and waiting on it. */
+  runwayBusyForCrossing(except: Aircraft, end: RunwayEnd): boolean {
+    return (
+      this.runwayOccupants(except, end).some((a) => !this.waitingLinedUp(a)) ||
+      this.sim.aircraft.some((a) => a !== except && (a.phase === 'takeoff' || a.phase === 'landing' || (a.phase === 'lineup' && !this.waitingLinedUp(a))) && this.sameRunway(a, end))
+    );
   }
 
   /** The physical runway an aircraft takes off from or lands on right now (rolling, landing or on final). */
@@ -402,11 +420,20 @@ export class TowerAI {
     const end = this.departureEnd(ac);
     const here = this.sim.airport.runwayCoordinates(end, ac.pos).along;
     const near = (p: { x: number; y: number }) => Math.abs(this.sim.airport.runwayCoordinates(end, p).along - here) < 400;
+    // Lined up and waiting behind this entry (e.g. at the full-length entry B1 while this one enters at the
+    // intersection B2) without a take-off clearance: no obstacle - this departure goes first, and the one behind
+    // does not roll while it is on the runway in front of it (runwayBusyForDeparture).
+    const waitingBehind = (o: Aircraft) =>
+      o.phase === 'lineup' && !!o.stoppedAt && !o.takeoffCleared && o.speed < 0.5 && this.sim.airport.runwayCoordinates(end, o.pos).along < here - ENTRY_BEHIND_M;
     // Also an aircraft that is just lining up from the other side (K / Y share the same runway point):
     // it may not have reached the runway yet, but its line-up point is.
-    if (this.sim.aircraft.some((o) => o !== ac && o.phase === 'lineup' && this.sameRunway(o, end) && o.path && near(o.path.pointAt(o.path.length)))) return true;
+    if (this.sim.aircraft.some((o) => o !== ac && o.phase === 'lineup' && !waitingBehind(o) && this.sameRunway(o, end) && o.path && near(o.path.pointAt(o.path.length)))) return true;
+    // Taking off from behind this entry (it will roll past it) - or about to (lined up with its take-off clearance):
+    // not in front of it. Only one already past the entry rolls away from it.
+    const along = (p: { x: number; y: number }) => this.sim.airport.runwayCoordinates(end, p).along;
+    if (this.sim.aircraft.some((o) => o !== ac && this.sameRunway(o, end) && ((o.phase === 'takeoff' && o.onGround) || (o.phase === 'lineup' && o.takeoffCleared)) && along(o.pos) < here)) return true;
     return this.runwayOccupants(ac, end).some((o) => {
-      if (o.phase === 'takeoff') return false;
+      if (o.phase === 'takeoff' || waitingBehind(o)) return false;
       return near(o.pos);
     });
   }
@@ -433,6 +460,9 @@ export class TowerAI {
     const end = this.departureEnd(ac);
     if (this.sim.aircraft.some((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing') && this.sameRunway(a, end))) return true;
     const start = this.departureStartAlong(ac);
+    // Somebody lining up in front of it (e.g. at an intersection) - perhaps not on the runway yet, but its line-up point is.
+    const along = (p: { x: number; y: number }) => this.sim.airport.runwayCoordinates(end, p).along;
+    if (this.sim.aircraft.some((o) => o !== ac && o.phase === 'lineup' && !o.stoppedAt && this.sameRunway(o, end) && o.path && along(o.path.pointAt(o.path.length)) >= start - BEHIND_MARGIN_M)) return true;
     return this.runwayOccupants(ac, end).some((o) => {
       const standing = o.phase === 'lineup' || o.phase === 'holding' || o.speed < 1;
       return !(standing && this.sim.airport.runwayCoordinates(end, o.pos).along < start - BEHIND_MARGIN_M);
@@ -1070,7 +1100,8 @@ export class TowerAI {
       // Newly entered the runway area. Only taxiing traffic can cause an incursion.
       if (ac.phase !== 'taxi') continue;
       const arrival = this.nearestArrivalNm(end);
-      const rolling = sim.aircraft.find((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing' || a.phase === 'lineup') && this.sameRunway(a, end));
+      // An aircraft lined up and waiting (no take-off clearance) does not make a crossing an incursion.
+      const rolling = sim.aircraft.find((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing' || (a.phase === 'lineup' && !this.waitingLinedUp(a))) && this.sameRunway(a, end));
       if (arrival < 2.5 || rolling) {
         const reason = rolling ? `${rolling.callsign} is using the runway` : `traffic on ${arrival.toFixed(1)} NM final`;
         sim.incident('incursion', `RUNWAY INCURSION: ${ac.callsign} entered runway ${end.runway} while ${reason}.`, [ac.callsign]);

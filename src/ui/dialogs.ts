@@ -1,3 +1,5 @@
+import { perform, type SavedSession } from '../core/session';
+import { deleteSession, downloadSession, formatDuration, listSessions, loadStats, readSessionFile } from './sessionStore';
 import type { AirportData, StationType } from '../core/airport/types';
 import { runwayChoices, runwayEndsOf } from '../core/runways';
 import { altimeterOf, formatMetar, qnhFromAltimeter } from '../core/met';
@@ -39,6 +41,8 @@ export interface LoginResult {
   scenario?: Scenario;
   /** Guided tutorial (sets position and traffic itself). */
   tutorial?: TutorialId;
+  /** A saved session to continue (everything else comes from it). */
+  saved?: SavedSession;
 }
 
 /** EuroScope-like "connect" dialog: pick airport, position and traffic. The runway follows the wind (ATIS). */
@@ -206,6 +210,39 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       });
       return b;
     });
+    // Saved sessions: continue one stored in this browser, or one from a downloaded file.
+    const resolveSaved = (s: SavedSession) => {
+      const ap = airports.find((x) => x.icao === s.airport);
+      if (!ap) return `Unknown airport ${s.airport}.`;
+      overlay.remove();
+      resolve({ airport: ap, position: s.config.position, positions: s.config.positions ?? [s.config.position], density: s.config.density, eventLevel: s.config.eventLevel ?? 0, start: s.config.start ?? 'empty', saved: s });
+      return undefined;
+    };
+    const savedBtn = h('button', { type: 'button' });
+    const updateSavedBtn = () => {
+      const n = listSessions().length;
+      savedBtn.textContent = `Saved sessions (${n})`;
+      savedBtn.disabled = !n;
+    };
+    updateSavedBtn();
+    savedBtn.addEventListener('click', () => showSavedSessions(resolveSaved, updateSavedBtn));
+    const fileInput = h('input', { type: 'file', accept: '.json,application/json', hidden: true });
+    const fileBtn = h('button', { type: 'button', text: 'Load file...', title: 'Continue a session you downloaded (SAVE > Download)' });
+    const fileError = h('div.sub.error');
+    fileBtn.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', async () => {
+      const file = fileInput.files?.[0];
+      if (!file) return;
+      try {
+        const err = resolveSaved(await readSessionFile(file));
+        if (err) fileError.textContent = err;
+      } catch (e) {
+        fileError.textContent = (e as Error).message;
+      }
+      fileInput.value = '';
+    });
+    const totals = loadStats();
+    const statsLine = totals.controlSeconds >= 60 ? `Your time on position: ${formatDuration(totals.controlSeconds)} in ${totals.sessions} session${totals.sessions === 1 ? '' : 's'} (${formatDuration(totals.simulatedSeconds)} of traffic).` : '';
     const form = h(
       'form.dialog',
       {},
@@ -236,11 +273,15 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
           h('div.rangerow', {}, seedInput, builderBtn),
           h('label', { text: 'Tutorial' }),
           h('div.positions', {}, ...tutorialButtons),
+          h('label', { text: 'Continue' }),
+          h('div.positions', {}, savedBtn, fileBtn, fileInput),
         ),
+        fileError,
         h('div.sub', { text: 'New here? A tutorial guides you step by step through a first session as Delivery, Ground or Tower (about 5-15 minutes each).' }),
         scenarioInfo,
         h('div.sub', { text: 'The runway in use is chosen from the wind. You can change it at any time in the ATIS (click ATIS in the toolbar).' }),
         notice,
+        statsLine ? h('div.sub', { text: statsLine }) : null,
         h('div.actions', {}, h('a', { href: `${REPO_URL}#readme`, target: '_blank', rel: 'noopener', text: 'Documentation' }), connect),
       ),
     );
@@ -278,6 +319,55 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     update();
     connect.focus();
   });
+}
+
+/** The saved sessions of this browser: continue, download or delete one. */
+function showSavedSessions(onLoad: (s: SavedSession) => string | undefined, onChange: () => void): void {
+  const body = h('div.saved-list');
+  const error = h('div.sub.error');
+  const close = h('button', { type: 'button', text: 'Close' });
+  const dialog = h('div.dialog.saved-sessions', {}, h('div.dtitle', {}, h('span', { text: 'Saved sessions' })), h('div.dbody', {}, body, error, h('div.actions', {}, close)));
+  const overlay = h('div.overlay.saved-overlay', {}, dialog);
+  const render = () => {
+    const list = listSessions();
+    body.replaceChildren(
+      ...(list.length
+        ? list.map((s) => {
+            const load = h('button.primary', { type: 'button', text: 'Continue' });
+            const dl = h('button', { type: 'button', text: 'Download', title: 'Save it as a file (to keep it, or to continue on another device)' });
+            const del = h('button', { type: 'button', text: '\u00d7', title: 'Delete' });
+            load.addEventListener('click', () => {
+              const err = onLoad(s);
+              if (err) error.textContent = err;
+              else overlay.remove();
+            });
+            dl.addEventListener('click', () => downloadSession(s));
+            del.addEventListener('click', () => {
+              deleteSession(s.id);
+              onChange();
+              render();
+            });
+            const saved = new Date(s.savedAt);
+            return h(
+              'div.saved-row',
+              {},
+              h(
+                'div.saved-info',
+                {},
+                h('b', { text: s.name }),
+                h('span.dim', { text: `${s.summary.positions} - ${s.summary.utc}Z - score ${s.summary.score} - on position ${formatDuration(s.controlSeconds, true)} - saved ${saved.toLocaleDateString()} ${saved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` }),
+              ),
+              load,
+              dl,
+              del,
+            );
+          })
+        : [h('div.sub', { text: 'No saved sessions in this browser.' })]),
+    );
+  };
+  close.addEventListener('click', () => overlay.remove());
+  render();
+  document.body.append(overlay);
 }
 
 const TOWER_REFERENCE: [string, string][] = [
@@ -323,6 +413,7 @@ const REFERENCE: [string, string][] = [
   ['cancel pushback / stop pushback / continue pushback', 'Cancel a pushback (a moving aircraft is towed back onto the stand), stop a moving pushback, resume it.'],
   ['taxi to holding point A [runway 25] via L2, S', 'Taxi to a runway holding point along the given taxiways. Two-letter taxiways (Gatwick AN, NA) typed as they are or spoken letter by letter ("november alpha").'],
   ['taxi to runway 25 via L2, S', 'Taxi to the runway; the pilot picks the full-length holding point.'],
+  ['Taxi to menu: destination > Hold short of L2', 'Click a destination for the whole route; its sub-menu limits it ("..., hold short of taxiway L2"). Tower only taxis a vacated arrival on to such a limit, the stand is Ground\'s.'],
   ['taxi to stand 14 via N, L2', 'Taxi an arrival to its stand. Lettered stands: "taxi to stand G1" / "stand golf 1" (Sylt), "stand R2S" / "stand romeo 2 sierra", "stand 24 alpha november" (Wellington).'],
   ['turn around, taxi to stand 208', 'The route starts the other way round: an airliner needs a tug for it (several minutes), a small aircraft turns on the spot. Resolve conflict uses it.'],
   ['taxi to de-icing pad DP2 via N', 'Winter scenarios (de-icing): taxi a departure that requests de-icing to a pad first (DP1-DP4; "taxi to de-icing" = a free pad). Status DEICE for 6-10 min, then "de-icing complete, ready for taxi" - now taxi it to the runway. Before that, crews refuse the runway.'],
@@ -371,22 +462,24 @@ const KEYS: [string, string][] = [
   ['Right click', 'Aircraft menu (pushback, taxi, handoff, ...)'],
   ['Double click on list row', 'Centre the scope on the aircraft'],
   ['Click a tag item', 'Callsign: flight plan + telephony; cleared-to: taxi menu; status: aircraft menu'],
-  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use - with parallel runways both together or one alone -, wind and gusts, QNH, information letter). The wind changes with the weather: a new METAR every 30 minutes, the ATIS letter turns red when it no longer matches, and a tailwind above 5 kt brings a runway change hint. "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
+  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use - with parallel runways both together or one alone -, wind and gusts, QNH, information letter; TRANSFER copies wind and QNH from the METAR). The wind changes with the weather: a new METAR every 30 minutes, the ATIS letter turns red when it no longer matches, and a tailwind above 5 kt brings a runway change hint. "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
   ['2215L after the UTC time', 'Local time, shown with night flying restrictions: jets must be airborne by 2300 local, landings until 2330 (delayed flights until 2400)'],
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
   ['ROT (toolbar)', 'Rotate the scope: runway horizontal like the aerodrome chart / north-up'],
   ['BRIEFING (toolbar)', 'Airport briefing: your position, runway in use, flows, entries and exits, typical routes, stands, hot spots'],
   ['x (command line)', 'Clear the command line'],
-  ['ROGER (sidebar) / roger', 'Acknowledge the call of the selected aircraft (or the last caller): no read-back, it stops flashing and waits 4 minutes before calling again.'],
+  ['ROGER (sidebar) / roger', 'Acknowledge the call of the selected aircraft (or the last caller): no read-back, it stops flashing and waits 4 minutes before calling again; the request stays open, its waiting time runs on.'],
   ['Aircraft menu: Request hand-off to TWR / GND', 'Ask the position the simulator runs for an aircraft now (e.g. a departure still with Ground, an arrival still with Approach).'],
   ['COORD (toolbar)', 'Landline to Approach / Ground: no more arrivals, or hold all departures, to make room. -2 points per minute each while it is on.'],
   ['Tutorial panel (tutorials only)', 'Shows the current step. "Show me" selects the aircraft and puts the example instruction into the command line; Back shows the previous step again, Next goes on (or skips the task), Skip tutorial ends it and starts live traffic; tap the title to fold it away. The panel disappears when the tutorial is finished. Start a tutorial in the Connect dialog.'],
   ['Start (Connect dialog)', 'Empty airport: the session starts with only the parked aircraft. Take over: the simulator works the airport for 20 minutes first, so you take over traffic that is already taxiing, departing and on approach; the crews on your frequency call you again with their next request'],
+  ['SAVE (toolbar)', 'Save the session (or download it as a file); continue it with "Saved sessions" or "Load file..." in the Connect dialog. Also kept automatically as the Autosave. ON 0:42:10 next to the clock is your time on position.'],
   ['DISCONNECT (toolbar)', 'Debriefing of the session (what earned and what cost points, answer times, incidents, advice), then continue or end the session'],
   ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL and the ILS (localizer, glide path); switch them on or off. A runway without an ILS (Sylt 14) is always flown as an RNP approach'],
   ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, traffic density, special events'],
   ['Mobile mode: tap / tap again / long press', 'Select the aircraft / open its menu (or the tag item) / open its menu; + and - buttons zoom'],
+  ['Mobile mode: quick-action bar', 'The same buttons for every aircraft of a position (DEL, GND, TWR), greyed out what does not apply; buttons and menu choices are picked into the command line and sent together with SEND'],
 ];
 
 export type HelpTab = 'briefing' | 'phraseology' | 'controls';
@@ -541,6 +634,16 @@ export function showAtisEditor(sim: Simulation): void {
   };
   [dir, spd, gust, qnh, rwySel, letterSel].forEach((el) => el.addEventListener('input', update));
   update();
+  // TRANSFER: wind (with gusts) and QNH of the latest METAR into the form.
+  const transfer = h('button', { type: 'button', text: 'TRANSFER', title: 'Copy wind, gusts and QNH of the METAR into the ATIS' });
+  transfer.addEventListener('click', () => {
+    const m = sim.metar;
+    dir.value = String(m.wind.direction);
+    spd.value = String(m.wind.speedKt);
+    gust.value = m.wind.gustKt ? String(m.wind.gustKt) : '';
+    qnh.value = sim.faa ? (Number(altimeterOf(m.qnh)) / 100).toFixed(2) : String(m.qnh);
+    update();
+  });
 
   const apply = h('button.primary', { type: 'submit', text: 'Broadcast ATIS' });
   const cancel = h('button', { type: 'button', text: 'Cancel' });
@@ -552,7 +655,7 @@ export function showAtisEditor(sim: Simulation): void {
     h(
       'div.dbody',
       {},
-      h('div.metar', { text: formatMetar(sim, sim.metar) }),
+      h('div.metar-row', {}, h('div.metar', { text: formatMetar(sim, sim.metar) }), transfer),
       ...(diffs.length ? [h('div.sub.changed', { text: `Changed since information ${a.letter}: ${diffs.join(', ')}` })] : []),
       h(
         'div.atis-form',
@@ -576,12 +679,7 @@ export function showAtisEditor(sim: Simulation): void {
   cancel.addEventListener('click', () => overlay.remove());
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    sim.updateAtis({
-      letter: letterSel.value,
-      runway: rwySel.value,
-      wind: windOf(),
-      qnh: qnhOf(),
-    });
+    perform(sim, { k: 'atis', change: { letter: letterSel.value, runway: rwySel.value, wind: windOf(), qnh: qnhOf() } });
     overlay.remove();
   });
   document.body.append(overlay);

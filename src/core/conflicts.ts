@@ -419,7 +419,8 @@ export function updateRunwayAlerts(sim: Simulation): void {
       continue;
     }
     const end = sim.tower.endFor(active);
-    const occupied = sim.tower.runwayBusy(ac, end);
+    // An aircraft lined up and waiting (no take-off clearance) is no conflict for a crossing.
+    const occupied = sim.tower.runwayBusyForCrossing(ac, end);
     const eta = sim.tower.nextArrivalEta(end);
     if (!occupied && eta > RMCA_ARRIVAL_S) continue;
     const key = hp.id;

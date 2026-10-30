@@ -531,6 +531,15 @@ button.mic.listening {
   margin: 0 0 8px;
   white-space: pre-wrap;
 }
+/* ATIS editor: the METAR with the TRANSFER button next to it. */
+.dialog .metar-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.dialog .metar-row .metar {
+  flex: 1;
+}
 .dialog pre.datis {
   border-left: 2px solid var(--panel-border);
   padding-left: 8px;
@@ -667,6 +676,19 @@ button.mic.listening {
   border-style: dashed;
   color: var(--text-dim);
   text-decoration: line-through;
+}
+/* "+": take over another position. */
+.toolbar .stn-add {
+  cursor: pointer;
+  margin-left: 6px;
+  padding: 0 6px;
+  border: 1px dashed var(--panel-border);
+  border-radius: 3px;
+  font-weight: bold;
+}
+.toolbar .stn-add:hover {
+  border-color: var(--accent);
+  color: var(--accent);
 }
 .toolbar .combined-tag {
   color: #c9bfff;
@@ -1025,6 +1047,11 @@ body.mobile .quickbar button {
   min-height: 40px;
   min-width: 56px;
 }
+/* The position whose buttons the bar shows (DEL, GND, TWR). */
+body.mobile .quickbar .qpos {
+  color: var(--text-dim);
+  margin-right: 4px;
+}
 /* A picked phrase: sent with SEND, together with the other picked ones. */
 body.mobile .quickbar button.picked {
   background: var(--accent);
@@ -1342,4 +1369,43 @@ body.mobile .tutorial {
 .dialog .levelrow .level-val {
   min-width: 150px;
   color: var(--text);
+}
+
+/* ------------------------------------------------------------------ saved sessions */
+.overlay.saved-overlay {
+  z-index: 1100;
+}
+.dialog.saved-sessions {
+  width: min(640px, calc(100vw - 32px));
+}
+.saved-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.saved-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-bottom: 1px solid var(--panel-border);
+  padding-bottom: 6px;
+}
+.saved-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.saved-info .dim {
+  color: var(--text-dim);
+  font-size: 11px;
+}
+.dialog .sub.error {
+  color: var(--warn);
+}
+.dialog.restoring {
+  min-width: 280px;
 }

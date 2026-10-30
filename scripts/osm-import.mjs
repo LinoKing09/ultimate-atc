@@ -93,7 +93,15 @@ for (const m of xml.matchAll(/<relation\b([^>]*?)>([\s\S]*?)<\/relation>/g)) {
 
 // ------------------------------------------------------------------ local projection (metres around the first runway)
 const R = 6371008.8;
-const runwayWays = ways.filter((w) => w.tags.aeroway === 'runway' && /^\d{2}[LRC]?\/\d{2}[LRC]?$/.test(w.tags.ref ?? '') && !excludeWays.has(w.id));
+const isRunwayRef = (w) => /^\d{2}[LRC]?\/\d{2}[LRC]?$/.test(w.tags.ref ?? '');
+// Displaced-threshold parts mapped as runway ways of their own without a ref (London Gatwick) take the ref of the
+// runway they continue.
+for (const w of ways.filter((x) => x.tags.aeroway === 'runway' && x.tags.runway === 'displaced_threshold' && !x.tags.ref && x.tags.area !== 'yes')) {
+  const ends = [w.nds[0], w.nds[w.nds.length - 1]];
+  const main = ways.find((x) => x.tags.aeroway === 'runway' && isRunwayRef(x) && ends.some((n) => n === x.nds[0] || n === x.nds[x.nds.length - 1]));
+  if (main) w.tags = { ...w.tags, ref: main.tags.ref };
+}
+const runwayWays = ways.filter((w) => w.tags.aeroway === 'runway' && isRunwayRef(w) && !excludeWays.has(w.id));
 if (!runwayWays.length) throw new Error('no runway centre line with a ref like 06/24');
 const ref0 = nodes.get(runwayWays[0].nds[0]);
 const k = Math.cos((ref0.lat * Math.PI) / 180);

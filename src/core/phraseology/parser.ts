@@ -342,9 +342,17 @@ function readStand(c: Cursor): string | undefined {
 }
 
 /** Reads a holding point / taxiway designator: "g1", "g 1", "n", "a12". */
-function readDesignator(c: Cursor): string | undefined {
+function readDesignator(c: Cursor, known?: Set<string>): string | undefined {
   const t = c.peek();
   if (!t) return undefined;
+  // Two-letter taxiways the airport has (London Gatwick AN, NA, QA, BR, ...): typed "na", spoken "november alpha".
+  if (known && /^[a-z]{2}\d{0,2}$/.test(t) && known.has(t.toUpperCase())) {
+    c.next();
+    return t.toUpperCase();
+  }
+  if (known && /^[a-z]$/.test(t) && /^[a-z]\d{0,2}$/.test(c.peek(1) ?? '') && known.has(`${t}${c.peek(1)}`.toUpperCase())) {
+    return `${c.next()}${c.next()}`.toUpperCase();
+  }
   // Apron taxilanes with a sub-number: "z4.1", "zulu 4 point 1" (Leipzig Z4.1).
   if (/^[a-z]\d{1,2}\.\d$/.test(t)) {
     c.next();
@@ -539,7 +547,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       return r ? { kind: 'runway', runway: r } : undefined;
     }
     c.accept('taxiway');
-    const d = readDesignator(c);
+    const d = readDesignator(c, ctx.taxiways);
     return d ? { kind: 'taxiway', name: readGuideLine(d) } : undefined;
   };
 
@@ -558,7 +566,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       if (c.accept('and') || c.accept('then')) {
         // "via N and D" - allow, but "and" may also start a new clause; check what follows
         const p = c.peek();
-        if (!p || !/^[a-z]\d{0,2}$/.test(p) || !ctx.taxiways.has(p.toUpperCase())) {
+        if (!p || !/^[a-z]{1,2}\d{0,2}$/.test(p) || !ctx.taxiways.has(p.toUpperCase())) {
           c.i--;
           break;
         }
@@ -567,7 +575,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       const p = c.peek();
       if (!p || KEYWORDS.has(p)) break;
       const save = c.i;
-      const d = readDesignator(c);
+      const d = readDesignator(c, ctx.taxiways);
       if (!d) break;
       if (!ctx.taxiways.has(d) && /\d/.test(d) && ctx.taxiways.has(d[0])) {
         // "n 2" misread as N2 at an airport without N2 - keep the letter only
@@ -582,7 +590,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
   const readTaxiDestination = (): TaxiDestination | undefined => {
     if (c.accept('holding') || c.acceptSeq('hold', 'point')) {
       c.accept('point', 'position');
-      const name = readDesignator(c);
+      const name = readDesignator(c, ctx.taxiways);
       if (!name) return undefined;
       let runway: string | undefined;
       if (c.peek() === 'runway') {
@@ -597,7 +605,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       // "runway 25 at G1" / "runway 25 intersection F"
       if (c.accept('at', 'intersection', 'via')) {
         const save = c.i;
-        const hp = readDesignator(c);
+        const hp = readDesignator(c, ctx.taxiways);
         if (hp && /\d/.test(hp)) return { kind: 'holdingPoint', name: hp, runway: r };
         c.i = save;
         if (c.t[c.i - 1] === 'via') c.i--;
@@ -1060,7 +1068,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       while (!c.done() && !['able', 'accept'].includes(c.peek()!)) c.next();
       c.next();
       while (!c.done() && ABLE_FILLER.has(c.peek()!)) c.next();
-      const name = readDesignator(c);
+      const name = readDesignator(c, ctx.taxiways);
       if (name) {
         c.accept('runway');
         if (/^\d{2}[lrc]?$/.test(c.peek() ?? '')) readRunway(c);

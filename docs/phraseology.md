@@ -92,6 +92,16 @@ Caribbean (St. Maarten):
 
 At St. Maarten there is no Ground: Delivery hands the crews to the Tower (`contact tower`), which also gives the taxi instructions.
 
+United Kingdom (London Gatwick):
+
+| ICAO | Telephony | ICAO | Telephony | ICAO | Telephony      |
+| ---- | --------- | ---- | --------- | ---- | -------------- |
+| EZY  | Easy      | WUK  | Wizz Go   | TOM  | Tomson         |
+| EXS  | Channex   | ICE  | Iceair    | TAP  | Air Portugal   |
+| RAM  | Royalair Maroc |  |         |      |                |
+
+Two-letter taxiways (Gatwick AN, AS, NA, QA, BR, ER, FR, GR, ...) are typed as they are (`taxi to holding point M1 via J, AN, AS`) or spoken letter by letter (`via november alpha, papa, kilo`).
+
 New Zealand (Wellington):
 
 | ICAO | Telephony   | ICAO | Telephony  | ICAO | Telephony |

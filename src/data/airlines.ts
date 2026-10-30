@@ -111,6 +111,14 @@ export const AIRLINES: Airline[] = [
   { icao: 'FJI', telephony: 'Pacific', types: ['B38M'], destinations: ['NFFN'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'SDA', telephony: 'Sounds', types: ['C208', 'PC12'], destinations: ['NZNS', 'NZWB', 'NZPN'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'CVA', telephony: 'Chatham', types: ['AT76'], destinations: ['NZCI'], weight: 1, callsignStyle: 'numeric' },
+  // United Kingdom (London Gatwick).
+  { icao: 'EZY', telephony: 'Easy', types: ['A319', 'A320', 'A20N', 'A21N'], destinations: ['LEMG', 'LPFR', 'LEPA', 'EGPH', 'EGPF', 'EGAA', 'LIRF', 'LEBL', 'LSGG', 'EHAM'], weight: 1, callsignStyle: 'alnum' },
+  { icao: 'WUK', telephony: 'Wizz Go', types: ['A21N', 'A20N'], destinations: ['LROP', 'LHBP', 'LBSF', 'LPFR', 'LCLK'], weight: 1, callsignStyle: 'alnum' },
+  { icao: 'TOM', telephony: 'Tomson', types: ['B738', 'B38M', 'B789'], destinations: ['LEPA', 'GCTS', 'LGIR', 'HEGN', 'MMUN', 'KMCO'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'EXS', telephony: 'Channex', types: ['B738', 'A321'], destinations: ['LEPA', 'GCTS', 'LEAL', 'LTAI', 'LPFR'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'ICE', telephony: 'Iceair', types: ['B38M'], destinations: ['BIKF'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'TAP', telephony: 'Air Portugal', types: ['A20N', 'A320'], destinations: ['LPPT'], weight: 1, callsignStyle: 'numeric' },
+  { icao: 'RAM', telephony: 'Royalair Maroc', types: ['B738', 'B38M'], destinations: ['GMMN'], weight: 1, callsignStyle: 'numeric' },
   { icao: 'NGA', telephony: '', types: ['C56X', 'CL35'], destinations: ['KLAS', 'KSJC', 'KSDL', 'KVNY', 'KTEB'], weight: 1, callsignStyle: 'reg', regPrefix: 'N' },
   { icao: 'DCX', telephony: '', types: ['C56X', 'CL35'], destinations: ['EDDB', 'LFMN', 'LSGG', 'EGLF', 'LIML'], weight: 1, callsignStyle: 'reg' },
 ];

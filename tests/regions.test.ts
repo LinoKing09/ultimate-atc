@@ -15,7 +15,7 @@ describe('airport menu regions', () => {
       expect(r, a.icao).toBeDefined();
       expect(r!.country.name, a.icao).toBe(a.country);
     }
-    expect(Object.fromEntries(AIRPORTS.map((a) => [a.icao, a.fir]))).toEqual({ EDDS: 'EDGG', EDDN: 'EDMM', EDJA: 'EDMM', EDXW: 'EDWW', EDDW: 'EDWW', EDDK: 'EDGG', EDDP: 'EDMM', KSAN: 'KZLA', VTSP: 'VTBB', NZWN: 'NZZC', SEQM: 'SEFG', TNCM: 'TJZS', SLLP: 'SLLF' });
+    expect(Object.fromEntries(AIRPORTS.map((a) => [a.icao, a.fir]))).toEqual({ EDDS: 'EDGG', EDDN: 'EDMM', EDJA: 'EDMM', EDXW: 'EDWW', EDDW: 'EDWW', EDDK: 'EDGG', EDDP: 'EDMM', KSAN: 'KZLA', VTSP: 'VTBB', NZWN: 'NZZC', SEQM: 'SEFG', TNCM: 'TJZS', SLLP: 'SLLF', EGKK: 'EGTT' });
     for (const p of PLANNED_AIRPORTS) {
       expect(regionOf(p.fir), p.icao).toBeDefined();
       expect(AIRPORTS.some((a) => a.icao === p.icao), `${p.icao} is available, remove it from PLANNED_AIRPORTS`).toBe(false);

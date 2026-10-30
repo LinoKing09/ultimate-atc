@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.5.0] - 2026-10-30
+
 ### Added
 
 - **London Gatwick (EGKK)** - the busiest single runway in the world, the first airport in the United Kingdom: runway 08R/26L (3317 m, both thresholds displaced) with up to 55 movements an hour (traffic 1.4 times Stuttgart's per density step), departures from M1, A1, B1, C1 (26L) and J1, H1, G1 (08R) with the take-off runs of the AIP, the rapid exits ER, FR, GR and D, CR, BR; the standby runway 08L/26R drawn (arrivals cross it without a clearance); J along the north side, K and L between the piers, the South Terminal (Piers 1-3) and the North Terminal (Piers 4-6) with all 187 stands of the AIP stand list, remote and cargo stands. Gatwick Delivery, Ground, Tower and Director; the RNAV SIDs X from 26L and Z from 08R to twelve fixes. Traffic of easyJet, British Airways, Wizz Air UK, TUI, Jet2, Vueling, Emirates, Qatar, Turkish, WestJet, Cathay Pacific, JetBlue and others (new operators EZY, WUK, TOM, EXS, ICE, TAP, RAM; 22 new destinations). Built from OpenStreetMap and the UK AIP (NATS); stand sizes estimated. See `docs/airports/EGKK.md`.
@@ -66,6 +68,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- Release benchmark (Tower): the scripted controller cleared a crossing or a second take-off in the same second as a take-off, before the crew had read the first clearance back; it now waits 15 s after its own runway clearance (see `docs/benchmarks.md`).
 - **Two-letter taxiways** in a taxi instruction (`via AN, AS`, `via november alpha`) were not read: the route ended before them, or the crew answered "unable". They are read wherever the airport has them.
 - `number 2 for pushback` (taxi, departure) and `expect ... in N minutes` stop the flashing of the aircraft like `standby` - before, it kept flashing (orange once the request was older than a minute) although the crew waits.
 - **No line-up in front of a departure rolling from behind**: a departure cleared at an intersection (San Diego B2) entered the runway while the one from the full-length entry B1 was cleared for take-off and already rolling towards it - a collision. Aircraft taking off (or cleared and lined up) behind the entry now keep it from lining up.

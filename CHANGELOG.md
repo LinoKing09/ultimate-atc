@@ -12,6 +12,7 @@ All notable changes to this project are documented in this file. The format is b
 ### Changed
 
 - The speed vector line in front of an aircraft on the ground shows only above 40 kt (take-off and landing roll), no longer while taxiing (was 20 kt).
+- An aircraft lined up and waiting (without a take-off clearance) now keeps another departure from lining up only when it stands less than **100 m** behind that one's runway entry (was 150 m).
 
 ## [1.5.1] - 2026-10-30
 

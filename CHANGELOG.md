@@ -64,6 +64,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- `number 2 for pushback` (taxi, departure) and `expect ... in N minutes` stop the flashing of the aircraft like `standby` - before, it kept flashing (orange once the request was older than a minute) although the crew waits.
 - **No line-up in front of a departure rolling from behind**: a departure cleared at an intersection (San Diego B2) entered the runway while the one from the full-length entry B1 was cleared for take-off and already rolling towards it - a collision. Aircraft taking off (or cleared and lined up) behind the entry now keep it from lining up.
 - **Intersection departure in front of a waiting one** (San Diego: cleared at B2 while another departure stands lined up at B1): the crew did not enter the runway, because the one at B1 stood within 400 m - now an aircraft lined up and waiting more than 150 m behind the entry (without a take-off clearance) no longer keeps it from lining up. And a departure cleared for take-off no longer rolls while another one is still lining up onto the runway in front of it (it only checked aircraft already on the runway).
 - **The AI Ground takes on aircraft Tower left at a clearance limit** (e.g. San Diego: `taxi via B, hold short of taxiway B4`, then `contact ground`): before, a departure stood there for good. Now, after 15 s, the AI Ground gives `continue taxi` after a hold-short or hold position, or a new route at a clearance limit - with a tug turnaround if the only way needs a U-turn.

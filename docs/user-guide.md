@@ -199,6 +199,7 @@ The scope is a ground radar showing the aerodrome chart. By default it is rotate
 | Paved areas inside a runway strip      | Drawn like taxiways (Sylt: between D, L and F at the 14 end, between D, M, P and A at the 06 end), but routes go through the holding points |
 | De-icing pads                          | Outlined squares (PHX: blue) with the pad name (`DP1` ... `DP4`), with thin lead lines from N to S |
 | Runway holding positions               | Thick amber bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
+| Other holding position lines           | Thin, faint amber bar: the CAT II/III holding points, those of a runway that is not used (Gatwick J2-J7, H2 / H3, G2 / G3, C3, A3, M3) and intermediate holding positions - labelled with their designator where the chart has one. Drawn only: you cannot taxi aircraft to them as holding points |
 | Stands                                 | Thin yellow lead-in line plus the stand number                                 |
 | Aprons                                 | Dark grey areas (classic: slightly lighter than the background); also paved taxiway areas and helipads |
 | Buildings                              | Dark blue-grey (classic: brown) areas: every building on the aerodrome (OpenStreetMap). Named ones are labelled when you zoom in - each name once, the largest buildings first; a name that would cover a stand number, a taxiway designator or another name is left out |
@@ -241,7 +242,7 @@ Like in EuroScope, **the tag items are clickable**. Hovered items are highlighte
 
 **Hovering over the callsign** adds a line with the radiotelephony callsign below it, so you know how to address the aircraft. The selected aircraft's telephony is also shown in front of the command line (`[BAW947 SPEEDBIRD 947]`).
 
-Airborne aircraft (arrivals on final, departures after take-off) show callsign, type and wake category, altitude in hundreds of feet and speed (`A034 140`), and the approach and runway (`ILS 25`) or the SID, plus a speed vector line.
+Airborne aircraft (arrivals on final, departures after take-off) show callsign, type and wake category, altitude in hundreds of feet and speed (`A034 140`), and the approach and runway (`ILS 25`) or the SID, plus a speed vector line (30 seconds ahead). On the ground the speed vector shows only above 40 kt - on the take-off and landing roll, never while taxiing.
 
 **Compact tags when zoomed out**: below a zoom of 0.6 pixels per metre (about the whole airport in view, the typical Tower picture) every tag shows only the **callsign**, with `*` for a pending request and `PAN` for an emergency, like the minimal (untagged) label of EuroScope. The **selected** aircraft - tap it on a tablet - and the one under the mouse get the full tag; zoom in and all tags are full again. *Settings -> Data tags -> Always full* switches this off. To keep the apron readable, parked aircraft with no pending request only get a tag when you zoom in or select them. **Drag a tag** with the mouse to move it; *Reset tag position* in the aircraft menu puts it back.
 

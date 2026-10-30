@@ -343,6 +343,8 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
   const taxiNodes: TaxiNodeData[] = [];
   // Intermediate holding positions of the charts (OSM holding_position:type=intermediate).
   const intermediate = new Set(layout.holdingPositions.filter((h) => h.type === 'intermediate').map((h) => h.node));
+  // The other holding position lines of the chart (CAT II/III, a runway not used): drawn with their designator.
+  const holdLines = new Map(layout.holdingPositions.map((h) => [h.node, /^[A-Z]{1,2}\d{0,2}[A-Z]?$/.test(h.ref) ? h.ref : '']));
   for (const id of usedIds) {
     if (id.startsWith('STAND_')) continue;
     const at = pos.get(id);
@@ -350,6 +352,7 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
     const n: TaxiNodeData = { id, pos: at };
     if (o.holdingPoints[id]) n.holdingPoint = { name: hpSpec(o.holdingPoints[id]).name, runway: hpSpec(o.holdingPoints[id]).runway };
     else if (intermediate.has(id)) n.intermediateHold = true;
+    if (!o.holdingPoints[id] && holdLines.has(id)) n.holdLine = holdLines.get(id)!;
     taxiNodes.push(n);
   }
   taxiNodes.push(...standNodes);

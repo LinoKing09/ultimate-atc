@@ -219,6 +219,9 @@ interface TagRect {
   items: { item: TagItem; x: number; y: number; w: number; h: number }[];
 }
 
+/** On the ground the speed vector shows only above this speed (kt): never while taxiing, only on the runway. */
+const SPEED_VECTOR_GROUND_KT = 40;
+
 export class Scope {
   /** View centre in local metres and zoom in pixels per metre. */
   private cx = 0;
@@ -854,6 +857,33 @@ export class Scope {
 
     // Holding points
     ctx.font = `${Math.max(9, Math.min(12, 11 * z))}px Consolas, monospace`;
+    // The other holding position lines of the chart (CAT II/III, a runway not used, intermediate): thinner and
+    // fainter, labelled when they have a designator.
+    ctx.save();
+    ctx.globalAlpha = 0.55;
+    for (const node of ap.nodes.values()) {
+      if (node.holdLine === undefined || node.holdingPoint) continue;
+      const ref = node.edges.find((e) => e.kind === 'taxiway' || e.kind === 'taxilane');
+      if (!ref) continue;
+      const verts = ref.from === node ? edgeVertices(ref) : edgeVertices(ref).reverse();
+      const d = sub(verts[1], node.pos);
+      const len = Math.hypot(d.x, d.y) || 1;
+      const n = { x: -d.y / len, y: d.x / len };
+      const half = 11;
+      const a = this.toScreen(add(node.pos, scale(n, half)));
+      const b = this.toScreen(sub(node.pos, scale(n, half)));
+      ctx.strokeStyle = this.t.holdBar;
+      ctx.lineWidth = Math.max(1, 1.5 * z);
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      if (node.holdLine && z > 0.35) {
+        const lp = this.toScreen(add(node.pos, scale(n, half + 12)));
+        this.labelBox(node.holdLine, lp.x, lp.y, this.t.holdBar);
+      }
+    }
+    ctx.restore();
     for (const node of ap.holdingPoints.values()) {
       const strip = node.edges.find((e) => e.kind === 'runwayStrip');
       const other = node.edges.find((e) => e.kind !== 'runwayStrip');
@@ -1111,8 +1141,8 @@ export class Scope {
     }
     this.symbolHits.push({ callsign: ac.callsign, x: p.x, y: p.y, r: Math.max(10, (Math.max(L, S) * k) / 2) });
 
-    // speed vector for airborne / fast traffic
-    if (!ac.onGround || ac.speed > 20 * KT_TO_MS) {
+    // Speed vector for airborne traffic and on the ground above taxi speeds (take-off and landing roll).
+    if (!ac.onGround || ac.speed > SPEED_VECTOR_GROUND_KT * KT_TO_MS) {
       const v = headingVector(ac.heading);
       const ahead = this.toScreen(add(ac.pos, scale(v, ac.speed * 30)));
       ctx.strokeStyle = color;

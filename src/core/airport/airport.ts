@@ -23,6 +23,8 @@ export interface TaxiNode {
   holdingPoint?: { name: string; runway: string };
   /** Intermediate holding position (see TaxiNodeData). */
   intermediateHold?: boolean;
+  /** Holding position line drawn only (see TaxiNodeData). */
+  holdLine?: string;
   edges: TaxiEdge[];
 }
 
@@ -135,6 +137,7 @@ export class Airport {
     for (const n of data.taxiNodes) {
       const node: TaxiNode = { id: n.id, pos: this.proj.toLocal(n.pos), edges: [] };
       if (n.intermediateHold) node.intermediateHold = true;
+      if (n.holdLine !== undefined) node.holdLine = n.holdLine;
       if (n.holdingPoint) {
         node.holdingPoint = { ...n.holdingPoint };
         this.holdingPoints.set(n.holdingPoint.name.toUpperCase(), node);

@@ -230,6 +230,12 @@ export interface TaxiNodeData {
    * taxiway X" stops here when it is the last one before X.
    */
   intermediateHold?: boolean;
+  /**
+   * Another holding position line of the chart that the simulation does not use as a runway holding point (CAT
+   * II/III holding points, those of a runway that is not used, intermediate holding positions): drawn only, with
+   * its designator ('' none).
+   */
+  holdLine?: string;
 }
 
 export type TaxiEdgeKind =

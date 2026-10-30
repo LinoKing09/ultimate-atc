@@ -2,6 +2,7 @@ import type { Simulation } from '../core/simulation';
 import { h } from './dom';
 import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
 import { levelSlider } from './levelSlider';
+import { dropdown, segmented } from './pickers';
 import { defaultSettings, saveSettings, type Settings } from './settings';
 
 const PHONE_ICON =
@@ -55,16 +56,12 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
     });
     return h('div.rangerow', {}, el, out);
   };
-  const select = <T extends string>(value: T, options: [T, string][], set: (v: T) => void) => {
-    const el = h('select');
-    for (const [v, label] of options) el.append(h('option', { value: v, text: label }));
-    el.value = value;
-    el.addEventListener('change', () => {
-      set(el.value as T);
+  // A few choices as buttons, more as the app's own drop-down list.
+  const select = <T extends string>(value: T, options: [T, string][], set: (v: T) => void) =>
+    (options.length <= 3 ? segmented : dropdown)(options.map(([v, label]) => ({ value: v, label })), value, (v) => {
+      set(v);
       changed();
-    });
-    return el;
-  };
+    }).el;
   const pct = (v: number) => `${Math.round(v * 100)} %`;
 
   // Device switch: phone on the left, laptop on the right.
@@ -124,15 +121,15 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
         [
           'Scope orientation',
           select(settings.runwayAligned ? 'runway' : 'north', [
-            ['runway', 'Runway horizontal (chart)'],
+            ['runway', 'Runway horizontal'],
             ['north', 'North up'],
           ], (v) => (settings.runwayAligned = v === 'runway')),
         ],
         [
           'Scope style',
           select(settings.scopeStyle, [
-            ['phx-night', 'PHX night (VATSIM Germany)'],
-            ['phx-day', 'PHX day (VATSIM Germany)'],
+            ['phx-night', 'PHX night'],
+            ['phx-day', 'PHX day'],
             ['classic', 'Classic'],
           ], (v) => (settings.scopeStyle = v)),
           'PHX: the EuroScope ground radar of VATSIM Germany, modelled on the DFS PHOENIX tower display - departures blue, arrivals yellow, radar returns with an SSR symbol and history dots, PHX ground states (SUG, PBG, TXG, TX, ALU, DEP, ONB)',

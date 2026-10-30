@@ -11,6 +11,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- **ATIS editor: the runways as a list** instead of drop-down lists - one row per runway with check boxes *In use*, *Landings* and *Take-offs* (mixed, segregated and semi-mixed operation follow from them), the head-/tailwind and crosswind, the approach and the TORA of each runway; the approach mode as buttons, the information letter as a stepper (◀ / ▶, arrow keys or the letter).
+- **No more browser drop-down lists**: few choices are buttons (settings: data tags, scope orientation, scope style; scenario builder: runway in use), longer lists open the app's own list (recognition accent, scheduled event), with arrow keys, Enter and Escape.
 - The speed vector line in front of an aircraft on the ground shows only above 40 kt (take-off and landing roll), no longer while taxiing (was 20 kt).
 - An aircraft lined up and waiting (without a take-off clearance) now keeps another departure from lining up only when it stands less than **100 m** behind that one's runway entry (was 150 m).
 

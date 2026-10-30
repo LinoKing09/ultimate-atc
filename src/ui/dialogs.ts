@@ -1,7 +1,8 @@
 import { perform, type SavedSession } from '../core/session';
 import { deleteSession, downloadSession, formatDuration, listSessions, loadStats, readSessionFile } from './sessionStore';
 import type { AirportData, StationType } from '../core/airport/types';
-import { allowedApproachModes, arrivalEnds, parallelRoleChoices, runwayChoices, runwayEndsOf, sameRoles, type ParallelUse } from '../core/runways';
+import { allowedApproachModes, roleOf, runwayEndsOf, sameRoles, usRunway, type ParallelUse } from '../core/runways';
+import { segmented, stepper } from './pickers';
 import type { ParallelApproachMode } from '../core/airport/types';
 import { altimeterOf, formatMetar, qnhFromAltimeter } from '../core/met';
 import { describeScenario, parseScenarioCode, type Scenario } from '../core/scenario';
@@ -463,7 +464,7 @@ const KEYS: [string, string][] = [
   ['Right click', 'Aircraft menu (pushback, taxi, handoff, ...)'],
   ['Double click on list row', 'Centre the scope on the aircraft'],
   ['Click a tag item', 'Callsign: flight plan + telephony; cleared-to: taxi menu; status: aircraft menu'],
-  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (runway in use - with parallel runways both together or one alone, mixed, segregated or semi-mixed, with independent, dependent or staggered approaches -, wind and gusts, QNH, information letter; TRANSFER copies wind and QNH from the METAR). The wind changes with the weather: a new METAR every 30 minutes, the ATIS letter turns red when it no longer matches, and a tailwind above 5 kt brings a runway change hint. "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
+  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (the runways as a list: tick the runways in use and what each is used for - landings, take-offs -, with parallel runways the approach mode; wind and gusts, QNH, information letter; TRANSFER copies wind and QNH from the METAR). The wind changes with the weather: a new METAR every 30 minutes, the ATIS letter turns red when it no longer matches, and a tailwind above 5 kt brings a runway change hint. "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
   ['2215L after the UTC time', 'Local time, shown with night flying restrictions: jets must be airborne by 2300 local, landings until 2330 (delayed flights until 2400)'],
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
@@ -586,49 +587,105 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
  */
 export function showAtisEditor(sim: Simulation): void {
   const a = sim.atis;
-  const letterSel = h('select');
-  for (let i = 0; i < 26; i++) {
-    const l = String.fromCharCode(65 + i);
-    letterSel.append(h('option', { value: l, text: l }));
-  }
-  letterSel.value = a.letter === 'Z' ? 'A' : String.fromCharCode(a.letter.charCodeAt(0) + 1);
-  const rwySel = h('select');
-  // Parallel runways used together first ("Runways 26R + 26L"), then each runway on its own.
-  for (const c of runwayChoices(sim.config.airport)) rwySel.append(h('option', { value: c.key, text: c.label }));
-  rwySel.value = a.runway;
-  // Parallel runways: how they share the traffic, and the approach mode the runway spacing allows.
-  const useSel = h('select.span3');
-  const apprSel = h('select.span3');
-  const APPROACH_LABELS: Record<ParallelApproachMode, string> = {
-    independent: 'Independent (no spacing between the finals)',
-    dependent: 'Dependent (1.5 NM diagonal between the finals)',
-    staggered: 'Staggered (3 NM between the finals)',
-  };
-  const useRow = [h('label', { text: 'Operation' }), useSel];
-  const apprRow = [h('label', { text: 'Approaches' }), apprSel];
-  /** Fills the operation and approach choices for the selected runways (keeping the current choice where it fits). */
-  const fillUse = () => {
-    const ends = runwayEndsOf(rwySel.value);
-    const current = rwySel.value === a.runway ? a.use : sim.checkedUse(rwySel.value, undefined);
-    const choices = parallelRoleChoices(ends);
-    useSel.replaceChildren(...choices.map((c, i) => h('option', { value: String(i), text: c.label })));
-    useSel.value = String(Math.max(0, choices.findIndex((c) => current && sameRoles(c.roles, current.roles, ends))));
-    const allowed = allowedApproachModes(sim.airport, ends);
-    apprSel.replaceChildren(
-      ...(['independent', 'dependent', 'staggered'] as ParallelApproachMode[]).map((m) =>
-        h('option', { value: m, text: allowed.includes(m) ? APPROACH_LABELS[m] : `${APPROACH_LABELS[m]} - runways too close`, ...(allowed.includes(m) ? {} : { disabled: 'true' }) }),
-      ),
-    );
-    apprSel.value = current?.approaches ?? allowed[0] ?? 'staggered';
-    for (const el of useRow) el.hidden = ends.length < 2;
-  };
+  // Information letter: a stepper (A-Z), pre-set to the next letter.
+  const LETTERS = Array.from({ length: 26 }, (_, i) => String.fromCharCode(65 + i));
+  const letter = stepper(LETTERS, a.letter === 'Z' ? 'A' : String.fromCharCode(a.letter.charCodeAt(0) + 1), () => update());
+
+  // Runways: one row per runway end that can be used, with check boxes for "in use", landings and take-offs.
+  const ap = sim.config.airport;
+  const allEnds = ap.runwayOps.map((o) => o.runway);
+  const sets = (ap.parallelRunways ?? []).map((p) => p.ends);
+  let inUse = runwayEndsOf(a.runway);
+  /** Landings / take-offs per runway end in use. */
+  const roles = new Map<string, { ldg: boolean; to: boolean }>();
+  for (const e of inUse) roles.set(e, { ldg: roleOf(a.use, e) !== 'departures', to: roleOf(a.use, e) !== 'arrivals' });
+  /** The runway key of the ends in use, in the order of their parallel runway set ("26R+26L"). */
+  const keyOf = () => (inUse.length > 1 ? (sets.find((st) => inUse.every((e) => st.includes(e)))!.filter((e) => inUse.includes(e)).join('+')) : inUse[0]);
+  const APPROACHES: { value: ParallelApproachMode; label: string; title: string }[] = [
+    { value: 'independent', label: 'Independent', title: 'No separation between the finals (runways at least 1035 m apart)' },
+    { value: 'dependent', label: 'Dependent', title: '1.5 NM diagonal between the finals (runways at least 915 m apart)' },
+    { value: 'staggered', label: 'Staggered', title: '3 NM between the finals' },
+  ];
+  const appr = segmented<ParallelApproachMode>(APPROACHES, a.use?.approaches ?? sim.checkedUse(keyOf(), undefined)?.approaches ?? 'staggered', () => update());
+  const apprRow = h('div.atis-form', {}, h('label', { text: 'Approaches' }), h('div.span3', {}, appr.el));
   const useOf = (): ParallelUse | undefined => {
-    const ends = runwayEndsOf(rwySel.value);
-    if (ends.length < 2) return undefined;
-    const roles = parallelRoleChoices(ends)[Number(useSel.value)]?.roles ?? {};
-    return sim.checkedUse(rwySel.value, { roles, approaches: apprSel.value as ParallelApproachMode });
+    if (inUse.length < 2) return undefined;
+    const r: ParallelUse['roles'] = {};
+    for (const e of inUse) {
+      const x = roles.get(e)!;
+      if (!x.ldg) r[e] = 'departures';
+      else if (!x.to) r[e] = 'arrivals';
+    }
+    return sim.checkedUse(keyOf(), { roles: r, approaches: appr.get() });
   };
-  fillUse();
+  const rwyTable = h('table.rwy-table');
+  const box = (checked: boolean, disabled: boolean, title: string, onToggle: (on: boolean) => boolean) => {
+    const el = h('input', { type: 'checkbox', title, disabled });
+    el.checked = checked;
+    // The handler says whether the change is allowed; else the box springs back.
+    el.addEventListener('change', () => {
+      if (!onToggle(el.checked)) el.checked = !el.checked;
+      update();
+    });
+    return el;
+  };
+  const toggleInUse = (e: string, on: boolean): boolean => {
+    if (on) {
+      const candidate = [...inUse, e];
+      inUse = sets.some((st) => candidate.every((x) => st.includes(x))) ? candidate : [e];
+      for (const x of [...roles.keys()]) if (!inUse.includes(x)) roles.delete(x);
+      roles.set(e, { ldg: true, to: true });
+      return true;
+    }
+    if (inUse.length < 2) return false;
+    inUse = inUse.filter((x) => x !== e);
+    roles.delete(e);
+    // One runway left: it takes landings and take-offs.
+    if (inUse.length === 1) roles.set(inUse[0], { ldg: true, to: true });
+    return true;
+  };
+  const toggleRole = (e: string, role: 'ldg' | 'to', on: boolean): boolean => {
+    const x = roles.get(e)!;
+    const next = { ...x, [role]: on };
+    if (!next.ldg && !next.to) return false;
+    const all = inUse.map((y) => (y === e ? next : roles.get(y)!));
+    if (!all.some((y) => y.ldg) || !all.some((y) => y.to)) return false;
+    roles.set(e, next);
+    return true;
+  };
+  const renderRunways = (wind: { direction: number; speedKt: number }) => {
+    const single = inUse.length < 2;
+    rwyTable.replaceChildren(
+      h('tr', {}, ...['Runway', 'In use', 'Landings', 'Take-offs', 'Wind', 'Approach', 'TORA'].map((t) => h('th', { text: t }))),
+      ...allEnds.map((e) => {
+        const used = inUse.includes(e);
+        const x = roles.get(e);
+        const c = sim.windComponents(e, wind);
+        const hw = Math.round(c.headwind);
+        const windCell = h('td.wind', { text: `${hw >= 0 ? `head ${hw}` : `tail ${-hw}`} / x ${Math.abs(Math.round(c.crosswind))}` });
+        windCell.classList.toggle('bad', hw < -5);
+        const end = sim.airport.runwayEnd(e);
+        const row = h(
+          'tr',
+          {},
+          h('td.rwy', { text: sim.faa ? usRunway(e) : e }),
+          h('td', {}, box(used, false, used ? 'In use - untick to take it out of use' : 'Put in use (with its parallel runway, or instead of the runway in use)', (on) => toggleInUse(e, on))),
+          h('td', {}, used ? box(!!x?.ldg, single, 'Landings on this runway', (on) => toggleRole(e, 'ldg', on)) : ''),
+          h('td', {}, used ? box(!!x?.to, single, 'Take-offs from this runway', (on) => toggleRole(e, 'to', on)) : ''),
+          windCell,
+          h('td.dim', { text: used ? sim.approachTypeFor(e) : '' }),
+          h('td.dim', { text: end ? `${Math.round(end.tora)} m` : '' }),
+        );
+        row.classList.toggle('on', used);
+        return row;
+      }),
+    );
+    // The approach mode only matters with more than one runway for landings; modes the spacing allows.
+    const allowed = allowedApproachModes(sim.airport, inUse);
+    appr.setOptions(APPROACHES.map((o) => ({ ...o, disabled: !allowed.includes(o.value), title: allowed.includes(o.value) ? o.title : `${o.title} - these runways are too close` })));
+    const ldg = inUse.filter((e) => roles.get(e)?.ldg).length;
+    apprRow.hidden = ldg < 2;
+  };
   // Pre-filled with the actual surface wind (it may have changed since the last broadcast).
   const dir = h('input', { type: 'number', min: '0', max: '360', step: '10', value: String(sim.observedWind.direction) });
   const spd = h('input', { type: 'number', min: '0', max: '60', value: String(sim.observedWind.speedKt) });
@@ -643,7 +700,6 @@ export function showAtisEditor(sim: Simulation): void {
     ? h('input', { type: 'number', min: '28', max: '31', step: '0.01', value: (Number(altimeterOf(sim.metar.qnh)) / 100).toFixed(2) })
     : h('input', { type: 'number', min: '950', max: '1060', value: String(sim.metar.qnh) });
   const qnhOf = () => (Number(qnh.value) ? (sim.faa ? qnhFromAltimeter(Number(qnh.value)) : Number(qnh.value)) : a.qnh);
-  const comps = h('span.hint');
   const qnhHint = h('span.hint');
   const datis = h('pre.datis');
   const spoken = h('div.spoken');
@@ -652,26 +708,20 @@ export function showAtisEditor(sim: Simulation): void {
     text: 'Runway change: departures not yet taxiing get the new runway and SID, Approach re-sequences arrivals beyond 3.5 NM onto the runways for landing. Aircraft already taxiing keep their route - re-route them.',
   });
   const update = () => {
+    const wind = { direction: Number(dir.value) || 0, speedKt: Number(spd.value) || 0 };
+    renderRunways(wind);
     const use = useOf();
-    // The approach mode only matters with more than one runway for landings.
-    for (const el of apprRow) el.hidden = !use || arrivalEnds(runwayEndsOf(rwySel.value), use).length < 2;
-    const draft = { letter: letterSel.value, runway: rwySel.value, wind: windOf(), qnh: qnhOf(), updatedAt: sim.time, metar: sim.metar, use };
+    const key = keyOf();
+    const draft = { letter: letter.get(), runway: key, wind: windOf(), qnh: qnhOf(), updatedAt: sim.time, metar: sim.metar, use };
     datis.textContent = sim.atisDatis(draft).join('\n');
     spoken.textContent = sim.atisText(draft);
-    const wind = { direction: Number(dir.value) || 0, speedKt: Number(spd.value) || 0 };
-    const c = sim.windComponents(runwayEndsOf(rwySel.value)[0], wind);
-    const hw = Math.round(c.headwind);
-    const xw = Math.abs(Math.round(c.crosswind));
-    comps.textContent = `${hw >= 0 ? `head ${hw}` : `tail ${-hw}`} / cross ${xw} kt`;
-    comps.classList.toggle('bad', hw < -5);
-    // Tailwind above 5 kt on the selected runway: wind direction and speed in red (as in the toolbar).
-    for (const el of [dir, spd]) el.classList.toggle('bad', hw < -5);
+    // Tailwind above 5 kt on a runway in use: wind direction and speed in red (as in the toolbar).
+    const tail = inUse.some((e) => sim.windComponents(e, wind).headwind < -5);
+    for (const el of [dir, spd]) el.classList.toggle('bad', tail);
     qnhHint.textContent = sim.faa ? 'inHg' : 'hPa';
-    const ends = runwayEndsOf(rwySel.value);
-    notice.hidden = rwySel.value === a.runway && (!use || (!!a.use && use.approaches === a.use.approaches && sameRoles(use.roles, a.use.roles, ends)));
+    notice.hidden = key === a.runway && (!use || (!!a.use && use.approaches === a.use.approaches && sameRoles(use.roles, a.use.roles, inUse)));
   };
-  rwySel.addEventListener('input', fillUse);
-  [dir, spd, gust, qnh, rwySel, letterSel, useSel, apprSel].forEach((el) => el.addEventListener('input', update));
+  [dir, spd, gust, qnh].forEach((el) => el.addEventListener('input', update));
   update();
   // TRANSFER: wind (with gusts) and QNH of the latest METAR into the form.
   const transfer = h('button', { type: 'button', text: 'TRANSFER', title: 'Copy wind, gusts and QNH of the METAR into the ATIS' });
@@ -700,16 +750,14 @@ export function showAtisEditor(sim: Simulation): void {
         'div.atis-form',
         {},
         h('label', { text: 'Information' }),
-        letterSel,
-        h('label', { text: 'Runway' }),
-        rwySel,
-        ...useRow,
-        ...apprRow,
+        h('div.span3', {}, letter.el),
         h('label', { text: 'Wind' }),
-        h('div.wind', {}, dir, h('span', { text: '°' }), spd, h('span', { text: 'kt gust' }), gust, comps),
+        h('div.wind', {}, dir, h('span', { text: '°' }), spd, h('span', { text: 'kt gust' }), gust),
         h('label', { text: sim.faa ? 'Altimeter' : 'QNH' }),
         h('div.wind', {}, qnh, qnhHint),
       ),
+      rwyTable,
+      apprRow,
       notice,
       datis,
       h('details.spoken', {}, h('summary', { text: 'Spoken text' }), spoken),
@@ -720,7 +768,7 @@ export function showAtisEditor(sim: Simulation): void {
   cancel.addEventListener('click', () => overlay.remove());
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    perform(sim, { k: 'atis', change: { letter: letterSel.value, runway: rwySel.value, use: useOf(), wind: windOf(), qnh: qnhOf() } });
+    perform(sim, { k: 'atis', change: { letter: letter.get(), runway: keyOf(), use: useOf(), wind: windOf(), qnh: qnhOf() } });
     overlay.remove();
   });
   document.body.append(overlay);

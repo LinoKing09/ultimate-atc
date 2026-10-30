@@ -558,7 +558,6 @@ button.mic.listening {
   gap: 8px 10px;
   align-items: center;
 }
-.dialog select,
 .dialog input[type='text'],
 .dialog input[type='number'] {
   background: #1c2326;
@@ -1120,7 +1119,7 @@ body.mobile .sidebar {
   gap: 8px;
   margin-bottom: 6px;
 }
-.dialog .eventrow select {
+.dialog .eventrow .dd {
   flex: 1;
 }
 .dialog .eventrow input.min {
@@ -1422,4 +1421,140 @@ body.mobile .tutorial {
 }
 .dialog.restoring {
   min-width: 280px;
+}
+
+/* ------------------------------------------------------------------ own selection controls (pickers.ts) */
+.seg {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0;
+}
+.seg button {
+  border-radius: 0;
+  margin-left: -1px;
+  padding: 4px 10px;
+}
+.seg button:first-child {
+  margin-left: 0;
+  border-radius: 2px 0 0 2px;
+}
+.seg button:last-child {
+  border-radius: 0 2px 2px 0;
+}
+.seg button.on {
+  background: #35505a;
+  border-color: var(--accent);
+  color: #fff;
+  position: relative;
+  z-index: 1;
+}
+button.dd {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 140px;
+  text-align: left;
+  background: #1c2326;
+  padding: 4px 8px;
+}
+button.dd.open {
+  border-color: var(--accent);
+}
+.dd-caret {
+  color: var(--text-dim);
+}
+.dd-list {
+  position: fixed;
+  z-index: 1000;
+  max-height: 50vh;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--accent);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  padding: 2px 0;
+}
+.dd-item {
+  padding: 4px 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.dd-item.active {
+  background: #35505a;
+  color: #fff;
+}
+.dd-item.chosen::before {
+  content: '✓ ';
+  color: var(--accent);
+}
+.dd-item.disabled {
+  color: var(--text-dim);
+  opacity: 0.5;
+  cursor: default;
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  outline: none;
+}
+.stepper:focus-visible .step-val {
+  border-color: var(--accent);
+}
+.stepper .step-val {
+  min-width: 34px;
+  text-align: center;
+  font-weight: bold;
+  color: #fff;
+  border: 1px solid var(--panel-border);
+  background: #1c2326;
+  padding: 3px 6px;
+}
+.stepper button {
+  padding: 3px 6px;
+}
+
+/* ATIS editor: the runways as a table (in use, landings, take-offs, wind, approach, TORA). */
+.dialog .rwy-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 2px 0 10px;
+}
+.dialog .rwy-table th {
+  text-align: left;
+  font-weight: normal;
+  color: var(--text-dim);
+  font-size: 11px;
+  border-bottom: 1px solid var(--panel-border);
+  padding: 3px 6px;
+}
+.dialog .rwy-table td {
+  padding: 3px 6px;
+  border-bottom: 1px solid #2f383c;
+}
+.dialog .rwy-table tr.on td.rwy {
+  color: #fff;
+  font-weight: bold;
+}
+.dialog .rwy-table tr:not(.on) td {
+  color: var(--text-dim);
+}
+.dialog .rwy-table td.wind.bad {
+  color: var(--danger);
+}
+.dialog .rwy-table td.dim {
+  color: var(--text-dim);
+}
+.dialog .rwy-table input[type='checkbox'] {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+.dialog .rwy-table input[type='checkbox']:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+.dialog .atis-form[hidden] {
+  display: none;
 }

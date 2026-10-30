@@ -102,15 +102,24 @@ Click `RWY`, `ATIS`, the wind or `Q...` in the toolbar to edit the ATIS. The top
 
 | Field           | Meaning                                                                                    |
 | --------------- | ------------------------------------------------------------------------------------------ |
-| Information     | The new ATIS letter (pre-set to the next letter)                                           |
-| Runway          | Runway for departures and arrivals. At airports with parallel runways (Leipzig/Halle) first the parallel runways used together (`Runways 26R + 26L`), then each runway alone - see [parallel runways](simulation.md#parallel-runways) |
-| Operation       | Parallel runways only: **Mixed** (take-offs and landings on both), **Segregated** (landings on one, take-offs on the other) or **Semi-mixed** (one mixed, the other for take-offs only), each way round |
-| Approaches      | With more than one runway for landings: **Independent**, **Dependent** (1.5 NM diagonal between the finals) or **Staggered** (3 NM); modes the runway spacing does not allow are greyed out |
-| Wind            | Direction, speed and gusts (`-` = none; broadcast as `gusting 32 knots`) in one row, with the head-/tailwind and crosswind for the selected runway (`head 9 / cross 4 kt`). Direction, speed and the tailwind turn red when the tailwind on the selected runway is above 5 kt |
+| Information     | The new ATIS letter, pre-set to the next one: `◀` / `▶` (or the arrow keys, or type the letter) |
+| Wind            | Direction, speed and gusts (`-` = none; broadcast as `gusting 32 knots`) in one row. Direction and speed turn red when a runway in use has more than 5 kt tailwind |
 | **TRANSFER**    | Next to the METAR: copies its wind (with gusts) and QNH into the form |
 | QNH             | Pressure setting in hPa, pre-filled from the METAR. At US airports the field is **Altimeter** in inches of mercury (`30.30`) - the only unit shown there |
 
-Below the fields the dialog previews the new ATIS as D-ATIS text, with the METAR's visibility, clouds, temperature and trend and the notices (closed taxiways, de-icing, A-CDM, DCL out of service, windshear, the runway of each apron with parallel runways); **Spoken text** unfolds the spoken version. When you select another runway or operation, a short yellow note says what happens to the traffic (see *Runway change* below). **Broadcast ATIS** publishes it. It appears in the message window, and crews that listen to the ATIS from now on quote the new letter. The ATIS does not change on its own.
+Below the fields, **every runway** of the airport is a row:
+
+| Column      | Meaning |
+| ----------- | ------- |
+| In use      | Tick to put the runway in use. With its parallel runway (Leipzig/Halle 26R and 26L) both stay in use; any other runway replaces the one in use. Untick one of two to use the other alone |
+| Landings / Take-offs | For runways in use: what the runway is used for. One runway alone takes both. With two: both ticked on both = mixed operation; landings on one, take-offs on the other = segregated; one mixed, the other take-offs only = semi-mixed - see [parallel runways](simulation.md#parallel-runways). At least one runway stays for landings and one for take-offs (a box that would break that springs back) |
+| Wind        | Head- or tailwind and crosswind for that runway with the wind in the form (`head 9 / x 4`); red above 5 kt tailwind |
+| Approach    | The approach flown to it with the navigation aids that are on (`ILS`, `LOC`, `RNP`) |
+| TORA        | Take-off run available from the runway end |
+
+**Approaches** (only with more than one runway for landings): **Independent**, **Dependent** (1.5 NM diagonal between the finals) or **Staggered** (3 NM) - modes the runway spacing does not allow are greyed out.
+
+Below that the dialog previews the new ATIS as D-ATIS text, with the METAR's visibility, clouds, temperature and trend and the notices (closed taxiways, de-icing, A-CDM, DCL out of service, windshear, the runway of each apron with parallel runways); **Spoken text** unfolds the spoken version. When you change the runways in use or what they are used for, a short yellow note says what happens to the traffic (see *Runway change* below). **Broadcast ATIS** publishes it. It appears in the message window, and crews that listen to the ATIS from now on quote the new letter. The ATIS does not change on its own.
 
 Crews that listened before the broadcast still report the old letter (`..., information D, request pushback` with E current): the aircraft menu then offers `Information E is current` (`information E is current, QNH 1018`), or broadcast `all stations, information E is now current` with **ALL STN**. A crew that leaves your frequency with an old letter costs 3 points.
 

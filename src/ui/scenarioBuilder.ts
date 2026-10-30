@@ -15,6 +15,7 @@ import {
 import { DEFAULT_EVENT_LEVEL, DENSITIES, EVENT_LEVELS, HEAVY_SHARES, MIXES, densityIndex, mixIndex } from '../core/levels';
 import { levelSlider } from './levelSlider';
 import { h } from './dom';
+import { dropdown, segmented } from './pickers';
 
 /** A random seed for a new scenario (UI only - the simulation itself uses its seeded generator). */
 export function randomSeed(): number {
@@ -44,9 +45,12 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
         : { airport: airport.icao, runway: undefined, density: 'medium', mix: 'balanced', heavyLevel: 0, eventLevel: DEFAULT_EVENT_LEVEL, events: [], seed: randomSeed() };
 
     // ---------------------------------------------------------------- controls
-    const runwaySel = h('select');
-    runwaySel.append(h('option', { value: '', text: 'From the wind (random)' }));
-    for (const c of runwayChoices(airport)) runwaySel.append(h('option', { value: c.key, text: c.label }));
+    // Runway: buttons - from the wind, the parallel runways together, each runway alone.
+    const runwaySel = segmented(
+      [{ value: '', label: 'From the wind', title: 'Chosen from the random wind' }, ...runwayChoices(airport).map((c) => ({ value: c.key, label: c.label.replace(/^Runways? /, '') }))],
+      s.runway ?? '',
+      (v) => ((s.runway = v || undefined), output()),
+    );
     const densitySlider = levelSlider(DENSITIES.map((d) => d.label), densityIndex(s.density), (i) => ((s.density = DENSITIES[i].value), output()));
     const mixSlider = levelSlider(MIXES.map((m) => m.label), mixIndex(s.mix), (i) => ((s.mix = MIXES[i].value), output()));
     const heavySlider = levelSlider(HEAVY_SHARES.map((x) => x.label), s.heavyLevel, (i) => ((s.heavyLevel = i), output()));
@@ -71,7 +75,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
     const status = h('span.val');
 
     const render = () => {
-      runwaySel.value = s.runway ?? '';
+      runwaySel.set(s.runway ?? '');
       densitySlider.set(densityIndex(s.density));
       mixSlider.set(mixIndex(s.mix));
       heavySlider.set(s.heavyLevel);
@@ -83,13 +87,14 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
       for (const [t, box] of closedBoxes) box.checked = !!s.closedTaxiways?.includes(t);
       eventsEl.replaceChildren(
         ...s.events.map((ev, i) => {
-          const kind = h('select');
-          for (const k of Object.keys(EVENT_LABEL) as ScenarioEventKind[]) kind.append(h('option', { value: k, text: EVENT_LABEL[k] }));
-          kind.value = ev.kind;
-          kind.addEventListener('change', () => {
-            ev.kind = kind.value as ScenarioEventKind;
-            output();
-          });
+          const kind = dropdown(
+            (Object.keys(EVENT_LABEL) as ScenarioEventKind[]).map((k) => ({ value: k, label: EVENT_LABEL[k] })),
+            ev.kind,
+            (k) => {
+              ev.kind = k;
+              output();
+            },
+          );
           const min = h('input', { type: 'number', min: '1', max: String(MAX_EVENT_MINUTE), value: String(ev.atMin), class: 'min' });
           min.addEventListener('input', () => {
             ev.atMin = Math.max(1, Math.min(MAX_EVENT_MINUTE, Math.round(Number(min.value) || 1)));
@@ -100,7 +105,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
             s.events.splice(i, 1);
             render();
           });
-          return h('div.eventrow', {}, kind, h('span', { text: 'after' }), min, h('span', { text: 'min' }), del);
+          return h('div.eventrow', {}, kind.el, h('span', { text: 'after' }), min, h('span', { text: 'min' }), del);
         }),
       );
       if (!s.events.length) eventsEl.append(h('div.sub', { text: 'No scheduled events.' }));
@@ -125,7 +130,6 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
       use.disabled = copyCode.disabled = copyLink.disabled = problems.length > 0;
     };
 
-    runwaySel.addEventListener('change', () => ((s.runway = runwaySel.value || undefined), output()));
     startInput.addEventListener('change', () => {
       const v = startInput.value.replace(':', '');
       s.startLocal = /^\d{4}$/.test(v) ? v : undefined;
@@ -203,7 +207,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
           'div.grid',
           {},
           h('label', { text: 'Runway in use' }),
-          runwaySel,
+          runwaySel.el,
           h('label', { text: 'Density' }),
           densitySlider.el,
           h('label', { text: 'Traffic mix' }),

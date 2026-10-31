@@ -16,6 +16,7 @@ Every airport is built after the [airport recipe](../airport-data.md#adding-an-a
 | [EDXW Sylt](EDXW.md) | Bremen | 14/32 (06/24 crossed) | Tower only | Small island airport, crossing runways |
 | [EGKK London Gatwick](EGKK.md) | London (EGTT) | 08R/26L (08L/26R standby, drawn) | Delivery, Ground, Tower | The busiest single runway in the world: up to 55 movements an hour, rapid exits, intersection departures, 187 stands at two terminals |
 | [KSAN San Diego](KSAN.md) | Los Angeles (KZLA) | 9/27 | Clearance Delivery, Ground, Tower | **FAA phraseology**, US weather and ATIS, busy single runway with displaced thresholds |
+| [KJAC Jackson Hole](KJAC.md) | Salt Lake City (KZLC) | 1/19 | Ground (with clearances), Tower | **FAA phraseology**, mountain airport at 6451 ft in Grand Teton National Park, one parallel taxiway, business jets on the terminal ramp |
 | [NZWN Wellington](NZWN.md) | New Zealand (NZZC) | 16/34 | Delivery, Ground, Tower | Short runway between two bays, one parallel taxiway, separate SIDs for jets and turboprops, light turboprops on small stands |
 | [SEQM Quito](SEQM.md) | Guayaquil (SEFG) | 18/36 | Ground (with clearances), Tower | 7910 ft in the Andes, 4 km runway, two parallel taxiways, flower freighters up to the B747-8, radar vectors from runway 18 |
 | [SLLP La Paz](SLLP.md) | La Paz (SLLF) | 10/28 | Ground (with clearances), Tower | 13314 ft: the highest airport, no parallel taxiway, backtracks of almost 3 km to threshold 10 |

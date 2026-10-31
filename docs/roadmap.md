@@ -201,6 +201,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - planned - EGLL London Heathrow
 - planned - KLAX Los Angeles
 - **done** - KSAN San Diego, the first US airport (1.5)
+- **done** - KJAC Jackson Hole, a mountain airport with business jets
 - **done** - VTSP Phuket, the first airport in Asia (1.5)
 - **done** - NZWN Wellington, the first airport in Australia / Oceania (1.5)
 - **done** - SEQM Quito, the first airport in South America (1.5)

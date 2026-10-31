@@ -8,6 +8,7 @@ import { EDDS } from './edds';
 import { EDDW } from './eddw';
 import { EDJA } from './edja';
 import { EDXW } from './edxw';
+import { KJAC } from './kjac';
 import { KSAN } from './ksan';
 import { NZWN } from './nzwn';
 import { SEQM } from './seqm';
@@ -16,4 +17,4 @@ import { TNCM } from './tncm';
 import { VTSP } from './vtsp';
 
 /** Airports with complete data, selectable in the Connect dialog. */
-export const AIRPORTS: AirportData[] = [EDDS, EDDN, EDJA, EDXW, EDDW, EDDK, EDDP, EDDM, KSAN, VTSP, NZWN, SEQM, TNCM, SLLP, EGKK];
+export const AIRPORTS: AirportData[] = [EDDS, EDDN, EDJA, EDXW, EDDW, EDDK, EDDP, EDDM, KSAN, KJAC, VTSP, NZWN, SEQM, TNCM, SLLP, EGKK];

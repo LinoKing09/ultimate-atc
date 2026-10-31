@@ -1,7 +1,7 @@
 import { formatAltitude } from '../src/core/phraseology/format';
 import { allocateSquawk, initialClimb, sendDcl, suggestedSid } from '../src/core/delivery';
 import { routeHeadOn } from '../src/core/conflicts';
-import { conflictResolution, pushbackPoint, reachableFreeStand } from '../src/core/groundAI';
+import { conflictResolution, pushInWay, reachableFreeStand } from '../src/core/groundAI';
 import { previewTaxi } from '../src/core/pilot';
 import { distance } from '../src/core/geo';
 import type { Aircraft } from '../src/core/aircraft';
@@ -19,8 +19,6 @@ import type { Simulation } from '../src/core/simulation';
 const CTOT_LEAD_S = 15 * 60;
 /** A pushback or taxi waits at most this long (s) for opposite traffic on its way out. */
 const HEAD_ON_WAIT_S = 240;
-/** How far a pushback moves the aircraft from its stand (m), roughly. */
-const PUSH_LENGTH_M = 40;
 /** Departures taxiing out or waiting at the runway at most (more wait on the stand: gate hold). */
 const QUEUE_MAX = 4;
 /** Under gate hold, pushbacks are approved one at a time, this far apart (s). */
@@ -111,22 +109,14 @@ export function createBot(sim: Simulation): () => void {
         held.set(key, held.get(key) ?? t);
         return t - held.get(key)! < HEAD_ON_WAIT_S;
       };
-      // Where the pushback ends up (the lane in front of a stand far from it, München apron 3).
-      const pushAt = pushbackPoint(sim, ac);
-      // Traffic taxiing past the stand (its route ahead runs by): no pushback into its way.
-      const pushInWay = () =>
-        sim.aircraft.some((o) => {
-          if (o === ac || o.phase !== 'taxi' || !o.path) return false;
-          const r = (o.type.wingspanM + ac.type.wingspanM) * 0.38 + 6 + PUSH_LENGTH_M;
-          for (let x = o.s; x <= o.path.length; x += 10) if (distance(o.path.pointAt(x), pushAt) < r) return true;
-          return false;
-        });
+      // Traffic taxiing past the stand or the lane in front of it: no pushback into its way (as the AI Ground).
+      const inWay = () => pushInWay(sim, ac);
       // Gate hold: the runway queue is long enough already.
       const queueFull = () => {
         const n = sim.aircraft.filter((o) => o.category === 'departure' && ['pushback', 'taxi', 'holding', 'lineup'].includes(o.phase)).length;
         return n >= QUEUE_MAX || (n >= QUEUE_MAX - 1 && t - lastHeldPush < GATE_HOLD_SPACING_S);
       };
-      const nearTaxi = () => sim.aircraft.some((o) => o !== ac && o.phase === 'taxi' && distance(o.pos, pushAt) < 250);
+      const nearTaxi = () => sim.aircraft.some((o) => o !== ac && o.phase === 'taxi' && distance(o.pos, ac.pos) < 250);
       switch (ac.request) {
         case 'clearance': {
           const sid = suggestedSid(sim, ac) ?? ac.flightPlan.sid;
@@ -144,7 +134,7 @@ export function createBot(sim: Simulation): () => void {
           say(`${cs} contact ${sim.stationFor('ground') === 'TWR' ? 'tower' : 'ground'}`);
           break;
         case 'pushback':
-          if (!nearTaxi() && !early && !queueFull() && !headOn() && !pushInWay()) {
+          if (!nearTaxi() && !early && !queueFull() && !headOn() && !inWay()) {
             say(`${cs} push and start approved`);
             lastHeldPush = t;
           }

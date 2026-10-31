@@ -5,7 +5,7 @@ import type { TaxiDestination } from './phraseology/commands';
 import { parseTransmission } from './phraseology/parser';
 import { aiInstruct, autoRoute, earliestIntersection, earlySlotAhead, passingEntry, previewTaxi } from './pilot';
 import type { Stand } from './airport/airport';
-import { distance, type Vec2 } from './geo';
+import { distance } from './geo';
 import type { TaxiRoute } from './airport/routing';
 import type { Simulation } from './simulation';
 import { apronClosed } from './weather';
@@ -93,21 +93,28 @@ function aiTaxi(sim: Simulation, ac: Aircraft, destination: TaxiDestination): bo
   return aiInstruct(sim, ac, { type: 'taxi', destination, via: [], holdShort: [], cross: [], turnAround: true });
 }
 
-/** A stand lane further than this from its stand (m) is where traffic around a pushback is looked for. */
-const FAR_LANE_M = 100;
-
-/**
- * Where to look for traffic around a pushback: the aircraft, or the lane in front of its stand when that lies far
- * from the stand (München apron 3: 125 m).
- */
-export function pushbackPoint(sim: Simulation, ac: Aircraft): Vec2 {
-  const lane = ac.phase === 'parked' ? sim.airport.stand(ac.stand ?? '')?.lane.pos : undefined;
-  return lane && distance(lane, ac.pos) > FAR_LANE_M ? lane : ac.pos;
+function busyNearby(sim: Simulation, ac: Aircraft, radius: number): boolean {
+  return sim.aircraft.some((o) => o !== ac && o.onGround && ['taxi', 'pushback'].includes(o.phase) && Math.hypot(o.pos.x - ac.pos.x, o.pos.y - ac.pos.y) < radius);
 }
 
-function busyNearby(sim: Simulation, ac: Aircraft, radius: number): boolean {
-  const at = pushbackPoint(sim, ac);
-  return sim.aircraft.some((o) => o !== ac && o.onGround && ['taxi', 'pushback'].includes(o.phase) && Math.hypot(o.pos.x - at.x, o.pos.y - at.y) < radius);
+/** Pushed back this far beyond the lane node at most (m). */
+const PUSH_BEYOND_LANE_M = 40;
+
+/**
+ * Traffic taxiing past the stand: the route ahead of an aircraft taxiing runs past the stand or the lane in front of
+ * it, where the pushback ends up (that lane can lie 150 m from the stand - München apron 3).
+ */
+export function pushInWay(sim: Simulation, ac: Aircraft): boolean {
+  const lane = sim.airport.stand(ac.stand ?? '')?.lane.pos;
+  return sim.aircraft.some((o) => {
+    if (o === ac || o.phase !== 'taxi' || !o.path) return false;
+    const r = (o.type.wingspanM + ac.type.wingspanM) * 0.38 + 6 + PUSH_BEYOND_LANE_M;
+    for (let x = o.s; x <= o.path.length; x += 10) {
+      const p = o.path.pointAt(x);
+      if (distance(p, ac.pos) < r || (lane && distance(p, lane) < r)) return true;
+    }
+    return false;
+  });
 }
 
 /** Where a departure taxis next: to a free de-icing pad first if it still needs de-icing (winter operations). */
@@ -133,7 +140,7 @@ function departure(sim: Simulation, ac: Aircraft): void {
   if (ac.phase === 'parked' && (sim.flow.departuresStopped || apronClosed(sim))) return;
   // Slot flights wait on the stand (TSAT, or CTOT - taxi time), not at the holding point.
   if (ac.phase === 'parked' && sim.time >= offBlockDue(sim, ac) && ac.cleared) {
-    if (busyNearby(sim, ac, 250)) return; // the simplest pushback sequencing: wait for passing traffic
+    if (busyNearby(sim, ac, 250) || pushInWay(sim, ac)) return; // the simplest pushback sequencing: wait for passing traffic
     if (needsDeicing(sim, ac) && !freePads(sim, ac).length) return; // all de-icing pads busy: stay on the stand
     if (headOnAhead(sim, ac)) return; // an arrival comes the other way on the taxiways out (single-lane taxiways)
     const stand = sim.airport.stand(ac.stand ?? '');

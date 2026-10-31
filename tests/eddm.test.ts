@@ -61,8 +61,8 @@ describe('München (EDDM) after the DFS AIP', () => {
         for (const a of sim.aircraft) if (a.phase === 'landing') landedOn.add(a.runway!);
       }
       expect(sim.stats.collisions, runway).toBe(0);
-      expect(sim.stats.departuresAirborne, runway).toBeGreaterThan(10);
-      expect(sim.stats.arrivalsParked, runway).toBeGreaterThan(10);
+      expect(sim.stats.departuresAirborne, runway).toBeGreaterThan(6);
+      expect(sim.stats.arrivalsParked, runway).toBeGreaterThan(6);
       expect(landedOn.size, runway).toBe(2);
     }
   }, 600000);

@@ -66,9 +66,11 @@ export function renderBriefing(sim: Simulation): HTMLElement {
     const arr = sim.arrivalRunways;
     const dep = sim.departureRunways;
     const mixed = arr.length === sim.runways.length && dep.length === sim.runways.length;
+    const byDirection = parallel?.departureSectors || parallel?.arrivalSectors;
+    const rule = byDirection ? 'the runway for its direction (departures by their destination, arrivals by their origin)' : 'the runway of its apron (or the nearest one)';
     const share = mixed
-      ? `Take-offs and landings on both; each aircraft gets the runway of its apron (or the nearest one)${parallel?.largeAircraft ? `, wide-bodies from ${parallel.largeAircraft.minWingspanM} m the ${parallel.largeAircraft.runway} runway` : ''}.`
-      : `Landings on ${arr.join(' and ')}, take-offs on ${dep.join(' and ')} (set with the ATIS); with more than one runway for a role, the runway of the apron (or the nearest one).`;
+      ? `Take-offs and landings on both; each aircraft gets ${rule}${parallel?.largeAircraft ? `, wide-bodies from ${parallel.largeAircraft.minWingspanM} m the ${parallel.largeAircraft.runway} runway` : ''}.`
+      : `Landings on ${arr.join(' and ')}, take-offs on ${dep.join(' and ')} (set with the ATIS); with more than one runway for a role, ${rule}.`;
     now.push(['Parallel runways', `${share}${arr.length > 1 ? ` Approaches ${mode};` : ''} departures from the two runways are independent. Change the runway use in the ATIS editor.`]);
   }
   // Scenario conditions: closed taxiways, night rules, thunderstorm.

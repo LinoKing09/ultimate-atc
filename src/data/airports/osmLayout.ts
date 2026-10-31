@@ -90,6 +90,16 @@ export interface LayoutOptions {
   addNodes?: [string, number, number][];
   /** Dead-end nodes to keep (dead ends are pruned otherwise). */
   keepNodes?: string[];
+  /**
+   * Longest way (m) from a holding point to the runway centre line that becomes its runway strip. Default 400;
+   * longer for the long high-speed turn-offs of München, whose holding points lie beyond a crossing exit.
+   */
+  maxStripM?: number;
+  /**
+   * The way from a holding point to the runway follows only its own taxiway (and unnamed links): for exits that
+   * cross each other just before the runway (München B6 / B7), where the shortest way would switch to the other.
+   */
+  stripsAlongTaxiway?: boolean;
   /** The stands to use (imported stands not listed are dropped). */
   stands: StandSpec[];
   /** Buildings / aprons to keep: only those within this distance (m) of the taxiways and stands. Default 300. */
@@ -168,7 +178,8 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
       runwayNodeOf[name] = fixed;
       continue;
     }
-    // Dijkstra over taxi edges, not through other holding points, at most 400 m.
+    // Dijkstra over taxi edges, not through other holding points, at most 400 m (maxStripM).
+    const ownTaxiway = o.stripsAlongTaxiway ? edges.find((e) => e.kind !== 'runway' && (e.from === hp || e.to === hp))?.name : undefined;
     const dist = new Map<string, number>([[hp, 0]]);
     const prev = new Map<string, E>();
     const open = [hp];
@@ -183,9 +194,10 @@ export function buildLayout(layout: OsmLayout, o: LayoutOptions): BuiltLayout {
       if (cur !== hp && hpNames[cur]) continue;
       for (const e of edges) {
         if (e.kind === 'runway' || e.closed || (e.from !== cur && e.to !== cur)) continue;
+        if (ownTaxiway && e.name && e.name !== ownTaxiway) continue;
         const nb = e.from === cur ? e.to : e.from;
         const d = dist.get(cur)! + distance(p(cur), p(nb));
-        if (d > 400 || d >= (dist.get(nb) ?? Infinity)) continue;
+        if (d > (o.maxStripM ?? 400) || d >= (dist.get(nb) ?? Infinity)) continue;
         dist.set(nb, d);
         prev.set(nb, e);
         if (!open.includes(nb)) open.push(nb);

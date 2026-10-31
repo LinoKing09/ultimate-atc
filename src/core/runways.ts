@@ -117,3 +117,9 @@ export function runwayUseWords(ends: string[], use: ParallelUse | undefined): st
   if (arr.length === ends.length && dep.length === ends.length) return ends.length > 1 ? `${runwayWords(ends)} in use` : `runway in use ${ends[0]}`;
   return `arrival ${runwayWords(arr)}, departure ${runwayWords(dep)}`;
 }
+
+/** True if `bearing` lies in the sector from `range[0]` clockwise to `range[1]` (degrees). */
+export function inSector(bearing: number, [from, to]: [number, number]): boolean {
+  const span = (to - from + 360) % 360;
+  return (bearing - from + 360) % 360 <= span;
+}

@@ -362,10 +362,17 @@ function readDesignator(c: Cursor, known?: Set<string>): string | undefined {
     c.next();
     return `${t}${c.next()}`.toUpperCase();
   }
+  // A designator with a word the airport has (München B12WEST): typed "b12west", spoken "bravo 12 west".
+  if (known && /^[a-z]\d{1,2}[a-z]{3,}$/.test(t) && known.has(t.toUpperCase())) {
+    c.next();
+    return t.toUpperCase();
+  }
   if (/^[a-z]\d{0,2}$/.test(t)) {
     c.next();
     let s = t;
     while (isDigit(c.peek()) && s.length < 4) s += c.next();
+    const word = c.peek();
+    if (known && word && /^[a-z]{3,}$/.test(word) && known.has(`${s}${word}`.toUpperCase())) s += c.next();
     return s.toUpperCase();
   }
   return undefined;

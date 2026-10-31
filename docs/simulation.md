@@ -293,7 +293,7 @@ The **runway area** used for occupancy checks extends 70 m either side of the ce
 
 ## Parallel runways
 
-Airports with parallel runways (`parallelRunways` in the airport data, Leipzig/Halle) use both at the same time. The ATIS editor offers the parallel runways (`Runways 26R + 26L`, the default for the direction of the wind) and each runway on its own, and for the parallel runways how they share the traffic and the approach mode:
+Airports with parallel runways (`parallelRunways` in the airport data, Leipzig/Halle, München) use both at the same time. The ATIS editor offers the parallel runways (`Runways 26R + 26L`, the default for the direction of the wind) and each runway on its own, and for the parallel runways how they share the traffic and the approach mode:
 
 | Operation | Runways |
 | --------- | ------- |
@@ -311,7 +311,7 @@ Approach modes the runway spacing does not allow cannot be chosen (Leipzig, 2.1 
 
 | Topic | Rule |
 | ----- | ---- |
-| Runway of an aircraft | Among the runways for its role (take-off or landing, after the ATIS operation): the runway of its apron (Leipzig: apron 1 and 3 the northern runway, the cargo aprons 2, 4, 5 the southern one); aircraft from a given wingspan always the runway named for them (Leipzig: 63 m and more, the southern runway); otherwise the runway nearest to its stand. Departures get it when they appear, with the SID of that runway (at Leipzig the SID letter names the runway) |
+| Runway of an aircraft | Among the runways for its role (take-off or landing, after the ATIS operation): by direction where the airport gives sectors (München, AIP: departures by the bearing of the destination - 26R 327°-100°, 26L 100°-327°, 08L 277°-100°, 08R 100°-277°; arrivals by the bearing of the origin - northern runway 270°-090°, southern runway 090°-270°); else the runway of its apron (Leipzig: apron 1 and 3 the northern runway, the cargo aprons 2, 4, 5 the southern one); aircraft from a given wingspan always the runway named for them (Leipzig: 63 m and more, the southern runway); otherwise the runway nearest to its stand. Departures get it when they appear, with the SID of that runway (at Leipzig the SID letter names the runway) |
 | Delivery | The SID of a clearance must belong to a runway in use for take-offs (else the crew asks `confirm DRN3S departure, information K says arrival runway 26R, departure runway 26L`); it sets the departure's runway (`DRN3S` = 26L) |
 | Ground | `taxi to runway 26L` / `taxi to holding point S9` sends a departure to the other runway: it now departs from there, with the SID of that runway to the same exit fix (a message says so) |
 | Approach | Puts each arrival on the runway of its stand among the runways for landings. If there is no gap on that final but on the other, it uses the other (not for the aircraft bound to one runway by their size). The spacing on each final is the same as with one runway (wake, departure gaps from the departures waiting for *that* runway, approach type of that runway). Between the finals: **dependent parallel approaches** (Leipzig, AIP) keep **1.5 NM** diagonal radar separation to the arrivals on the adjacent final, **staggered** approaches **3 NM**, **independent** approaches none. With centre lines `d` NM apart the required stagger along the final is `sqrt(diagonal² - d²)` (Leipzig: 2.1 km apart, 0.97 NM). Wake turbulence spacing applies on each final only (the simulator assumes parallel runways more than 760 m apart, as at Leipzig) |

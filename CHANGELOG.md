@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **München (EDDM)**: the Lufthansa hub with two parallel 4 km runways used at the same time for take-offs and landings and **independent parallel approaches**. The runway follows the direction (AIP): departures to the north and north-east from the northern runway, to the south from the southern one, to the north-west from 26L or 08L; arrivals from the north on the northern runway, from the south on the southern one. All holding points of the aerodrome chart (A1-A15, B1-B15; CAT II/III positions drawn as hold lines), the intersection take-offs, the high-speed turn-offs of the HIRO procedure (crossing each other before the runway), 221 stands of the AIP list at Terminal 1, Terminal 2 and its satellite, general aviation and cargo, 16 RNAV SIDs per runway, Lufthansa-heavy traffic at twice Stuttgart's rate. See [docs/airports/EDDM.md](docs/airports/EDDM.md).
+- Airport data: parallel runways can assign the runway by direction (`departureSectors` / `arrivalSectors`: the bearing of the destination or origin); `buildLayout` options `maxStripM` and `stripsAlongTaxiway` for long high-speed turn-offs.
+- The parser reads taxiway designators with a word the airport has (München **B12WEST**): typed `B12WEST`, spoken `bravo one two west`.
+
+### Fixed
+
+- **Resolve conflict** (and the AI Ground) no longer offers a way out that the crew would fly straight through the other aircraft: a re-route is checked as the crew reads it, including its first stretch, and when no re-route works any more the tug turnaround is offered as well (was: only when there was no re-route at all). Two aircraft nose to nose on an apron lane with unnamed links beside them (München apron 3) were stuck for good.
+
 ## [1.5.2] - 2026-10-30
 
 ### Added

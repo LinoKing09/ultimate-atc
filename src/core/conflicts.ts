@@ -287,10 +287,10 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
       ? { node, text: `holding point ${node.holdingPoint?.name ?? ''}`, target: { kind: 'holdingPoint', name: node.holdingPoint?.name ?? '' } }
       : { node, text: formatDestination(dest), target: dest };
 
+    // Turning around: y's path runs through x itself, so only y's position must be avoided.
+    // (They may already stand closer together than the normal clearance: then moving away is enough.)
+    const tugAvoid = { points: [y.pos], radius: Math.min(radius, distance(x.pos, y.pos) - 3) };
     const find = (goal: Goal, allowUTurn: boolean): TaxiRoute | undefined => {
-      // Turning around: y's path runs through x itself, so only y's position must be avoided.
-      // (They may already stand closer together than the normal clearance: then moving away is enough.)
-      const tugAvoid = { points: [y.pos], radius: Math.min(radius, distance(x.pos, y.pos) - 3) };
       const base = { ...routeOptionsOf(sim, x), allowUTurn, avoid: allowUTurn ? tugAvoid : avoid };
       let r = findRoute(sim.airport, routeStartOf(sim, x), goal.node, [], { ...base, strictFlows: true });
       if (isRouteError(r)) r = findRoute(sim.airport, routeStartOf(sim, x), goal.node, [], base);
@@ -311,14 +311,27 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
     // Forwards to its destination - or, if that is not possible, to another one: a departure to another entry of
     // its runway it accepts (an intersection departure), an arrival to another free stand.
     const way = forward(primary) ?? alternativeGoals(sim, x, primary).reduce<ResolveOption | undefined>((found, g) => found ?? forward(g), undefined);
-    if (way) {
-      out.push(way);
-      continue;
-    }
-    // No way out forwards: a tug turns the aircraft around (only big aircraft need one; small ones can turn).
+    if (way) out.push(way);
+    // Also, last: a tug turns the aircraft around (only big aircraft need one; small ones can turn) - the way out when
+    // there is none forwards, or when the way forwards did not help (the two still stand nose to nose).
+    /** The route after turning around on the spot ("turn around, taxi ..." starts the other way round). */
+    const turned = (goal: Goal): TaxiRoute | undefined => {
+      const start = { position: x.pos, heading: (x.heading + 180) % 360 };
+      const r = findRoute(sim.airport, start, goal.node, [], { ...routeOptionsOf(sim, x), allowUTurn: true, avoid: tugAvoid });
+      return isRouteError(r) ? undefined : { ...r, requiresUTurn: true };
+    };
     for (const goal of [primary, ...alternativeGoals(sim, x, primary)]) {
-      const back = find(goal, true);
+      let back = find(goal, true);
       if (!back) continue;
+      if (!back.requiresUTurn) {
+        // No turnaround needed: only a way out if the crew, reading the instruction, keeps clear too (an unnamed
+        // link right beside it is no part of the instruction) - else, and with a way forwards, it turns around.
+        const via = viaOf(back);
+        const check = previewTaxi(sim, x, { type: 'taxi', destination: goal.target, via, holdShort: [], cross: [] });
+        const flies = !('error' in check) && !check.route.requiresUTurn && keepsClear(sim.airport, check.route, tugAvoid);
+        if (way || !flies) back = turned(goal);
+        if (!back) continue;
+      }
       tugs.push({ aircraft: x, other: y, instruction: `${back.requiresUTurn ? 'turn around, ' : ''}${taxiInstruction(goal, viaOf(back))}`, route: back, tug: back.requiresUTurn && x.type.wingspanM > 25 });
       break;
     }
@@ -333,8 +346,10 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
 
 function keepsClear(airport: Airport, route: TaxiRoute, avoid: { points: Vec2[]; radius: number }): boolean {
   const pts = [...(route.startPosition ? [route.startPosition] : []), ...airport.polyline(route.nodes).points];
-  // The first segment leads away from where the aircraft stands now (checked by the router); check the rest.
-  return pts.every((p, i) => i <= 1 || avoid.points.every((q) => distanceToSegment(q, pts[i - 1], p) >= avoid.radius));
+  // The first segment starts where the aircraft stands now: checked whole only if the other one is not that close
+  // already (then moving away is enough); a long first segment can run straight through the other one.
+  const close = pts.length > 0 && avoid.points.some((q) => distance(q, pts[0]) < avoid.radius);
+  return pts.every((p, i) => i === 0 || (i === 1 && close) || avoid.points.every((q) => distanceToSegment(q, pts[i - 1], p) >= avoid.radius));
 }
 
 function distanceToSegment(p: Vec2, a: Vec2, b: Vec2): number {

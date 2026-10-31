@@ -413,7 +413,7 @@ const REFERENCE: [string, string][] = [
   ['push and start approved [facing ...]', 'Pushback and engine start in one go.'],
   ['start-up approved', 'Approve engine start on the stand.'],
   ['cancel pushback / stop pushback / continue pushback', 'Cancel a pushback (a moving aircraft is towed back onto the stand), stop a moving pushback, resume it.'],
-  ['taxi to holding point A [runway 25] via L2, S', 'Taxi to a runway holding point along the given taxiways. Two-letter taxiways (Gatwick AN, NA) typed as they are or spoken letter by letter ("november alpha").'],
+  ['taxi to holding point A [runway 25] via L2, S', 'Taxi to a runway holding point along the given taxiways. Two-letter taxiways (Gatwick AN, NA) typed as they are or spoken letter by letter ("november alpha"); München B12WEST typed in one word or spoken "bravo one two west".'],
   ['taxi to runway 25 via L2, S', 'Taxi to the runway; the pilot picks the full-length holding point.'],
   ['Taxi to menu: destination > Hold short of L2', 'Click a destination for the whole route; its sub-menu limits it ("..., hold short of taxiway L2"). Tower only taxis a vacated arrival on to such a limit, the stand is Ground\'s.'],
   ['taxi to stand 14 via N, L2', 'Taxi an arrival to its stand. Lettered stands: "taxi to stand G1" / "stand golf 1" (Sylt), "stand R2S" / "stand romeo 2 sierra", "stand 24 alpha november" (Wellington).'],

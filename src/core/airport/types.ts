@@ -116,6 +116,13 @@ export interface ParallelRunwayData {
   aprons?: Record<string, string>;
   /** Aircraft from this wingspan (m) use this physical runway, e.g. the B747-8 on the wider one. */
   largeAircraft?: { runway: string; minWingspanM: number };
+  /**
+   * Runway by direction (München: departures to the north and north-east from the northern runway, to the south
+   * from the southern one): per runway end, the bearings of the destinations (departures) or of the origins
+   * (arrivals) it takes, as sectors clockwise from the first to the second value. Comes before the aprons.
+   */
+  departureSectors?: Record<string, [number, number][]>;
+  arrivalSectors?: Record<string, [number, number][]>;
 }
 
 /** A de-icing pad. */

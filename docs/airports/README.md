@@ -10,6 +10,7 @@ Every airport is built after the [airport recipe](../airport-data.md#adding-an-a
 | [EDDK Cologne/Bonn](EDDK.md) | Langen | 13L/31R (06/24 and 13R/31L drawn and crossed) | Delivery, Ground, Tower | Cargo hub (UPS, FedEx, DHL), parallel guide lines, crossing of 06/24 |
 | [EDDN Nuremberg](EDDN.md) | München | 10/28 | Ground, Tower | Single runway, GA and cargo aprons |
 | [EDDP Leipzig/Halle](EDDP.md) | München | 08L/26R and 08R/26L **at the same time** | Delivery, Ground, Tower | DHL hub, dependent parallel approaches, runway per apron |
+| [EDDM München](EDDM.md) | München | 08L/26R and 08R/26L **at the same time** | Delivery, Ground, Tower | Lufthansa hub, independent parallel approaches, runway by direction, high-speed turn-offs crossing each other, 221 stands |
 | [EDDW Bremen](EDDW.md) | Bremen | 08/26 | Ground (with clearances), Tower | Night rules, Beluga take-off runways drawn |
 | [EDJA Memmingen](EDJA.md) | München | 06/24 | Ground, Tower | Departures and arrivals **backtrack** on the runway |
 | [EDXW Sylt](EDXW.md) | Bremen | 14/32 (06/24 crossed) | Tower only | Small island airport, crossing runways |

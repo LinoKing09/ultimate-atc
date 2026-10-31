@@ -7,7 +7,7 @@ describe('airport data', () => {
   for (const ap of AIRPORTS) {
     it(`${ap.icao} passes the airport data checks`, () => {
       expect(validateAirport(ap)).toEqual([]);
-    });
+    }, 60000);
 
     it(`${ap.icao} generates traffic from its own operator mix`, () => {
       // The lowest position the airport has (Sylt: Tower only).

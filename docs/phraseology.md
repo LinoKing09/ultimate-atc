@@ -100,7 +100,7 @@ United Kingdom (London Gatwick):
 | EXS  | Channex   | ICE  | Iceair    | TAP  | Air Portugal   |
 | RAM  | Royalair Maroc |  |         |      |                |
 
-Two-letter taxiways (Gatwick AN, AS, NA, QA, BR, ER, FR, GR, ...) are typed as they are (`taxi to holding point M1 via J, AN, AS`) or spoken letter by letter (`via november alpha, papa, kilo`).
+Two-letter taxiways (Gatwick AN, AS, NA, QA, BR, ER, FR, GR, ...) are typed as they are (`taxi to holding point M1 via J, AN, AS`) or spoken letter by letter (`via november alpha, papa, kilo`). Designators with a word (München B12WEST) are typed in one word or spoken with it: `via B12, B12WEST, S7` or `via bravo one two, bravo one two west, sierra seven`.
 
 New Zealand (Wellington):
 

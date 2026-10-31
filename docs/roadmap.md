@@ -208,6 +208,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - **done** - TNCM St. Maarten (1.5)
 - **done** - SLLP La Paz (1.5)
 - **done** - EGKK London Gatwick, the busiest single runway (1.5)
+- **done** - EDDM München, two parallel runways with independent approaches (1.6)
 - planned - Per-airport traffic mix (operators, destinations, fleet); regional phraseology differences: FAA **done** (San Diego, 1.5), others with their airports
 
 ### Client

@@ -118,7 +118,7 @@ export class TrafficGenerator {
       const standFree = !this.standReserve || this.sim.freeStands(pending.type.wingspanM).length > 0;
       const runway = standFree ? this.arrivalRunway(pending) : undefined;
       if (runway) {
-        const ac = this.spawnArrival(SPAWN_DISTANCE_NM, { airline: pending.airline, type: pending.type.icao, stand: pending.stand, runway });
+        const ac = this.spawnArrival(SPAWN_DISTANCE_NM, { airline: pending.airline, type: pending.type.icao, stand: pending.stand, runway, origin: pending.origin });
         if (ac && landingStatus(sim, sim.time + NIGHT_APPROACH_ESTIMATE_S) === 'delayed') this.announceDelayed(ac);
         this.pendingArrival = undefined;
         this.nextArrivalAt = sim.time + sim.rng.exponential(3600 / r.arrivals);
@@ -205,13 +205,16 @@ export class TrafficGenerator {
    * The runway Approach puts the next arrival on: the one of its stand (parallel runways), else the other if
    * only that one has a gap; undefined while there is no gap.
    */
-  private arrivalRunway(pending: { airline: Airline; type: AircraftType; stand?: string }): string | undefined {
+  private arrivalRunway(pending: { airline: Airline; type: AircraftType; stand?: string; origin?: string }): string | undefined {
     const sim = this.sim;
     const arrivals = sim.arrivalRunways;
     if (arrivals.length === 1) return this.arrivalGapAvailable(pending.type, arrivals[0]) ? arrivals[0] : undefined;
     // With parallel runways the stand decides the runway: allocate it now.
     pending.stand ??= this.pickStand(pending.type, pending.airline)?.id ?? '';
-    const preferred = sim.runwayFor(pending.stand || undefined, pending.type, 'arrival');
+    // Runways by the direction of the origin (München): pick the origin now (only there, so other airports keep
+    // their random sequence).
+    if (sim.parallelOps?.arrivalSectors) pending.origin ??= sim.rng.pick(pending.airline.destinations);
+    const preferred = sim.runwayFor(pending.stand || undefined, pending.type, 'arrival', pending.origin ? sim.bearingTo(pending.origin) : undefined);
     const p = sim.parallelOps;
     // Aircraft bound to a runway by their size (e.g. the B747-8) wait for a gap there.
     const fixed = !!p?.largeAircraft && pending.type.wingspanM >= p.largeAircraft.minWingspanM;
@@ -219,7 +222,7 @@ export class TrafficGenerator {
     return order.find((r) => this.arrivalGapAvailable(pending.type, r));
   }
 
-  private pendingArrival?: { airline: Airline; type: AircraftType; stand?: string };
+  private pendingArrival?: { airline: Airline; type: AircraftType; stand?: string; origin?: string };
 
   private pickArrivalSpec(): { airline: Airline; type: AircraftType } {
     return this.pickSpec();
@@ -332,9 +335,9 @@ export class TrafficGenerator {
     const stand = opts.stand ? sim.airport.stand(opts.stand) : this.pickStand(type, airline);
     if (!stand) return undefined;
     const callsign = opts.callsign ?? this.makeCallsign(airline);
-    // Parallel runways: the runway of the stand's apron (or the nearest one).
-    const rwy = sim.runwayFor(stand.id, type, 'departure');
     const destination = sim.rng.pick(airline.destinations);
+    // Parallel runways: the runway for the direction of the destination, of the stand's apron, or the nearest one.
+    const rwy = sim.runwayFor(stand.id, type, 'departure', sim.bearingTo(destination));
     // The SID towards the destination (exit fix by direction, or a SID filed for this destination only).
     const sids = sidsForDestination(sim.config.airport, rwy, destination, type);
     const sid = sids.length ? sim.rng.pick(sids) : undefined;
@@ -369,16 +372,16 @@ export class TrafficGenerator {
     return ac;
   }
 
-  spawnArrival(distanceNm: number, opts: { callsign?: string; type?: string; airline?: Airline; medical?: boolean; stand?: string; runway?: string } = {}): Aircraft | undefined {
+  spawnArrival(distanceNm: number, opts: { callsign?: string; type?: string; airline?: Airline; medical?: boolean; stand?: string; runway?: string; origin?: string } = {}): Aircraft | undefined {
     const sim = this.sim;
     const airline = opts.airline ?? this.pickAirline();
     const type = aircraftType(opts.type ?? sim.rng.pick(airline.types));
     // The stand allocated when Approach picked the runway (parallel runways), if it is still free; else a new one.
     const reserved = opts.stand ? sim.airport.stand(opts.stand) : undefined;
     const stand = reserved && sim.freeStands(type.wingspanM, (s) => s === reserved).length ? reserved : this.pickStand(type, airline);
-    const runway = opts.runway ?? sim.runwayFor(stand?.id, type, 'arrival');
     const callsign = opts.callsign ?? this.makeCallsign(airline);
-    const origin = sim.rng.pick(airline.destinations);
+    const origin = opts.origin ?? sim.rng.pick(airline.destinations);
+    const runway = opts.runway ?? sim.runwayFor(stand?.id, type, 'arrival', sim.bearingTo(origin));
     const fp: FlightPlan = {
       departure: origin,
       destination: sim.config.airport.icao,

@@ -2,6 +2,7 @@ import type { SessionAction } from './session';
 import { Airport, type Stand } from './airport/airport';
 import type { AirportData, ParallelRunwayData, StationData, StationType } from './airport/types';
 import type { AircraftType } from '../data/aircraftTypes';
+import { destinationBearing } from '../data/destinations';
 import { telephony, type Aircraft } from './aircraft';
 import { M_PER_NM, distance, projectOnSegment } from './geo';
 import { detectCollisions, updateMovement, updateSeparation } from './movement';
@@ -26,7 +27,7 @@ import { deicingActive } from './deicing';
 import { utcOffsetMinutes } from './time';
 import { altimeterOf, atisDifferences, datisMet, initialMet, metWords, temperatureWords, trendWords, updateMet, updateWind, type Metar, type MetState } from './met';
 import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
-import { allowedApproachModes, arrivalEnds, capitalize, defaultRunwayKey, departureEnds, roleOf, runwayEndsOf, runwayUseWords, runwayWords, sameRoles, usRunway, type ParallelUse } from './runways';
+import { allowedApproachModes, arrivalEnds, capitalize, defaultRunwayKey, departureEnds, inSector, roleOf, runwayEndsOf, runwayUseWords, runwayWords, sameRoles, usRunway, type ParallelUse } from './runways';
 
 export type { Density } from './levels';
 
@@ -750,7 +751,12 @@ export class Simulation {
 
   /** The runway a departure taxis to: its assigned one if that is in use for departures, else the one of its stand. */
   departureRunwayOf(ac: Aircraft): string {
-    return this.isDepartureRunway(ac.runway) ? ac.runway!.toUpperCase() : this.runwayFor(ac.stand, ac.type, 'departure');
+    return this.isDepartureRunway(ac.runway) ? ac.runway!.toUpperCase() : this.runwayFor(ac.stand, ac.type, 'departure', this.bearingTo(ac.flightPlan.destination));
+  }
+
+  /** Initial great-circle bearing from the airport to another airport (undefined if its position is unknown). */
+  bearingTo(icao: string): number | undefined {
+    return destinationBearing(this.config.airport.arp, icao);
   }
 
   /** Runway key for a direction of operation: the parallel runways of this end where the airport has them. */
@@ -763,13 +769,19 @@ export class Simulation {
    * departures or arrivals (ATIS), the runway of its apron or size (parallel runway data), else the one nearest
    * to the stand.
    */
-  runwayFor(standId: string | undefined, type: AircraftType, role: 'departure' | 'arrival'): string {
+  runwayFor(standId: string | undefined, type: AircraftType, role: 'departure' | 'arrival', bearing?: number): string {
     const ends = role === 'departure' ? this.departureRunways : this.arrivalRunways;
     if (ends.length === 1) return ends[0];
     const p = this.parallelOps;
     const onRunway = (runway: string | undefined) => ends.find((e) => this.airport.runwayEnd(e)?.runway === runway);
     if (p?.largeAircraft && type.wingspanM >= p.largeAircraft.minWingspanM) {
       const e = onRunway(p.largeAircraft.runway);
+      if (e) return e;
+    }
+    // By the direction of the destination or origin (München).
+    const sectors = role === 'departure' ? p?.departureSectors : p?.arrivalSectors;
+    if (sectors && bearing !== undefined) {
+      const e = ends.find((x) => sectors[x]?.some((r) => inSector(bearing, r)));
       if (e) return e;
     }
     const stand = standId ? this.airport.stand(standId) : undefined;
@@ -1079,7 +1091,7 @@ export class Simulation {
       ac.ableIntersection = undefined;
       // Aircraft whose runway is still in use keep it (e.g. one of two parallel runways closed).
       if (ac.category === 'departure' && ['parked', 'pushback', 'startup'].includes(ac.phase) && !ac.pendingTaxi && !this.isDepartureRunway(ac.runway)) {
-        const end = this.runwayFor(ac.stand, ac.type, 'departure');
+        const end = this.runwayFor(ac.stand, ac.type, 'departure', this.bearingTo(ac.flightPlan.destination));
         ac.runway = end;
         ac.flightPlan.runway = end;
         const fix = sids.find((x) => x.name === ac.flightPlan.sid)?.fix;
@@ -1089,7 +1101,7 @@ export class Simulation {
       // Approach re-sequences arrivals that are not yet on short final onto the new runway.
       if (ac.phase === 'approach' && this.distanceToThresholdNm(ac) > 3.5 && !this.isArrivalRunway(ac.runway)) {
         const freq = ac.frequency;
-        this.tower.setupApproach(ac, Math.max(6, this.distanceToThresholdNm(ac)), this.runwayFor(ac.assignedStand, ac.type, 'arrival'));
+        this.tower.setupApproach(ac, Math.max(6, this.distanceToThresholdNm(ac)), this.runwayFor(ac.assignedStand, ac.type, 'arrival', this.bearingTo(ac.flightPlan.departure)));
         if (freq !== 'APP') ac.frequency = freq; // already talking to Tower: it stays there
       }
     }

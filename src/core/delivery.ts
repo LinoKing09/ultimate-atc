@@ -5,7 +5,7 @@ import type { AirportData, SidData } from './airport/types';
 import { destinationBearing, destinationName, resolveDestination } from '../data/destinations';
 import type { Altitude, Command } from './phraseology/commands';
 import { formatAltitude, formatClearanceClimb, formatDepartureRoute } from './phraseology/format';
-import { runwayUseWords, runwayWords } from './runways';
+import { inSector, runwayUseWords, runwayWords } from './runways';
 import type { Simulation } from './simulation';
 
 /**
@@ -84,12 +84,6 @@ export function fromHhmm(sim: Simulation, s: string): number | undefined {
   let t = (d.getTime() - sim.startEpochMs) / 1000;
   if (t < sim.time - 12 * 3600) t += 24 * 3600;
   return t;
-}
-
-/** True if `bearing` lies in the sector from `range[0]` clockwise to `range[1]` (degrees). */
-function inSector(bearing: number, [from, to]: [number, number]): boolean {
-  const span = (to - from + 360) % 360;
-  return (bearing - from + 360) % 360 <= span;
 }
 
 /**

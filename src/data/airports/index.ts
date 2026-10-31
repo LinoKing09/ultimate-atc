@@ -1,5 +1,6 @@
 import type { AirportData } from '../../core/airport/types';
 import { EDDK } from './eddk';
+import { EDDM } from './eddm';
 import { EGKK } from './egkk';
 import { EDDN } from './eddn';
 import { EDDP } from './eddp';
@@ -15,4 +16,4 @@ import { TNCM } from './tncm';
 import { VTSP } from './vtsp';
 
 /** Airports with complete data, selectable in the Connect dialog. */
-export const AIRPORTS: AirportData[] = [EDDS, EDDN, EDJA, EDXW, EDDW, EDDK, EDDP, KSAN, VTSP, NZWN, SEQM, TNCM, SLLP, EGKK];
+export const AIRPORTS: AirportData[] = [EDDS, EDDN, EDJA, EDXW, EDDW, EDDK, EDDP, EDDM, KSAN, VTSP, NZWN, SEQM, TNCM, SLLP, EGKK];

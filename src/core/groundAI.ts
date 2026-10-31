@@ -94,7 +94,9 @@ function aiTaxi(sim: Simulation, ac: Aircraft, destination: TaxiDestination): bo
 }
 
 function busyNearby(sim: Simulation, ac: Aircraft, radius: number): boolean {
-  return sim.aircraft.some((o) => o !== ac && o.onGround && ['taxi', 'pushback'].includes(o.phase) && Math.hypot(o.pos.x - ac.pos.x, o.pos.y - ac.pos.y) < radius);
+  // From where the pushback ends up: the lane in front of the stand (München apron 3: 125 m from the stand).
+  const at = (ac.phase === 'parked' && sim.airport.stand(ac.stand ?? '')?.lane.pos) || ac.pos;
+  return sim.aircraft.some((o) => o !== ac && o.onGround && ['taxi', 'pushback'].includes(o.phase) && Math.hypot(o.pos.x - at.x, o.pos.y - at.y) < radius);
 }
 
 /** Where a departure taxis next: to a free de-icing pad first if it still needs de-icing (winter operations). */

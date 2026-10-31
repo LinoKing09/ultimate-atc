@@ -304,7 +304,7 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
       const via = viaOf(route);
       // The pilot's own interpretation of the instruction must also keep clear of the other aircraft.
       const check = previewTaxi(sim, x, { type: 'taxi', destination: goal.target, via, holdShort: [], cross: [] });
-      if ('error' in check || check.route.requiresUTurn || !keepsClear(sim.airport, check.route, avoid)) return undefined;
+      if ('error' in check || check.route.requiresUTurn || !keepsClear(sim.airport, check.route, avoid, y.pos)) return undefined;
       return { aircraft: x, other: y, instruction: taxiInstruction(goal, via), route: check.route, tug: false };
     };
 
@@ -328,7 +328,7 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
         // link right beside it is no part of the instruction) - else, and with a way forwards, it turns around.
         const via = viaOf(back);
         const check = previewTaxi(sim, x, { type: 'taxi', destination: goal.target, via, holdShort: [], cross: [] });
-        const flies = !('error' in check) && !check.route.requiresUTurn && keepsClear(sim.airport, check.route, tugAvoid);
+        const flies = !('error' in check) && !check.route.requiresUTurn && keepsClear(sim.airport, check.route, tugAvoid, y.pos);
         if (way || !flies) back = turned(goal);
         if (!back) continue;
       }
@@ -344,11 +344,12 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
   return [...out.sort(byCrossing), ...tugs.sort(byCrossing)];
 }
 
-function keepsClear(airport: Airport, route: TaxiRoute, avoid: { points: Vec2[]; radius: number }): boolean {
+function keepsClear(airport: Airport, route: TaxiRoute, avoid: { points: Vec2[]; radius: number }, other: Vec2): boolean {
   const pts = [...(route.startPosition ? [route.startPosition] : []), ...airport.polyline(route.nodes).points];
-  // The first segment starts where the aircraft stands now: checked whole only if the other one is not that close
-  // already (then moving away is enough); a long first segment can run straight through the other one.
-  const close = pts.length > 0 && avoid.points.some((q) => distance(q, pts[0]) < avoid.radius);
+  // The first segment starts where the aircraft stands now: checked whole only if the other aircraft (where it stands,
+  // not its path) is not that close already (then moving away is enough); a long first segment can run straight
+  // through the other one.
+  const close = pts.length > 0 && distance(other, pts[0]) < avoid.radius;
   return pts.every((p, i) => i === 0 || (i === 1 && close) || avoid.points.every((q) => distanceToSegment(q, pts[i - 1], p) >= avoid.radius));
 }
 

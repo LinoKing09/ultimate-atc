@@ -3,8 +3,9 @@ import { allocateSquawk, initialClimb, sendDcl, suggestedSid } from '../src/core
 import { routeHeadOn } from '../src/core/conflicts';
 import { conflictResolution, pushInWay, reachableFreeStand } from '../src/core/groundAI';
 import { previewTaxi } from '../src/core/pilot';
-import { distance } from '../src/core/geo';
+import { distance, projectOnSegment } from '../src/core/geo';
 import type { Aircraft } from '../src/core/aircraft';
+import type { TaxiDestination } from '../src/core/phraseology/commands';
 import type { Simulation } from '../src/core/simulation';
 
 /**
@@ -98,19 +99,25 @@ export function createBot(sim: Simulation): () => void {
       // A departure with a slot (CTOT) is pushed back and taxied only in time for it, not to block the holding point.
       const early = ac.ctot !== undefined && t < ac.ctot - CTOT_LEAD_S;
       // Opposite traffic on the way out (CATC): the pushback / taxi waits for it (at most HEAD_ON_WAIT_S).
-      const headOn = () => {
-        const r = previewTaxi(sim, ac, { type: 'taxi', destination: { kind: 'runway', runway: sim.departureRunwayOf(ac) }, via: [], holdShort: [], cross: [] });
+      // Arrivals likewise on the way in: an aircraft pushing back or taxiing out comes the other way.
+      const headOn = (destination: TaxiDestination = { kind: 'runway', runway: sim.departureRunwayOf(ac) }) => {
+        const r = previewTaxi(sim, ac, { type: 'taxi', destination, via: [], holdShort: [], cross: [] });
         if ('error' in r) return false;
-        const c = routeHeadOn(sim, ac, sim.airport.polyline(r.route.nodes).points);
+        const pts = sim.airport.polyline(r.route.nodes).points;
+        const c = routeHeadOn(sim, ac, pts);
+        // An arrival also waits for an aircraft pushing back or starting up on its way in (it has no route yet).
+        const pushing =
+          destination.kind === 'stand' &&
+          sim.aircraft.some((o) => o !== ac && ['pushback', 'startup'].includes(o.phase) && pts.some((p, i) => i > 0 && projectOnSegment(o.pos, pts[i - 1], p).dist < (o.type.wingspanM + ac.type.wingspanM) * 0.38 + 6));
         // Traffic that waits behind us (blocked by us) is no reason to wait: we have to move first.
-        if (!c || c.other.blockedBy === cs) return false;
+        if (!pushing && (!c || c.other.blockedBy === cs)) return false;
         // Per request: a new call (after a cancelled pushback, say) waits again.
         const key = `${cs}:${ac.request}:${ac.requestSince}`;
         held.set(key, held.get(key) ?? t);
         return t - held.get(key)! < HEAD_ON_WAIT_S;
       };
-      // Traffic taxiing past the stand or the lane in front of it: no pushback into its way (as the AI Ground).
-      const inWay = () => pushInWay(sim, ac);
+      // Traffic taxiing past the stand or the lane in front of it (its whole route ahead): no pushback into its way.
+      const inWay = () => pushInWay(sim, ac, Infinity, true);
       // Gate hold: the runway queue is long enough already.
       const queueFull = () => {
         const n = sim.aircraft.filter((o) => o.category === 'departure' && ['pushback', 'taxi', 'holding', 'lineup'].includes(o.phase)).length;
@@ -148,13 +155,13 @@ export function createBot(sim: Simulation): () => void {
           break;
         case 'taxiIn': {
           const stand = standFor(ac);
-          if (stand) say(`${cs} taxi to stand ${stand}`);
+          if (stand && !headOn({ kind: 'stand', stand })) say(`${cs} taxi to stand ${stand}`);
           break;
         }
         case 'route':
           if (ac.category === 'arrival') {
             const stand = standFor(ac);
-            if (stand) say(`${cs} taxi to stand ${stand}`);
+            if (stand && !headOn({ kind: 'stand', stand })) say(`${cs} taxi to stand ${stand}`);
           }
           else if (ac.category === 'departure') say(`${cs} taxi to runway ${sim.departureRunwayOf(ac)}`);
           // A tow that could not find its way after the pushback: to its stand again.
@@ -179,7 +186,7 @@ export function createBot(sim: Simulation): () => void {
           if (!sim.airport.station('GND') || staffed('GND')) {
             if (ac.category === 'arrival') {
               const stand = standFor(ac);
-              if (stand) say(`${cs} taxi to stand ${stand}`);
+              if (stand && !headOn({ kind: 'stand', stand })) say(`${cs} taxi to stand ${stand}`);
             } else if (ac.category === 'departure' && !headOn()) say(`${cs} taxi to runway ${sim.departureRunwayOf(ac)}`);
           } else say(`${cs} contact ground`);
           break;

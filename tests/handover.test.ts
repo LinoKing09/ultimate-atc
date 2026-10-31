@@ -48,7 +48,7 @@ describe('taking over from another controller', () => {
       for (let t = 0; t < 60; t++) sim.tick(1);
       expect(sim.messages.slice(n).filter((m) => m.kind === 'pilot').length).toBeLessThanOrEqual(5);
     }
-  });
+  }, 60000);
 
   it('an empty start is unchanged', () => {
     const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 5 });

@@ -289,7 +289,9 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
 
     // Turning around: y's path runs through x itself, so only y's position must be avoided.
     // (They may already stand closer together than the normal clearance: then moving away is enough.)
-    const tugAvoid = { points: [y.pos], radius: Math.min(radius, distance(x.pos, y.pos) - 3) };
+    // Turning around must not lead into other traffic either (e.g. the aircraft queuing behind it).
+    const others = sim.aircraft.filter((o) => o !== x && o !== y && o.onGround && ['taxi', 'pushback', 'startup', 'holding', 'vacating'].includes(o.phase)).map((o) => o.pos);
+    const tugAvoid = { points: [y.pos, ...others], radius: Math.min(radius, distance(x.pos, y.pos) - 3) };
     const find = (goal: Goal, allowUTurn: boolean): TaxiRoute | undefined => {
       const base = { ...routeOptionsOf(sim, x), allowUTurn, avoid: allowUTurn ? tugAvoid : avoid };
       let r = findRoute(sim.airport, routeStartOf(sim, x), goal.node, [], { ...base, strictFlows: true });
@@ -313,14 +315,17 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
     const way = forward(primary) ?? alternativeGoals(sim, x, primary).reduce<ResolveOption | undefined>((found, g) => found ?? forward(g), undefined);
     if (way) out.push(way);
     // Also, last: a tug turns the aircraft around (only big aircraft need one; small ones can turn) - the way out when
-    // there is none forwards, or when the way forwards did not help (the two still stand nose to nose).
+    // there is none forwards, or when the two stand nose to nose (the way forwards may not have helped).
     /** The route after turning around on the spot ("turn around, taxi ..." starts the other way round). */
     const turned = (goal: Goal): TaxiRoute | undefined => {
       const start = { position: x.pos, heading: (x.heading + 180) % 360 };
       const r = findRoute(sim.airport, start, goal.node, [], { ...routeOptionsOf(sim, x), allowUTurn: true, avoid: tugAvoid });
       return isRouteError(r) ? undefined : { ...r, requiresUTurn: true };
     };
-    for (const goal of [primary, ...alternativeGoals(sim, x, primary)]) {
+    // With a way forwards, a turnaround only for two that really stand nose to nose, blocking each other (not in a
+    // queue that clears by waiting).
+    const noseToNose = x.blockedBy === y.callsign && y.blockedBy === x.callsign;
+    for (const goal of way && !noseToNose ? [] : [primary, ...alternativeGoals(sim, x, primary)]) {
       let back = find(goal, true);
       if (!back) continue;
       if (!back.requiresUTurn) {

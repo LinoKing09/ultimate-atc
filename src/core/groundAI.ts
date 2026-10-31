@@ -100,18 +100,22 @@ function busyNearby(sim: Simulation, ac: Aircraft, radius: number): boolean {
 /** Pushed back this far beyond the lane node at most (m). */
 const PUSH_BEYOND_LANE_M = 40;
 
+/** The AI Ground looks this far (m) along the routes of taxiing traffic for the lane in front of a stand. */
+const PUSH_LOOK_AHEAD_M = 400;
+
 /**
- * Traffic taxiing past the stand: the route ahead of an aircraft taxiing runs past the stand or the lane in front of
- * it, where the pushback ends up (that lane can lie 150 m from the stand - München apron 3).
+ * Traffic taxiing past the stand: the route ahead of an aircraft taxiing (within `lookM`) runs past the lane in front
+ * of the stand, where the pushback ends up (that lane can lie 150 m from the stand - München apron 3), and with
+ * `standToo` past the stand itself.
  */
-export function pushInWay(sim: Simulation, ac: Aircraft): boolean {
+export function pushInWay(sim: Simulation, ac: Aircraft, lookM = PUSH_LOOK_AHEAD_M, standToo = false): boolean {
   const lane = sim.airport.stand(ac.stand ?? '')?.lane.pos;
   return sim.aircraft.some((o) => {
     if (o === ac || o.phase !== 'taxi' || !o.path) return false;
     const r = (o.type.wingspanM + ac.type.wingspanM) * 0.38 + 6 + PUSH_BEYOND_LANE_M;
-    for (let x = o.s; x <= o.path.length; x += 10) {
+    for (let x = o.s; x <= Math.min(o.path.length, o.s + lookM); x += 10) {
       const p = o.path.pointAt(x);
-      if (distance(p, ac.pos) < r || (lane && distance(p, lane) < r)) return true;
+      if ((standToo && distance(p, ac.pos) < r) || (lane && distance(p, lane) < r)) return true;
     }
     return false;
   });
@@ -300,6 +304,8 @@ export function reachableFreeStand(sim: Simulation, ac: Aircraft, filter?: (s: S
 
 /** Time after a resolution before the AI Ground resolves a conflict of the same aircraft again (seconds). */
 const RESOLVE_AGAIN_S = 120;
+/** Time after a tug turnaround before the AI Ground resolves a conflict with that aircraft (seconds). */
+const TUG_SETTLE_S = 60;
 
 /** Head-on: re-route one of the two (as a real Ground controller would). */
 function resolve(sim: Simulation, ac: Aircraft): void {
@@ -313,7 +319,7 @@ function resolve(sim: Simulation, ac: Aircraft): void {
  * The way out of a conflict `ac` is in, as the AI Ground (and the soak test's controller) gives it: an instruction
  * for one of the aircraft, and `done` to call once it was given. `acrossRunway`: a detour across a runway is
  * acceptable if there is no other way (the controller also works the runway). Undefined while there is nothing to do yet - the
- * crew has not waited long enough, a tug is coming, or the conflict was just resolved.
+ * crew has not waited long enough, a tug is coming or has just turned one around, or the conflict was just resolved.
  */
 export function conflictResolution(sim: Simulation, ac: Aircraft, acrossRunway = false): { aircraft: Aircraft; instruction: string; done: () => void } | undefined {
   // Stopped for opposite traffic at a junction (the crew asks), or stuck behind traffic for 40 s.
@@ -321,10 +327,14 @@ export function conflictResolution(sim: Simulation, ac: Aircraft, acrossRunway =
   if (!waitingOpposite && (!ac.blockedBy || ac.blockedSince === undefined || sim.time - ac.blockedSince < 40)) return undefined;
   const other = headOnPartner(sim, ac);
   if (!other) return undefined;
+  // The aircraft we are stuck behind moves off (e.g. turned around by a tug): the way clears by itself.
+  const blocker = ac.blockedBy ? sim.find(ac.blockedBy) : undefined;
+  if (blocker && blocker.speed > 0.5) return undefined;
   // The other one is rolling and not held up by us: it is passing (e.g. where two apron lanes meet) - wait.
   if (other.speed > 1 && other.blockedBy !== ac.callsign) return undefined;
   // Resolve each conflict once: not again while a tug is coming or right after the last instruction.
-  const recent = (a: Aircraft) => (a.tugUntil ?? 0) > sim.time || sim.time - (a.resolvedAt ?? -Infinity) < RESOLVE_AGAIN_S;
+  // (Also just after a tug turned one around: it is about to move off.)
+  const recent = (a: Aircraft) => (a.tugUntil ?? 0) > sim.time - TUG_SETTLE_S || sim.time - (a.resolvedAt ?? -Infinity) < RESOLVE_AGAIN_S;
   if (recent(ac) || recent(other)) return undefined;
   // A circle of aircraft waiting for each other with a pushback in it: the tug pulls that one back onto its stand.
   const pusher = blockCycle(sim, ac)?.find((a) => a.phase === 'pushback' && !a.towingIn);

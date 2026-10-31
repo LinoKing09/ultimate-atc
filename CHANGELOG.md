@@ -13,8 +13,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
-- **Resolve conflict** (and the AI Ground) no longer offers a way out that the crew would fly straight through the other aircraft: a re-route is checked as the crew reads it, including its first stretch, and when no re-route works any more the tug turnaround is offered as well (was: only when there was no re-route at all). Two aircraft nose to nose on an apron lane with unnamed links beside them (München apron 3) were stuck for good.
-- The AI Ground also holds a pushback while a taxiing aircraft's route runs past the **lane in front of the stand** (where the pushback ends up, up to 150 m from the stand) - at München apron 3 (125 m) it pushed an aircraft into the way of an arrival.
+- **Resolve conflict** (and the AI Ground) no longer offers a way out that the crew would fly straight through the other aircraft: a re-route is checked as the crew reads it, including its first stretch, and for two aircraft that block each other nose to nose the tug turnaround is offered as well (was: only when there was no re-route at all). A turnaround must not lead into other traffic (it turned the middle one of three aircraft on a taxiway into the one behind it), and nothing is resolved while the aircraft one is stuck behind moves off or within a minute of a tug turnaround (a departure was turned around just as its way cleared). Two aircraft nose to nose on an apron lane with unnamed links beside them (München apron 3) were stuck for good.
+- The AI Ground also holds a pushback while the next 400 m of a taxiing aircraft's route run past the **lane in front of the stand** (where the pushback ends up, up to 150 m from the stand) - at München apron 3 (125 m) it pushed an aircraft into the way of an arrival.
 
 ## [1.5.2] - 2026-10-30
 

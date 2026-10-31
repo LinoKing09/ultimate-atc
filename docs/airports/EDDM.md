@@ -30,8 +30,8 @@ The hub of Lufthansa in the south: two parallel runways used at the same time fo
 - the long **high-speed turn-offs** cross each other before the runway (A8 / A9, B6 / B7, B8 / B10 / B11): each holding point leads onto the runway along its own taxiway (`stripsAlongTaxiway`, `maxStripM` 700 m in `buildLayout`),
 - the **stand sizes** are not published: the centre position of a stand with A / B positions is code E, the A / B positions code C, the others by their spacing (70 m and more code E, 57 m and more code D, else code C). Overlapping positions are never used at the same time (wingtip clearance check),
 - stands without a lead-in line in OpenStreetMap (among them 201, 318A, 352-356, 371 / 372, 511-523, 586, 591-595) have their AIP coordinates and the lane node on the nearest apron taxiway; **99-108** (the new pier of Terminal 1, under construction on the aerodrome chart, no taxilanes in OpenStreetMap) and the stands of the maintenance aprons 7 and 8 (7xx / 8xx) are left out; general aviation on apron 5 (5xx), cargo on apron 9 (9xx),
-- one **Ground** and one **Tower** for both runways (AIP: Ground 121.980 north / 121.830 south, Tower 118.705 north / 120.505 south); Muenchen Apron 1-3 is not a separate position,
-- the de-icing areas, A-CDM (TOBT, TSAT), the noise abatement procedures and the night restrictions are not modelled; MIQ (Mike) SIDs are not planned automatically,
+- one **Ground** and one **Tower** position for both runways, each on its two frequencies (AIP): the aircraft of the northern runway are sent to and read back the northern one (Ground 121.980, Tower 118.705), those of the southern runway the southern one (Ground 121.830, Tower 120.505) - by runway, not by the area they taxi in; Muenchen Apron 1-3 is not a separate position,
+- **A-CDM** (TOBT, TSAT) is in use (AIP AD 2.20); the de-icing areas, the noise abatement procedures and the night restrictions are not modelled; MIQ (Mike) SIDs are not planned automatically,
 - traffic: estimated operator shares (Lufthansa and Lufthansa CityLine about 60 %), twice Stuttgart's movements per density step (`rateFactor` 2).
 
 **Never use this simulator for real-world navigation.**
@@ -60,8 +60,8 @@ Operating direction 26 is in use about 60 % of the time (westerly winds, estimat
 | Station | Callsign | Frequency |
 | ------- | -------- | --------- |
 | Delivery | Muenchen Delivery | 121.730 |
-| Ground | Muenchen Ground | 121.980 |
-| Tower | Muenchen Tower | 118.705 |
+| Ground | Muenchen Ground | 121.980 (northern runway), 121.830 (southern runway) |
+| Tower | Muenchen Tower | 118.705 (northern runway), 120.505 (southern runway) |
 | Approach | Muenchen Radar | 123.905 (departures to the south: 127.955) |
 | ATIS | Muenchen ATIS | 123.130 |
 

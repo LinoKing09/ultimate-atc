@@ -331,6 +331,11 @@ export interface StationData {
   /** Radio telephony name, e.g. "Stuttgart Ground". */
   name: string;
   frequency: string;
+  /**
+   * The same position on other frequencies, by physical runway (München Tower South 120.505 for 08R/26L): the
+   * aircraft of that runway are sent to and read back this one; either frequency reaches the position.
+   */
+  runwayFrequencies?: Record<string, string>;
 }
 
 export interface RunwayOpsData {

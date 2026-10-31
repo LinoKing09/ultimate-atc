@@ -404,12 +404,12 @@ export const EDDM: AirportData = {
   areas: built.areas,
   buildings: built.buildings,
   pavement: built.pavement,
-  // One Ground and one Tower for both runways (AIP: Ground 121.980 north / 121.830 south, Tower 118.705 north /
-  // 120.505 south).
+  // Ground and Tower north and south (AIP: Ground 121.980 / 121.830, Tower 118.705 / 120.505): one position each, the
+  // aircraft of the southern runway on the southern frequency.
   stations: [
     { callsign: 'EDDM_DEL', type: 'DEL', name: 'Muenchen Delivery', frequency: '121.730' },
-    { callsign: 'EDDM_GND', type: 'GND', name: 'Muenchen Ground', frequency: '121.980' },
-    { callsign: 'EDDM_TWR', type: 'TWR', name: 'Muenchen Tower', frequency: '118.705' },
+    { callsign: 'EDDM_GND', type: 'GND', name: 'Muenchen Ground', frequency: '121.980', runwayFrequencies: { '08R/26L': '121.830' } },
+    { callsign: 'EDDM_TWR', type: 'TWR', name: 'Muenchen Tower', frequency: '118.705', runwayFrequencies: { '08R/26L': '120.505' } },
     { callsign: 'EDDM_APP', type: 'APP', name: 'Muenchen Radar', frequency: '123.905' },
     { callsign: 'EDDM_ATIS', type: 'ATIS', name: 'Muenchen ATIS', frequency: '123.130' },
   ],

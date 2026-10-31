@@ -43,6 +43,15 @@ describe('München (EDDM) after the DFS AIP', () => {
     expect(sidsForDestination(EDDM, '08L', 'EGLL').map((s) => s.name)).toEqual(['RIDAR7Q']);
   });
 
+  it('sends the aircraft of each runway to its own Ground and Tower frequency', () => {
+    const sim = new Simulation({ airport: EDDM, position: 'GND', density: 'medium', seed: 1, events: false, runway: '26R+26L', generateTraffic: false });
+    const north = { runway: '26R' } as Parameters<typeof sim.frequencyFor>[1];
+    const south = { runway: '26L' } as Parameters<typeof sim.frequencyFor>[1];
+    expect([sim.frequencyFor('TWR', north), sim.frequencyFor('TWR', south)]).toEqual(['118.705', '120.505']);
+    expect([sim.frequencyFor('GND', north), sim.frequencyFor('GND', south)]).toEqual(['121.980', '121.830']);
+    expect(sim.frequenciesOf('TWR')).toEqual(['118.705', '120.505']);
+  });
+
   it('reads B12WEST typed and spoken', () => {
     const ctx = { callsigns: ['DLH4AB'], taxiways: new Airport(EDDM).taxiwayNames };
     const via = (text: string) => (parseTransmission(text, ctx).commands[0] as { via: string[] }).via;

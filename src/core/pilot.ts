@@ -1330,7 +1330,7 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   // Radar frequencies of the SIDs (e.g. a sector for the southern departures) belong to Approach too.
   const radarFrequencies = new Set(sim.config.airport.sids.map((s) => s.frequency).filter((f): f is string => !!f));
   if (!type) {
-    if (frequency) type = sim.config.airport.stations.find((s) => s.frequency === frequency)?.type ?? (radarFrequencies.has(frequency) ? 'APP' : undefined);
+    if (frequency) type = sim.config.airport.stations.find((s) => sim.frequenciesOf(s.type).includes(frequency))?.type ?? (radarFrequencies.has(frequency) ? 'APP' : undefined);
     // From Delivery the next station is Ground, from Ground it is Tower, from Tower Radar (departures) or Ground.
     if (!type && ac.frequency === tower && tower !== sim.stationFor('ground')) type = ac.onGround ? sim.stationFor('ground') : 'APP';
     if (!type && ac.category === 'departure') type = ac.frequency === sim.stationFor('delivery') && ac.frequency !== sim.stationFor('ground') ? sim.stationFor('ground') : tower;
@@ -1341,9 +1341,9 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   const station = sim.airport.station(type);
   if (!station) return { unable: 'say again station' };
   const radarFrequency = type === 'APP' && frequency && radarFrequencies.has(frequency);
-  if (frequency && frequency !== station.frequency && !radarFrequency) return { unable: `confirm frequency ${frequency} for ${STATION_WORD[type]}` };
+  if (frequency && !sim.frequenciesOf(type).includes(frequency) && !radarFrequency) return { unable: `confirm frequency ${frequency} for ${STATION_WORD[type]}` };
   // Departures read back the frequency they were given, or (no frequency said) the one of their SID.
-  const said = frequency ?? (type === 'APP' && ac.category === 'departure' ? departureFrequency(sim, ac) : undefined) ?? station.frequency;
+  const said = frequency ?? (type === 'APP' && ac.category === 'departure' ? departureFrequency(sim, ac) : undefined) ?? sim.frequencyFor(type, ac);
 
   const fromDelivery = ac.frequency === sim.stationFor('delivery') && type === sim.stationFor('ground') && type !== ac.frequency;
   if (fromDelivery && !ac.cleared) return { unable: 'negative, we have no clearance yet' };

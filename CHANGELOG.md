@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Frequencies per runway**: München Ground and Tower work on their northern and southern frequencies (Ground 121.980 / 121.830, Tower 118.705 / 120.505), Leipzig Tower on 121.105 / 125.955 for the northern runway - the aircraft of each runway are sent to and read back their own one (`contact tower 120.505`), the toolbar shows both, and either reaches the position (airport data: `runwayFrequencies`).
+
+### Fixed
+
+- München documentation: A-CDM is in use (it said not modelled).
+
 ## [1.6.0] - 2026-10-31
 
 ### Added

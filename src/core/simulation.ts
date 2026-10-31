@@ -764,6 +764,19 @@ export class Simulation {
     return defaultRunwayKey(this.config.airport, end);
   }
 
+  /** The frequency of a station for this aircraft: the one of its runway where the position has several. */
+  frequencyFor(type: StationType, ac?: Aircraft): string {
+    const st = this.airport.station(type);
+    const rwy = ac?.runway ? this.airport.runwayNameFor(ac.runway) : undefined;
+    return (rwy && st?.runwayFrequencies?.[rwy]) || st?.frequency || '';
+  }
+
+  /** All frequencies of a station (the main one first). */
+  frequenciesOf(type: StationType): string[] {
+    const st = this.airport.station(type);
+    return st ? [st.frequency, ...Object.values(st.runwayFrequencies ?? {})] : [];
+  }
+
   /**
    * The runway in use an aircraft of this stand and type departs from or lands on: among the runways in use for
    * departures or arrivals (ATIS), the runway of its apron or size (parallel runway data), else the one nearest

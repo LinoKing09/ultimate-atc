@@ -510,7 +510,7 @@ export class App {
       logged
         .map((st) => {
           const on = sim.userControls(st.type);
-          return `<span class="stn pos-${st.type}${on ? '' : ' off'}" data-station="${st.type}" title="${on ? 'Click to switch off' : 'Switched off (run by the simulator) - click to switch on'}"><b>${st.callsign}</b> ${st.frequency}${on ? '' : ' OFF'}</span>`;
+          return `<span class="stn pos-${st.type}${on ? '' : ' off'}" data-station="${st.type}" title="${on ? 'Click to switch off' : 'Switched off (run by the simulator) - click to switch on'}"><b>${st.callsign}</b> ${sim.frequenciesOf(st.type).join(' / ')}${on ? '' : ' OFF'}</span>`;
         })
         .join(' + ') +
       (active.length > 1 ? '<span class="combined-tag">COMBINED</span>' : '') +
@@ -1553,9 +1553,9 @@ export class App {
       if (ac.category === 'departure' && tower) {
         items.push({ divider: true, label: '' });
         items.push({
-          label: `Contact Tower ${tower.frequency}`,
+          label: `Contact Tower ${sim.frequencyFor(tower.type, ac)}`,
           disabled: !['taxi', 'holding'].includes(ac.phase),
-          action: () => this.say(ac, `contact tower ${tower.frequency}`),
+          action: () => this.say(ac, `contact tower ${sim.frequencyFor(tower.type, ac)}`),
         });
       }
     }
@@ -1689,7 +1689,8 @@ export class App {
     if (cross) items.push({ label: `Cross runway ${cross}`, hint: !sim.tower.crossingFree(ac.stoppedAt!.target) ? 'runway occupied!' : arrival, action: () => this.say(ac, `cross runway ${cross}`) });
     // Arrivals can be handed to Ground right after touchdown (they call Ground once vacated).
     if (ac.onGround && ground && (ac.phase === 'taxi' || (ac.category === 'arrival' && (ac.phase === 'landing' || ac.phase === 'vacating')))) {
-      items.push({ label: `Contact Ground ${ground.frequency}`, hint: ac.request === 'vacated' ? 'vacated' : undefined, action: () => this.say(ac, `contact ground ${ground.frequency}`) });
+      const f = sim.frequencyFor(ground.type, ac);
+      items.push({ label: `Contact Ground ${f}`, hint: ac.request === 'vacated' ? 'vacated' : undefined, action: () => this.say(ac, `contact ground ${f}`) });
     }
     if (ac.request) items.push({ label: 'Standby', action: () => this.say(ac, 'standby') });
     items.push({ label: 'Say again', action: () => this.say(ac, 'say again') });

@@ -336,11 +336,12 @@ export const EDDP: AirportData = {
   buildings: built.buildings,
   // The stub south-east from the H1 / N junction is P, closed (aerodrome chart correction "TWY P closed").
   pavement: built.pavement.map((l) => (l.points[0].lat === 51.4193784 && l.points[0].lon === 12.2089903 ? { ...l, name: 'P', closed: true } : l)),
-  // One Tower for both runways (AIP: 121.105 south, 125.955 north; cross-coupled when one controller works both).
+  // One Tower for both runways (AIP: 121.105 south, 125.955 north; cross-coupled when one controller works both): the
+  // aircraft of the northern runway on the northern frequency.
   stations: [
     { callsign: 'EDDP_DEL', type: 'DEL', name: 'Leipzig Delivery', frequency: '121.680' },
     { callsign: 'EDDP_GND', type: 'GND', name: 'Leipzig Ground', frequency: '121.805' },
-    { callsign: 'EDDP_TWR', type: 'TWR', name: 'Leipzig Tower', frequency: '121.105' },
+    { callsign: 'EDDP_TWR', type: 'TWR', name: 'Leipzig Tower', frequency: '121.105', runwayFrequencies: { '08L/26R': '125.955' } },
     { callsign: 'EDDP_APP', type: 'APP', name: 'Muenchen Radar', frequency: '126.065' },
     { callsign: 'EDDP_ATIS', type: 'ATIS', name: 'Leipzig Information', frequency: '123.955' },
   ],

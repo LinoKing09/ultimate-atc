@@ -375,7 +375,7 @@ function showSavedSessions(onLoad: (s: SavedSession) => string | undefined, onCh
 const TOWER_REFERENCE: [string, string][] = [
   ['line up and wait runway 25', 'Departure at (or taxiing to) the holding point: enter the runway and wait. Not a take-off clearance.'],
   ['behind landing EWG7TK, line up and wait behind', 'Conditional line-up: the departure enters the runway once the landing aircraft has passed.'],
-  ['wind 250 degrees 8 knots, runway 25, cleared for take-off', 'Take-off clearance (from the holding point it lines up and rolls). Mind the spacing: 2 min behind a heavy or on the same SID, 1 min on diverging SIDs. CTOT flights not before CTOT -5 min (an earlier take-off is a slot violation). Refused while a thunderstorm is overhead, and for jets in the night curfew.'],
+  ['wind 250 degrees 8 knots, runway 25, cleared for take-off', 'Take-off clearance (from the holding point or while lining up it rolls into the take-off without stopping). Mind the spacing: 2 min behind a heavy or on the same SID, 1 min on diverging SIDs. CTOT flights not before CTOT -5 min (an earlier take-off is a slot violation). Refused while a thunderstorm is overhead, and for jets in the night curfew.'],
   ['hold position, cancel take-off / stop immediately', 'Cancel a take-off clearance; during the roll below 80 kt the crew stops.'],
   ['wind 250 degrees 8 knots, runway 25, cleared to land', 'Landing clearance. Without one the arrival goes around at 0.5 NM.'],
   ['continue approach, expect late landing clearance', 'The landing clearance will come late (runway not free yet). Not a landing clearance: clear it to land before the threshold.'],

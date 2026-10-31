@@ -3,7 +3,7 @@ import { CTOT_EARLY_S, CTOT_LATE_S, hhmm } from './delivery';
 import { wantsFollowMe } from './vehicles';
 import type { RunwayEnd, TaxiNode } from './airport/airport';
 import { moveFree, type Aircraft } from './aircraft';
-import { KT_TO_MS, M_PER_FT, M_PER_NM, add, distance, headingOf, headingVector, length, scale, sub, type Vec2 } from './geo';
+import { KT_TO_MS, M_PER_FT, M_PER_NM, add, distance, headingDiff, headingOf, headingVector, length, scale, sub, type Vec2 } from './geo';
 import { vacateStopS } from './holdShort';
 import { findRoute, isRouteError } from './airport/routing';
 import { Path } from './path';
@@ -35,6 +35,15 @@ const TAKEOFF_ACCEL = 2.0; // m/s^2
 /** Chance of a random rejected take-off at the standard ("rare") event level. */
 const REJECTED_TAKEOFF_CHANCE = 0.015;
 const LINEUP_SPEED = 9 * KT_TO_MS;
+/** Rolling take-off: aligned with the runway within this heading (degrees) and distance from the centre line (m). */
+const ROLLING_ALIGNED_DEG = 6;
+const ROLLING_LATERAL_M = 3;
+/** Share of crews that roll straight into the take-off; the others slow down to 2-3.5 m/s (4-7 kt) first. */
+const ROLLING_AT_ONCE_SHARE = 0.5;
+const ROLLING_MIN_SPEED = 2;
+const ROLLING_SPEED_SPREAD = 1.5;
+/** At the latest this far (m) before the line-up point, where it would stop. */
+const ROLLING_LATEST_M = 4;
 /** Backtrack: taxi speed on the runway, speed in the 180° turn, turn radius, and how far from the runway end the turn starts. */
 const BACKTRACK_SPEED = 18 * KT_TO_MS;
 const BACKTRACK_TURN_SPEED = 6 * KT_TO_MS;
@@ -241,6 +250,8 @@ export class TowerAI {
           if (user) {
             // The crew rolls when cleared - but not with traffic on the runway in front of it.
             if (ac.stoppedAt && ac.takeoffCleared && !ac.holdPosition && !ac.giveWayTo && this.sim.time >= ac.timerUntil && this.runwayClearFor(ac)) this.startTakeoff(ac);
+            // Cleared for take-off while lining up: a rolling take-off, without stopping on the runway.
+            else if (!ac.stoppedAt && this.rollingTakeoff(ac)) this.startTakeoff(ac);
           } else if (ac.stoppedAt && this.sim.time >= ac.timerUntil && this.canTakeOff(ac)) this.startTakeoff(ac);
           break;
         case 'takeoff':
@@ -996,11 +1007,27 @@ export class TowerAI {
     this.planRollout(ac, this.departureEnd(ac), REJECT_DECEL, false, false, true);
   }
 
+  /**
+   * Cleared for take-off while still lining up: the crew starts the take-off roll from the line-up, once aligned with
+   * the centre line - some at once, others slow down a little first (each crew its own way), none stops.
+   */
+  private rollingTakeoff(ac: Aircraft): boolean {
+    if (!ac.takeoffCleared || ac.holdPosition || ac.giveWayTo || !ac.path) return false;
+    const end = this.departureEnd(ac);
+    const c = this.sim.airport.runwayCoordinates(end, ac.pos);
+    if (Math.abs(headingDiff(ac.heading, end.heading)) > ROLLING_ALIGNED_DEG || Math.abs(c.lateral) > ROLLING_LATERAL_M) return false;
+    // At once (and always for an immediate take-off), or once slowed down to this speed (or nearly at the line-up point).
+    const v = this.sim.variation(`${ac.callsign}:rolling`);
+    const slowTo = ac.immediateTakeoff || v < ROLLING_AT_ONCE_SHARE ? Infinity : ROLLING_MIN_SPEED + (1 - v) * ROLLING_SPEED_SPREAD;
+    if (ac.speed > slowTo && ac.path.length - ac.s > ROLLING_LATEST_M) return false;
+    return this.runwayClearFor(ac);
+  }
+
   private startTakeoff(ac: Aircraft): void {
     const sim = this.sim;
     const end = this.departureEnd(ac);
-    const remaining = end.length - sim.airport.runwayCoordinates(end, ac.pos).along;
-    const far = add(ac.pos, scale(headingVector(end.heading), remaining + 5000));
+    // Along the centre line (from a rolling take-off a few metres beside it: converging onto it).
+    const far = add(end.start, scale(headingVector(end.heading), end.length + 5000));
     ac.path = new Path([ac.pos, far]);
     ac.s = 0;
     ac.stops = [];

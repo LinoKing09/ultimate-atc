@@ -5,7 +5,7 @@ import type { TaxiDestination } from './phraseology/commands';
 import { parseTransmission } from './phraseology/parser';
 import { aiInstruct, autoRoute, earliestIntersection, earlySlotAhead, passingEntry, previewTaxi } from './pilot';
 import type { Stand } from './airport/airport';
-import { distance } from './geo';
+import { distance, type Vec2 } from './geo';
 import type { TaxiRoute } from './airport/routing';
 import type { Simulation } from './simulation';
 import { apronClosed } from './weather';
@@ -93,9 +93,20 @@ function aiTaxi(sim: Simulation, ac: Aircraft, destination: TaxiDestination): bo
   return aiInstruct(sim, ac, { type: 'taxi', destination, via: [], holdShort: [], cross: [], turnAround: true });
 }
 
+/** A stand lane further than this from its stand (m) is where traffic around a pushback is looked for. */
+const FAR_LANE_M = 100;
+
+/**
+ * Where to look for traffic around a pushback: the aircraft, or the lane in front of its stand when that lies far
+ * from the stand (München apron 3: 125 m).
+ */
+export function pushbackPoint(sim: Simulation, ac: Aircraft): Vec2 {
+  const lane = ac.phase === 'parked' ? sim.airport.stand(ac.stand ?? '')?.lane.pos : undefined;
+  return lane && distance(lane, ac.pos) > FAR_LANE_M ? lane : ac.pos;
+}
+
 function busyNearby(sim: Simulation, ac: Aircraft, radius: number): boolean {
-  // From where the pushback ends up: the lane in front of the stand (München apron 3: 125 m from the stand).
-  const at = (ac.phase === 'parked' && sim.airport.stand(ac.stand ?? '')?.lane.pos) || ac.pos;
+  const at = pushbackPoint(sim, ac);
   return sim.aircraft.some((o) => o !== ac && o.onGround && ['taxi', 'pushback'].includes(o.phase) && Math.hypot(o.pos.x - at.x, o.pos.y - at.y) < radius);
 }
 

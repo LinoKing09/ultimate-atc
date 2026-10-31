@@ -1,7 +1,7 @@
 import { formatAltitude } from '../src/core/phraseology/format';
 import { allocateSquawk, initialClimb, sendDcl, suggestedSid } from '../src/core/delivery';
 import { routeHeadOn } from '../src/core/conflicts';
-import { conflictResolution, reachableFreeStand } from '../src/core/groundAI';
+import { conflictResolution, pushbackPoint, reachableFreeStand } from '../src/core/groundAI';
 import { previewTaxi } from '../src/core/pilot';
 import { distance } from '../src/core/geo';
 import type { Aircraft } from '../src/core/aircraft';
@@ -111,8 +111,8 @@ export function createBot(sim: Simulation): () => void {
         held.set(key, held.get(key) ?? t);
         return t - held.get(key)! < HEAD_ON_WAIT_S;
       };
-      // Where the pushback ends up: the lane in front of the stand (München apron 3: 125 m from the stand).
-      const pushAt = sim.airport.stand(ac.stand ?? '')?.lane.pos ?? ac.pos;
+      // Where the pushback ends up (the lane in front of a stand far from it, München apron 3).
+      const pushAt = pushbackPoint(sim, ac);
       // Traffic taxiing past the stand (its route ahead runs by): no pushback into its way.
       const pushInWay = () =>
         sim.aircraft.some((o) => {

@@ -157,6 +157,8 @@ export function createBot(sim: Simulation): () => void {
             if (stand) say(`${cs} taxi to stand ${stand}`);
           }
           else if (ac.category === 'departure') say(`${cs} taxi to runway ${sim.departureRunwayOf(ac)}`);
+          // A tow that could not find its way after the pushback: to its stand again.
+          else if (ac.category === 'tow' && ac.tow) say(`${cs} taxi to stand ${ac.tow.to}`);
           break;
         case 'crossing':
           if (ac.stoppedAt?.kind === 'runway' && sim.tower.crossingFree(ac.stoppedAt.target)) {

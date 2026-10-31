@@ -56,6 +56,7 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 1.5.0 (2026-10-30) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 3.7 s |
 | 1.5.1 (2026-10-30) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 4.1 s |
 | 1.5.2 (2026-10-30) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 3.1 s |
+| 1.6.0 (2026-10-31) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 4.9 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -113,6 +114,7 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 | 1.5.0 (2026-10-30) | 12.9 | 10.3 | 0 | 0 | 0 | 0 | 0 |
 | 1.5.1 (2026-10-30) | 12.9 | 10.3 | 0 | 0 | 0 | 0 | 0 |
 | 1.5.2 (2026-10-30) | 12.9 | 10.3 | 0 | 0 | 0 | 0 | 0 |
+| 1.6.0 (2026-10-31) | 12.8 | 10.9 | 0 | 0 | 0 | 0 | 0 |
 
 Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
 
@@ -175,6 +177,10 @@ How many hours of traffic have been simulated while developing and testing the s
 | **Total up to 1.5.1** | **~7920 h** | of which about 3120 h exactly measured |
 | 1.5.2: release benchmark, test-suite runs and the Leipzig soak | ~200 h | measured: 40 h benchmark, 4 h soak; test-suite runs (about 40 h each) estimated |
 | **Total up to 1.5.2** | **~8120 h** | of which about 3165 h exactly measured |
+| 1.6.0: soak tests of every airport (München, the ground-conflict fixes and the rolling take-off; 5 full runs and partial runs while bisecting) | ~1090 h | measured: 5 runs of 174 h, partial runs of 12-48 h |
+| 1.6.0: release benchmark and the Tower benchmark comparisons (pushback check) | 200 h | measured: 2 full runs (80 h), 3 runs of 40 h |
+| 1.6.0: test-suite runs and diagnostics | ~350 h | estimate: about 8 runs of 40 h each, plus debugging sessions |
+| **Total up to 1.6.0** | **~9760 h** | of which about 4450 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

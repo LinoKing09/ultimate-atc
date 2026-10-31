@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.6.0] - 2026-10-31
+
 ### Added
 
 - **Rolling take-off**: an aircraft cleared for take-off at the holding point or while lining up no longer stops on the runway first - once aligned with the centre line it rolls straight into the take-off, or slows down a little first (4-7 kt), each crew its own way.

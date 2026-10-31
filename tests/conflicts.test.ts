@@ -84,7 +84,9 @@ describe('head-on conflicts (CATC)', () => {
     runUntil(sim, () => sim.routeConflicts.size > 0, 30);
     const options = resolveOptions(sim, dep, arr);
     expect(options.length).toBeGreaterThan(0);
-    expect(options.every((o) => !o.tug)).toBe(true);
+    // Re-routes first; a turnaround (tug) only as the last option.
+    expect(options[0].tug).toBe(false);
+    expect(options.findIndex((o) => o.tug)).not.toBe(0);
     const opt = options[0];
     sim.transmit(`${opt.aircraft.callsign} ${opt.instruction}`);
     expect(runUntil(sim, () => dep.phase === 'holding' && arr.phase === 'arrived', 1500)).toBe(true);

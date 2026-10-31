@@ -126,6 +126,9 @@ button:disabled {
 .toolbar .field b.bad {
   color: var(--danger);
 }
+.toolbar .field b.warn {
+  color: var(--warn);
+}
 .toolbar .score b {
   color: var(--ok);
 }

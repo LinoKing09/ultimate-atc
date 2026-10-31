@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Low visibility procedures (LVP)** with the new scenario option **Fog** (code `F`, preset *Fog*): visibility 150-500 m, runway visual range per runway (`R26R/0225N`), sky obscured at 100-200 ft. With a runway visual range below 550 m or a ceiling below 200 ft LVP are in force: the ATIS says `low visibility procedures in operation` (`LVP IN OPS`) with the runway visual range, the toolbar shows `LVP`, the briefing explains it. Departures and runway crossings wait at the **CAT II/III holding positions** (München A2-A15 / B1-B15, Gatwick J2, H2, G2, C3, M3, A3 - drawn as full bars `A3 CAT III`, the normal holding points faint) and line up from there; Approach spaces arrivals at least 6 NM (8 NM with departures waiting), the AI Tower wants departures airborne 50 s earlier before the next arrival, and everybody taxis at 10 kt at most. Airport data: `lvpHoldingPoints`.
 - **Frequencies per runway**: München Ground and Tower work on their northern and southern frequencies (Ground 121.980 / 121.830, Tower 118.705 / 120.505), Leipzig Tower on 121.105 / 125.955 for the northern runway - the aircraft of each runway are sent to and read back their own one (`contact tower 120.505`), the toolbar shows both, and either reaches the position (airport data: `runwayFrequencies`).
 
 ### Fixed

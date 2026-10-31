@@ -161,7 +161,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
         ? r.error
         : r.scenario
           ? `Scenario: ${describeScenario(r.scenario)}`
-          : 'A number (seed) repeats the same traffic; a scenario code also sets runway, traffic, events, start time, night rules, closed taxiways and de-icing.';
+          : 'A number (seed) repeats the same traffic; a scenario code also sets runway, traffic, events, start time, night rules, closed taxiways, de-icing and fog.';
       scenarioInfo.style.color = r.error ? 'var(--danger)' : '';
       connect.disabled = !!r.error;
     };

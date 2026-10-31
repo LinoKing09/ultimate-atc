@@ -61,6 +61,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
     const nightBox = h('input', { type: 'checkbox' });
     const night = airport.nightRestrictions;
     const deiceBox = h('input', { type: 'checkbox' });
+    const fogBox = h('input', { type: 'checkbox' });
     const pads = (airport.deicingPads ?? []).map((p) => p.name);
     // Taxiways that can be closed (not taxilanes on the aprons, not runway strips).
     const taxiways = [...new Set(airport.taxiEdges.filter((e) => e.kind === 'taxiway' && e.name && !e.closed).map((e) => e.name.toUpperCase()))].sort((a, b) => a.localeCompare(b, 'en', { numeric: true }));
@@ -84,6 +85,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
       startInput.value = s.startLocal ? `${s.startLocal.slice(0, 2)}:${s.startLocal.slice(2)}` : '';
       nightBox.checked = !!s.nightRules;
       deiceBox.checked = !!s.deicing;
+      fogBox.checked = !!s.lowVisibility;
       for (const [t, box] of closedBoxes) box.checked = !!s.closedTaxiways?.includes(t);
       eventsEl.replaceChildren(
         ...s.events.map((ev, i) => {
@@ -137,6 +139,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
     });
     nightBox.addEventListener('change', () => ((s.nightRules = nightBox.checked || undefined), output()));
     deiceBox.addEventListener('change', () => ((s.deicing = deiceBox.checked || undefined), output()));
+    fogBox.addEventListener('change', () => ((s.lowVisibility = fogBox.checked || undefined), output()));
     for (const [t, box] of closedBoxes) {
       box.addEventListener('change', () => {
         const set = new Set(s.closedTaxiways ?? []);
@@ -167,7 +170,7 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
       const b = h('button', { type: 'button', text: p.name, title: p.description });
       b.addEventListener('click', () => {
         // Options a preset does not set are cleared.
-        Object.assign(s, { startLocal: undefined, nightRules: undefined, closedTaxiways: undefined, deicing: undefined }, structuredClone(p.scenario), { seed: randomSeed() });
+        Object.assign(s, { startLocal: undefined, nightRules: undefined, closedTaxiways: undefined, deicing: undefined, lowVisibility: undefined }, structuredClone(p.scenario), { seed: randomSeed() });
         render();
         descOut.textContent = `${p.description} ${describeScenario(s)}`;
       });
@@ -237,6 +240,8 @@ export function showScenarioBuilder(airport: AirportData, initial?: string): Pro
                 h('label', {}, deiceBox, ` winter: departures are de-iced on ${pads.length > 1 ? `${pads[0]}-${pads[pads.length - 1]}` : pads[0]} before take-off`),
               ]
             : []),
+          h('label', { text: 'Fog' }),
+          h('label', {}, fogBox, ' low visibility procedures: RVR a few hundred metres, CAT II/III holding points, larger spacing'),
         ),
         h('div.sub.closed-head', { text: 'Closed taxiways (construction works):' }),
         closedEl,

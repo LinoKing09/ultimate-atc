@@ -2,6 +2,7 @@ import { nextStop, noseHeading, type Aircraft } from './aircraft';
 import { TOW_SPEED_KT } from './vehicles';
 import { KT_TO_MS, distance, dot, headingVector, sub, type Vec2 } from './geo';
 import { onStopReached } from './pilot';
+import { LVP_TAXI_SPEED_KT, lvpInForce } from './met';
 import type { Simulation } from './simulation';
 
 /** Phases in which an aircraft follows its path on the ground. */
@@ -53,6 +54,8 @@ export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void 
     vTarget = (ac.type.taxiSpeedKt * pace + (ac.expedite ? 5 : 0)) * KT_TO_MS;
     if (ac.speedLimit) vTarget = ac.speedLimit(ac.s);
     if (ac.category === 'tow') vTarget = Math.min(vTarget, TOW_SPEED_KT * KT_TO_MS);
+    // Low visibility procedures: everybody taxis slowly.
+    if ((ac.phase === 'taxi' || ac.phase === 'vacating') && lvpInForce(sim)) vTarget = Math.min(vTarget, LVP_TAXI_SPEED_KT * KT_TO_MS);
     vTarget = Math.min(vTarget, turnSpeedLimit(path.maxTurnAhead(ac.s, 25 + ac.speed * 3)));
   }
 

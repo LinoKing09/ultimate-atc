@@ -248,6 +248,8 @@ export const EGKK: AirportData = {
       ],
     },
   ],
+  // CAT III holding points (aerodrome chart): J2, H2, G2, C3, M3, A3 behind the departure holding points.
+  lvpHoldingPoints: { J1: 'HP.7235256579', H1: 'HP.7235256581', G1: 'HP.7235256568', C1: 'HP.7235218243', M1: 'HP.7235218255', A1: 'HP.865140561' },
   sids: [
     // Runway 26L.
     SID('NOVMA1X', '26L', 'NOVMA', [215, 320]),

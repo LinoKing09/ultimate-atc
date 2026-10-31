@@ -64,6 +64,8 @@ export interface Scenario {
   closedTaxiways?: string[];
   /** Winter operations: departures need de-icing on a de-icing pad before take-off. */
   deicing?: boolean;
+  /** Fog: low visibility procedures (LVP) in force. */
+  lowVisibility?: boolean;
   seed: number;
 }
 
@@ -76,11 +78,12 @@ export interface ScenarioSetup {
   nightRules?: boolean;
   closedTaxiways?: string[];
   deicing?: boolean;
+  lowVisibility?: boolean;
 }
 
 /** The simulation setup of a scenario (the start time is passed separately as `startTime`). */
 export function scenarioSetup(s: Scenario): ScenarioSetup {
-  return { mix: s.mix, heavyLevel: s.heavyLevel, events: s.events, nightRules: s.nightRules, closedTaxiways: s.closedTaxiways, deicing: s.deicing };
+  return { mix: s.mix, heavyLevel: s.heavyLevel, events: s.events, nightRules: s.nightRules, closedTaxiways: s.closedTaxiways, deicing: s.deicing, lowVisibility: s.lowVisibility };
 }
 
 /** The letter form of the traffic part (codes before 0.9) covers only these steps. */
@@ -142,6 +145,7 @@ function formatOptions(s: Scenario): string {
   if (s.nightRules) tokens.push('N');
   for (const t of [...new Set(s.closedTaxiways ?? [])].sort()) tokens.push(`C${t.toUpperCase()}`);
   if (s.deicing) tokens.push('I');
+  if (s.lowVisibility) tokens.push('F');
   return tokens.join('.');
 }
 
@@ -152,17 +156,18 @@ export function formatScenarioCode(s: Scenario): string {
 }
 
 /** Parses the options part ("T2215.N.CF.CE"). */
-function parseOptions(part: string): Pick<Scenario, 'startLocal' | 'nightRules' | 'closedTaxiways' | 'deicing'> | { error: string } {
-  const out: Pick<Scenario, 'startLocal' | 'nightRules' | 'closedTaxiways' | 'deicing'> = {};
+function parseOptions(part: string): Pick<Scenario, 'startLocal' | 'nightRules' | 'closedTaxiways' | 'deicing' | 'lowVisibility'> | { error: string } {
+  const out: Pick<Scenario, 'startLocal' | 'nightRules' | 'closedTaxiways' | 'deicing' | 'lowVisibility'> = {};
   for (const tok of part.split('.')) {
     if (/^T\d{4}$/.test(tok) && hhmmToMinutes(tok.slice(1)) !== undefined) out.startLocal = tok.slice(1);
     else if (tok === 'N') out.nightRules = true;
     else if (tok === 'I') out.deicing = true;
+    else if (tok === 'F') out.lowVisibility = true;
     else if (/^C[A-Z][A-Z0-9]{0,3}$/.test(tok)) {
       const list = (out.closedTaxiways ??= []);
       if (!list.includes(tok.slice(1))) list.push(tok.slice(1));
     }
-    else return { error: `Invalid option "${tok}" (T2215 start time, N night rules, CF taxiway F closed, I de-icing)` };
+    else return { error: `Invalid option "${tok}" (T2215 start time, N night rules, CF taxiway F closed, I de-icing, F fog / low visibility)` };
   }
   return out;
 }
@@ -212,6 +217,7 @@ export function describeScenario(s: Scenario): string {
   if (s.nightRules) parts.push('night flying restrictions');
   if (s.closedTaxiways?.length) parts.push(`taxiway${s.closedTaxiways.length > 1 ? 's' : ''} ${s.closedTaxiways.join(', ')} closed`);
   if (s.deicing) parts.push('de-icing');
+  if (s.lowVisibility) parts.push('fog (low visibility procedures)');
   const evs = [...s.events].sort((a, b) => a.atMin - b.atMin).map((e) => `${EVENT_LABEL[e.kind].toLowerCase()} at ${e.atMin} min`);
   return `${parts.join(', ')}${evs.length ? `; ${evs.join(', ')}` : ''}.`;
 }
@@ -273,6 +279,11 @@ export const SCENARIO_PRESETS: { name: string; description: string; scenario: Om
     name: 'Winter morning',
     description: 'Frost on the wings: every departure needs de-icing on one of the de-icing pads before it can taxi to the runway.',
     scenario: { runway: undefined, density: 'medium', mix: 'departures', heavyLevel: 0, eventLevel: 0, events: [], startLocal: '0630', deicing: true },
+  },
+  {
+    name: 'Fog',
+    description: 'Fog with a runway visual range of a few hundred metres: low visibility procedures - departures wait at the CAT II/III holding points, arrivals are spaced further apart, everybody taxis slowly.',
+    scenario: { runway: undefined, density: 'medium', mix: 'balanced', heavyLevel: 0, eventLevel: 0, events: [], startLocal: '0700', lowVisibility: true },
   },
   {
     name: 'Thunderstorm',

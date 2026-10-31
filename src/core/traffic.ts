@@ -11,6 +11,7 @@ import { NON_PRECISION_SPACING_NM } from './systems';
 import { DELAYED_ARRIVAL_SHARE, NIGHT_APPROACH_ESTIMATE_S, landingStatus, nightRules, plannedReadyIn } from './night';
 import { minutesToHhmm } from './time';
 import { STORM_ARRIVAL_RATE, STORM_ARRIVAL_SPACING_NM } from './weather';
+import { LVP_ARRIVAL_SPACING_NM, LVP_DEPARTURE_GAP_NM, lvpInForce } from './met';
 
 const SPAWN_DISTANCE_NM = 12;
 /** Largest wingspan of a code D stand (m): stands up to this size are used by all aircraft up to code D. */
@@ -148,7 +149,9 @@ export class TrafficGenerator {
     // Runways used with backtracks (landing or departing aircraft taxi on the runway): more room on final.
     const ops = sim.airport.runwayOps(runway);
     const backtrack = ops?.exits.some((x) => x.backtrack) ? BACKTRACK_ARRIVAL_SPACING_NM : ops?.departureEntries.some((e) => e.backtrack) ? BACKTRACK_DEPARTURE_SPACING_NM : 0;
-    return Math.max(wake, gap, approach, storm, backtrack, ops?.arrivalSpacingNm ?? 0);
+    // Low visibility procedures: the ILS sensitive area must be clear - wider spacing, wider gaps for departures.
+    const lvp = lvpInForce(sim) ? (demand >= 1 ? LVP_DEPARTURE_GAP_NM : LVP_ARRIVAL_SPACING_NM) : 0;
+    return Math.max(wake, gap, approach, storm, backtrack, lvp, ops?.arrivalSpacingNm ?? 0);
   }
 
   /** Night rules: a delayed arrival after the landing curfew (its schedule was before it). */

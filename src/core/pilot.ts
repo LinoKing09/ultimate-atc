@@ -1,5 +1,5 @@
 import { STABILISED_NM, finalReductionNm } from './approach';
-import { otherEnd } from './airport/airport';
+import { otherEnd, type TaxiNode } from './airport/airport';
 import { findRoute, isRouteError, type RouteStart, type TaxiRoute } from './airport/routing';
 import type { Compass, StationType } from './airport/types';
 import type { Aircraft, PathStop, PilotRequest } from './aircraft';
@@ -13,6 +13,7 @@ import type { Simulation, TransmitResult } from './simulation';
 import { TOW_PARK_MAX_S, TOW_PARK_MIN_S, locationOf, maybeStartTow } from './vehicles';
 import { curfewCall, departureAllowed, needsCurfewRoute, nightRules } from './night';
 import { minutesToHhmm } from './time';
+import { lvpInForce } from './met';
 import { apronClosed, takeoffsSuspended } from './weather';
 import { holdShortS } from './holdShort';
 import { deicingMinutesLeft, freePads, needsDeicing, onPad, padUser, startDeicing, updateDeicing } from './deicing';
@@ -1221,12 +1222,19 @@ function computeStops(sim: Simulation, ac: Aircraft, holdShort: HoldShortTarget[
   const path = ac.path!;
   const stops: PathStop[] = [];
   const sOf = (id: string) => path.marker(id)?.s ?? 0;
+  // Low visibility procedures: at the CAT II/III holding position of a holding point, where the route passes it.
+  const lvp = lvpInForce(sim);
+  const lvpS = (hp: TaxiNode): number | undefined => {
+    const n = lvp && hp.holdingPoint ? sim.airport.lvpHoldingPoints.get(hp.holdingPoint.name.toUpperCase()) : undefined;
+    const s = n ? path.marker(n.id)?.s : undefined;
+    return s !== undefined && s < sOf(hp.id) ? s : undefined;
+  };
 
   for (let i = 0; i < route.edges.length; i++) {
     const e = route.edges[i];
     const from = route.nodes[i];
     if (e.kind === 'runwayStrip' && from.holdingPoint && !ac.clearedToCross.has(from.holdingPoint.runway)) {
-      stops.push({ s: sOf(from.id), kind: 'runway', target: from.holdingPoint.runway, holdingPoint: from.holdingPoint.name, nodeId: from.id });
+      stops.push({ s: lvpS(from) ?? sOf(from.id), kind: 'runway', target: from.holdingPoint.runway, holdingPoint: from.holdingPoint.name, nodeId: from.id });
     }
   }
   for (const h of holdShort) {
@@ -1236,7 +1244,7 @@ function computeStops(sim: Simulation, ac: Aircraft, holdShort: HoldShortTarget[
   }
   const last = route.nodes[route.nodes.length - 1];
   stops.push({
-    s: path.length,
+    s: lvpS(last) ?? path.length,
     kind: 'destination',
     target: last.id,
     holdingPoint: last.holdingPoint?.name,

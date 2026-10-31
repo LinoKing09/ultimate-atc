@@ -76,7 +76,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | --------------------- | ----------------------------------------------------------------------------------------------- |
 | `EDDS_GND 118.605`    | Your station(s) and frequency, in the position colour (several plus `COMBINED` with combined positions). **Click a frequency to switch it off**: the simulator takes the position over (pilots waiting on it are answered by the AI) and it is shown dashed with `OFF`; click again to take it back. At least one frequency stays on. **`+`** (while the airport has a Delivery, Ground or Tower position you do not staff) **takes over another position** during the session: its frequency is yours from then on (combined), and crews with an open request on it call you again within half a minute. |
 | `RWY 25`              | Runway in use (with parallel runways both, `RWY 26R 26L`; with a runway for landings or take-offs only `ARR 26R DEP 26L`). Click to open the [ATIS editor](#atis-editor). |
-| `ATIS E`              | Current ATIS letter. Pilots report it on first contact. Red: a newer METAR differs from it (the tooltip says what) - broadcast a new ATIS. Click to open the ATIS editor. |
+| `ATIS E`              | Current ATIS letter. Pilots report it on first contact. Red: a newer METAR differs from it (the tooltip says what) - broadcast a new ATIS. `LVP` after it: low visibility procedures in force ([fog](scenarios.md#fog-low-visibility-procedures)). Click to open the ATIS editor. |
 | `250/08KT`            | Surface wind (magnetic), with gusts `070/18G32KT`. Shown in red if the tailwind on the runway in use is above 5 kt, and with `TS` while a [thunderstorm](scenarios.md#thunderstorm) is active. Click to edit. |
 | `Q1013`               | QNH in hPa (US airports: `A2992`, the altimeter setting in inches). Click to edit.               |
 | `14:32:10Z`           | Simulation time in UTC. The session starts at the current real time, or at a scenario's start time. With [night flying restrictions](scenarios.md#start-time-and-night-flying-restrictions) the local time follows (`2215L`). |
@@ -130,7 +130,7 @@ Crews that listened before the broadcast still report the old letter (`..., info
 `BRIEFING` in the toolbar opens the help window on the **Airport briefing** tab. You can open it at any time; it always shows the current state:
 
 - **At a glance**: airport, your position and frequency, elevation, runways, transition altitude.
-- **Now**: runway in use, ATIS letter, wind and QNH, the full-length and intersection holding points, the arrival exits and the taxi flows of the runway in use; with a scenario also closed taxiways, the night flying restrictions (with the local time) and an active thunderstorm.
+- **Now**: runway in use, ATIS letter, wind and QNH, the full-length and intersection holding points, the arrival exits and the taxi flows of the runway in use; with a scenario also closed taxiways, the night flying restrictions (with the local time), low visibility procedures in fog and an active thunderstorm.
 - **Local procedures** for your position: your job, standard taxi flows, departures (entries, push directions, typical routes), arrivals (exits, vacating, typical routes), stands, hot spots and pitfalls.
 - **Frequencies** of all stations, and the data accuracy notice.
 
@@ -208,7 +208,8 @@ The scope is a ground radar showing the aerodrome chart. By default it is rotate
 | Paved areas inside a runway strip      | Drawn like taxiways (Sylt: between D, L and F at the 14 end, between D, M, P and A at the 06 end), but routes go through the holding points |
 | De-icing pads                          | Outlined squares (PHX: blue) with the pad name (`DP1` ... `DP4`), with thin lead lines from N to S |
 | Runway holding positions               | Thick amber bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
-| Other holding position lines           | Thin, faint amber bar: the CAT II/III holding points, those of a runway that is not used (Gatwick J2-J7, H2 / H3, G2 / G3, C3, A3, M3) and intermediate holding positions - labelled with their designator where the chart has one. Drawn only: you cannot taxi aircraft to them as holding points |
+| CAT II/III holding position (fog)      | Full amber bar labelled `A3 CAT III` while low visibility procedures are in force: departures wait here; the normal holding point behind it is drawn faint |
+| Other holding position lines           | Thin, faint amber bar: the CAT II/III holding points (outside fog), those of a runway that is not used (Gatwick J2-J7, H2 / H3, G2 / G3, C3, A3, M3) and intermediate holding positions - labelled with their designator where the chart has one. Drawn only: you cannot taxi aircraft to them as holding points |
 | Stands                                 | Thin yellow lead-in line plus the stand number                                 |
 | Aprons                                 | Dark grey areas (classic: slightly lighter than the background); also paved taxiway areas and helipads |
 | Buildings                              | Dark blue-grey (classic: brown) areas: every building on the aerodrome (OpenStreetMap). Named ones are labelled when you zoom in - each name once, the largest buildings first; a name that would cover a stand number, a taxiway designator or another name is left out |

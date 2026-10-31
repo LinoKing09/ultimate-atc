@@ -3,6 +3,7 @@ import { pavementGeometry, type PavementGeometry } from '../core/airport/pavemen
 import type { Aircraft } from '../core/aircraft';
 import { catcAlert } from '../core/conflicts';
 import { KT_TO_MS, M_PER_NM, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
+import { lvpInForce } from '../core/met';
 import type { Simulation } from '../core/simulation';
 import { clearedTo, statusCode, type StatusStyle } from './labels';
 
@@ -859,10 +860,16 @@ export class Scope {
     ctx.font = `${Math.max(9, Math.min(12, 11 * z))}px Consolas, monospace`;
     // The other holding position lines of the chart (CAT II/III, a runway not used, intermediate): thinner and
     // fainter, labelled when they have a designator.
+    // Low visibility procedures: the CAT II/III holding positions are the ones in use (full bars, "A3 CAT III"), the
+    // CAT I holding points behind them faint.
+    const lvp = lvpInForce(this.sim);
+    const lvpOf = new Map([...ap.lvpHoldingPoints].map(([name, n]) => [n, ap.holdingPoints.get(name)?.holdingPoint?.name ?? name]));
     ctx.save();
-    ctx.globalAlpha = 0.55;
     for (const node of ap.nodes.values()) {
-      if (node.holdLine === undefined || node.holdingPoint) continue;
+      const lvpOfHp = lvpOf.get(node);
+      if ((node.holdLine === undefined && !lvpOfHp) || node.holdingPoint) continue;
+      const active = lvp && !!lvpOfHp;
+      ctx.globalAlpha = active ? 1 : 0.55;
       const ref = node.edges.find((e) => e.kind === 'taxiway' || e.kind === 'taxilane');
       if (!ref) continue;
       const verts = ref.from === node ? edgeVertices(ref) : edgeVertices(ref).reverse();
@@ -873,18 +880,20 @@ export class Scope {
       const a = this.toScreen(add(node.pos, scale(n, half)));
       const b = this.toScreen(sub(node.pos, scale(n, half)));
       ctx.strokeStyle = this.t.holdBar;
-      ctx.lineWidth = Math.max(1, 1.5 * z);
+      ctx.lineWidth = active ? Math.max(2, 2.5 * z) : Math.max(1, 1.5 * z);
       ctx.beginPath();
       ctx.moveTo(a.x, a.y);
       ctx.lineTo(b.x, b.y);
       ctx.stroke();
-      if (node.holdLine && z > 0.35) {
+      const label = active ? `${lvpOfHp} CAT III` : node.holdLine;
+      if (label && z > (active ? 0.18 : 0.35)) {
         const lp = this.toScreen(add(node.pos, scale(n, half + 12)));
-        this.labelBox(node.holdLine, lp.x, lp.y, this.t.holdBar);
+        this.labelBox(label, lp.x, lp.y, this.t.holdBar);
       }
     }
     ctx.restore();
     for (const node of ap.holdingPoints.values()) {
+      ctx.globalAlpha = lvp && ap.lvpHoldingPoints.has(node.holdingPoint!.name.toUpperCase()) ? 0.45 : 1;
       const strip = node.edges.find((e) => e.kind === 'runwayStrip');
       const other = node.edges.find((e) => e.kind !== 'runwayStrip');
       const ref = strip ?? other;
@@ -909,6 +918,7 @@ export class Scope {
         this.labelBox(node.holdingPoint!.name, lp.x, lp.y, this.t.holdBar);
       }
     }
+    ctx.globalAlpha = 1;
 
     // Screen boxes of the stand and taxiway labels: building names keep clear of them.
     const taken: { x0: number; x1: number; y0: number; y1: number }[] = [];

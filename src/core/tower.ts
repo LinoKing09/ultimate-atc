@@ -10,6 +10,7 @@ import { Path } from './path';
 import { call, requiredRunway } from './pilot';
 import type { Simulation } from './simulation';
 import { departureAllowed } from './night';
+import { LVP_ARRIVAL_PROTECTION_S, lvpInForce } from './met';
 import { WEATHER_DECISION_NM, takeoffsSuspended, weatherGoAround } from './weather';
 
 /**
@@ -855,8 +856,11 @@ export class TowerAI {
     if (remainingSpacing > 45) return false;
     // Emergency arrivals (to this runway) get priority.
     if (this.sim.aircraft.some((a) => a.phase === 'approach' && a.emergency && this.sameRunway(a, end) && distance(a.pos, this.endFor(a.runway).threshold) < 8 * M_PER_NM)) return false;
-    const lineupTime = 35 + this.backtrackTime(ac);
-    const needed = lineupTime + Math.max(5, remainingSpacing, landingRemaining) + this.rollTime(ac) + 15;
+    // Low visibility procedures: from the CAT II/III holding position further back, and airborne earlier.
+    const lvp = lvpInForce(this.sim);
+    const lead = lvp && ac.path && ac.stoppedAt?.nodeId ? Math.max(0, (ac.path.marker(ac.stoppedAt.nodeId)?.s ?? ac.s) - ac.s) / LINEUP_SPEED : 0;
+    const lineupTime = 35 + this.backtrackTime(ac) + lead;
+    const needed = lineupTime + Math.max(5, remainingSpacing, landingRemaining) + this.rollTime(ac) + 15 + (lvp ? LVP_ARRIVAL_PROTECTION_S : 0);
     return this.nextArrivalEta(end) > needed;
   }
 
@@ -866,7 +870,7 @@ export class TowerAI {
     if (this.runwayOccupants(ac, end).length > 0) return false;
     if (this.sim.aircraft.some((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing') && this.sameRunway(a, end))) return false;
     if (this.spacingRemaining(ac) > 0) return false;
-    return this.nextArrivalEta(end) > this.rollTime(ac) + 8;
+    return this.nextArrivalEta(end) > this.rollTime(ac) + 8 + (lvpInForce(this.sim) ? LVP_ARRIVAL_PROTECTION_S : 0);
   }
 
   /** Lines a departure up from its holding point. Returns why not, if it cannot. */
@@ -877,6 +881,9 @@ export class TowerAI {
     const strip = hp?.edges.find((e) => e.kind === 'runwayStrip');
     if (!hp || !strip) return 'we are not at a runway holding point';
     const rwyNode = strip.from === hp ? strip.to : strip.from;
+    // Waiting at the CAT II/III holding position (low visibility procedures): along its taxi route to the holding
+    // point first.
+    const lead = this.leadToHoldingPoint(ac, hp);
     // Shape points of a curved strip, from the holding point towards the runway - without those close to the runway
     // node: the turn onto the runway is drawn as one curve from there (short last segments made a sharp kink).
     const shape = strip.from === hp ? strip.shape : [...strip.shape].reverse();
@@ -919,8 +926,8 @@ export class TowerAI {
       const first = turnDeg < 180 - REVERSE_ENTRY_TURN ? this.uTurn(add(rwyNode.pos, scale(u, REVERSE_ENTRY_ROLL)), u, fromLeft ? -1 : 1) : [];
       const back = first.length ? { points: [rwyNode.pos], ids: (id: string) => [id] } : curveAt(last, rwyNode.pos, scale(u, -1), BACKTRACK_ENTRY_RADIUS);
       const path = new Path(
-        [ac.pos, ...bend, ...back.points, ...first, add(end.start, scale(u, BACKTRACK_TURN_ALONG + 15)), ...turn, merge, linePt],
-        [hp.id, ...bend.map(() => null), ...back.ids(rwyNode.id), ...first.map(() => null), null, ...turn.map(() => null), null, null],
+        [...lead.points, ...bend, ...back.points, ...first, add(end.start, scale(u, BACKTRACK_TURN_ALONG + 15)), ...turn, merge, linePt],
+        [...lead.ids, ...bend.map(() => null), ...back.ids(rwyNode.id), ...first.map(() => null), null, ...turn.map(() => null), null, null],
         8,
       );
       ac.path = path;
@@ -943,7 +950,7 @@ export class TowerAI {
       const turn = this.uTurn(centre, scale(u, -1), fromLeft ? -1 : 1);
       const merge = add(centre, scale(u, 25));
       const linePt = add(centre, scale(u, 45));
-      const path = new Path([ac.pos, ...bend, rwyNode.pos, ...turn, merge, linePt], [hp.id, ...bend.map(() => null), rwyNode.id, ...turn.map(() => null), null, null], 20);
+      const path = new Path([...lead.points, ...bend, rwyNode.pos, ...turn, merge, linePt], [...lead.ids, ...bend.map(() => null), rwyNode.id, ...turn.map(() => null), null, null], 20);
       ac.path = path;
       ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
       const sTurn = path.closestS(turn[0], 0);
@@ -951,12 +958,25 @@ export class TowerAI {
       ac.speedLimit = (s) => (s < sTurn ? Math.min(LINEUP_SPEED, Math.sqrt(BACKTRACK_TURN_SPEED ** 2 + 2 * 0.8 * (sTurn - s))) : s < sTurnEnd ? BACKTRACK_TURN_SPEED : LINEUP_SPEED);
       return undefined;
     }
-    const path = new Path([ac.pos, ...bend, ...onto.points, lineupPt], [hp.id, ...bend.map(() => null), ...onto.ids(rwyNode.id), null], 35);
+    const path = new Path([...lead.points, ...bend, ...onto.points, lineupPt], [...lead.ids, ...bend.map(() => null), ...onto.ids(rwyNode.id), null], 35);
     ac.path = path;
     ac.stops = [{ s: path.length, kind: 'destination', target: 'lineup' }];
     // "Cleared for immediate take-off": a brisk line-up.
     ac.speedLimit = () => (ac.immediateTakeoff && ac.takeoffCleared ? LINEUP_SPEED * 1.5 : LINEUP_SPEED);
     return undefined;
+  }
+
+  /**
+   * The start of a line-up path: the aircraft at its holding point, or - waiting at the CAT II/III holding position
+   * further back (low visibility procedures) - its taxi route from there to the holding point.
+   */
+  private leadToHoldingPoint(ac: Aircraft, hp: TaxiNode): { points: Vec2[]; ids: (string | null)[] } {
+    const at = ac.path?.marker(hp.id)?.s;
+    if (!ac.path || at === undefined || at - ac.s < 5) return { points: [ac.pos], ids: [hp.id] };
+    const points = [ac.pos];
+    for (let s = ac.s + 10; s < at - 5; s += 10) points.push(ac.path.pointAt(s));
+    points.push(hp.pos);
+    return { points, ids: [...points.slice(1).map(() => null), hp.id] };
   }
 
   /** Extra time a departure needs to backtrack from its holding point (AI Tower, entries used with a backtrack), seconds. */

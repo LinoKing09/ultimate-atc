@@ -96,6 +96,12 @@ export interface AirportData {
    * runway in use belongs to one, all its ends are in use by default; the ATIS can also select a single one.
    */
   parallelRunways?: ParallelRunwayData[];
+  /**
+   * CAT II/III holding positions (AIP; drawn holding position lines, `holdLine`): runway holding point name -> taxi
+   * node. During low visibility procedures departures (and runway crossings) stop there instead of at the CAT I
+   * holding point. A holding point not listed is both (the usual case at smaller airports).
+   */
+  lvpHoldingPoints?: Record<string, string>;
   /** Climate for the METAR (default: Central Europe). */
   climate?: { /** Mean temperature of each month (degrees C), January first. */ monthlyMeanC: number[] };
 }

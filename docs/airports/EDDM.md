@@ -25,7 +25,7 @@ The hub of Lufthansa in the south: two parallel runways used at the same time fo
 
 **Simplified, estimated or not modelled:**
 
-- the **holding points** are the CAT I positions of the chart (A1-A15 without A7 and A11, B1-B15 without B5 and B9); the CAT II/III positions further out are drawn as hold lines, used only during low visibility operations in reality (not modelled),
+- the **holding points** are the CAT I positions of the chart (A1-A15 without A7 and A11, B1-B15 without B5 and B9); the CAT II/III positions further out (A2-A4, A6, A10, A12-A15, B1-B4, B10, B12-B15) are where departures wait during **low visibility procedures** (fog scenario; AIP AD 2.20 3.2.3.2). A1 and the high-speed turn-offs A5, A8, A9, B6, B7, B8, B11 have one holding position for all categories,
 - **A7** and **B9** (crossed out on the aerodrome chart) are drawn, not used,
 - the long **high-speed turn-offs** cross each other before the runway (A8 / A9, B6 / B7, B8 / B10 / B11): each holding point leads onto the runway along its own taxiway (`stripsAlongTaxiway`, `maxStripM` 700 m in `buildLayout`),
 - the **stand sizes** are not published: the centre position of a stand with A / B positions is code E, the A / B positions code C, the others by their spacing (70 m and more code E, 57 m and more code D, else code C). Overlapping positions are never used at the same time (wingtip clearance check),

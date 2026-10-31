@@ -46,7 +46,7 @@ Version 2.0 is the next major version: from a tower simulator with many airports
 1. **Approach / Departure playable**: a radar position (Approach, Departure or both combined) at least at Stuttgart - vectoring, altitude and speed instructions, ILS / RNP clearances, sequencing onto final with the real spacing, hand-offs to and from Tower and Center - with an AI for it when it is not staffed (as today). Top-down: one controller can work everything from Delivery to Approach.
 2. **Large airports under heavy traffic**: Cologne/Bonn and Leipzig/Halle (parallel runways, cargo hubs) hold up under heavy traffic - no deadlocks, AI positions that keep the flow going.
 3. **The world map comes alive**: at least one airport on each continent of the airport menu (from the *Coming soon* list), each with the regional phraseology where it differs (FAA vs ICAO: "line up and wait", "taxi via", altitudes and runway designators). *(Done in 1.5: North America - San Diego KSAN with FAA phraseology, US METAR and ATIS; Asia - Phuket VTSP; Australia / Oceania - Wellington NZWN; South America - Quito SEQM: every continent has an airport.)*
-4. **Weather and visibility**: the surface wind changes with the METAR during a session *(done in 1.5)*; **low visibility procedures** (CAT II/III holding points, larger spacing, LVP in the ATIS) at every airport that publishes them.
+4. **Weather and visibility**: the surface wind changes with the METAR during a session *(done in 1.5)*; **low visibility procedures** (CAT II/III holding points, larger spacing, LVP in the ATIS) at every airport that publishes them. *(In progress: the procedures and München / Gatwick done.)*
 5. **Voice works on the iPad**: speech recognition and text-to-speech tested on the iPad and on by default, with the voice phraseology of every position.
 6. **No dead ends at any airport**: the soak test runs at every airport and every runway direction - no collisions, every deadlock has a way out, no aircraft stuck for good. *(Done in 1.5: `npm run soak` covers every airport, runway direction and staffing; kept green for new airports.)*
 7. **Quality**: every airport passes the chart checks of the recipe (nothing ends in nothing, every apron, no invented designators); the performance budget is met on an iPad with heavy traffic at the largest airport; documentation and in-app help complete; benchmark statistics comparing 2.0 with 1.0 in [benchmarks.md](benchmarks.md).
@@ -169,7 +169,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - **done** (1.2.1) - **Complete layouts**: every taxiway of the Sylt aerodrome chart (light-aircraft taxiways with their limits, closed parts drawn), the Nuremberg GA lanes and aprons, all buildings on every aerodrome from OpenStreetMap (also Stuttgart), paved areas inside runway strips drawn but not routed
 - **done** (1.2.1) - **AIP check of all four airports**: published approaches per runway (Sylt 14 RNP only), declared distances from every entry, taxiway widths and code letter limits, thresholds and elevations
 - **done** (1.3) - **Airport menu** in the Connect dialog: continent, country with its FIR (Germany: Bremen, Langen, München), airport with runways and traffic level, ready for airports on other continents
-- planned - **Low visibility procedures (LVP)** with the CAT II/III holding points and larger spacing (values from the AIP, supplied as text)
+- *in progress* - **Low visibility procedures (LVP)**: fog scenario (RVR, LVP in the ATIS), CAT II/III holding points (München, Gatwick), larger spacing, slow taxiing - **done**; next: the CAT II/III holding positions of the other airports from their charts, stop bars
 - planned - **Voice**: test text-to-speech and speech recognition again on the iPad and switch them back on
 - planned - Smarter AI Tower after a rejected take-off; partial taxiway closures; a taxiway blocked during the session (special event)
 - **done** (1.4) - **Cologne/Bonn (EDDK)** with its cargo hub (UPS, FedEx, DHL; cargo airlines park on the cargo aprons) and the parallel guide lines of Terminal 2, and **Bremen (EDDW)**, both after the airport recipe (sources first, the charts as tests)
@@ -185,7 +185,6 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - planned - Real `follow` behaviour (follow-the-leader)
 - planned - Stand allocation per airline and terminal (Schengen / non-Schengen), contact/remote stands
 - planned - More special events (bird strike, a taxiway blocked during the session - closed taxiways for a whole session are done since 0.9; follow-me and tows are done since 0.6.1), de-icing, engine-start delays, pilots who make mistakes (wrong turn, missed hold short; squawk read-back errors are done since 0.6)
-- planned - Low visibility procedures (CAT II/III holding points, larger spacing)
 - **done** - Weather that changes during the session: half-hourly METAR, drifting QNH and thunderstorm SPECIs (1.4); the surface wind changes with every METAR, with a runway change hint on tailwind (1.5)
 - planned - Scenario files (fixed traffic for training); more tutorial lessons (combined positions, conflicts, runway change)
 

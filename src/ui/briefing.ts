@@ -4,6 +4,7 @@ import type { Simulation } from '../core/simulation';
 import { h } from './dom';
 import { nightRules } from '../core/night';
 import { DEICING_MAX_S, DEICING_MIN_S, deicingActive } from '../core/deicing';
+import { LVP_ARRIVAL_SPACING_NM, LVP_DEPARTURE_GAP_NM, LVP_TAXI_SPEED_KT, lvpInForce } from '../core/met';
 import { minutesToHhmm } from '../core/time';
 import { formatWind } from '../core/weather';
 
@@ -90,6 +91,14 @@ export function renderBriefing(sim: Simulation): HTMLElement {
       'De-icing',
       `Every departure up to ${Math.max(...pads.map((p) => p.maxWingspanM))} m wingspan is de-iced on ${pads.map((p) => `${p.name} (max. ${p.maxWingspanM} m)`).join(', ')} before take-off (${DEICING_MIN_S / 60}-${DEICING_MAX_S / 60} min, wide-bodies longer; larger aircraft on their stand). ` +
         `Taxi it to a pad first ("taxi to de-icing pad ${pads[0].name} via ..."); it reports "de-icing complete, ready for taxi". Crews refuse the runway before.`,
+    ]);
+  }
+  if (lvpInForce(sim)) {
+    const cat3 = [...sim.airport.lvpHoldingPoints.keys()];
+    now.push([
+      'Low visibility',
+      `Fog: low visibility procedures in force. ${cat3.length ? `Departures (and runway crossings) wait at the CAT II/III holding positions (${cat3.length} on the scope as "${cat3[0]} CAT III"), further back than the normal holding points` : 'The holding points are the CAT II/III ones as well'}. ` +
+        `Approach spaces the arrivals at least ${LVP_ARRIVAL_SPACING_NM} NM (${LVP_DEPARTURE_GAP_NM} NM with departures waiting); a departure must be airborne well before the next arrival; everybody taxis at ${LVP_TAXI_SPEED_KT} kt at most.`,
     ]);
   }
   if (sim.storm) now.push(['Weather', sim.storm.phase === 'overhead' ? 'Thunderstorm overhead: no pushbacks, no take-offs, windshear on final.' : 'Thunderstorm approaching.']);

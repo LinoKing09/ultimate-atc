@@ -494,6 +494,28 @@ export const EDDM: AirportData = {
       ],
     ),
   ],
+  // CAT II/III holding positions (aerodrome chart, AIP AD 2.20 3.2.3.2: used only during low visibility operations);
+  // A1 and the high-speed turn-offs A5, A8, A9, B6, B7, B8, B11 have one holding position for all categories.
+  lvpHoldingPoints: {
+    A2: 'HP.1736759994',
+    A3: 'HP.12569738021',
+    A4: 'HP.12569738008',
+    A6: 'HP.12569738007',
+    A10: 'HP.12569734281',
+    A12: 'HP.12569734272',
+    A13: 'HP.12569738023',
+    A14: 'HP.12569738022',
+    A15: 'HP.18283978',
+    B1: 'HP.12569497304',
+    B2: 'HP.12569497303',
+    B3: 'HP.12569497301',
+    B4: 'HP.12569497288',
+    B10: 'HP.12569497224',
+    B12: 'HP.12569497206',
+    B13: 'HP.12569483686',
+    B14: 'HP.12569483687',
+    B15: 'HP.12569483685',
+  },
   // Both runways for take-offs and landings, independent parallel approaches (AIP AD 2.22), runway by direction.
   parallelRunways: [
     {

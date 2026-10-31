@@ -36,6 +36,37 @@ export function validateAirport(data: AirportData): string[] {
   }
   for (const st of data.stations) {
     if (!/^1[1-3]\d\.\d{2,3}$/.test(st.frequency)) add(`station ${st.callsign} has an invalid frequency ${st.frequency}`);
+    for (const f of Object.values(st.runwayFrequencies ?? {})) if (!/^1[1-3]\d\.\d{2,3}$/.test(f)) add(`station ${st.callsign} has an invalid frequency ${f}`);
+  }
+  // CAT II/III holding positions: a plain node on the taxiways behind its holding point (at most 300 m away).
+  for (const [name, id] of Object.entries(data.lvpHoldingPoints ?? {})) {
+    const hp = data.taxiNodes.find((n) => n.holdingPoint?.name === name);
+    const node = data.taxiNodes.find((n) => n.id === id);
+    if (!hp || !node || node.holdingPoint) {
+      add(`CAT II/III holding position of ${name}: ${!hp ? 'no such holding point' : `${id} is no plain taxi node`}`);
+      continue;
+    }
+    const pos = new Map(data.taxiNodes.map((n) => [n.id, n.pos]));
+    const len = (a: string, b: string) => {
+      const p = pos.get(a)!;
+      const q = pos.get(b)!;
+      return Math.hypot((p.lat - q.lat) * 111320, (p.lon - q.lon) * 111320 * Math.cos((p.lat * Math.PI) / 180));
+    };
+    const dist = new Map([[hp.id, 0]]);
+    const open = [hp.id];
+    while (open.length && !dist.has(id)) {
+      open.sort((a, b) => dist.get(a)! - dist.get(b)!);
+      const cur = open.shift()!;
+      for (const e of data.taxiEdges) {
+        if (e.kind === 'runway' || e.kind === 'runwayStrip' || e.kind === 'stand' || (e.from !== cur && e.to !== cur)) continue;
+        const nb = e.from === cur ? e.to : e.from;
+        const d = dist.get(cur)! + len(cur, nb);
+        if (d > 300 || d >= (dist.get(nb) ?? Infinity)) continue;
+        dist.set(nb, d);
+        open.push(nb);
+      }
+    }
+    if (!dist.has(id)) add(`CAT II/III holding position of ${name} (${id}) is not on the taxiways within 300 m of it`);
   }
   for (const l of data.pavement ?? []) {
     if (l.points.length < 2) add(`pavement line ${l.name ?? ''} needs at least two points`.replace('  ', ' '));

@@ -45,7 +45,7 @@ EDDS-25-MB0-S20-T2215.N.CE.CS-K7Q2M      (with the optional options part)
 | Runway   | `25`        | Runway in use at the start. `AUTO` = from the random wind. Parallel runways used together are joined with a dot: `26R.26L` (Leipzig/Halle) |
 | Traffic  | `HD1` or `4213` | **Letter form**: density (`L` light, `M` medium, `H` heavy), traffic mix (`B` balanced, `D` departure rush, `A` arrival rush), flags (`0` none, `1` heavies 35 %, `2` random special events "rare", `3` both). **Digit form** for the other slider steps: density 1-5, mix 1-5 (1 departure rush ... 3 balanced ... 5 arrival rush), heavies 0-4, random events 0-4 (see the tables below). The letter form is used whenever it fits, so older codes stay the same |
 | Events   | `M10R20W30` | Scheduled events: a letter and the minute after the start. `M` medical emergency (arrival), `D` medical emergency (departure), `R` rejected take-off, `W` wind shift, `S` thunderstorm. `X` = none |
-| Options  | `T2215.N.CE` | *Optional* (codes without options have five parts and are still valid). Tokens separated by `.`: `T2215` start at 22:15 local airport time, `N` night flying restrictions, `C` + taxiway (`CE`, `CL2`) taxiway closed - one token per closed taxiway, `I` de-icing (winter operations) |
+| Options  | `T2215.N.CE` | *Optional* (codes without options have five parts and are still valid). Tokens separated by `.`: `T2215` start at 22:15 local airport time, `N` night flying restrictions, `C` + taxiway (`CE`, `CL2`) taxiway closed - one token per closed taxiway, `I` de-icing (winter operations), `F` fog (low visibility procedures) |
 | Seed     | `K7Q2M`     | The random seed, in base 36 (digits and letters)                                               |
 
 Codes are not case-sensitive. Type or paste one into the **Scenario** field of the Connect dialog; the dialog shows what it means (or why it is invalid). With a code, the density and special-events sliders of the dialog show the code's values and are locked.
@@ -67,7 +67,7 @@ The four traffic **sliders** have five steps each (digit in the code in brackets
 Click **Scenario builder...** next to the Scenario field in the Connect dialog:
 
 1. Pick a **preset**, or set the runway and the sliders for density, traffic mix, heavies and random events yourself.
-2. Under **Conditions**, set a **start time** (local airport time; empty = now), the **night flying restrictions**, **de-icing** and **closed taxiways**. A closure that would cut stands off from a runway is shown in red and cannot be used.
+2. Under **Conditions**, set a **start time** (local airport time; empty = now), the **night flying restrictions**, **de-icing**, **fog** and **closed taxiways**. A closure that would cut stands off from a runway is shown in red and cannot be used.
 3. Add **scheduled events** with the minute when they should happen.
 4. **New seed** keeps the scenario but gives different traffic.
 5. The **scenario code** updates as you go. **Copy code** / **Copy link** copy it, **Use this scenario** puts it into the Connect dialog.
@@ -85,6 +85,7 @@ Click **Scenario builder...** next to the Scenario field in the Connect dialog:
 | Night shift     | medium, start 22:15 local, night flying restrictions        | The last wave before the curfew: jets out by 2300, landings until 2330 (delayed ones until 2400) |
 | Construction works | medium, runway 25, taxiways E and S closed               | Routing around closed taxiways                                 |
 | Winter morning  | medium, departure rush, start 06:30 local, de-icing         | Every departure via a de-icing pad: pad allocation, two taxi clearances per departure |
+| Fog             | medium, start 07:00 local, fog                              | Low visibility procedures: CAT II/III holding points, wider gaps, slow taxiing |
 | Thunderstorm    | medium, thunderstorm at 12 min                              | Gusts, a tailwind shift, windshear go-arounds, a departure stop |
 | Full shift      | heavy, more heavies, random events; medical arrival at 12, wind shift at 35 | Everything at once                                   |
 
@@ -155,6 +156,15 @@ Winter operations (option `I`): frost on the wings, every departure has to be de
 - Not modelled: in reality S is closed next to the pads in use (I-H for DP1 / DP2, H-F for DP3 / DP4).
 - The AI Ground does the same: it keeps a departure on its stand while all pads are busy, taxis it to a free pad, and on to the runway afterwards.
 - Not modelled: holdover times (a de-iced aircraft stays de-iced), de-icing fluid types, snow on the taxiways, braking action.
+
+## Fog (low visibility procedures)
+
+Fog for the whole session (option `F`): visibility 150-500 m, a runway visual range a little above it, the sky obscured at 100 or 200 ft (`METAR EDDM ... 0200 R26R/0225N R26L/0225N FG OVC001 09/09 ...`). With a runway visual range below 550 m or a ceiling below 200 ft **low visibility procedures (LVP)** are in force (ICAO EUR guidance; the DFS criteria of AIP AD 1.1 are close to it): the ATIS says `low visibility procedures in operation` (D-ATIS `LVP IN OPS`, FAA `low visibility procedures in effect`) and the runway visual range of each runway, the toolbar shows `LVP` next to the ATIS letter, the briefing has a *Low visibility* row.
+
+- **CAT II/III holding points**: departures - and aircraft that have to cross a runway - stop at the CAT II/III holding position of their holding point, further back from the runway (the ILS sensitive area stays clear). The scope draws them as full bars labelled `A3 CAT III`, the normal holding points behind them faint. Line-up and take-off clearances work as usual; the aircraft taxis from there onto the runway. Airports with separate CAT II/III holding positions in their data: München (A2-A15, B1-B15 except the high-speed turn-offs with one holding position) and London Gatwick (J2, H2, G2, C3, M3, A3 for J1, H1, G1, C1, M1, A1); elsewhere the holding points are both.
+- **Spacing**: Approach spaces the arrivals at least **6 NM** apart (**8 NM** while departures are waiting); the AI Tower lets a departure go only if it is airborne **50 s** earlier than without fog before the next arrival (past the localizer before the arrival is at 2 NM).
+- **Taxiing**: everybody taxis at **10 kt** at most.
+- Not modelled: stop bars switched on and off by Tower, follow-me guidance, approach minima and diversions, the CAT II/III readiness of the crews, low visibility take-off minima.
 
 ## Sharing a scenario
 

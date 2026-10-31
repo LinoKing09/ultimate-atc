@@ -1,4 +1,4 @@
-import { altimeterOf } from '../core/met';
+import { altimeterOf, lvpInForce } from '../core/met';
 import { otherEnd, type Airport, type TaxiNode } from '../core/airport/airport';
 import { capitalize, runwayWords, usRunway } from '../core/runways';
 import type { Compass, StationType } from '../core/airport/types';
@@ -522,7 +522,8 @@ export class App {
     this.fields.rwy.innerHTML = roles ? `ARR <b>${rw(sim.arrivalRunways)}</b> DEP <b>${rw(sim.departureRunways)}</b>` : `RWY <b>${rw(sim.runways)}</b>`;
     // A newer METAR the ATIS does not match yet: the letter in red, the differences in the tooltip.
     const diff = sim.atisDifferences;
-    this.fields.atis.innerHTML = `ATIS <b${diff.length ? ' class="bad"' : ''}>${sim.atisLetter}</b>`;
+    // Low visibility procedures in force: "LVP" after the information letter.
+    this.fields.atis.innerHTML = `ATIS <b${diff.length ? ' class="bad"' : ''}>${sim.atisLetter}</b>${lvpInForce(sim) ? ' <b class="warn" title="Low visibility procedures in force">LVP</b>' : ''}`;
     this.fields.atis.title = diff.length ? `New METAR (${diff.join(', ')}) - click to broadcast a new ATIS` : 'Current ATIS (click to edit)';
     const wind = sim.observedWind;
     const tail = sim.runways.some((r) => sim.windComponents(r, wind).headwind < -5);

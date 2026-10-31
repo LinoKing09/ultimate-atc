@@ -34,8 +34,10 @@ export interface Metar {
   wind: Wind;
   /** Prevailing visibility in metres; 9999 = 10 km or more. */
   visibilityM: number;
-  /** Present weather, e.g. "-RA", "BR", "TSRA", "VCTS". */
+  /** Present weather, e.g. "-RA", "BR", "FG", "TSRA", "VCTS". */
   weather: string[];
+  /** Runway visual range per runway in use (fog), metres. */
+  rvr?: { runway: string; m: number }[];
   clouds: CloudLayer[];
   tempC: number;
   dewC: number;
@@ -95,9 +97,39 @@ const DIURNAL_AMPLITUDE_C = [3, 3.5, 4.5, 5.5, 6, 6, 6, 6, 5, 4, 3, 3];
 
 type Category = 'cavok' | 'few' | 'bkn' | 'ovc';
 
+/** Fog for the whole session (scenario option "F"): low visibility procedures. */
+export function fogActive(sim: Simulation): boolean {
+  return !!sim.config.scenario?.lowVisibility;
+}
+
+/**
+ * Low visibility procedures (LVP) are in force: a runway visual range below 550 m or a ceiling below 200 ft (ICAO
+ * EUR guidance; the DFS criteria of AIP AD 1.1 are close to it).
+ */
+export const LVP_RVR_M = 550;
+export const LVP_CEILING_FT = 200;
+export function lvpConditions(m: Metar): boolean {
+  const rvr = Math.min(...(m.rvr ?? []).map((r) => r.m));
+  return rvr < LVP_RVR_M || (ceiling(m) ?? Infinity) < LVP_CEILING_FT;
+}
+
+/** LVP: Approach spaces the arrivals at least this far (the one ahead must have left the ILS sensitive area). */
+export const LVP_ARRIVAL_SPACING_NM = 6;
+/** LVP: the gap Approach leaves for departures waiting (NM). */
+export const LVP_DEPARTURE_GAP_NM = 8;
+/** LVP: a departure must be airborne this much earlier before the next arrival (s; it must be past the localizer). */
+export const LVP_ARRIVAL_PROTECTION_S = 50;
+/** LVP: highest taxi speed (kt). */
+export const LVP_TAXI_SPEED_KT = 10;
+
+/** LVP in force now (after the latest observation). */
+export function lvpInForce(sim: Simulation): boolean {
+  return lvpConditions(sim.met.metar);
+}
+
 /** The weather category of the session: 30 % CAVOK, 30 % few / scattered, 25 % broken, 15 % overcast. */
 function category(sim: Simulation): Category {
-  if (deicingActive(sim)) return 'ovc';
+  if (deicingActive(sim) || fogActive(sim)) return 'ovc';
   const v = sim.variation('met:cat');
   return v < 0.3 ? 'cavok' : v < 0.6 ? 'few' : v < 0.85 ? 'bkn' : 'ovc';
 }
@@ -178,8 +210,20 @@ function observe(sim: Simulation, t: number, qnh: number, baseFt: number, speci:
     tempC -= 3;
     dewC = Math.min(dewC, tempC - 1);
   }
+  // Fog: visibility 150-500 m, the runway visual range a little more, a sky obscured at 100 or 200 ft.
+  let rvr: Metar['rvr'];
+  if (fogActive(sim) && !storm) {
+    visibilityM = 150 + 50 * Math.floor(8 * v('fog'));
+    weather.length = 0;
+    weather.push('FG');
+    clouds.length = 0;
+    clouds.push({ cover: 'OVC', baseFt: v('fogBase') < 0.5 ? 100 : 200 });
+    dewC = tempC;
+    const rvrM = Math.min(1500, 25 * Math.round((visibilityM * (1.1 + 0.4 * v('rvr'))) / 25));
+    rvr = sim.runways.map((runway) => ({ runway, m: rvrM }));
+  }
   clouds.sort((a, b) => a.baseFt - b.baseFt);
-  return { at: t, time: obsTime(sim, t), speci, wind: metarWindOf(sim.observedWind), visibilityM, weather, clouds, tempC, dewC, qnh, trend };
+  return { at: t, time: obsTime(sim, t), speci, wind: metarWindOf(sim.observedWind), visibilityM, weather, ...(rvr ? { rvr } : {}), clouds, tempC, dewC, qnh, trend };
 }
 
 /** The weather at the session start: the last routine observation before it (minute 20 or 50 UTC). */
@@ -375,7 +419,12 @@ export function formatMetar(sim: Simulation, m: Metar): string {
 /** Visibility, weather and clouds: "9999 FEW035", "CAVOK", "4000 TSRA SCT015 BKN025CB". */
 function metMiddle(m: Metar): string {
   if (isCavok(m)) return 'CAVOK';
-  return [visibilityText(m.visibilityM), ...m.weather, cloudGroups(m)].join(' ');
+  return [visibilityText(m.visibilityM), ...rvrGroups(m), ...m.weather, cloudGroups(m)].join(' ');
+}
+
+/** "R26R/0400N" for each runway with a runway visual range. */
+function rvrGroups(m: Metar): string[] {
+  return (m.rvr ?? []).map((r) => `R${r.runway}/${String(r.m).padStart(4, '0')}N`);
 }
 
 /** The met line of the D-ATIS text: "25008KT 9999 FEW035 T12 DP06 QNH1018" (wind and QNH of the ATIS); FAA: "... 10SM CLR 12/06 A3006". */
@@ -385,7 +434,7 @@ export function datisMet(m: Metar, wind: Wind, qnh: number, faa = false): string
 }
 
 const WEATHER_WORDS: Record<string, string> = {
-  '-RA': 'light rain', RA: 'moderate rain', '-SN': 'light snow', SN: 'moderate snow', '-DZ': 'light drizzle', BR: 'mist',
+  '-RA': 'light rain', RA: 'moderate rain', '-SN': 'light snow', SN: 'moderate snow', '-DZ': 'light drizzle', BR: 'mist', FG: 'fog',
   TSRA: 'thunderstorm with rain', VCTS: 'thunderstorm in the vicinity',
 };
 const COVER_WORDS: Record<CloudCover, string> = { FEW: 'few', SCT: 'scattered', BKN: 'broken', OVC: 'overcast' };
@@ -400,9 +449,10 @@ export function metWords(m: Metar, faa = false): string {
   }
   if (isCavok(m)) return 'CAVOK';
   const vis = m.visibilityM >= 9999 ? 'visibility 10 kilometres or more' : m.visibilityM >= 5000 ? `visibility ${m.visibilityM / 1000} kilometres` : `visibility ${m.visibilityM} metres`;
+  const rvr = (m.rvr ?? []).map((r) => `runway visual range runway ${r.runway} ${r.m} metres`);
   const wx = m.weather.map((w) => WEATHER_WORDS[w] ?? w);
   const clouds = m.clouds.length ? m.clouds.map((c) => `${COVER_WORDS[c.cover]} ${c.baseFt} feet${c.cb ? ' cumulonimbus' : ''}`) : ['no significant clouds'];
-  return [vis, ...wx, ...clouds].join(', ');
+  return [vis, ...rvr, ...wx, ...clouds].join(', ');
 }
 
 /** "temperature 12, dew point 6" ("minus 3"). */

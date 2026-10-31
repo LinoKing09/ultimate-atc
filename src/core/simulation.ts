@@ -25,7 +25,7 @@ import { EVENT_LEVELS, clampLevel, type Density } from './levels';
 import { updateNight } from './night';
 import { deicingActive } from './deicing';
 import { utcOffsetMinutes } from './time';
-import { altimeterOf, atisDifferences, datisMet, initialMet, metWords, temperatureWords, trendWords, updateMet, updateWind, type Metar, type MetState } from './met';
+import { altimeterOf, atisDifferences, datisMet, initialMet, lvpConditions, metWords, temperatureWords, trendWords, updateMet, updateWind, type Metar, type MetState } from './met';
 import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
 import { allowedApproachModes, arrivalEnds, capitalize, defaultRunwayKey, departureEnds, inSector, roleOf, runwayEndsOf, runwayUseWords, runwayWords, sameRoles, usRunway, type ParallelUse } from './runways';
 
@@ -1025,18 +1025,20 @@ export class Simulation {
     if (this.faa) {
       // FAA ATIS (JO 7110.65 2-9-3): weather first, altimeter in inches, runways without a leading zero.
       const simul = mode === 'independent' ? ', simultaneous parallel approaches in use' : mode === 'dependent' ? ', dependent parallel approaches in use' : '';
+      const lowVis = lvpConditions(m) ? ', low visibility procedures in effect' : '';
       return (
         `${this.atisStation()} information ${L}, ${m.time.slice(2)} Zulu. ` +
         `Wind ${windWords(info.wind)}, ${metWords(m, true)}, ${temperatureWords(m)}, altimeter ${altimeterOf(info.qnh)}. ` +
-        `${capitalize(this.approachesText(arr).replace(/\b0(\d)/g, '$1'))} in use${simul}, departing ${runwayWords(dep.map(usRunway))}` +
+        `${capitalize(this.approachesText(arr).replace(/\b0(\d)/g, '$1'))} in use${simul}${lowVis}, departing ${runwayWords(dep.map(usRunway))}` +
         `${navaids ? `, ${navaids.spoken}` : ''}${notices}. ` +
         `Advise on initial contact you have information ${L}.`
       );
     }
     const parallel = mode === 'independent' || mode === 'dependent' ? `, ${mode} parallel approaches in progress` : '';
+    const lvp = lvpConditions(m) ? ', low visibility procedures in operation' : '';
     return (
       `${this.station.name.split(' ')[0]} information ${L}, time ${m.time.slice(2)}. ` +
-      `Expect ${this.approachesText(arr)}${navaids ? `, ${navaids.spoken}` : ''}${parallel}, ${runwayUseWords(ends, use)}${notices}. ` +
+      `Expect ${this.approachesText(arr)}${navaids ? `, ${navaids.spoken}` : ''}${parallel}${lvp}, ${runwayUseWords(ends, use)}${notices}. ` +
       `Transition level ${this.transitionLevel(info.qnh)}. ` +
       `Wind ${windWords(info.wind)}, ${metWords(m)}, ${temperatureWords(m)}, QNH ${info.qnh}. ` +
       `Trend ${trendWords(m.trend)}. Information ${L} out.`
@@ -1067,6 +1069,7 @@ export class Simulation {
         datisMet(m, info.wind, info.qnh, true),
         `${[...types].join(', ')} APCH RWY ${us(arr)} IN USE. DEPG RWY ${us(dep)}`,
         ...(mode === 'independent' ? ['SIMUL PARALLEL APCHS IN USE'] : mode === 'dependent' ? ['DEPENDENT PARALLEL APCHS IN USE'] : []),
+        ...(lvpConditions(m) ? ['LOW VIS PROCEDURES IN EFFECT'] : []),
         ...(navaids ? [navaids.text] : []),
         ...this.atisNotices(ends, use).map((n) => n.text),
         `ADVS YOU HAVE INFO ${info.letter}`,
@@ -1075,6 +1078,7 @@ export class Simulation {
     return [
       `ATIS ${this.config.airport.icao} ${info.letter} ${m.time.slice(2)}`,
       `EXPECT ${approach}`,
+      ...(lvpConditions(m) ? ['LVP IN OPS'] : []),
       ...(navaids ? [navaids.text] : []),
       ...(segregated ? [`ARR ${rwys(arr)}`, `DEP ${rwys(dep)}`] : [rwys(ends)]),
       ...this.atisNotices(ends, use).map((n) => n.text),

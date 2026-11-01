@@ -421,7 +421,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | Pushback approved -> facing    | `pushback approved [facing east/west/...]`         | Departure parked on a pushback stand          |
 | Push and start approved -> ... | `push and start approved [facing ...]`            | same                                          |
 | Start-up approved             | `start-up approved`                                | Parked                                        |
-| Taxi to -> holding point       | `taxi to holding point A via ...` (shortest route, following the standard flows); with de-icing the pads come first (`De-icing DP2`, occupied pads greyed out) while the departure still needs de-icing | Departure after pushback, or on a taxi-out stand |
+| Taxi to -> holding point       | `taxi to holding point A via ...` (shortest route, following the standard flows) - the holding points of the runways in use for take-offs, those of the other runways under *Other runways*; with de-icing the pads come first (`De-icing DP2`, occupied pads greyed out) while the departure still needs de-icing | Departure after pushback, or on a taxi-out stand |
 | Taxi to stand -> stand         | `taxi to stand 14 via ...` (assigned stand first, then free stands nearby) | Arrival on the ground, or a departure returning to a stand |
 | Stop pushback / Cancel pushback | `stop pushback` / `cancel pushback`              | During pushback                               |
 | Able intersection? -> intersection | `advise able for departure from intersection D` | Departure on the ground; the hint shows the answer once given |

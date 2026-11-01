@@ -100,6 +100,13 @@ export class App {
   private readonly quickbar: HTMLElement;
   private quickbarKey = '';
   /**
+   * The aircraft buttons of the quick-action bar as shown now (their elements stay while the aircraft and the
+   * position stay: a button replaced between finger down and finger up never gets the tap).
+   */
+  private quickLayout = '';
+  private quickEls: HTMLButtonElement[] = [];
+  private quickSpecs: QuickButton[] = [];
+  /**
    * Quick-action bar: phrases picked for the selected aircraft or vehicle, sent together with SEND.
    * `group`: the menu button the phrase was chosen from (one choice per menu, e.g. one taxi route).
    */
@@ -657,6 +664,7 @@ export class App {
         this.clearInput();
         this.updateQuickbar();
       });
+      this.quickLayout = '';
       this.quickbar.replaceChildren(
         h('span.qcs', { text: 'ALL STATIONS' }),
         ...this.allStationsPhrases().map((p) => this.quickPhrase('all stations', p.short, p.phrase)),
@@ -682,23 +690,39 @@ export class App {
     const key = `${cs}|${pos}|${picks}|${buttons.map((b) => `${b.text}:${b.kind}`).join('|')}`;
     if (key === this.quickbarKey) return;
     this.quickbarKey = key;
-    const at = (b: HTMLButtonElement): [number, number] => {
-      const r = b.getBoundingClientRect();
-      return [r.left, r.top];
-    };
-    const els = buttons.map((q) => {
-      if (q.kind === 'phrase') return this.quickPhrase(cs, q.text, q.phrase!);
-      const b = h('button', { text: q.text, type: 'button', title: q.title ?? q.text });
-      if (q.kind === 'off') b.disabled = true;
-      else if (q.kind === 'action') b.addEventListener('click', () => q.action!());
-      else {
-        // Menus: what is chosen there is picked like a phrase button and sent with SEND.
-        if (this.quickSel?.cs === cs && this.quickSel.picks.some((p) => p.group === q.text)) b.classList.add('picked');
-        b.addEventListener('click', () => this.menu.open(`${cs} - ${q.title ?? q.text}`, this.pickable(cs, q.text, q.items!()), ...at(b)));
-      }
-      return b;
+    this.quickSpecs = buttons;
+    const layout = `${cs}|${pos}|${buttons.map((b) => b.text).join('|')}`;
+    if (layout !== this.quickLayout || !this.quickEls[0]?.isConnected) {
+      this.quickLayout = layout;
+      // One element per button for as long as the layout stays; a tap acts on the button's state at that moment.
+      this.quickEls = buttons.map((_, i) => {
+        const b = h('button', { type: 'button' });
+        b.addEventListener('click', () => this.quickTap(cs, i, b));
+        return b;
+      });
+      this.quickbar.replaceChildren(h('span.qcs', { text: cs }), h('span.qpos', { text: pos }), ...this.quickEls);
+    }
+    buttons.forEach((q, i) => {
+      const b = this.quickEls[i];
+      b.textContent = q.text;
+      b.title = q.kind === 'phrase' ? q.phrase! : (q.title ?? q.text);
+      b.disabled = q.kind === 'off';
+      // Picked: a phrase, or something chosen in its menu - sent with SEND.
+      const picks = this.quickSel?.cs === cs ? this.quickSel.picks : [];
+      b.classList.toggle('picked', q.kind === 'phrase' ? picks.some((p) => p.phrase === q.phrase) : q.kind === 'menu' && picks.some((p) => p.group === q.text));
     });
-    this.quickbar.replaceChildren(h('span.qcs', { text: cs }), h('span.qpos', { text: pos }), ...els);
+  }
+
+  /** A tap on button `i` of the aircraft quick-action bar: what that button does now. */
+  private quickTap(cs: string, i: number, b: HTMLButtonElement): void {
+    const q = this.quickSpecs[i];
+    if (!q || q.kind === 'off') return;
+    if (q.kind === 'phrase') this.pick(cs, q.phrase!);
+    else if (q.kind === 'action') q.action!();
+    else {
+      const r = b.getBoundingClientRect();
+      this.menu.open(`${cs} - ${q.title ?? q.text}`, this.pickable(cs, q.text, q.items!()), r.left, r.top);
+    }
   }
 
   /** The position whose quick-action bar an aircraft gets: the frequency it is on, or the one of yours it comes to next. */
@@ -1397,14 +1421,21 @@ export class App {
       this.scope.preview = on ? { points: routePoints(this.sim.airport, ac, r.route.nodes, r.route.startPosition), ok: true } : undefined;
       if (!on) this.updatePreview();
     };
-    // A click sends the whole route; the sub-menu limits it: "..., hold short of taxiway L".
-    const limits = this.holdShortLimits(ac, via, (t) => `${phrase}, hold short of taxiway ${t}`);
+    // A click sends the whole route; the sub-menu limits it: "..., hold short of taxiway L". The limits are worked out
+    // only when the sub-menu opens (each one is a route search: a menu of many routes opened slowly on phones).
+    const here = ac.phase === 'parked' ? undefined : this.sim.airport.nearestEdge(ac.pos)?.edge.name?.toUpperCase();
+    const limitable = via.some((t) => t.toUpperCase() !== here);
     return {
       label,
       hint: `${hint ?? `via ${via.join(' ')}`}${conflict ? `  ! head-on ${conflict.other.callsign}` : ''}`,
       action: () => this.say(ac, phrase),
       onHover,
-      submenu: limits.length ? () => [{ label: 'Whole route', hint: via.join(' '), action: () => this.say(ac, phrase), onHover }, { divider: true, label: '' }, ...limits] : undefined,
+      submenu: limitable
+        ? () => {
+            const limits = this.holdShortLimits(ac, via, (t) => `${phrase}, hold short of taxiway ${t}`);
+            return [{ label: 'Whole route', hint: via.join(' '), action: () => this.say(ac, phrase), onHover }, ...(limits.length ? [{ divider: true, label: '' }, ...limits] : [])];
+          }
+        : undefined,
     };
   }
 
@@ -1777,14 +1808,24 @@ export class App {
         items.push(user ? { label: `De-icing ${pad.name}`, hint: `occupied (${user.callsign})`, disabled: true } : this.routeItem(ac, `De-icing ${pad.name}`, `de-icing pad ${pad.name}`));
       }
     }
-    for (const ops of sim.config.airport.runwayOps) {
-      if (items.length) items.push({ divider: true, label: '' });
-      for (const e of ops.departureEntries) {
+    const entries = (ops: (typeof sim.config.airport.runwayOps)[number]) =>
+      ops.departureEntries.map((e) => {
         const label = `${e.holdingPoint}  RWY ${ops.runway}${e.fullLength ? '' : ' (intersection)'}`;
         const item = this.routeItem(ac, label, `holding point ${e.holdingPoint} runway ${ops.runway}`);
         if (!sim.isDepartureRunway(ops.runway)) item.label += sim.isRunwayInUse(ops.runway) ? ' - landings only' : ' - not in use';
-        items.push(item);
-      }
+        return item;
+      });
+    // The runways in use for take-offs first; the others in a sub-menu, worked out when it opens (every entry is a
+    // route search - a large airport has dozens).
+    const ops = sim.config.airport.runwayOps;
+    const others = ops.filter((o) => !sim.isDepartureRunway(o.runway));
+    for (const o of ops.filter((x) => sim.isDepartureRunway(x.runway))) {
+      if (items.length) items.push({ divider: true, label: '' });
+      items.push(...entries(o));
+    }
+    if (others.length) {
+      if (items.length) items.push({ divider: true, label: '' });
+      items.push({ label: 'Other runways', hint: others.map((o) => o.runway).join(' '), submenu: () => others.flatMap((o, i) => [...(i ? [{ divider: true, label: '' }] : []), ...entries(o)]) });
     }
     return items;
   }

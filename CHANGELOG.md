@@ -12,6 +12,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- **Quick-action bar on the phone**: a tap on a button (e.g. TAXI) sometimes did nothing and had to be repeated - the bar replaced all its buttons whenever one of them changed its state (GIVE WAY, RESOLVE, HOLD / CONT coming and going while traffic moves), and a button replaced between finger down and finger up never gets the tap. The buttons now stay and only change their state; the bar is rebuilt only for another aircraft or position.
+- The **Taxi to** menu opens faster at large airports: the *hold short of* limits of a route are worked out when its sub-menu opens, and the holding points of runways not in use for take-offs are under *Other runways* (at München the menu worked out about 140 routes before it appeared).
 - München documentation: A-CDM is in use (it said not modelled).
 
 ## [1.6.0] - 2026-10-31

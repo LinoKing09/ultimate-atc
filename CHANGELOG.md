@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.7.3] - 2026-11-02
+
 ### Added
 
 - **SEND waits for the read-back**: after an instruction SEND is locked (greyed, dashed) until the addressed pilot has read back, at most 5 s after your transmission (was 6 s); a click explains why. **`break break`** in front of a transmission cuts in anyway (`break break DLH5AB hold position`) and unlocks SEND as you type it. Menus and quick buttons wait the same way.

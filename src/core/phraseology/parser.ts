@@ -40,6 +40,15 @@ const TENS_WORDS: Record<string, number> = {
  * aviation word. Multi-word keys are matched before single words.
  */
 const VOICE_FIXES: [string, string][] = [
+  // Heard words that are radio words, but not in this order.
+  ['take of', 'take off'],
+  ['clear for take off', 'cleared for take off'],
+  ['clear for takeoff', 'cleared for takeoff'],
+  ['clear to land', 'cleared to land'],
+  ['clear to cross', 'cleared to cross'],
+  ['line up and weight', 'line up and wait'],
+  ['line up in wait', 'line up and wait'],
+  ['hold short off', 'hold short of'],
   ['push back', 'pushback'],
   ['pushed back', 'pushback'],
   ['push bag', 'pushback'],
@@ -79,6 +88,7 @@ const VOICE_WORD_FIXES: Record<string, string> = {
   taxis: 'taxi', texi: 'taxi', approve: 'approved', improved: 'approved', proved: 'approved',
   phasing: 'facing', pacing: 'facing', tails: 'tail', canceled: 'cancelled',
   pushbacks: 'pushback', clearer: 'clear', won: 'one', ate: 'eight',
+  whole: 'hold', holed: 'hold', told: 'hold', paint: 'point', pint: 'point', taxy: 'taxi',
   lufthanza: 'lufthansa', lufthansas: 'lufthansa', eurowing: 'eurowings', condo: 'condor', condors: 'condor',
   turkis: 'turkish', vueling: 'vueling', veuling: 'vueling', airfrance: 'airfrans', speedbirds: 'speedbird',
 };

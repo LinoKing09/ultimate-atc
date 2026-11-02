@@ -114,6 +114,12 @@ describe('speech', () => {
     expect(toSpoken('cleared ILS approach runway 08L')).toBe('cleared I-L-S approach runway zero eight left');
   });
 
+  it('repairs phrases a recogniser hears in the wrong order or form', () => {
+    expect(parseTransmission('speedbird one two clear for take of runway two five', { ...ctx, callsigns: ['BAW12'] }).commands).toEqual([{ type: 'takeoff', runway: '25' }]);
+    expect(parseTransmission('lufthansa five alpha bravo line up and weight runway two five', ctx).commands).toEqual([{ type: 'lineUp', runway: '25' }]);
+    expect(parseTransmission('lufthansa five alpha bravo whole short of runway two five', ctx).commands).toEqual([{ type: 'holdShort', target: { kind: 'runway', runway: '25' } }]);
+  });
+
   it('ignores "break break" in front of a transmission', () => {
     for (const text of ['break break DLH5AB hold position', 'Break, break, Lufthansa five alpha bravo, hold position']) {
       const p = parseTransmission(text, ctx);

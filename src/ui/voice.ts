@@ -306,6 +306,8 @@ interface RecognitionResultEvent {
 }
 interface Recognition {
   lang: string;
+  /** Contextual biasing (newer Chrome, on-device recognition): phrases the recogniser should expect. */
+  phrases?: unknown[];
   continuous: boolean;
   interimResults: boolean;
   maxAlternatives: number;
@@ -331,6 +333,10 @@ export class VoiceInput {
   private wanted = false;
   private startedAt = 0;
   listening = false;
+  /** Phrases to bias the recogniser towards (radio language), where it can be biased. */
+  phrases: () => string[] = () => [];
+  /** The recogniser refused phrases (biasing not supported for this language / without on-device recognition). */
+  private phrasesRefused = false;
 
   constructor(
     private readonly onInterim: (text: string) => void,
@@ -379,6 +385,12 @@ export class VoiceInput {
     };
     rec.onerror = (e) => {
       // "no-speech" / "aborted" end the run; onend follows and decides.
+      // Biasing not available here: go on without it (the run that refused it ends; onend restarts it).
+      if (e.error === 'phrases-not-supported') {
+        this.phrasesRefused = true;
+        if (this.rec) this.rec.phrases = [];
+        return;
+      }
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed' || e.error === 'audio-capture') {
         this.wanted = false;
         this.onState(this.listening, e.error);
@@ -437,12 +449,24 @@ export class VoiceInput {
     this.seen = 0;
     this.wanted = true;
     this.startedAt = performance.now();
+    this.applyPhrases();
     try {
       this.rec.start();
       this.listening = true;
       this.onState(true);
     } catch {
       this.wanted = false;
+    }
+  }
+
+  /** Biases the recogniser towards the radio language, where the browser supports it (SpeechRecognitionPhrase). */
+  private applyPhrases(): void {
+    const Phrase = (window as unknown as { SpeechRecognitionPhrase?: new (phrase: string, boost: number) => unknown }).SpeechRecognitionPhrase;
+    if (!this.rec || !Phrase || this.phrasesRefused || !('phrases' in this.rec)) return;
+    try {
+      this.rec.phrases = this.phrases().map((p) => new Phrase(p, 5));
+    } catch {
+      this.phrasesRefused = true;
     }
   }
 

@@ -53,7 +53,8 @@ ultimate-atc/
 │   │       ├── commands.ts    # Command types (the parser's output)
 │   │       ├── parser.ts      # text -> callsign + commands
 │   │       ├── format.ts      # commands -> canonical phraseology text
-│   │       └── speech.ts      # telephony callsigns, phonetic spelling for TTS
+│   │       ├── speech.ts      # telephony callsigns, phonetic spelling for TTS
+│   │       └── vocabulary.ts  # radio vocabulary of a session, sound keys, snapping recognised words to it
 │   ├── data/
 │   │   ├── aircraftTypes.ts   # dimensions and performance per ICAO type
 │   │   ├── airlines.ts        # operators, telephony, fleets, destinations

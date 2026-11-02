@@ -7,6 +7,7 @@ import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { BREAK_BREAK, parseTransmission } from '../core/phraseology/parser';
+import { recognitionPhrases, sessionVocabulary, snapToVocabulary, vocabularyScore, voiceVocabulary } from '../core/phraseology/vocabulary';
 import { catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
 import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, offBlockDue, sidsForDestination, suggestedSid } from '../core/delivery';
 import { formatClearanceClimb, formatDepartureRoute } from '../core/phraseology/format';
@@ -398,6 +399,7 @@ export class App {
         if (error && error !== 'aborted' && error !== 'no-speech') this.hint(`Speech recognition error: ${error}`);
       },
     );
+    this.voiceIn.phrases = () => recognitionPhrases(sessionVocabulary(this.sim));
     if (!MIC_ENABLED) {
       this.micButton.disabled = true;
       this.micButton.title = 'Speech recognition: switched off in this version (coming back after the tests on the iPad)';
@@ -1116,12 +1118,19 @@ export class App {
   /** Picks the speech recognition alternative that makes the most sense as an instruction. */
   private bestVoiceCandidate(candidates: string[]): string {
     const callsigns = this.sim.radioCallsigns;
+    // Each alternative as heard, and with the words that are no radio words replaced by the radio words that sound
+    // most alike ("texi" -> taxi): the one most made of radio language that the parser understands best wins.
+    const vocab = voiceVocabulary(sessionVocabulary(this.sim));
+    const options = candidates.flatMap((text, i) => {
+      const snapped = snapToVocabulary(text, vocab);
+      return snapped !== text.toLowerCase().replace(/[,;:!?]/g, ' ').split(/\s+/).filter(Boolean).join(' ') ? [{ text, i }, { text: snapped, i }] : [{ text, i }];
+    });
     let best = candidates[0];
     let bestScore = -Infinity;
-    candidates.forEach((text, i) => {
+    options.forEach(({ text, i }) => {
       const p = parseTransmission(text, { callsigns, taxiways: this.sim.airport.taxiwayNames, selected: this.selected, sids: this.sim.sidNames });
       const ac = this.sim.find(p.callsign);
-      let score = p.commands.length * 3 - p.unparsed.length - i * 0.3;
+      let score = p.commands.length * 3 - p.unparsed.length - i * 0.3 + vocabularyScore(text, vocab) * 3;
       if (p.explicitCallsign && ac) score += 4;
       if (ac && this.sim.isOnMyFrequency(ac)) score += 1;
       if (ac?.request) score += 1;

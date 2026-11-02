@@ -453,6 +453,9 @@ Speech recognition (see the [user guide](user-guide.md#9-voice)) produces plain 
 | `lima two`                                   | `L2`      |
 | `one one eight decimal eight zero five`, `... point ...` | `118.805` |
 | `lufthansa five alpha bravo`                 | `DLH5AB`  |
+| `clear for take of`, `line up and weight`, `whole short of`, `holding paint` | `cleared for take off`, `line up and wait`, `hold short of`, `holding point` |
+
+**Radio vocabulary**: before parsing, every word of a spoken transmission that is no word of the radio is replaced by the radio word that sounds most like it (a small Metaphone sound key: `texi` -> taxi, `charly` -> charlie; or two words heard for one: `a proved` -> approved). The vocabulary is the phraseology the parser understands, the phonetic alphabet and the numbers, and from the session the radiotelephony names of the operators present, the station names, the SID names, the destinations and words in taxiway names - so `cleared to Frankfurt` stays. Numbers, single letters and words with nothing close stay as they are. Of the recogniser's alternatives, each as heard and as snapped, the one with the most radio words that the parser understands best is used. Browsers that support contextual biasing (`SpeechRecognitionPhrase`, newer Chrome with on-device recognition) are told the radio phrases and names to expect as well.
 
 Frequent misrecognitions are corrected before parsing:
 

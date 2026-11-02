@@ -1,4 +1,5 @@
 import { perform, type SavedSession } from '../core/session';
+import { APP_VERSION } from '../version';
 import { deleteSession, downloadSession, formatDuration, listSessions, loadStats, readSessionFile } from './sessionStore';
 import type { AirportData, StationType } from '../core/airport/types';
 import { allowedApproachModes, roleOf, runwayEndsOf, sameRoles, usRunway, type ParallelUse } from '../core/runways';
@@ -252,7 +253,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       h(
         'div.dbody',
         {},
-        h('h1', { text: 'ULTIMATE ATC' }),
+        h('h1', {}, 'ULTIMATE ATC', h('span.version', { text: `v${APP_VERSION}` })),
         h('div.sub', { text: 'Air traffic control simulator - EuroScope style, ICAO phraseology (FAA at US airports).' }),
         h(
           'div.grid',
@@ -570,7 +571,7 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
     h(
       'div.dialog.wide',
       {},
-      h('div.dtitle', {}, h('span', { text: `Help - ${sim.config.airport.stations.filter((st) => sim.userControls(st.type)).map((st) => st.name).join(' + ')}` }), close),
+      h('div.dtitle', {}, h('span', { text: `Help - ${sim.config.airport.stations.filter((st) => sim.userControls(st.type)).map((st) => st.name).join(' + ')}` }), h('span.dim', { text: `Ultimate ATC v${APP_VERSION}` }), close),
       h('div.tabs', { role: 'tablist' }, ...tabButtons.map((t) => t.b)),
       body,
     ),

@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-11-02
+
 ### Added
 
 - **Pilot voices are back** (`TTS` in the toolbar, *Voice* in the settings: on/off with a *Test* button, volume, speed): every pilot transmission is read aloud, each callsign with its own voice.
@@ -14,6 +16,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - **Radio discipline**: after a pilot's call the others wait 5 s before they call (the controller can answer first), and 2 s after a controller transmission (the gap for the read-back) - several requests no longer come in right after each other. Read-backs and urgent reports (`stopping`) do not wait.
 - `MIC` is in the toolbar next to `TTS`; it stays **greyed out**: speech recognition is switched off until it has been tested on the iPad.
+- The **version** is shown on the start screen (`ULTIMATE ATC v1.7.2` in the Connect dialog), next to the name in the toolbar and in the title of the help window.
 
 ### Fixed
 

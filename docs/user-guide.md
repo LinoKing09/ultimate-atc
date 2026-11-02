@@ -84,6 +84,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `II` / `>`            | Pause / resume. **Space** does the same when the command line is empty.                         |
 | `1x 2x 4x 8x`         | Simulation rate. Pilots and Tower run faster too; text-to-speech gets slightly faster.          |
 | `TTS`                 | Pilots read their transmissions aloud (text-to-speech), see [Voice](#9-voice). |
+| `ULTIMATE ATC v1.7.2` (example) | The name and the version of the simulator (also on the start screen and in the help window). |
 | `MIC`                 | Push-to-talk speech recognition. *Greyed out in this version, see [Voice](#9-voice).* |
 | `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
 | `ROT`                 | Rotates the scope: the main runway **horizontal** like the aerodrome chart (default; Stuttgart 07 on the left, Sylt 14) or north-up. |

@@ -316,6 +316,15 @@ button:disabled {
   letter-spacing: 1px;
   margin-right: 6px;
 }
+/* The version after the name (toolbar, Connect dialog). */
+.brand .version,
+.dialog h1 .version {
+  margin-left: 6px;
+  font-size: 0.75em;
+  font-weight: normal;
+  letter-spacing: 0;
+  color: var(--text-dim);
+}
 .toolbar .field {
   padding: 2px 6px;
   background: var(--field-bg);

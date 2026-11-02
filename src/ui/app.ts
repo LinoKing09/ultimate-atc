@@ -1,4 +1,5 @@
 import { altimeterOf, lvpInForce } from '../core/met';
+import { APP_VERSION } from '../version';
 import { otherEnd, type Airport, type TaxiNode } from '../core/airport/airport';
 import { capitalize, runwayWords, usRunway } from '../core/runways';
 import type { Compass, StationType } from '../core/airport/types';
@@ -223,7 +224,7 @@ export class App {
     const toolbar = h(
       'div.toolbar',
       {},
-      h('span.brand', { text: 'ULTIMATE ATC' }),
+      h('span.brand', { title: `Ultimate ATC version ${APP_VERSION}` }, 'ULTIMATE ATC', h('span.version', { text: `v${APP_VERSION}` })),
       field('station', 'Your frequencies - click one to switch it off (the simulator takes the position over) or on again'),
       field('rwy', 'Runway(s) in use - with parallel runways for landings (ARR) or take-offs (DEP) only, both'),
       field('atis', 'Current ATIS'),

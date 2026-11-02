@@ -51,8 +51,19 @@ export function spokenFrequency(freq: string): string {
  * Converts a display message to a TTS-friendly string: numbers and
  * designators (G1, 5AB, single letters) are spelled out phonetically.
  */
+/** Abbreviations that text-to-speech would otherwise read as a word. */
+const SPELLED_ABBREVIATIONS: Record<string, string> = { QNH: 'Q-N-H', ILS: 'I-L-S', RVR: 'R-V-R', DCL: 'D-C-L', LVP: 'L-V-P', VOR: 'V-O-R', RNP: 'R-N-P' };
+
+const SIDE: Record<string, string> = { L: 'left', R: 'right', C: 'centre' };
+
 export function toSpoken(text: string): string {
   return text
+    // Altitudes in thousands and hundreds (ICAO): "5000 feet" -> "five thousand feet", "4500 feet" -> "four thousand five hundred feet".
+    .replace(/\b(\d{1,2})(\d)00 feet\b/g, (_, th: string, hu: string) => `${spell(th)} thousand${hu === '0' ? '' : ` ${spell(hu)} hundred`} feet`)
+    .replace(/\b([1-9])00 feet\b/g, (_, hu: string) => `${spell(hu)} hundred feet`)
+    // Runway designators: "26R" -> "two six right".
+    .replace(/\b(\d{2})([LRC])\b/g, (_, n: string, side: string) => `${spell(n)} ${SIDE[side]}`)
+    .replace(/\b(QNH|ILS|RVR|DCL|LVP|VOR|RNP)\b/g, (abbr: string) => SPELLED_ABBREVIATIONS[abbr])
     .split(/(\s+|,|\.(?!\d))/)
     .map((tok) => {
       if (!tok || /^\s+$/.test(tok) || tok === ',' || tok === '.') return tok;

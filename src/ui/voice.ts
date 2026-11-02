@@ -107,6 +107,12 @@ export class PilotVoices {
       this.held.push({ callsign, text, rate });
       return;
     }
+    // At high simulation rates the pilots talk faster than the voices can speak: rather than falling minutes behind
+    // the radio, drop what is still waiting and go on with the newest transmission.
+    if (this.live.size >= 3) {
+      window.speechSynthesis.cancel();
+      this.live.clear();
+    }
     const u = new SpeechSynthesisUtterance(text);
     const hv = hash(callsign);
     if (this.voices.length) {

@@ -68,11 +68,13 @@ interface QuickButton {
 }
 /** Keys that work as push-to-talk (held down). */
 const PTT_KEYS = new Set(['Backquote', 'ControlRight', 'Insert']);
+/** Pilot voices (text-to-speech): the TTS button and the Voice settings. */
+const TTS_ENABLED = true;
 /**
- * Pilot voices (TTS) and speech recognition (MIC) are switched off for 1.0: they are not reliable
- * enough on all devices yet. The code stays; set this to true to bring them back.
+ * Speech recognition (MIC, push-to-talk) is switched off for now: not reliable enough on all devices yet.
+ * The code stays; set this to true to bring it back.
  */
-const VOICE_ENABLED = false;
+const MIC_ENABLED = false;
 
 /**
  * The controller client: wires the simulation to the scope, the traffic
@@ -353,7 +355,7 @@ export class App {
       side('SAY AGAIN', 'Say again - the selected aircraft (or the last caller) repeats its last transmission', toSelected('say again')),
       allBtn,
     );
-    if (!VOICE_ENABLED) this.micButton.remove();
+    if (!MIC_ENABLED) this.micButton.remove();
     const comms = h('div.comms', {}, h('div.comms-main', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input.el, clearBtn, this.previewEl)), sidebar);
 
     root.replaceChildren(toolbar, this.main, comms);
@@ -367,9 +369,9 @@ export class App {
 
     // ---------------------------------------------------------------- voice
     this.voices.volume = settings.ttsVolume;
-    this.setTts(VOICE_ENABLED && settings.tts && this.voices.supported);
+    this.setTts(TTS_ENABLED && settings.tts && this.voices.supported);
     if (!this.voices.supported) this.ttsButton.disabled = true;
-    if (!VOICE_ENABLED) this.ttsButton.style.display = 'none';
+    if (!TTS_ENABLED) this.ttsButton.style.display = 'none';
     this.voiceIn = new VoiceInput(
       (interim) => {
         this.input.value = interim;
@@ -426,7 +428,7 @@ export class App {
     this.input.el.addEventListener('keydown', (e) => this.onInputKey(e));
     window.addEventListener('keydown', (e) => this.onGlobalKey(e));
     window.addEventListener('keyup', (e) => {
-      if (VOICE_ENABLED && PTT_KEYS.has(e.code)) {
+      if (MIC_ENABLED && PTT_KEYS.has(e.code)) {
         e.preventDefault();
         this.voiceIn.stop();
       }
@@ -598,7 +600,7 @@ export class App {
 
   private openSettings(): void {
     this.menu.close();
-    showSettings(this.sim, this.settings, () => this.applySettings(), { tts: VOICE_ENABLED && this.voices.supported, mic: VOICE_ENABLED && this.voiceIn.supported, hidden: !VOICE_ENABLED, test: () => this.voices.test('Stuttgart Ground, radio check, readability five') });
+    showSettings(this.sim, this.settings, () => this.applySettings(), { tts: TTS_ENABLED && this.voices.supported, mic: MIC_ENABLED && this.voiceIn.supported, hidden: !TTS_ENABLED, micHidden: !MIC_ENABLED, test: () => this.voices.test('Stuttgart Ground, radio check, readability five') });
   }
 
   /** Applies the (possibly changed) settings to the running session. */
@@ -626,7 +628,7 @@ export class App {
     this.routesBtn.classList.toggle('active', s.showRoutes);
     if (s.runwayAligned !== this.scope.runwayAligned) this.scope.setRotation(s.runwayAligned);
     this.rotBtn.classList.toggle('active', s.runwayAligned);
-    if (this.voices.enabled !== (VOICE_ENABLED && s.tts && this.voices.supported)) this.setTts(VOICE_ENABLED && s.tts && this.voices.supported, true);
+    if (this.voices.enabled !== (TTS_ENABLED && s.tts && this.voices.supported)) this.setTts(TTS_ENABLED && s.tts && this.voices.supported, true);
     this.voices.volume = s.ttsVolume;
     this.voices.rate = s.ttsRate;
     this.voiceIn.lang = s.voiceLang;
@@ -938,7 +940,7 @@ export class App {
 
   private onGlobalKey(e: KeyboardEvent): void {
     if (document.querySelector('.overlay')) return;
-    if (VOICE_ENABLED && PTT_KEYS.has(e.code)) {
+    if (MIC_ENABLED && PTT_KEYS.has(e.code)) {
       e.preventDefault();
       if (!e.repeat) this.voiceIn.start();
       return;

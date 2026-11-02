@@ -171,7 +171,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 - **done** (1.3) - **Airport menu** in the Connect dialog: continent, country with its FIR (Germany: Bremen, Langen, München), airport with runways and traffic level, ready for airports on other continents
 - **done** (1.7) - **Interface themes**: EuroScope, Midnight, Light, Amber console and High contrast for the toolbar, lists, menus and dialogs, independent of the scope style
 - *in progress* - **Low visibility procedures (LVP)**: fog scenario (RVR, LVP in the ATIS), CAT II/III holding points (München, Gatwick; Stuttgart, Cologne/Bonn, Leipzig/Halle, Nuremberg, Bremen), larger spacing, slow taxiing - **done**; next: stop bars (switched by Tower)
-- planned - **Voice**: test text-to-speech and speech recognition again on the iPad and switch them back on
+- *in progress* - **Voice**: text-to-speech switched back on (runways, altitudes and abbreviations as said on the radio, no backlog at high rates) - **done**; next: test it on the iPad, then speech recognition
 - planned - Smarter AI Tower after a rejected take-off; partial taxiway closures; a taxiway blocked during the session (special event)
 - **done** (1.4) - **Cologne/Bonn (EDDK)** with its cargo hub (UPS, FedEx, DHL; cargo airlines park on the cargo aprons) and the parallel guide lines of Terminal 2, and **Bremen (EDDW)**, both after the airport recipe (sources first, the charts as tests)
 - **done** (1.4) - **Parallel runways in use at the same time** (mixed mode, dependent / staggered / independent approaches, runway per apron and size, AI Tower per runway, ATIS) and **Leipzig/Halle (EDDP)** with the DHL hub

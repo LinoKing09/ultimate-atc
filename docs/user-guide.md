@@ -83,7 +83,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `ON 0:42:10`          | Your **time on position** in this session: real time while the simulation runs (not while paused or while the page is hidden). It is added up over all sessions for your statistics (the tooltip and the Connect dialog show the total; also per airport and position, kept in this browser for the account statistics to come). A continued session goes on from its saved time. |
 | `II` / `>`            | Pause / resume. **Space** does the same when the command line is empty.                         |
 | `1x 2x 4x 8x`         | Simulation rate. Pilots and Tower run faster too; text-to-speech gets slightly faster.          |
-| `TTS`                 | Pilots read their transmissions aloud (text-to-speech). *Hidden in this version, see [Voice](#9-voice).* |
+| `TTS`                 | Pilots read their transmissions aloud (text-to-speech), see [Voice](#9-voice). |
 | `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
 | `ROT`                 | Rotates the scope: the main runway **horizontal** like the aerodrome chart (default; Stuttgart 07 on the left, Sylt 14) or north-up. |
 | `BRIEFING`            | Opens the [airport briefing](#airport-briefing).                                               |
@@ -500,11 +500,11 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 
 ## 9. Voice
 
-> **Switched off in this version.** Pilot voices (TTS) and speech recognition (MIC) are not reliable enough on all devices yet and are disabled for 1.0 (the `TTS` and `MIC` buttons and the voice settings are hidden). The description below applies when they come back.
+> **Speech recognition is switched off in this version** (the `MIC` button and the recognition settings are hidden): it is not reliable enough on all devices yet. The pilot voices (`TTS`) are back.
 
 ### Pilots speaking (TTS)
 
-Press **TTS** in the toolbar. Every pilot transmission is read aloud with the browser's speech synthesis. Each callsign always gets the same voice, pitch and speaking rate, so you can tell pilots apart. Designators are spelled phonetically: "Lufthansa five Alpha Bravo, taxi to holding point Golf one".
+Press **TTS** in the toolbar. Every pilot transmission is read aloud with the browser's speech synthesis. Each callsign always gets the same voice, pitch and speaking rate, so you can tell pilots apart. Designators are spelled phonetically: "Lufthansa five Alpha Bravo, taxi to holding point Golf one"; runways with their side ("runway two six right"), altitudes in thousands and hundreds ("climb five thousand feet", "passing four thousand five hundred feet"), abbreviations letter by letter ("Q-N-H", "I-L-S"). At high simulation rates the voices speak faster; if they still fall behind the radio, the waiting transmissions are dropped and the newest one is spoken.
 
 On the **iPad** (and iPhone) TTS is off until you switch it on (in mobile mode the toolbar scrolls sideways - `TTS` is in it, or use the settings). Safari only lets a page speak after a tap: switching `TTS` on speaks a short confirmation (`Stuttgart Ground, pilot voices on`), and the first tap anywhere unlocks the voices too. **Settings -> Pilot voices -> Test** speaks a radio check. Only voices installed on the device are used (Apple's effect voices are left out). Speech follows the media volume and is muted while the iPad is in silent mode (Control Centre bell icon, or the side switch on older iPads) - if the test phrase stays silent, check those first.
 

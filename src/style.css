@@ -560,6 +560,11 @@ body.phx .panel tr.selected td {
   font-weight: bold;
   letter-spacing: 0.5px;
 }
+/* SEND while the frequency waits for a read-back: greyed (a click explains; "break break" unlocks it). */
+.sidebar button.send.locked {
+  opacity: 0.4;
+  border-style: dashed;
+}
 /* SEND on top, larger than the other buttons. */
 .sidebar button.send {
   flex: 2.4 1 0;

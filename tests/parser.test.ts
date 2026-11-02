@@ -114,6 +114,15 @@ describe('speech', () => {
     expect(toSpoken('cleared ILS approach runway 08L')).toBe('cleared I-L-S approach runway zero eight left');
   });
 
+  it('ignores "break break" in front of a transmission', () => {
+    for (const text of ['break break DLH5AB hold position', 'Break, break, Lufthansa five alpha bravo, hold position']) {
+      const p = parseTransmission(text, ctx);
+      expect(p.callsign).toBe('DLH5AB');
+      expect(p.commands).toEqual([{ type: 'holdPosition' }]);
+      expect(p.unparsed).toEqual([]);
+    }
+  });
+
   it('parses questions about intersection departures', () => {
     for (const text of ['DLH5AB are you able intersection D', 'DLH5AB advise able for departure from intersection D', 'DLH5AB confirm able to depart from D runway 25', 'Lufthansa 5AB able for an intersection departure from delta']) {
       const p = parseTransmission(text, ctx);

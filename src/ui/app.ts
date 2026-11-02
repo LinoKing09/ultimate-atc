@@ -6,7 +6,7 @@ import type { Compass, StationType } from '../core/airport/types';
 import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
-import { parseTransmission } from '../core/phraseology/parser';
+import { BREAK_BREAK, parseTransmission } from '../core/phraseology/parser';
 import { catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
 import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, offBlockDue, sidsForDestination, suggestedSid } from '../core/delivery';
 import { formatClearanceClimb, formatDepartureRoute } from '../core/phraseology/format';
@@ -14,7 +14,7 @@ import { previewTaxi } from '../core/pilot';
 import type { SystemId } from '../core/systems';
 import { needsDeicing, padUser } from '../core/deicing';
 import { destinationName } from '../data/destinations';
-import type { RadioMessage } from '../core/radio';
+import { READBACK_WAIT_S, type RadioMessage } from '../core/radio';
 import { perform, saveSession, type SessionAction } from '../core/session';
 import { addControlTime, AUTOSAVE_ID, countSession, downloadSession, formatDuration, loadStats, storeSession } from './sessionStore';
 import type { Simulation, TransmitResult } from '../core/simulation';
@@ -69,6 +69,8 @@ interface QuickButton {
 }
 /** Keys that work as push-to-talk (held down). */
 const PTT_KEYS = new Set(['Backquote', 'ControlRight', 'Insert']);
+/** Longest wait of the simulation for a pilot voice that reads longer than the frequency's estimate (ms). */
+const VOICE_HOLD_MS = 3000;
 /** Pilot voices (text-to-speech): the TTS button and the Voice settings. */
 const TTS_ENABLED = true;
 /**
@@ -94,6 +96,9 @@ export class App {
   private readonly pauseButton: HTMLButtonElement;
   private readonly micButton: HTMLButtonElement;
   private readonly ttsButton: HTMLButtonElement;
+  private sendBtn!: HTMLButtonElement;
+  /** Since when the simulation waits for a pilot voice to finish (0: not waiting). */
+  private voiceHoldSince = 0;
   private readonly main: HTMLElement;
   private readonly routesBtn: HTMLButtonElement;
   private readonly rotBtn: HTMLButtonElement;
@@ -335,7 +340,7 @@ export class App {
     // pointerdown + preventDefault keeps the focus (and an open keyboard) where it is.
     clearBtn.addEventListener('pointerdown', (e) => e.preventDefault());
     clearBtn.addEventListener('click', () => this.clearInput());
-    const sendBtn = h('button.send', { text: 'SEND', title: 'Transmit (Enter)' });
+    const sendBtn = (this.sendBtn = h('button.send', { text: 'SEND', title: 'Transmit (Enter)' }));
     sendBtn.addEventListener('click', () => this.submit());
     // Sidebar next to the message window: large radio buttons and quick phrases.
     const side = (text: string, title: string, fn: () => void) => {
@@ -428,7 +433,10 @@ export class App {
       if (a.callsign === this.selected) this.select(undefined);
     });
     for (const m of sim.messages) this.addMessage(m);
-    this.input.el.addEventListener('input', () => this.updatePreview());
+    this.input.el.addEventListener('input', () => {
+      this.updatePreview();
+      this.updateSendLock();
+    });
     this.input.el.addEventListener('keydown', (e) => this.onInputKey(e));
     window.addEventListener('keydown', (e) => this.onGlobalKey(e));
     window.addEventListener('keyup', (e) => {
@@ -486,7 +494,14 @@ export class App {
   private frame(t: number): void {
     const dt = Math.min(0.5, (t - this.last) / 1000);
     this.last = t;
-    if (!this.paused) {
+    // At 1x the radio waits for the voice: while a pilot is still being read aloud after the frequency's own estimate
+    // has ended, the simulation holds (at most VOICE_HOLD_MS per transmission), so the radio-discipline gaps start
+    // when the reading has finished. Only the time scale changes - saved sessions replay the same.
+    const voiceBehind = this.speed === 1 && this.voices.pilotSpeaking && this.sim.time >= this.sim.frequency.freeAt;
+    if (!voiceBehind) this.voiceHoldSince = 0;
+    else if (!this.voiceHoldSince) this.voiceHoldSince = t;
+    const holdForVoice = voiceBehind && t - this.voiceHoldSince < VOICE_HOLD_MS;
+    if (!this.paused && !holdForVoice) {
       this.sim.tick(dt * this.speed);
       if (!document.hidden) {
         this.controlSeconds += dt;
@@ -502,8 +517,25 @@ export class App {
     requestAnimationFrame((n) => this.frame(n));
   }
 
+  /**
+   * Radio discipline for you: after an instruction the frequency waits for the read-back (at most READBACK_WAIT_S
+   * after your transmission). Until then SEND is locked; "break break" in front of the transmission cuts in anyway.
+   * Paused, nothing is locked (nobody can answer).
+   */
+  private readbackPending(): string | undefined {
+    return this.paused ? undefined : this.sim.frequency.awaitingReplyFrom(this.sim.time);
+  }
+
+  private updateSendLock(): void {
+    const pending = this.readbackPending();
+    const locked = !!pending && !BREAK_BREAK.test(this.input.value);
+    this.sendBtn.classList.toggle('locked', locked);
+    this.sendBtn.title = locked ? `Waiting for the read-back of ${pending} (at most ${READBACK_WAIT_S} s) - start with "break break" to transmit anyway` : 'Transmit (Enter)';
+  }
+
   private slowUpdate(): void {
     const sim = this.sim;
+    this.updateSendLock();
     this.fields.ontime.innerHTML = `ON <b>${formatDuration(this.controlSeconds, true)}</b>`;
     const now = performance.now();
     if (now - this.lastStatsFlush > 30_000) {
@@ -911,19 +943,28 @@ export class App {
     this.voiceIn.discard();
     if (this.voiceIn.listening && !fromVoice) this.voiceIn.stop();
     if (!text) return;
+    if (!this.transmit(text, fromVoice)) return;
     this.history.unshift(text);
     this.history = this.history.slice(0, 50);
     this.historyIdx = -1;
-    this.transmit(text, fromVoice);
     this.input.value = '';
     this.updatePreview();
+    this.updateSendLock();
   }
 
-  private transmit(text: string, fromVoice = false): void {
+  /** Transmits (false: not sent - the frequency is waiting for a read-back). */
+  private transmit(text: string, fromVoice = false): boolean {
+    const pending = this.readbackPending();
+    if (pending && !BREAK_BREAK.test(text)) {
+      this.hint(`Frequency: waiting for the read-back of ${pending} (at most ${READBACK_WAIT_S} s). Start with "break break" to transmit anyway.`);
+      return false;
+    }
     this.clearQuickSel();
     const res = perform(this.sim, { k: 'transmit', text, selected: this.selected, fallback: fromVoice || undefined }) as TransmitResult;
     if (res.hint) this.hint(res.hint);
     if (res.callsign && this.sim.find(res.callsign)) this.select(res.callsign);
+    this.updateSendLock();
+    return true;
   }
 
   private onInputKey(e: KeyboardEvent): void {
@@ -1626,6 +1667,11 @@ export class App {
   }
 
   /** Tower: line-up, take-off and landing clearances, go-around, exits, crossings, hand-offs. */
+  /** On the ground, moving or holding on the taxiways - clear of every runway area (not parked or pushing back). */
+  private onTaxiways(ac: Aircraft): boolean {
+    return ac.onGround && !['parked', 'pushback', 'gone'].includes(ac.phase) && !this.sim.tower.isInRunwayArea(ac.pos);
+  }
+
   private towerItems(ac: Aircraft): MenuItem[] {
     const sim = this.sim;
     const items: MenuItem[] = [];
@@ -1731,8 +1777,10 @@ export class App {
     }
     const cross = ac.onGround && ac.stoppedAt?.kind === 'runway' ? this.crossingRunway(ac) : undefined;
     if (cross) items.push({ label: `Cross runway ${cross}`, hint: !sim.tower.crossingFree(ac.stoppedAt!.target) ? 'runway occupied!' : arrival, action: () => this.say(ac, `cross runway ${cross}`) });
-    // Arrivals can be handed to Ground right after touchdown (they call Ground once vacated).
-    if (ac.onGround && ground && (ac.phase === 'taxi' || (ac.category === 'arrival' && (ac.phase === 'landing' || ac.phase === 'vacating')))) {
+    // Ground takes every aircraft that is physically on the taxiways (clear of the runway): also a departure rolling
+    // off after a rejected take-off, or one waiting at a holding point. Arrivals already right after touchdown
+    // (they call Ground once vacated).
+    if (ground && (this.onTaxiways(ac) || (ac.onGround && ac.category === 'arrival' && (ac.phase === 'landing' || ac.phase === 'vacating')))) {
       const f = sim.frequencyFor(ground.type, ac);
       items.push({ label: `Contact Ground ${f}`, hint: ac.request === 'vacated' ? 'vacated' : undefined, action: () => this.say(ac, `contact ground ${f}`) });
     }

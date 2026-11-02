@@ -13,7 +13,7 @@ describe('radio discipline', () => {
     f.pilotTransmit(0, 'EWG7TK', 'Stuttgart Ground, Eurowings 7TK, stand 20, request pushback');
     run(f, 0, 30);
     expect(heard.map((m) => m.from)).toEqual(['DLH5AB', 'EWG7TK']);
-    const end = Frequency.duration(heard[0].text) + 0.6;
+    const end = Frequency.duration(heard[0].spoken) + 0.6;
     expect(heard[1].time).toBeGreaterThanOrEqual(end + CALL_GAP_AFTER_CALL_S - 0.05);
 
     // The controller answers within the gap; the read-back comes at once, the next call only after the gap.
@@ -28,8 +28,22 @@ describe('radio discipline', () => {
     run(g, 5.1, 40);
     const rb = heard2.find((m) => m.text.startsWith('Push and start'))!;
     const next = heard2.find((m) => m.from === 'EWG7TK')!;
-    expect(rb.time).toBeLessThan(5 + Frequency.duration(atc.text) + 1.5);
+    expect(rb.time).toBeLessThan(5 + Frequency.duration(atc.spoken) + 1.5);
     expect(next.time).toBeGreaterThan(rb.time);
-    expect(next.time).toBeGreaterThanOrEqual(5 + Frequency.duration(atc.text) + CALL_GAP_AFTER_ATC_S - 0.05);
+    expect(next.time).toBeGreaterThanOrEqual(5 + Frequency.duration(atc.spoken) + CALL_GAP_AFTER_ATC_S - 0.05);
+  });
+
+  it('keeps a call queued past its time while it still applies, drops it once it no longer does', () => {
+    const heard: RadioMessage[] = [];
+    const f = new Frequency('121.900', (m) => heard.push(m));
+    let waiting = true;
+    f.pilotTransmit(0, 'DLH5AB', 'Lufthansa 5AB, holding short runway 24, request crossing', { ttl: 45, stillValid: () => waiting });
+    f.pilotTransmit(0, 'EWG7TK', 'Eurowings 7TK, request taxi', { ttl: 45, stillValid: () => false });
+    // The frequency is blocked for two minutes (a long exchange): both calls are overdue.
+    f.controllerTransmit(0, 'all stations '.repeat(150).trim());
+    run(f, 0, 200);
+    expect(heard.filter((m) => m.kind === 'pilot').map((m) => m.from)).toEqual(['DLH5AB']);
+    waiting = false;
   });
 });
+

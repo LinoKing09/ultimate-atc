@@ -4,6 +4,23 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **SEND waits for the read-back**: after an instruction SEND is locked (greyed, dashed) until the addressed pilot has read back, at most 5 s after your transmission (was 6 s); a click explains why. **`break break`** in front of a transmission cuts in anyway (`break break DLH5AB hold position`) and unlocks SEND as you type it. Menus and quick buttons wait the same way.
+
+### Changed
+
+- **The radio-discipline pause starts when the reading has finished**: a transmission's airtime is now counted from its spoken form at the pace of the pilot voices (`0.4 s + 0.32 s per spoken word`; `Eurowings two two Alpha Sierra` is five words, was two), the 5 s wait after a pilot's call starts at its end, and at 1x with the pilot voices on the simulation waits for a voice that still reads (at most 3 s). Once the controller answers, the 5 s wait is over (only the 2 s gap for the read-back remains). Scripted and simulated controllers answer from the end of a call.
+- **Contact Ground on Tower** for every aircraft that is physically on the taxiways (clear of the runway): also a departure that rolls off after a rejected take-off, or one waiting at a holding point (was: only taxiing aircraft and arrivals).
+
+### Fixed
+
+- **Calls no longer get lost on a busy frequency**: a call that could not get through within 45 s was dropped - for a call made only once (an aircraft stopped at a runway to request crossing it) for good, and the aircraft waited there for the rest of the session with everybody behind it (Cologne/Bonn in fog: one departure in an hour). A call now stays queued while the aircraft still waits where it called from.
+- **Rolled out and stuck on the runway**: an aircraft whose exit was blocked (a departure waiting at that holding point) re-planned its roll-out standing still - with a speed limit of zero, so it never moved again and blocked the runway (Memmingen: after a rejected take-off, with the departures behind it). It now rolls on at taxi speed at least.
+- **Nose to nose with an arrival at its vacate point**: a departure taxied up to an arrival that stood on the taxiway waiting for its taxi clearance, and the two blocked each other with no junction between them (San Diego, taxiway B). Crews now stop short of the last junction before an aircraft standing in their way facing them, as they do for moving opposite traffic.
+- **Resolve conflict: tug turnarounds** were not offered when the aircraft waiting at the holding point the turned aircraft was going to (however far away) lay on its way, or when the way to the next junction led past the other aircraft; the turnaround now keeps clear of the traffic within 250 m and is made on the spot where needed. A freshly turned aircraft is no longer turned straight back by the next resolution (the guard looked at the tug's time, which was cleared when the tug left).
+- **Dependent parallel approaches with staggered thresholds** (Leipzig: 0.5 NM): Approach measured the 1.5 NM diagonal to each aircraft's own threshold, so two arrivals could end up side by side on the finals (1.1 NM apart); the stagger is now added.
+
 ## [1.7.2] - 2026-11-02
 
 ### Added

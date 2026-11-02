@@ -32,12 +32,11 @@ function paceOf(ac: Aircraft): number {
 export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void {
   if (!ac.onGround || !ac.path || !PATH_PHASES.has(ac.phase)) return;
   if (ac.phase === 'pushback' && sim.time < ac.timerUntil) return; // tug not connected yet
-  if (ac.tugUntil !== undefined) {
-    if (sim.time < ac.tugUntil) {
-      ac.speed = 0;
-      return; // waiting for the tug that turns the aircraft around
-    }
-    ac.tugUntil = undefined;
+  // Waiting for the tug that turns the aircraft around. (tugUntil stays set afterwards: conflict resolution leaves a
+  // freshly turned aircraft alone for a while - cleared, it was turned straight back again.)
+  if (ac.tugUntil !== undefined && sim.time < ac.tugUntil) {
+    ac.speed = 0;
+    return;
   }
   if (ac.incident === 'collision') {
     ac.speed = 0;

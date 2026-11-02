@@ -17,7 +17,9 @@ describe('Sylt (EDXW)', () => {
           const r = ac.request;
           if (r === 'pushback') sim.transmit(`${ac.callsign} push and start approved`);
           if (r === 'taxi') sim.transmit(`${ac.callsign} taxi to runway ${runway}`);
-          if ((r === 'taxiIn' || r === 'vacated') && ac.assignedStand) sim.transmit(`${ac.callsign} taxi to stand ${ac.assignedStand}`);
+          // A crew that cannot turn around where it vacated gets a tug ("turn around, taxi to stand ...").
+          const turn = /cannot turn around/.test(ac.lastTransmission ?? '') ? 'turn around, ' : '';
+          if ((r === 'taxiIn' || r === 'vacated') && ac.assignedStand) sim.transmit(`${ac.callsign} ${turn}taxi to stand ${ac.assignedStand}`);
           if (r === 'crossing' && !busy && ac.stoppedAt?.kind === 'runway') sim.transmit(`${ac.callsign} cross runway ${sim.activeEndOn(ac.stoppedAt.target) ?? ac.stoppedAt.target.split('/')[1]}`);
           if ((r === 'departure' || r === 'handoff') && ac.phase === 'holding' && !ac.lineUpCleared && !busy && sim.tower.nextArrivalEta() > 150 && sim.tower.spacingRemaining(ac) <= 0) sim.transmit(`${ac.callsign} cleared for take-off`);
           if (r === 'radar') sim.transmit(`${ac.callsign} contact radar`);

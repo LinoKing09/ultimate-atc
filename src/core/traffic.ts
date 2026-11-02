@@ -198,8 +198,12 @@ export class TrafficGenerator {
     for (const other of sim.arrivalRunways) {
       const o = sim.airport.runwayEnd(other)!;
       if (o.runway === end.runway) continue;
-      const lateralNm = Math.abs(sim.airport.runwayCoordinates(end, o.threshold).lateral) / M_PER_NM;
-      if (!behind(this.lastArrivalOnFinal(other), Math.sqrt(Math.max(0, diagonal * diagonal - lateralNm * lateralNm)))) return false;
+      const c = sim.airport.runwayCoordinates(end, o.threshold);
+      const lateralNm = Math.abs(c.lateral) / M_PER_NM;
+      // The gap is measured to each aircraft's own threshold: where the thresholds are staggered (Leipzig 0.5 NM)
+      // the real distance along the finals differs by the stagger, either way round - add it.
+      const staggerNm = Math.abs(c.along) / M_PER_NM;
+      if (!behind(this.lastArrivalOnFinal(other), Math.sqrt(Math.max(0, diagonal * diagonal - lateralNm * lateralNm)) + staggerNm)) return false;
     }
     return true;
   }

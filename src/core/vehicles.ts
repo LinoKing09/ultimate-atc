@@ -1,4 +1,5 @@
 import { createAircraft, type Aircraft } from './aircraft';
+import { READBACK_WAIT_S } from './radio';
 import { projectOnEdge, type TaxiNode } from './airport/airport';
 import { findRoute, isRouteError } from './airport/routing';
 import { add, distance, headingVector, scale, sub, type Vec2 } from './geo';
@@ -219,7 +220,7 @@ function vehicleCall(sim: Simulation, v: Vehicle, request: Vehicle['request'], t
 }
 
 function vehicleReadback(sim: Simulation, v: Vehicle, text: string): void {
-  sim.frequency.expectReply(v.callsign, Math.max(sim.time, sim.frequency.freeAt) + 6);
+  sim.frequency.expectReply(v.callsign, Math.max(sim.time, sim.frequency.freeAt) + READBACK_WAIT_S);
   sim.frequency.pilotTransmit(sim.time, v.callsign, text, { delay: sim.rng.range(0.6, 1.8), priority: 10, ttl: 60 });
 }
 

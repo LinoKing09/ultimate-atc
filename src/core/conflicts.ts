@@ -263,6 +263,9 @@ export interface ResolveOption {
  * preferably turning off via another taxiway. If there is no junction left
  * between them, the only way is a tug that turns one of them around.
  */
+/** A turnaround (tug) keeps clear of the other traffic within this distance of the aircraft (m). */
+const TUG_AVOID_NEAR_M = 250;
+
 export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): ResolveOption[] {
   const out: ResolveOption[] = [];
   const tugs: ResolveOption[] = [];
@@ -289,8 +292,12 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
 
     // Turning around: y's path runs through x itself, so only y's position must be avoided.
     // (They may already stand closer together than the normal clearance: then moving away is enough.)
-    // Turning around must not lead into other traffic either (e.g. the aircraft queuing behind it).
-    const others = sim.aircraft.filter((o) => o !== x && o !== y && o.onGround && ['taxi', 'pushback', 'startup', 'holding', 'vacating'].includes(o.phase)).map((o) => o.pos);
+    // Turning around must not lead into other traffic either (e.g. the aircraft queuing behind it) - the traffic
+    // nearby: an aircraft waiting far away (at the holding point it is going to) only means queuing there later,
+    // and avoiding it would rule out every way out.
+    const others = sim.aircraft
+      .filter((o) => o !== x && o !== y && o.onGround && ['taxi', 'pushback', 'startup', 'holding', 'vacating'].includes(o.phase) && distance(o.pos, x.pos) < TUG_AVOID_NEAR_M)
+      .map((o) => o.pos);
     const tugAvoid = { points: [y.pos, ...others], radius: Math.min(radius, distance(x.pos, y.pos) - 3) };
     const find = (goal: Goal, allowUTurn: boolean): TaxiRoute | undefined => {
       const base = { ...routeOptionsOf(sim, x), allowUTurn, avoid: allowUTurn ? tugAvoid : avoid };
@@ -326,7 +333,9 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
     // queue that clears by waiting).
     const noseToNose = x.blockedBy === y.callsign && y.blockedBy === x.callsign;
     for (const goal of way && !noseToNose ? [] : [primary, ...alternativeGoals(sim, x, primary)]) {
-      let back = find(goal, true);
+      // Forwards to the next junction and turning there, or - when that way leads past the other one (nose to nose
+      // on a single taxiway) - turned around on the spot by the tug.
+      let back = find(goal, true) ?? turned(goal);
       if (!back) continue;
       if (!back.requiresUTurn) {
         // No turnaround needed: only a way out if the crew, reading the instruction, keeps clear too (an unnamed

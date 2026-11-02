@@ -14,6 +14,11 @@ import type { Simulation } from './simulation';
  * Without a junction between them (e.g. on two apron taxilanes too close for
  * both wingspans) the crew further from the narrow part waits before it until
  * the other one has passed, as a give-way.
+ *
+ * An aircraft standing on the way ahead, facing us, without a route yet (an
+ * arrival at its vacate point waiting for its taxi clearance) counts as well:
+ * the crew stops short of the last junction before it, so that the two do not
+ * end up nose to nose on a single taxiway with no way out.
  */
 
 /** How far ahead along the route a crew looks for opposite traffic (metres). */
@@ -125,6 +130,33 @@ function yieldBefore(sim: Simulation, a: Aircraft, b: Aircraft): boolean {
   return true;
 }
 
+/** Stands on the taxiways without a route of its own (yet): it will move off - towards us or not, nobody knows. */
+function standingInWay(b: Aircraft): boolean {
+  return b.onGround && (b.phase === 'taxi' || b.phase === 'vacating') && b.speed < 0.5 && (!b.route || !!b.stoppedAt) && b.category !== 'tow';
+}
+
+/** `b` stands on `a`'s way ahead (gap along `a`'s path), facing `a`. */
+function standingOpposite(a: Aircraft, b: Aircraft): number | undefined {
+  if (!standingInWay(b)) return undefined;
+  const gap = onPathAhead(a, b, LOOK_AHEAD_M);
+  if (gap === undefined || gap < MIN_GAP_M) return undefined;
+  return Math.abs(headingDiff(a.path!.headingAt(a.s + gap), b.heading)) > 135 ? gap : undefined;
+}
+
+/** The last junction on `a`'s route before the aircraft standing at `gap` ahead that `a` can still stop short of, and that `b` stands clear of. */
+function junctionBefore(sim: Simulation, a: Aircraft, b: Aircraft, gap: number): { node: TaxiNode; sA: number } | undefined {
+  let best: { node: TaxiNode; sA: number } | undefined;
+  for (const n of a.route!.nodes) {
+    if (n.edges.filter((e) => !sim.airport.isDeicingLead(e)).length < 3) continue;
+    const m = a.path!.marker(n.id);
+    if (!m) continue;
+    const toA = m.s - a.s;
+    if (toA - stopNeed(a, b) < 5 || gap - toA < lane(a, b) + b.type.lengthM / 2) continue;
+    if (!best || m.s > best.sA) best = { node: n, sA: m.s };
+  }
+  return best;
+}
+
 function holdFor(sim: Simulation, ac: Aircraft, other: Aircraft, node: TaxiNode, sJ: number): void {
   const here = sim.airport.nearestEdge(ac.pos)?.edge.name ?? '';
   const branch = sim.airport.namesAt(node).find((t) => t && t !== here && sim.airport.taxiwayNames.has(t.toUpperCase())) ?? here;
@@ -138,12 +170,15 @@ export function updateOppositeTraffic(sim: Simulation): void {
     const st = ac.oppositeStop;
     if (!st) continue;
     const other = sim.find(st.other);
-    const still =
-      other && ac.path === st.path && other.path && ac.phase === 'taxi' && ['taxi', 'pushback'].includes(other.phase) &&
-      (st.narrow ? !!narrowAhead(ac, other, LOOK_AHEAD_M)?.opposite : onPathAhead(ac, other, LOOK_AHEAD_M) !== undefined && onPathAhead(other, ac, LOOK_AHEAD_M) !== undefined);
+    const still = st.standing
+      ? // The one standing in our way: until it moves off (then the usual detection takes over) or is gone.
+        !!other && ac.path === st.path && ac.phase === 'taxi' && standingInWay(other) && onPathAhead(ac, other, LOOK_AHEAD_M) !== undefined
+      : other && ac.path === st.path && other.path && ac.phase === 'taxi' && ['taxi', 'pushback'].includes(other.phase) &&
+        (st.narrow ? !!narrowAhead(ac, other, LOOK_AHEAD_M)?.opposite : onPathAhead(ac, other, LOOK_AHEAD_M) !== undefined && onPathAhead(other, ac, LOOK_AHEAD_M) !== undefined);
     if (still) {
       // Stopped: tell Ground once (not if the other one has already been given a way out).
-      const otherWaits = other!.oppositeStop?.other === ac.callsign && other!.oppositeStop.path === other!.path;
+      // (One standing in our way without a route waits anyway.)
+      const otherWaits = st.standing || (other!.oppositeStop?.other === ac.callsign && other!.oppositeStop.path === other!.path);
       // The other one got its way out while our call was still waiting for a gap on the frequency: drop it.
       if (st.called && !otherWaits && ac.request !== 'blocked') sim.frequency.cancel(ac.callsign);
       if (!st.called && otherWaits && ac.speed < 0.1 && st.s - ac.s < 3) {
@@ -162,6 +197,16 @@ export function updateOppositeTraffic(sim: Simulation): void {
   for (let i = 0; i < list.length; i++) {
     const a = list[i];
     if (a.oppositeStop) continue;
+    // Someone standing in our way ahead, facing us (no route yet): stop short of the last junction before it.
+    const standing = sim.aircraft.find((b) => b !== a && distance(a.pos, b.pos) < LOOK_AHEAD_M + 50 && standingOpposite(a, b) !== undefined);
+    if (standing) {
+      const j = junctionBefore(sim, a, standing, standingOpposite(a, standing)!);
+      if (j) {
+        holdFor(sim, a, standing, j.node, j.sA);
+        a.oppositeStop!.standing = true;
+        continue;
+      }
+    }
     for (let j = 0; j < list.length; j++) {
       const b = list[j];
       if (b === a || b.oppositeStop || distance(a.pos, b.pos) > LOOK_AHEAD_M + 50) continue;

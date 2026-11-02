@@ -124,7 +124,8 @@ export interface Aircraft {
    * them (path distance `s`), keeping it free so one of them can turn off there, and asks Ground.
    */
   /** `narrow`: waiting short of a narrow part (no junction between) until the other one has passed. */
-  oppositeStop?: { s: number; path: Path; other: string; junction: string; taxiway: string; since: number; called?: boolean; narrow?: boolean };
+  /** `standing`: the other one stands on our way facing us, without a route yet (e.g. an arrival at its vacate point). */
+  oppositeStop?: { s: number; path: Path; other: string; junction: string; taxiway: string; since: number; called?: boolean; narrow?: boolean; standing?: boolean };
   expedite: boolean;
   /** Speed limit for the current path segment (m/s), e.g. landing roll-out profile. */
   speedLimit?: (s: number) => number;
@@ -147,6 +148,7 @@ export interface Aircraft {
   request: PilotRequest | null;
   /** Simulation time of the first call for the current request. */
   requestSince: number;
+  /** When the pilot's last call ended (the frequency is free again): the controller answers from then on. */
   lastCallAt: number;
   callCount: number;
   standbyUntil: number;

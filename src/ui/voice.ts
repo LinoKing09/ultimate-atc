@@ -135,6 +135,8 @@ export class PilotVoices {
   private heldSince = 0;
   /** Utterances being spoken: Safari stops speaking an utterance that was garbage-collected. */
   private live = new Set<SpeechSynthesisUtterance>();
+  /** Pilot transmissions being spoken (not the test phrase). */
+  private pilotLive = new Set<SpeechSynthesisUtterance>();
   private lastStart = 0;
   private unlocked = false;
   private readonly noise = new RadioNoise();
@@ -180,6 +182,11 @@ export class PilotVoices {
 
   get supported(): boolean {
     return 'speechSynthesis' in window;
+  }
+
+  /** A pilot's transmission is being read aloud right now. */
+  get pilotSpeaking(): boolean {
+    return this.enabled && this.pilotLive.size > 0 && window.speechSynthesis.speaking;
   }
 
   private say(u: SpeechSynthesisUtterance): void {
@@ -239,6 +246,7 @@ export class PilotVoices {
     if (this.live.size >= 3) {
       window.speechSynthesis.cancel();
       this.live.clear();
+      this.pilotLive.clear();
     }
     const u = new SpeechSynthesisUtterance(text);
     const style = pilotVoiceStyle(callsign);
@@ -250,11 +258,16 @@ export class PilotVoices {
     u.rate = Math.min(2, style.rate * rate * this.rate);
     u.volume = this.volume;
     this.withNoise(u);
+    this.pilotLive.add(u);
+    const done = () => this.pilotLive.delete(u);
+    u.addEventListener('end', done);
+    u.addEventListener('error', done);
     this.say(u);
   }
 
   cancel(): void {
     this.noise.stop(false);
+    this.pilotLive.clear();
     this.held = this.held ? [] : null;
     if (this.supported) window.speechSynthesis.cancel();
   }
@@ -269,6 +282,7 @@ export class PilotVoices {
     this.heldSince = performance.now();
     window.speechSynthesis.cancel();
     this.noise.stop(false);
+    this.pilotLive.clear();
   }
 
   /** Speaks the messages that came in during the transmission (the last three at most). */

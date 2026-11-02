@@ -491,8 +491,11 @@ function matchCallsign(tokens: string[], i: number, callsigns: string[]): Callsi
   return best;
 }
 
+/** "break break" in front of a transmission: the controller cuts in (it overrides the wait for a read-back). */
+export const BREAK_BREAK = /^\s*break[\s,]+break\b[\s,]*/i;
+
 export function parseTransmission(input: string, ctx: ParserContext): ParsedTransmission {
-  const tokens = tokenize(input);
+  const tokens = tokenize(input.replace(BREAK_BREAK, ''));
   const result: ParsedTransmission = { explicitCallsign: false, commands: [], unparsed: [] };
 
   // ---- callsign at the beginning or at the end
@@ -1340,5 +1343,5 @@ const FILLER = new Set([
   'roger', 'wilco', 'please', 'good', 'day', 'bye', 'goodbye', 'tschuess', 'servus', 'ciao', 'thanks',
   'thank', 'you', 'is', 'approved', 'the', 'and', 'then', 'now', 'correction', 'affirm', 'affirmative',
   'stuttgart', 'via', 'to', 'of', 'on', 'at', 'for', 'your', 'a', 'request', 'information', 'right', 'left',
-  'negative', 'correction', 'say', 'feet',
+  'negative', 'correction', 'say', 'feet', 'break',
 ]);

@@ -3,6 +3,7 @@ import type { Aircraft } from '../src/core/aircraft';
 import { debrief } from '../src/core/debrief';
 import { suggestedSid } from '../src/core/delivery';
 import { destinationName } from '../src/data/destinations';
+import { headOnPartner, resolveOptions } from '../src/core/conflicts';
 import { parseTransmission } from '../src/core/phraseology/parser';
 import { Simulation } from '../src/core/simulation';
 import { EDDS } from '../src/data/airports/edds';
@@ -234,6 +235,7 @@ describe('combined positions with Tower', () => {
   it('Ground + Tower: a scripted controller works a busy hour on both frequencies', () => {
     const sim = new Simulation({ airport: EDDS, position: 'TWR', positions: ['GND', 'TWR'], runway: '25', density: 'medium', seed: 2, events: false });
     const said = new Map<string, number>();
+    const resolved = new Map<string, number>();
     let lastRunwayClearance = -99;
     for (let t = 0; t < 3600; t++) {
       sim.tick(1);
@@ -261,6 +263,16 @@ describe('combined positions with Tower', () => {
         if (r === 'crossing' && !busy && eta > 90) {
           sim.transmit(`${ac.callsign} cross runway 25`);
           lastRunwayClearance = sim.time;
+        }
+        // Head-on on the ground: resolve it like a Ground controller (once per pair and two minutes).
+        if (r === 'blocked') {
+          const other = headOnPartner(sim, ac);
+          const recent = (a: Aircraft) => sim.time - (resolved.get(a.callsign) ?? -Infinity) < 120 || (a.tugUntil ?? 0) > sim.time;
+          const opt = other && !recent(ac) && !recent(other) && resolveOptions(sim, ac, other)[0];
+          if (opt) {
+            sim.transmit(`${opt.aircraft.callsign} ${opt.instruction}`);
+            resolved.set(ac.callsign, sim.time).set(other.callsign, sim.time);
+          }
         }
         if (sim.messages.length > n0) said.set(ac.callsign, sim.time);
       }
@@ -396,6 +408,26 @@ describe('rejected take-off', () => {
     expect(last(sim, 'DLH1AA')).toMatch(ac.rejectReason!.toStand ? /return to the stand/ : /depart again/);
     expect(runUntil(sim, () => ac.request === 'vacated', 300)).toBe(true);
     expect(last(sim, 'DLH1AA')).toContain(`we rejected take-off due to ${reason}, runway 25 vacated`);
+  });
+
+  it('can be handed to Ground while it rolls off the runway after a rejected take-off', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'TWR', runway: '25', density: 'medium', seed: 42, events: false, generateTraffic: false });
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH1AA', type: 'A320' }) as Aircraft;
+    expect(runUntil(sim, () => ac.frequency === 'TWR' && ac.request === 'departure', 2400)).toBe(true);
+    sim.transmit('DLH1AA cleared for take-off runway 25');
+    expect(runUntil(sim, () => ac.phase === 'takeoff', 600)).toBe(true);
+    ac.rejectAtSpeed = 30;
+    // Off the runway area, still rolling to its stop behind the holding point.
+    let off = false;
+    for (let t = 0; t < 1200 && !off; t++) {
+      sim.tick(0.25);
+      off = !!ac.rejectedTakeoff && ac.phase !== 'taxi' && !sim.tower.isInRunwayArea(ac.pos);
+    }
+    expect(off, 'rolled off the runway area before stopping').toBe(true);
+    sim.transmit('DLH1AA contact ground 118.605');
+    expect(runUntil(sim, () => ac.frequency === 'GND', 20)).toBe(true);
+    // Ground (simulated) takes it either way once it has vacated: it is no longer stuck on Tower.
+    expect(runUntil(sim, () => ac.frequency === 'GND' || ac.request === 'vacated', 300)).toBe(true);
   });
 
   it('parses "say reason"', () => {

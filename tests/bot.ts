@@ -46,7 +46,10 @@ export function createBot(sim: Simulation): () => void {
       const pts = sim.airport.polyline(r.route.nodes).points;
       // An aircraft pushing back or starting up on the way: it will taxi towards us.
       const pushing = sim.aircraft.some((o) => (o.phase === 'pushback' || o.phase === 'startup') && pts.some((p) => distance(p, o.pos) < (o.type.wingspanM + ac.type.wingspanM) * 0.38 + 6));
-      return !pushing && !routeHeadOn(sim, ac, pts);
+      // Opposite traffic that waits because of us (blocked by us, e.g. by our tail at the vacate point) is no
+      // reason to wait for it: we have to move first.
+      const c = routeHeadOn(sim, ac, pts);
+      return !pushing && (!c || c.other.blockedBy === ac.callsign);
     };
     if (!own || clear(own)) return own;
     const others = sim.freeStands(ac.type.wingspanM, (s) => s.id !== own, ac).sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos)).slice(0, 5);

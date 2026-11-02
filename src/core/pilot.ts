@@ -1,4 +1,5 @@
 import { STABILISED_NM, finalReductionNm } from './approach';
+import { READBACK_WAIT_S } from './radio';
 import { otherEnd, type TaxiNode } from './airport/airport';
 import { findRoute, isRouteError, type RouteStart, type TaxiRoute } from './airport/routing';
 import type { Compass, StationType } from './airport/types';
@@ -58,9 +59,14 @@ function compassOf(heading: number): Compass {
 export function call(sim: Simulation, ac: Aircraft, request: PilotRequest, text: string): void {
   if (sim.frequency.hasQueued(ac.callsign)) return;
   ac.lastCallAt = sim.time;
+  const phase = ac.phase;
+  const stoppedAt = ac.stoppedAt;
+  const frequency = ac.frequency;
   sim.frequency.pilotTransmit(sim.time, ac.callsign, text, {
     delay: sim.rng.range(0.3, 2.5),
     ttl: 45,
+    // Still waiting where it called from, on the same frequency, and not yet asked: the call stays queued.
+    stillValid: () => ac.phase === phase && ac.stoppedAt === stoppedAt && ac.frequency === frequency && ac.request !== request && !ac.phase.startsWith('gone'),
     onTransmit: () => {
       if (ac.request !== request) {
         ac.request = request;
@@ -70,7 +76,8 @@ export function call(sim: Simulation, ac: Aircraft, request: PilotRequest, text:
       // Every call (also a reminder) wants an answer again.
       ac.requestAck = false;
       ac.callCount++;
-      ac.lastCallAt = sim.time;
+      // The end of the call (its airtime): reminders and answers count from there.
+      ac.lastCallAt = sim.frequency.freeAt;
       ac.lastTransmission = text;
     },
   });
@@ -88,8 +95,6 @@ export function inform(sim: Simulation, ac: Aircraft, text: string): void {
   });
 }
 
-/** Longest time the frequency is kept free for a read-back after the instruction ended (seconds). */
-const READBACK_WAIT_S = 6;
 
 function readback(sim: Simulation, ac: Aircraft, text: string, after?: () => void): void {
   // Nobody else calls until this pilot has answered.

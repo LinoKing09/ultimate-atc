@@ -24,8 +24,11 @@ interface QueuedTransmission {
   notBefore: number;
   priority: number;
   onTransmit?: () => void;
-  /** Dropped if not transmitted before this time. */
+  /** Dropped if not transmitted before this time... */
   expiresAt: number;
+  /** ...unless the call still applies then: it stays queued for another `ttl`. */
+  stillValid?: () => boolean;
+  ttl: number;
 }
 
 /**
@@ -39,6 +42,8 @@ interface QueuedTransmission {
  * (seconds after the end of the call); after a controller transmission they leave the gap for the read-back.
  */
 export const CALL_GAP_AFTER_CALL_S = 5;
+/** Longest time the frequency is kept free for a read-back after the instruction ended (seconds). */
+export const READBACK_WAIT_S = 5;
 export const CALL_GAP_AFTER_ATC_S = 2;
 /** Transmissions with at least this priority (read-backs, urgent reports such as "stopping") ignore these gaps. */
 const URGENT_PRIORITY = 5;
@@ -69,10 +74,14 @@ export class Frequency {
     return this.usSpeech ? s.replace(/\bdecimal\b/g, 'point') : s;
   }
 
-  /** Approximate airtime of a message in seconds. */
-  static duration(text: string): number {
-    const words = text.split(/\s+/).length;
-    return 0.8 + words * 0.32;
+  /**
+   * Airtime of a message in seconds, from its spoken form ("Eurowings two two Alpha Sierra", "one two one decimal
+   * niner": every spelled character is a word) at the pace of the pilot voices, so the frequency is free when the
+   * voice has finished reading - and the radio-discipline gaps start from there.
+   */
+  static duration(spoken: string): number {
+    const words = spoken.split(/\s+/).filter(Boolean).length;
+    return 0.4 + words * 0.32;
   }
 
   /** Time the current transmission ends. */
@@ -95,8 +104,9 @@ export class Frequency {
       spoken: this.spoken(text),
       frequency: this.frequency,
     };
-    this.busyUntil = Math.max(this.busyUntil, now) + Frequency.duration(text);
-    this.callsFrom = Math.max(this.callsFrom, this.busyUntil + CALL_GAP_AFTER_ATC_S);
+    this.busyUntil = Math.max(this.busyUntil, now) + Frequency.duration(m.spoken);
+    // The controller has answered: the wait after the pilot's call is over, only the gap for the read-back remains.
+    this.callsFrom = this.busyUntil + CALL_GAP_AFTER_ATC_S;
     this.emit(m);
     return m;
   }
@@ -109,9 +119,11 @@ export class Frequency {
     now: number,
     callsign: string,
     text: string,
-    opts: { delay?: number; priority?: number; onTransmit?: () => void; ttl?: number } = {},
+    opts: { delay?: number; priority?: number; onTransmit?: () => void; ttl?: number; stillValid?: () => boolean } = {},
   ): void {
     this.queue.push({
+      stillValid: opts.stillValid,
+      ttl: opts.ttl ?? 120,
       callsign,
       text,
       notBefore: now + (opts.delay ?? 0),
@@ -148,7 +160,14 @@ export class Frequency {
   }
 
   update(now: number): void {
-    this.queue = this.queue.filter((q) => q.expiresAt > now);
+    // A call that could not get through in time is dropped - or, while it still applies (the aircraft still waits
+    // where it called from), kept: a busy frequency must not swallow a call that is made only once.
+    this.queue = this.queue.filter((q) => {
+      if (q.expiresAt > now) return true;
+      if (!q.stillValid?.()) return false;
+      q.expiresAt = now + q.ttl;
+      return true;
+    });
     if (this.isBusy(now)) return;
     const waitingFor = this.awaitingReplyFrom(now);
     if (!waitingFor) this.reserved = undefined;
@@ -170,7 +189,7 @@ export class Frequency {
       frequency: this.frequency,
     };
     // small gap between transmissions
-    this.busyUntil = now + Frequency.duration(text) + 0.6;
+    this.busyUntil = now + Frequency.duration(m.spoken) + 0.6;
     // A call (not a read-back): the others wait for the controller's answer.
     if (q.priority < URGENT_PRIORITY) this.callsFrom = Math.max(this.callsFrom, this.busyUntil + CALL_GAP_AFTER_CALL_S);
     q.onTransmit?.();

@@ -636,7 +636,9 @@ export class TowerAI {
     const sHp = path.marker(chosen.ex.path[1])?.s ?? path.length;
     const taxi = 10 * KT_TO_MS;
     ac.speedLimit = (s) => {
-      if (s < sExit) return Math.min(v0, Math.sqrt(vExit * vExit + 2 * decel * (sExit - s)), braking(s));
+      // Not faster than now - but at least taxi speed: an aircraft that re-plans standing still (its exit was
+      // blocked) must get going again (with v0 = 0 it never moved).
+      if (s < sExit) return Math.min(Math.max(v0, taxi), Math.sqrt(vExit * vExit + 2 * decel * (sExit - s)), braking(s));
       const v = Math.min(vExit, braking(s));
       if (s < sHp) return Math.max(taxi, v);
       return Math.sqrt(Math.max(taxi * taxi, v * v - 2 * EXIT_DECEL * (s - sHp)));
@@ -681,7 +683,7 @@ export class TowerAI {
     ac.stops = [{ s: vacateStopS(sim.airport, path, exitPath, ac.type.lengthM), kind: 'destination', target: 'vacated' }];
     ac.stoppedAt = undefined;
     ac.speedLimit = (s) => {
-      if (s < sTurn) return Math.min(v0, Math.sqrt(BACKTRACK_TURN_SPEED ** 2 + 2 * decel * (sTurn - s)));
+      if (s < sTurn) return Math.min(Math.max(v0, BACKTRACK_TURN_SPEED), Math.sqrt(BACKTRACK_TURN_SPEED ** 2 + 2 * decel * (sTurn - s)));
       if (s < sTurnEnd) return BACKTRACK_TURN_SPEED;
       if (s < sExit) return Math.min(BACKTRACK_SPEED, Math.sqrt(vExit * vExit + 2 * 0.8 * (sExit - s)));
       if (s < sHp) return vExit;

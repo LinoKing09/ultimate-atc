@@ -6,9 +6,6 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
-- **Pilot voices are back** (`TTS` in the toolbar, *Voice* in the settings: on/off with a *Test* button, volume, speed): every pilot transmission is read aloud, each callsign with its own voice. Speech recognition (`MIC`) stays switched off for now.
-- Text-to-speech says **runways with their side** (`two six right`, was `two six Romeo`), **altitudes in thousands and hundreds** (`five thousand feet`, `four thousand five hundred feet`) and abbreviations letter by letter (`Q-N-H`, `I-L-S`, `R-V-R`). At high simulation rates, transmissions that are still waiting are dropped, so the voices never fall minutes behind the radio.
-
 - **CAT II/III holding positions at every CAT II/III airport**: in fog (low visibility procedures) departures and runway crossings now also wait at the CAT II/III holding positions at **Stuttgart** (every holding point, A-K, W and Y, about 150 m from the runway), **Cologne/Bonn** (runway 13L/31R: A, A1-A5, A7), **Leipzig/Halle** (A1-A9, S1-S10, H1, H5, H7, H8), **Nuremberg** (A, B, C/F, J) and **Bremen** (A, C, D, M), as before at München and Gatwick. The scope draws them faint, and as full bars `K CAT III` in fog. The positions come from OpenStreetMap (`holding_position:type=ILS`). Airport data: `lvpHoldingPoints` also takes a list of nodes, for holding points that taxiways from several sides join behind, each with its own line (Leipzig).
 
 ## [1.7.0] - 2026-11-02

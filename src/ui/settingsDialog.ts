@@ -23,7 +23,7 @@ const VOICE_LANGS: [string, string][] = [
  * In-game settings menu. Every change is applied immediately (via `apply`)
  * and stored in the browser.
  */
-export function showSettings(sim: Simulation, settings: Settings, apply: () => void, voice: { tts: boolean; mic: boolean; hidden?: boolean; micHidden?: boolean; test?: () => void }): void {
+export function showSettings(sim: Simulation, settings: Settings, apply: () => void, voice: { tts: boolean; mic: boolean; hidden?: boolean; test?: () => void }): void {
   if (document.querySelector('.overlay')) return;
   const changed = () => {
     saveSettings(settings);
@@ -149,12 +149,8 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
             ['Pilot voices (TTS)', ttsRow()],
             ['Voice volume', range('ttsVolume', 0, 1, 0.05, pct)],
             ['Voice speed', range('ttsRate', 0.7, 1.5, 0.05, pct)],
-            ...(voice.micHidden
-              ? []
-              : ([
-                ['Send voice automatically', check('voiceAutoSend', !voice.mic), 'Transmit the recognised instruction as soon as you release push-to-talk'],
-                ['Recognition accent', select(settings.voiceLang, VOICE_LANGS, (v) => (settings.voiceLang = v))],
-              ] as [string, HTMLElement, string?][])),
+            ['Send voice automatically', check('voiceAutoSend', !voice.mic), 'Transmit the recognised instruction as soon as you release push-to-talk'],
+            ['Recognition accent', select(settings.voiceLang, VOICE_LANGS, (v) => (settings.voiceLang = v))],
           ),
           ]),
       section(

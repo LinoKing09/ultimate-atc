@@ -98,10 +98,11 @@ export interface AirportData {
   parallelRunways?: ParallelRunwayData[];
   /**
    * CAT II/III holding positions (AIP; drawn holding position lines, `holdLine`): runway holding point name -> taxi
-   * node. During low visibility procedures departures (and runway crossings) stop there instead of at the CAT I
+   * node, or several nodes where taxiways from more than one side join behind the holding point (each with its own
+   * line). During low visibility procedures departures (and runway crossings) stop there instead of at the CAT I
    * holding point. A holding point not listed is both (the usual case at smaller airports).
    */
-  lvpHoldingPoints?: Record<string, string>;
+  lvpHoldingPoints?: Record<string, string | string[]>;
   /** Climate for the METAR (default: Central Europe). */
   climate?: { /** Mean temperature of each month (degrees C), January first. */ monthlyMeanC: number[] };
 }

@@ -171,6 +171,9 @@ export const EDDW: AirportData = {
   buildings: built.buildings,
   pavement: [...built.pavement, ...PAVEMENT.map((l) => ({ ...l, points: l.points.map(([lat, lon]) => ({ lat, lon })) }))],
   // No Delivery: Bremen Ground gives the IFR clearances (VATSIM SOP).
+  // CAT II/III holding positions (aerodrome chart; OpenStreetMap holding_position:type=ILS) behind A, C, D and M;
+  // D has a line on each of its two lanes. E and F have one holding position for all categories.
+  lvpHoldingPoints: { A: 'HP.1413943221', C: 'HP.3482241468', D: ['HP.12616489585', 'HP.25840842'], M: 'HP.12480259999' },
   stations: [
     { callsign: 'EDDW_GND', type: 'GND', name: 'Bremen Ground', frequency: '121.755' },
     { callsign: 'EDDW_TWR', type: 'TWR', name: 'Bremen Tower', frequency: '120.330' },

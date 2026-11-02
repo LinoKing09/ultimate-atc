@@ -2,8 +2,13 @@ import { describe, expect, it } from 'vitest';
 import { distance } from '../src/core/geo';
 import { formatMetar, lvpInForce } from '../src/core/met';
 import { Simulation } from '../src/core/simulation';
+import { EDDK } from '../src/data/airports/eddk';
 import { EDDM } from '../src/data/airports/eddm';
+import { EDDN } from '../src/data/airports/eddn';
+import { EDDP } from '../src/data/airports/eddp';
 import { EDDS } from '../src/data/airports/edds';
+import { EDDW } from '../src/data/airports/eddw';
+import { EDJA } from '../src/data/airports/edja';
 import { EGKK } from '../src/data/airports/egkk';
 import { createBot } from './bot';
 
@@ -29,7 +34,7 @@ describe('low visibility procedures (fog)', () => {
     expect(clear.atisText()).not.toMatch(/low visibility/);
   });
 
-  for (const [airport, runway] of [[EDDM, '26R+26L'], [EGKK, '26L']] as const) {
+  for (const [airport, runway] of [[EDDM, '26R+26L'], [EGKK, '26L'], [EDDS, '25'], [EDDP, '26R+26L'], [EDDK, '31R']] as const) {
     it(`${airport.icao}: departures wait at the CAT II/III holding points, line up from there and take off; no collisions`, () => {
       const sim = new Simulation({ airport, position: 'GND', positions: ['GND', 'TWR'], runway, density: 'medium', seed: 2, events: false, scenario: { lowVisibility: true } });
       const bot = createBot(sim);
@@ -43,7 +48,7 @@ describe('low visibility procedures (fog)', () => {
           const hp = a.phase === 'holding' && a.stoppedAt?.holdingPoint;
           const lvp = hp ? sim.airport.lvpHoldingPoints.get(hp.toUpperCase()) : undefined;
           if (lvp) {
-            expect(distance(a.pos, lvp.pos), `${a.callsign} at ${hp}`).toBeLessThan(15);
+            expect(Math.min(...lvp.map((n) => distance(a.pos, n.pos))), `${a.callsign} at ${hp}`).toBeLessThan(15);
             atLvp.add(a.callsign);
           }
         }
@@ -56,8 +61,19 @@ describe('low visibility procedures (fog)', () => {
     }, 300000);
   }
 
+  it('every airport with a CAT II/III runway has its CAT II/III holding positions', () => {
+    for (const [airport, hps] of [[EDDS, 12], [EDDN, 4], [EDDW, 4], [EDDK, 7], [EDDP, 23]] as const) {
+      const sim = new Simulation({ airport, position: 'GND', density: 'light', seed: 1, events: false, generateTraffic: false });
+      expect(sim.airport.lvpHoldingPoints.size, airport.icao).toBe(hps);
+      // Each one lies behind its holding point, between it and the taxiway the aircraft come along.
+      for (const [name, nodes] of sim.airport.lvpHoldingPoints) {
+        for (const n of nodes) expect(distance(n.pos, sim.airport.holdingPoints.get(name)!.pos), `${airport.icao} ${name}`).toBeLessThan(300);
+      }
+    }
+  });
+
   it('airports without separate CAT II/III holding points use the normal ones', () => {
-    const sim = new Simulation({ airport: EDDS, position: 'GND', positions: ['GND', 'TWR'], runway: '25', density: 'medium', seed: 3, events: false, scenario: { lowVisibility: true } });
+    const sim = new Simulation({ airport: EDJA, position: 'GND', positions: ['GND', 'TWR'], density: 'medium', seed: 3, events: false, scenario: { lowVisibility: true } });
     const bot = createBot(sim);
     for (let t = 0; t < 2400; t++) {
       sim.tick(1);

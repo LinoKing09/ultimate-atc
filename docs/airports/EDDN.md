@@ -28,7 +28,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 **Simplified or not modelled:**
 
 - the general aviation areas: the lanes S3 (to Apron G2 / G2A), S4 (west to the FAI apron) and T2 (to aprons U1 / U2) are drawn and can be taxied by small aircraft (code B), but only the business jet stands 81-86 on M4 / S4 are parking positions; the helipads are drawn, helicopters are not simulated,
-- the CAT II/III holding points with stop bars (A, B, C/F and J; runway 28 only) are plain junctions - no low visibility operations,
+- the CAT II/III holding points with stop bars (A, B, C/F and J; for runway 28) are used in low visibility procedures (fog) for both runway directions: A, B, C/F (for holding point C) and J (on the way to D), from OpenStreetMap (`holding_position:type=ILS`); the stop bars themselves are not modelled,
 - code D / E aircraft taxi without follow-me (real: PPR and the "Higher Code Letter Aircraft" procedure with a follow-me from the east end of F or from A abeam stand 27),
 - the code limits of B, C, D, E and N2 come from the VATSIM Germany SOP (the AIP publishes those of J, S3, S4 and T2),
 - intersection C (AIP: 10 1461 m, 28 1289 m) is published but not used for departures (SOP),

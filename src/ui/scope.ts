@@ -863,7 +863,7 @@ export class Scope {
     // Low visibility procedures: the CAT II/III holding positions are the ones in use (full bars, "A3 CAT III"), the
     // CAT I holding points behind them faint.
     const lvp = lvpInForce(this.sim);
-    const lvpOf = new Map([...ap.lvpHoldingPoints].map(([name, n]) => [n, ap.holdingPoints.get(name)?.holdingPoint?.name ?? name]));
+    const lvpOf = new Map([...ap.lvpHoldingPoints].flatMap(([name, nodes]) => nodes.map((n) => [n, ap.holdingPoints.get(name)?.holdingPoint?.name ?? name] as const)));
     ctx.save();
     for (const node of ap.nodes.values()) {
       const lvpOfHp = lvpOf.get(node);

@@ -350,6 +350,17 @@ export const EDDK: AirportData = {
   buildings: built.buildings,
   // P on from apron U to the 06 end (drawn only).
   pavement: [...built.pavement, { name: 'P', points: [{ lat: P_U[2][1], lon: P_U[2][2] }, { lat: 50.8626444, lon: 7.1232015 }] }],
+  // CAT II/III holding positions of runway 13L/31R, the CAT II/III runway (aerodrome chart; OpenStreetMap
+  // holding_position:type=ILS). The other runways: one holding position for all categories.
+  lvpHoldingPoints: {
+    A: 'HP.517017729',
+    A1: 'HP.7736951187',
+    A2: 'HP.1338489570',
+    A3: 'HP.7736951273',
+    A4: 'HP.517017652',
+    A5: 'HP.7736951277',
+    A7: 'HP.7735189258',
+  },
   stations: [
     { callsign: 'EDDK_DEL', type: 'DEL', name: 'Koeln/Bonn Delivery', frequency: '121.855' },
     { callsign: 'EDDK_GND', type: 'GND', name: 'Koeln/Bonn Ground', frequency: '121.730' },

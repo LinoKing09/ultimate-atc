@@ -109,8 +109,8 @@ export class Airport {
   readonly edges: TaxiEdge[] = [];
   readonly stands = new Map<string, Stand>();
   readonly holdingPoints = new Map<string, TaxiNode>();
-  /** CAT II/III holding position of a holding point (upper-case name), where the airport data gives one. */
-  readonly lvpHoldingPoints = new Map<string, TaxiNode>();
+  /** CAT II/III holding positions of a holding point (upper-case name), where the airport data gives them. */
+  readonly lvpHoldingPoints = new Map<string, TaxiNode[]>();
   readonly runwayEnds = new Map<string, RunwayEnd>();
   readonly areas: { name: string; polygon: Vec2[] }[];
   readonly buildings: { name: string; polygon: Vec2[] }[];
@@ -147,9 +147,9 @@ export class Airport {
       this.nodes.set(n.id, node);
     }
 
-    for (const [name, id] of Object.entries(data.lvpHoldingPoints ?? {})) {
-      const n = this.nodes.get(id);
-      if (n) this.lvpHoldingPoints.set(name.toUpperCase(), n);
+    for (const [name, ids] of Object.entries(data.lvpHoldingPoints ?? {})) {
+      const list = (Array.isArray(ids) ? ids : [ids]).map((id) => this.nodes.get(id)).filter((n): n is TaxiNode => !!n);
+      if (list.length) this.lvpHoldingPoints.set(name.toUpperCase(), list);
     }
 
     for (const e of data.taxiEdges) {

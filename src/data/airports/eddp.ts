@@ -338,6 +338,33 @@ export const EDDP: AirportData = {
   pavement: built.pavement.map((l) => (l.points[0].lat === 51.4193784 && l.points[0].lon === 12.2089903 ? { ...l, name: 'P', closed: true } : l)),
   // One Tower for both runways (AIP: 121.105 south, 125.955 north; cross-coupled when one controller works both): the
   // aircraft of the northern runway on the northern frequency.
+  // CAT II/III holding positions (aerodrome chart; OpenStreetMap holding_position:type=ILS): one line on every taxiway
+  // that joins behind a holding point, so several for most S entries (from S and from T).
+  lvpHoldingPoints: {
+    A1: 'HP.6139515781',
+    A2: ['HP.12514146033', 'HP.2694540338'],
+    A3: 'HP.6139515776',
+    A4: 'HP.2697669170',
+    A5: 'HP.6139515911',
+    A6: 'HP.6139515908',
+    A7: 'HP.6139515902',
+    A8: 'HP.6139515898',
+    A9: 'HP.60305060',
+    S1: ['HP.2694455024', 'HP.6139515714'],
+    S2: ['HP.2694454980', 'HP.6139515276'],
+    S3: ['HP.2694400187', 'HP.2694400172', 'HP.6139515723'],
+    S4: ['HP.6139515729', 'HP.6139515725', 'HP.6139515726'],
+    S5: 'HP.6139515750',
+    S6: 'HP.6139515730',
+    S7: ['HP.6139515731', 'HP.6139515732'],
+    S8: ['HP.6960835396', 'HP.2683378898'],
+    S9: ['HP.6139515733', 'HP.6139515734'],
+    S10: 'HP.6139515735',
+    H1: 'HP.6139515273',
+    H5: 'HP.6139515752',
+    H7: 'HP.6139515754',
+    H8: 'HP.6139515756',
+  },
   stations: [
     { callsign: 'EDDP_DEL', type: 'DEL', name: 'Leipzig Delivery', frequency: '121.680' },
     { callsign: 'EDDP_GND', type: 'GND', name: 'Leipzig Ground', frequency: '121.805' },

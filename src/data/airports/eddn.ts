@@ -157,6 +157,9 @@ export const EDDN: AirportData = {
     // Unnamed lane from S3 south between Hangar 4 and Hangar 3 into the Aero-Dienst apron (ground movement chart).
     { points: [[49.4946759, 11.0742773], [49.4946134, 11.0742462], [49.4944806, 11.07421], [49.4943698, 11.0741824], [49.4942879, 11.0741635]].map(([lat, lon]) => ({ lat, lon })), widthM: 10.5 },
   ],
+  // CAT II/III holding positions with stop bars (aerodrome chart; OpenStreetMap holding_position:type=ILS): A, B,
+  // C/F (for C) and J (for D).
+  lvpHoldingPoints: { A: 'HP.249666693', B: 'HP.11114796708', C: 'HP.2387194068', D: 'HP.1868560660' },
   stations: [
     { callsign: 'EDDN_GND', type: 'GND', name: 'Nuernberg Ground', frequency: '121.760' },
     { callsign: 'EDDN_TWR', type: 'TWR', name: 'Nuernberg Tower', frequency: '118.305' },

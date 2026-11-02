@@ -39,7 +39,7 @@ export function validateAirport(data: AirportData): string[] {
     for (const f of Object.values(st.runwayFrequencies ?? {})) if (!/^1[1-3]\d\.\d{2,3}$/.test(f)) add(`station ${st.callsign} has an invalid frequency ${f}`);
   }
   // CAT II/III holding positions: a plain node on the taxiways behind its holding point (at most 300 m away).
-  for (const [name, id] of Object.entries(data.lvpHoldingPoints ?? {})) {
+  for (const [name, id] of Object.entries(data.lvpHoldingPoints ?? {}).flatMap(([hpName, ids]) => (Array.isArray(ids) ? ids : [ids]).map((i) => [hpName, i] as const))) {
     const hp = data.taxiNodes.find((n) => n.holdingPoint?.name === name);
     const node = data.taxiNodes.find((n) => n.id === id);
     if (!hp || !node || node.holdingPoint) {

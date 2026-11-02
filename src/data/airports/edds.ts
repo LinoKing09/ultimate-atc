@@ -367,20 +367,35 @@ b.chain('L2', 'taxiway', ['M_L2', 'L2_B', CIRCLE]);
 b.chain('M', 'taxilane', ['M_E', 'N_ME'], { maxWingspanM: 36 });
 
 // ======================================================================== connectors to the runway
+// CAT II/III holding positions (stop bars; used only in low visibility procedures): between the vacate points and
+// taxiway S (north) / R and V (south), at the distance from the runway centre line OpenStreetMap maps them
+// (holding_position:type=ILS, 146-158 m), placed on the taxiways of this layout.
+n('K_CAT', 18, 156);
+n('Y_CAT', 16.5, -146);
+n('I_CAT', 115.4, 152);
+n('H_CAT', 655.7, 158);
+n('W_CAT', 834.5, -147);
+n('G_CAT', 1142, 153);
+n('F_CAT', 1105.9, 156);
+n('E_CAT', 1956, 152);
+n('D_CAT', 2429.4, 156);
+n('C_CAT', 2463.8, 152);
+n('B_CAT', 2870.7, 151);
+n('A_CAT', 3324, 152);
 // K (north) / Y (south) at the 07 end
 n('K_CLR', 16.5, 140);
 n('K', 16.5, 93, 'K');
 n('Y', 16.5, -91, 'Y');
 n('Y_CLR', 16.5, -140);
-b.chain('K', 'taxiway', [CIRCLE, 'K_CLR', 'K']);
+b.chain('K', 'taxiway', [CIRCLE, 'K_CAT', 'K_CLR', 'K']);
 b.chain('K', 'runwayStrip', ['K', 'RWY_K']);
 b.chain('Y', 'runwayStrip', ['RWY_K', 'Y']);
-b.chain('Y', 'taxiway', ['Y', 'Y_CLR', 'RV']);
+b.chain('Y', 'taxiway', ['Y', 'Y_CLR', 'Y_CAT', 'RV']);
 
 // I: angled from the circle to the runway (exit for 25, entry for 07)
 n('I_CLR', 128.9, 140);
 n('I', 165, 108, 'I');
-b.chain('I', 'taxiway', [CIRCLE, 'I_CLR', 'I']);
+b.chain('I', 'taxiway', [CIRCLE, 'I_CAT', 'I_CLR', 'I']);
 b.chain('I', 'runwayStrip', ['I', 'RWY_I']);
 
 // H: from Apron North (M) across N and S to the runway; W continues south to V
@@ -389,10 +404,10 @@ n('H_CLR', 680.3, 140);
 n('H', 724, 108, 'H');
 n('W', 840, -89, 'W');
 n('W_CLR', 835, -140);
-b.chain('H', 'taxiway', ['M_H', 'H1', 'N_H', 'S_H', 'H_CLR', 'H']);
+b.chain('H', 'taxiway', ['M_H', 'H1', 'N_H', 'S_H', 'H_CAT', 'H_CLR', 'H']);
 b.chain('H', 'runwayStrip', ['H', 'RWY_HW']);
 b.chain('W', 'runwayStrip', ['RWY_HW', 'W']);
-b.chain('W', 'taxiway', ['W', 'W_CLR', 'V_W']);
+b.chain('W', 'taxiway', ['W', 'W_CLR', 'W_CAT', 'V_W']);
 
 // G (perpendicular) and F (angled exit for 25) cross between S and the runway
 // Vacate points sit between the holding point and the F/G crossing, clear of taxiway S.
@@ -402,15 +417,15 @@ n('G_CLR', 1142, 118);
 n('F', 1240, 100, 'F');
 n('F_CLR', 1187.4, 122);
 // G, E and C: max. code letter D (aerodrome chart).
-b.chain('G', 'taxiway', ['N_G', 'S_G', 'FG_X', 'G_CLR', 'G'], { maxWingspanM: 52 });
+b.chain('G', 'taxiway', ['N_G', 'S_G', 'G_CAT', 'FG_X', 'G_CLR', 'G'], { maxWingspanM: 52 });
 b.chain('G', 'runwayStrip', ['G', 'RWY_G'], { maxWingspanM: 52 });
-b.chain('F', 'taxiway', ['N_F', 'S_F', 'FG_X', 'F_CLR', 'F']);
+b.chain('F', 'taxiway', ['N_F', 'S_F', 'F_CAT', 'FG_X', 'F_CLR', 'F']);
 b.chain('F', 'runwayStrip', ['F', 'RWY_F']);
 
 // E (perpendicular)
 n('E_CLR', 1956, 140);
 n('E', 1956, 93, 'E');
-b.chain('E', 'taxiway', ['N_E', 'S_E', 'E_CLR', 'E'], { maxWingspanM: 52 });
+b.chain('E', 'taxiway', ['N_E', 'S_E', 'E_CAT', 'E_CLR', 'E'], { maxWingspanM: 52 });
 b.chain('E', 'runwayStrip', ['E', 'RWY_E'], { maxWingspanM: 52 });
 
 // D (angled exit for 07 / entry for 25) and C (perpendicular) both start at S_D
@@ -418,21 +433,21 @@ n('D_CLR', 2413.6, 140);
 n('D', 2379, 105, 'D');
 n('C_CLR', 2464, 140);
 n('C', 2464, 93, 'C');
-b.chain('D', 'taxiway', ['N_D', 'S_D', 'D_CLR', 'D']);
+b.chain('D', 'taxiway', ['N_D', 'S_D', 'D_CAT', 'D_CLR', 'D']);
 b.chain('D', 'runwayStrip', ['D', 'RWY_D']);
-b.chain('C', 'taxiway', ['S_D', 'C_CLR', 'C'], { maxWingspanM: 52 });
+b.chain('C', 'taxiway', ['S_D', 'C_CAT', 'C_CLR', 'C'], { maxWingspanM: 52 });
 b.chain('C', 'runwayStrip', ['C', 'RWY_C'], { maxWingspanM: 52 });
 
 // B (angled exit for 07 / entry for 25)
 n('B_CLR', 2859, 140);
 n('B', 2822, 105, 'B');
-b.chain('B', 'taxiway', ['N_B', 'S_B', 'B_CLR', 'B']);
+b.chain('B', 'taxiway', ['N_B', 'S_B', 'B_CAT', 'B_CLR', 'B']);
 b.chain('B', 'runwayStrip', ['B', 'RWY_B']);
 
 // A at the 25 end
 n('A_CLR', 3324, 140);
 n('A', 3324, 93, 'A');
-b.chain('A', 'taxiway', ['A_TOP', 'A_CLR', 'A']);
+b.chain('A', 'taxiway', ['A_TOP', 'A_CAT', 'A_CLR', 'A']);
 b.chain('A', 'runwayStrip', ['A', 'RWY_A']);
 
 // ======================================================================== south: Z, R, V
@@ -498,7 +513,7 @@ export const EDDS: AirportData = {
   // Initial climb used in clearances: every SID climbs to 5000 ft (AIP SID charts), also the transition altitude.
   initialClimbFt: 5000,
   dataNotice:
-    'Layout digitised by hand from the AIP Germany aerodrome charts (AD 2 EDDS 2-5 / 2-7, AMDT 10/26), accuracy about +-10 m; some areas simplified. Runway data, declared distances, approaches, taxiway widths and limits from the AIP (facts only); de-icing pads after the VATSIM Germany ground radar data, holding bays P1/P2 and the buildings from OpenStreetMap (© OpenStreetMap contributors, ODbL). Not for real-world navigation.',
+    'Layout digitised by hand from the AIP Germany aerodrome charts (AD 2 EDDS 2-5 / 2-7, AMDT 10/26), accuracy about +-10 m; some areas simplified. Runway data, declared distances, approaches, taxiway widths and limits from the AIP (facts only); de-icing pads after the VATSIM Germany ground radar data, holding bays P1/P2, the distance of the CAT II/III holding positions from the runway and the buildings from OpenStreetMap (© OpenStreetMap contributors, ODbL). Not for real-world navigation.',
   // De-icing pads DP1-DP4 (see the de-icing comment above).
   deicingPads: DEICING.map(([name, , , , , span]) => ({ name, node: name, maxWingspanM: span })),
   runways: [
@@ -545,6 +560,8 @@ export const EDDS: AirportData = {
   // Runway crossings only between K and Y; Z (west of Y) is reserved for military aircraft (VATSIM Germany Ground SOP).
   runwayCrossings: ['RWY_K'],
   avoidTaxiways: ['Z'],
+  // CAT II/III holding positions with stop bars (AIP AD 2.22; positions after OpenStreetMap, see the nodes *_CAT).
+  lvpHoldingPoints: { A: 'A_CAT', B: 'B_CAT', C: 'C_CAT', D: 'D_CAT', E: 'E_CAT', F: 'F_CAT', G: 'G_CAT', H: 'H_CAT', I: 'I_CAT', K: 'K_CAT', W: 'W_CAT', Y: 'Y_CAT' },
   stations: [
     { callsign: 'EDDS_DEL', type: 'DEL', name: 'Stuttgart Delivery', frequency: '121.915' },
     { callsign: 'EDDS_GND', type: 'GND', name: 'Stuttgart Ground', frequency: '118.605' },

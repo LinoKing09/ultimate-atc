@@ -1248,9 +1248,13 @@ function computeStops(sim: Simulation, ac: Aircraft, holdShort: HoldShortTarget[
   // Low visibility procedures: at the CAT II/III holding position of a holding point, where the route passes it.
   const lvp = lvpInForce(sim);
   const lvpS = (hp: TaxiNode): number | undefined => {
-    const n = lvp && hp.holdingPoint ? sim.airport.lvpHoldingPoints.get(hp.holdingPoint.name.toUpperCase()) : undefined;
-    const s = n ? path.marker(n.id)?.s : undefined;
-    return s !== undefined && s < sOf(hp.id) ? s : undefined;
+    const nodes = lvp && hp.holdingPoint ? sim.airport.lvpHoldingPoints.get(hp.holdingPoint.name.toUpperCase()) : undefined;
+    // The line on the taxiway the route comes along (where taxiways join behind the holding point, each has one).
+    for (const n of nodes ?? []) {
+      const s = path.marker(n.id)?.s;
+      if (s !== undefined && s < sOf(hp.id)) return s;
+    }
+    return undefined;
   };
 
   for (let i = 0; i < route.edges.length; i++) {

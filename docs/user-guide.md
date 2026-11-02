@@ -58,7 +58,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 ```
 +--------------------------------------------------------------------------------------+
 | ULTIMATE ATC | EDDS_GND 118.605 | RWY 25 | ATIS E | 250/08KT | Q1013 | 14:32:10Z |  |
-|   ON II 1x 2x 4x 8x | TTS ROUTES ROT |       SCORE ... | HELP | DOCS | SAVE | DISCONNECT |
+|   ON II 1x 2x 4x 8x | TTS MIC ROUTES ROT |       SCORE ... | HELP | DOCS | SAVE | DISCONNECT |
 +--------------------------------------------------------------------------------------+
 | [DEPARTURES list]                                              [ARRIVALS list]       |
 |                                                                                      |
@@ -66,7 +66,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 |                                                                                      |
 +--------------------------------------------------------------------------------------+
 | message window (radio log)                                                           |
-| [DLH5AB] > command line ......................... preview ............ MIC SEND      |
+| [DLH5AB] > command line ......................... preview ................ SEND      |
 +--------------------------------------------------------------------------------------+
 ```
 
@@ -84,6 +84,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `II` / `>`            | Pause / resume. **Space** does the same when the command line is empty.                         |
 | `1x 2x 4x 8x`         | Simulation rate. Pilots and Tower run faster too; text-to-speech gets slightly faster.          |
 | `TTS`                 | Pilots read their transmissions aloud (text-to-speech), see [Voice](#9-voice). |
+| `MIC`                 | Push-to-talk speech recognition. *Greyed out in this version, see [Voice](#9-voice).* |
 | `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
 | `ROT`                 | Rotates the scope: the main runway **horizontal** like the aerodrome chart (default; Stuttgart 07 on the left, Sylt 14) or north-up. |
 | `BRIEFING`            | Opens the [airport briefing](#airport-briefing).                                               |
@@ -152,6 +153,7 @@ Every airport added in the future comes with its own briefing.
 | Show cleared routes      | The same as `ROUTES`                                                                       |
 | Pilot voices (TTS)       | The same as `TTS`                                                                          |
 | Voice volume / speed     | Volume and speaking rate of the pilot voices                                               |
+| Radio noise              | A quiet hiss under the pilot voices, with a short squelch at the end of each transmission (on by default) |
 | Send voice automatically | Transmit the recognised instruction when you release push-to-talk; off = check and press Enter |
 | Recognition accent       | English accent the speech recogniser expects (US, UK, Australia, India, Ireland)           |
 | Traffic density          | Slider in five steps from light to heavy; applies to traffic generated from now on         |
@@ -500,10 +502,11 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 
 ## 9. Voice
 
+> **Speech recognition is switched off in this version**: `MIC` (in the toolbar next to `TTS`) is greyed out and the recognition settings are hidden until it has been tested on the iPad. The pilot voices (`TTS`) work.
 
 ### Pilots speaking (TTS)
 
-Press **TTS** in the toolbar. Every pilot transmission is read aloud with the browser's speech synthesis. Each callsign always gets the same voice, pitch and speaking rate, so you can tell pilots apart. Designators are spelled phonetically: "Lufthansa five Alpha Bravo, taxi to holding point Golf one"; runways with their side ("runway two six right"), altitudes in thousands and hundreds ("climb five thousand feet", "passing four thousand five hundred feet"), abbreviations letter by letter ("Q-N-H", "I-L-S"). At high simulation rates the voices speak faster; if they still fall behind the radio, the waiting transmissions are dropped and the newest one is spoken.
+Press **TTS** in the toolbar. Every pilot transmission is read aloud with the browser's speech synthesis. Each callsign always gets the same voice, pitch (within 8 % of normal) and speaking rate, so you can tell pilots apart. Effect voices that sing, laugh or whisper (Apple's *Bells*, *Good News*, *Hysterical* ..., also with translated names) are never used. A quiet **radio noise** runs under each transmission, with a short squelch at the end (*Settings -> Radio noise*). Designators are spelled phonetically: "Lufthansa five Alpha Bravo, taxi to holding point Golf one"; runways with their side ("runway two six right"), altitudes in thousands and hundreds ("climb five thousand feet", "passing four thousand five hundred feet"), abbreviations letter by letter ("Q-N-H", "I-L-S"). At high simulation rates the voices speak faster; if they still fall behind the radio, the waiting transmissions are dropped and the newest one is spoken.
 
 On the **iPad** (and iPhone) TTS is off until you switch it on (in mobile mode the toolbar scrolls sideways - `TTS` is in it, or use the settings). Safari only lets a page speak after a tap: switching `TTS` on speaks a short confirmation (`Stuttgart Ground, pilot voices on`), and the first tap anywhere unlocks the voices too. **Settings -> Pilot voices -> Test** speaks a radio check. Only voices installed on the device are used (Apple's effect voices are left out). Speech follows the media volume and is muted while the iPad is in silent mode (Control Centre bell icon, or the side switch on older iPads) - if the test phrase stays silent, check those first.
 

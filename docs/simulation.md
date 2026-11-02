@@ -367,7 +367,7 @@ These are the Stuttgart figures. Smaller airports scale them with their `rateFac
 
 - There is **one frequency** (yours). A transmission takes `0.8 s + 0.32 s per word`.
 - Your transmissions go out immediately and occupy the frequency.
-- Pilot transmissions are queued. They start when the frequency is free, plus a 0.6 s gap. **Read-backs** (priority 10) go before **new calls** (priority 0).
+- Pilot transmissions are queued. They start when the frequency is free, plus a 0.6 s gap. **Read-backs** (priority 10) go before **new calls** (priority 0). After a pilot's **call** the other pilots wait **5 s** before calling (the controller can answer first), after a **controller transmission** 2 s (the gap for the read-back); read-backs and urgent reports (`stopping`, priority 5) do not wait.
 - Read-backs start 0.8-2.2 s after your transmission. Spontaneous calls are delayed by 0.3-2.5 s.
 - **Radio discipline**: after your instruction the frequency is reserved for the addressed station until its read-back has been transmitted, at most 6 s after your transmission has ended. Other pilots' calls wait. A new instruction to another station moves the reservation to that station.
 - Queued transmissions that wait too long are dropped (45 s for calls, 60 s for read-backs). The pilot then repeats the call later.

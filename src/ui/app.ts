@@ -70,8 +70,11 @@ interface QuickButton {
 const PTT_KEYS = new Set(['Backquote', 'ControlRight', 'Insert']);
 /** Pilot voices (text-to-speech): the TTS button and the Voice settings. */
 const TTS_ENABLED = true;
-/** Speech recognition (MIC, push-to-talk keys) and its settings; false hides them. */
-const MIC_ENABLED = true;
+/**
+ * Speech recognition (MIC, push-to-talk keys) and its settings. Switched off for now (MIC greyed out, the
+ * recognition settings hidden) until it has been tested on the iPad; the code stays.
+ */
+const MIC_ENABLED = false;
 
 /**
  * The controller client: wires the simulation to the scope, the traffic
@@ -168,6 +171,8 @@ export class App {
     }
     this.ttsButton = h('button', { text: 'TTS', title: 'Read pilot transmissions aloud (text-to-speech)' });
     this.ttsButton.addEventListener('click', () => this.setTts(!this.voices.enabled, true));
+    // Speech recognition, next to the pilot voices: greyed out while it is switched off (MIC_ENABLED).
+    this.micButton = h('button.mic', { text: 'MIC', title: 'Push-to-talk: hold MIC (or the ^ / ` key, Right Ctrl, Insert) while you speak - or tap MIC to start and tap again to stop' });
     const routesBtn = (this.routesBtn = h('button', { text: 'ROUTES', title: 'Show the cleared routes of all aircraft on your frequency' }));
     routesBtn.addEventListener('click', () => {
       this.settings.showRoutes = !this.settings.showRoutes;
@@ -231,6 +236,7 @@ export class App {
       ...this.speedButtons,
       h('span.sep'),
       this.ttsButton,
+      this.micButton,
       routesBtn,
       rotBtn,
       h('span.spacer'),
@@ -324,7 +330,6 @@ export class App {
     this.targetEl = h('span.target');
     this.input = new CommandInput('Type an instruction - F1 for help');
     this.previewEl = h('span.preview');
-    this.micButton = h('button.mic', { text: 'MIC', title: 'Push-to-talk: hold MIC (or the ^ / ` key, Right Ctrl, Insert) while you speak - or tap MIC to start and tap again to stop' });
     const clearBtn = h('button.clear', { text: '\u00d7', title: 'Clear the command line', type: 'button', 'aria-label': 'Clear the command line' });
     // pointerdown + preventDefault keeps the focus (and an open keyboard) where it is.
     clearBtn.addEventListener('pointerdown', (e) => e.preventDefault());
@@ -347,12 +352,10 @@ export class App {
       'div.sidebar',
       {},
       sendBtn,
-      this.micButton,
       side('ROGER', 'Roger - acknowledge the call of the selected aircraft (or the last caller): it stops flashing', toSelected('roger')),
       side('SAY AGAIN', 'Say again - the selected aircraft (or the last caller) repeats its last transmission', toSelected('say again')),
       allBtn,
     );
-    if (!MIC_ENABLED) this.micButton.remove();
     const comms = h('div.comms', {}, h('div.comms-main', {}, this.messagesEl, h('div.cmdline', {}, this.targetEl, this.input.el, clearBtn, this.previewEl)), sidebar);
 
     root.replaceChildren(toolbar, this.main, comms);
@@ -389,7 +392,10 @@ export class App {
         if (error && error !== 'aborted' && error !== 'no-speech') this.hint(`Speech recognition error: ${error}`);
       },
     );
-    if (!this.voiceIn.supported) {
+    if (!MIC_ENABLED) {
+      this.micButton.disabled = true;
+      this.micButton.title = 'Speech recognition: switched off in this version (coming back after the tests on the iPad)';
+    } else if (!this.voiceIn.supported) {
       this.micButton.disabled = true;
       this.micButton.title = 'Speech recognition is not supported by this browser (try Chrome or Edge)';
     }
@@ -628,6 +634,7 @@ export class App {
     if (this.voices.enabled !== (TTS_ENABLED && s.tts && this.voices.supported)) this.setTts(TTS_ENABLED && s.tts && this.voices.supported, true);
     this.voices.volume = s.ttsVolume;
     this.voices.rate = s.ttsRate;
+    this.voices.radioNoise = s.radioNoise;
     this.voiceIn.lang = s.voiceLang;
     if (s.density !== this.densitySetting) this.act({ k: 'density', density: (this.densitySetting = s.density) });
     if (s.eventLevel !== this.eventsSetting) this.act({ k: 'eventLevel', level: (this.eventsSetting = s.eventLevel) });

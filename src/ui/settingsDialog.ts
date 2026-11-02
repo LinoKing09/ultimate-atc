@@ -31,7 +31,7 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
   };
 
   // ---------------------------------------------------------------- controls
-  const check = (key: 'tts' | 'voiceAutoSend' | 'showRoutes', disabled = false) => {
+  const check = (key: 'tts' | 'radioNoise' | 'voiceAutoSend' | 'showRoutes', disabled = false) => {
     const el = h('input', { type: 'checkbox', disabled });
     el.checked = settings[key];
     el.addEventListener('change', () => {
@@ -149,6 +149,7 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
             ['Pilot voices (TTS)', ttsRow()],
             ['Voice volume', range('ttsVolume', 0, 1, 0.05, pct)],
             ['Voice speed', range('ttsRate', 0.7, 1.5, 0.05, pct)],
+            ['Radio noise', check('radioNoise', !voice.tts), 'A quiet hiss under the pilot voices, with a short squelch at the end of each transmission'],
             ...(voice.micHidden
               ? []
               : ([

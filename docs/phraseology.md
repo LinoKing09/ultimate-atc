@@ -340,7 +340,7 @@ A wrong frequency gets `confirm frequency 118.700 for Tower`. Departures that ar
 
 ## Radio discipline
 
-After an instruction the frequency belongs to the station you addressed: **nobody else calls until it has read back** (at most 6 s after your transmission has ended; then waiting calls may go ahead). If you address a second station before the first one has answered, the frequency is kept for the second one, and the first answers afterwards.
+After an instruction the frequency belongs to the station you addressed: **nobody else calls until it has read back** (at most 6 s after your transmission has ended; then waiting calls may go ahead). If you address a second station before the first one has answered, the frequency is kept for the second one, and the first answers afterwards. After a pilot's call the others leave you **5 s** to answer before they call, and **2 s** after your transmission - so requests do not come in right after each other.
 
 ## Combining instructions
 

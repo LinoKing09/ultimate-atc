@@ -551,12 +551,7 @@ body.phx .panel tr.selected td {
   font-weight: bold;
   letter-spacing: 0.5px;
 }
-.sidebar button.mic,
-.sidebar button.send {
-  flex: 1.6 1 0;
-  font-size: calc(14px * var(--ui-scale, 1));
-}
-/* SEND on top, one and a half times as high as MIC. */
+/* SEND on top, larger than the other buttons. */
 .sidebar button.send {
   flex: 2.4 1 0;
   font-size: calc(16px * var(--ui-scale, 1));

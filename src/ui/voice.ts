@@ -15,8 +15,111 @@ function hash(s: string): number {
   return x >>> 0;
 }
 
-/** Apple's novelty voices (and other effect voices) - unsuitable for pilots, some are silent on iOS. */
-const NOVELTY = /albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|deranged|hysterical|pipe organ/i;
+/**
+ * Apple's novelty and effect voices: they sing ("Bells", "Good News", "Cellos", "Organ"), laugh ("Hysterical"), whisper
+ * or wobble - unsuitable for pilots, some are silent on iOS. Their names are translated on a device in another
+ * language (German: "Glocken", "Gute Nachrichten", "Orgel" ...), so they are recognised by their identifier first:
+ * `com.apple.speech.synthesis.voice.*` (the old macOS voices - only Alex is a normal voice) and
+ * `com.apple.eloquence.*` (Grandma, Grandpa, Rocko ...).
+ */
+const NOVELTY_URI = /speech\.synthesis\.voice\.(?!alex\b)|eloquence/i;
+const NOVELTY_NAME =
+  /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|pipe organ|superstar|trinoids|whisper|wobble|zarvox|deranged|hysterical|junior|ralph|fred|kathy|princess|grandma|grandpa|rocko|eddy|flo|reed|sandy|shelley|glocken|gute nachrichten|schlechte nachrichten|orgel|blubbern|blasen|fl\u00fcstern|hysterisch|narr|wackeln|verr\u00fcckt|oma|opa)\b/i;
+
+/**
+ * The voice of a pilot, the same for a callsign every time: which of the voices, the pitch (0.92-1.08: a little higher
+ * or lower, more makes some voices sound strange) and the speaking rate (1.05-1.29). Unsigned shifts: the hash is
+ * above 2^31 for half of the callsigns (a signed shift gave those a pitch down to 0.4 and slow speech before).
+ */
+export function pilotVoiceStyle(callsign: string): { voice: number; pitch: number; rate: number } {
+  const hv = hash(callsign);
+  return { voice: hv, pitch: 0.92 + ((hv >>> 8) % 17) / 100, rate: 1.05 + ((hv >>> 16) % 25) / 100 };
+}
+
+export function normalVoice(v: Pick<SpeechSynthesisVoice, 'name' | 'voiceURI'>): boolean {
+  return !NOVELTY_URI.test(v.voiceURI ?? '') && !NOVELTY_NAME.test(v.name);
+}
+
+/**
+ * Radio noise under a pilot's transmission: band-limited hiss (like an AM receiver) with a short squelch tail when
+ * the transmission ends. Web Audio; started from the first tap (iOS needs that, as for speech).
+ */
+class RadioNoise {
+  private ctx?: AudioContext;
+  private noise?: AudioBuffer;
+  private current?: { src: AudioBufferSourceNode; gain: GainNode };
+
+  unlock(): void {
+    if (this.ctx) {
+      void this.ctx.resume?.();
+      return;
+    }
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+    if (!Ctx) return;
+    try {
+      this.ctx = new Ctx();
+      const len = this.ctx.sampleRate * 2;
+      this.noise = this.ctx.createBuffer(1, len, this.ctx.sampleRate);
+      const data = this.noise.getChannelData(0);
+      // Fixed pseudo-random noise (no Math.random: same hiss every time, and nothing to do with the simulation).
+      let x = 12345;
+      for (let i = 0; i < len; i++) {
+        x = (Math.imul(x, 1103515245) + 12345) >>> 0;
+        data[i] = (x / 0xffffffff) * 2 - 1;
+      }
+      void this.ctx.resume?.();
+    } catch {
+      this.ctx = undefined;
+    }
+  }
+
+  /** Starts the hiss; returns a handle for stop() (undefined without audio). */
+  start(volume: number): object | undefined {
+    const ctx = this.ctx;
+    if (!ctx || !this.noise || volume <= 0) return undefined;
+    this.stop(false);
+    const src = ctx.createBufferSource();
+    src.buffer = this.noise;
+    src.loop = true;
+    const band = ctx.createBiquadFilter();
+    band.type = 'bandpass';
+    band.frequency.value = 1800;
+    band.Q.value = 0.6;
+    const gain = ctx.createGain();
+    const level = 0.035 * volume;
+    // The carrier comes up with a short crackle, then a quiet hiss under the voice.
+    gain.gain.setValueAtTime(0, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(level * 2.2, ctx.currentTime + 0.03);
+    gain.gain.linearRampToValueAtTime(level, ctx.currentTime + 0.15);
+    src.connect(band).connect(gain).connect(ctx.destination);
+    src.start();
+    this.current = { src, gain };
+    return this.current;
+  }
+
+  /**
+   * Ends the hiss; `tail`: the short squelch burst of a transmission that ends normally. With a handle only that
+   * transmission's hiss (a cancelled utterance may report its end after the next one has started).
+   */
+  stop(tail = true, handle?: object): void {
+    const ctx = this.ctx;
+    const cur = this.current;
+    if (!ctx || !cur || (handle && handle !== cur)) return;
+    this.current = undefined;
+    const t = ctx.currentTime;
+    const g = cur.gain.gain;
+    g.cancelScheduledValues(t);
+    g.setValueAtTime(g.value, t);
+    if (tail) {
+      g.linearRampToValueAtTime(g.value * 2.5, t + 0.02);
+      g.linearRampToValueAtTime(0, t + 0.14);
+      cur.src.stop(t + 0.15);
+    } else {
+      g.linearRampToValueAtTime(0, t + 0.03);
+      cur.src.stop(t + 0.04);
+    }
+  }
+}
 
 /** iPhone, iPad (also iPadOS that reports itself as a Mac). */
 const IOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
@@ -34,6 +137,9 @@ export class PilotVoices {
   private live = new Set<SpeechSynthesisUtterance>();
   private lastStart = 0;
   private unlocked = false;
+  private readonly noise = new RadioNoise();
+  /** Radio noise under the pilots' transmissions. */
+  radioNoise = true;
 
   constructor() {
     if (!('speechSynthesis' in window)) return;
@@ -41,6 +147,7 @@ export class PilotVoices {
     // of a touch - a touchstart or pointerdown does not count): the first tap starts a silent
     // utterance, after that the pilots can speak at any time.
     const unlock = () => {
+      this.noise.unlock();
       if (this.unlocked) return;
       this.unlocked = true;
       const u = new SpeechSynthesisUtterance('ok');
@@ -51,7 +158,7 @@ export class PilotVoices {
     };
     for (const ev of ['click', 'touchend', 'keydown']) document.addEventListener(ev, unlock, true);
     const load = () => {
-      const all = window.speechSynthesis.getVoices().filter((v) => !NOVELTY.test(v.name));
+      const all = window.speechSynthesis.getVoices().filter(normalVoice);
       let en = all.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith('en'));
       // On iOS only voices installed on the device speak reliably.
       if (IOS) {
@@ -91,6 +198,7 @@ export class PilotVoices {
   test(text = 'Stuttgart Ground, pilot voices on'): void {
     if (!this.supported) return;
     this.unlocked = true;
+    this.noise.unlock();
     window.speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
     if (this.voices.length) {
@@ -98,7 +206,26 @@ export class PilotVoices {
       u.lang = u.voice.lang;
     } else u.lang = 'en-US';
     u.volume = this.volume;
+    this.withNoise(u);
     this.say(u);
+  }
+
+  /** Radio noise while the utterance is spoken (from its start: the speech engine may begin later). */
+  private withNoise(u: SpeechSynthesisUtterance): void {
+    if (!this.radioNoise) return;
+    let safety: ReturnType<typeof setTimeout> | undefined;
+    let handle: object | undefined;
+    u.addEventListener('start', () => {
+      handle = this.noise.start(this.volume);
+      // An end that is never reported must not leave the hiss running.
+      safety = setTimeout(() => this.noise.stop(true, handle), 20000);
+    });
+    const end = () => {
+      if (safety) clearTimeout(safety);
+      if (handle) this.noise.stop(true, handle);
+    };
+    u.addEventListener('end', end);
+    u.addEventListener('error', end);
   }
 
   speak(callsign: string, text: string, rate = 1): void {
@@ -114,18 +241,20 @@ export class PilotVoices {
       this.live.clear();
     }
     const u = new SpeechSynthesisUtterance(text);
-    const hv = hash(callsign);
+    const style = pilotVoiceStyle(callsign);
     if (this.voices.length) {
-      u.voice = this.voices[hv % this.voices.length];
+      u.voice = this.voices[style.voice % this.voices.length];
       u.lang = u.voice.lang;
     } else u.lang = 'en-US';
-    u.pitch = 0.8 + ((hv >> 8) % 40) / 100;
-    u.rate = Math.min(2, (1.05 + ((hv >> 16) % 25) / 100) * rate * this.rate);
+    u.pitch = style.pitch;
+    u.rate = Math.min(2, style.rate * rate * this.rate);
     u.volume = this.volume;
+    this.withNoise(u);
     this.say(u);
   }
 
   cancel(): void {
+    this.noise.stop(false);
     this.held = this.held ? [] : null;
     if (this.supported) window.speechSynthesis.cancel();
   }
@@ -139,6 +268,7 @@ export class PilotVoices {
     this.held = [];
     this.heldSince = performance.now();
     window.speechSynthesis.cancel();
+    this.noise.stop(false);
   }
 
   /** Speaks the messages that came in during the transmission (the last three at most). */

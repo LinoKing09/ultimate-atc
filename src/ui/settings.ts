@@ -16,6 +16,8 @@ export interface Settings {
   /** Session start: an empty airport, or taking over traffic in progress from the controller before you. */
   start: 'empty' | 'handover';
   tts: boolean;
+  /** Quiet radio noise under the pilot voices. */
+  radioNoise: boolean;
   ttsVolume: number;
   voiceAutoSend: boolean;
   showRoutes: boolean;
@@ -63,6 +65,7 @@ const DEFAULTS: Settings = {
   eventLevel: DEFAULT_EVENT_LEVEL,
   start: 'empty',
   tts: false,
+  radioNoise: true,
   ttsVolume: 1,
   voiceAutoSend: true,
   showRoutes: true,

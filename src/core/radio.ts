@@ -34,8 +34,19 @@ interface QueuedTransmission {
  * to talk); pilot transmissions are queued and start once the frequency is
  * free, read-backs before new calls.
  */
+/**
+ * Radio discipline: after a pilot's call the others leave the controller time to answer before they call themselves
+ * (seconds after the end of the call); after a controller transmission they leave the gap for the read-back.
+ */
+export const CALL_GAP_AFTER_CALL_S = 5;
+export const CALL_GAP_AFTER_ATC_S = 2;
+/** Transmissions with at least this priority (read-backs, urgent reports such as "stopping") ignore these gaps. */
+const URGENT_PRIORITY = 5;
+
 export class Frequency {
   private busyUntil = 0;
+  /** New calls (not read-backs) wait until then. */
+  private callsFrom = 0;
   private queue: QueuedTransmission[] = [];
   /**
    * After an instruction the frequency belongs to the addressed station until
@@ -85,6 +96,7 @@ export class Frequency {
       frequency: this.frequency,
     };
     this.busyUntil = Math.max(this.busyUntil, now) + Frequency.duration(text);
+    this.callsFrom = Math.max(this.callsFrom, this.busyUntil + CALL_GAP_AFTER_ATC_S);
     this.emit(m);
     return m;
   }
@@ -140,7 +152,7 @@ export class Frequency {
     if (this.isBusy(now)) return;
     const waitingFor = this.awaitingReplyFrom(now);
     if (!waitingFor) this.reserved = undefined;
-    const ready = this.queue.filter((q) => q.notBefore <= now && (!waitingFor || q.callsign === waitingFor));
+    const ready = this.queue.filter((q) => q.notBefore <= now && (!waitingFor || q.callsign === waitingFor) && (q.priority >= URGENT_PRIORITY || now >= this.callsFrom));
     if (!ready.length) return;
     ready.sort((a, b) => b.priority - a.priority || a.notBefore - b.notBefore);
     const q = ready[0];
@@ -159,6 +171,8 @@ export class Frequency {
     };
     // small gap between transmissions
     this.busyUntil = now + Frequency.duration(text) + 0.6;
+    // A call (not a read-back): the others wait for the controller's answer.
+    if (q.priority < URGENT_PRIORITY) this.callsFrom = Math.max(this.callsFrom, this.busyUntil + CALL_GAP_AFTER_CALL_S);
     q.onTransmit?.();
     this.emit(m);
   }

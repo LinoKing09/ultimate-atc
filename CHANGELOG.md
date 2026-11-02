@@ -4,13 +4,21 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
-## [1.7.2] - 2026-11-02
-
 ### Added
 
 - **Pilot voices are back** (`TTS` in the toolbar, *Voice* in the settings: on/off with a *Test* button, volume, speed): every pilot transmission is read aloud, each callsign with its own voice.
-- **Speech recognition is back**: hold `MIC` (or tap it to start and again to stop) or a push-to-talk key (`^` / `` ` ``, Right Ctrl, Insert) and speak the instruction; it is sent when you release (*Send voice automatically* and the *Recognition accent* are in the settings again). The pilots stay quiet while you transmit. Newer instructions work spoken too, e.g. `lufthansa five alpha bravo say reason`, `runway two six right cleared for take off`.
+- **Radio noise** under the pilot voices: a quiet hiss while a pilot transmits, with a short squelch at the end (settings: *Radio noise*, on by default; follows the voice volume).
 - Text-to-speech says **runways with their side** (`two six right`, was `two six Romeo`), **altitudes in thousands and hundreds** (`five thousand feet`, `four thousand five hundred feet`) and abbreviations letter by letter (`Q-N-H`, `I-L-S`, `R-V-R`). At high simulation rates, transmissions that are still waiting are dropped, so the voices never fall minutes behind the radio.
+
+### Changed
+
+- **Radio discipline**: after a pilot's call the others wait 5 s before they call (the controller can answer first), and 2 s after a controller transmission (the gap for the read-back) - several requests no longer come in right after each other. Read-backs and urgent reports (`stopping`) do not wait.
+- `MIC` is in the toolbar next to `TTS`; it stays **greyed out**: speech recognition is switched off until it has been tested on the iPad.
+
+### Fixed
+
+- **Pilot voices that sang or laughed**: Apple's effect voices (*Bells*, *Good News*, *Cellos*, *Organ*, *Hysterical* ...) were only left out by their English names; on a device in another language (German: *Glocken*, *Gute Nachrichten*, *Hysterisch* ...) they were used for pilots. They are now recognised by their identifier.
+- Pilot voices at a strangely low pitch and slow: for about half of the callsigns the pitch came out as low as 0.4 (a sign error); every pilot now speaks within 0.92-1.08 of the normal pitch.
 
 ## [1.7.1] - 2026-11-02
 

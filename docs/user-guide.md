@@ -500,7 +500,6 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 
 ## 9. Voice
 
-> **Speech recognition is switched off in this version** (the `MIC` button and the recognition settings are hidden): it is not reliable enough on all devices yet. The pilot voices (`TTS`) are back.
 
 ### Pilots speaking (TTS)
 

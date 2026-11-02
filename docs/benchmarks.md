@@ -59,6 +59,7 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 1.6.0 (2026-10-31) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 4.9 s |
 | 1.7.0 (2026-11-02) | 13.1 | 6.5 | 0 | 0 | 0 | 9.7 | 4.4 s |
 | 1.7.1 (2026-11-02) | 13.1 | 6.5 | 0 | 0 | 0 | 9.3 | 4.9 s |
+| 1.7.2 (2026-11-02) | 13.1 | 6.5 | 0 | 0 | 0 | 9.3 | 5.5 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -100,6 +101,8 @@ The second part of 1.1.0 (Nuremberg, Memmingen, Sylt, runway backtracking; relea
 
 **1.7.1** (CAT II/III holding positions at Stuttgart, Cologne/Bonn, Leipzig/Halle, Nuremberg and Bremen): the benchmark runs without fog, so the CAT II/III positions are never used, but at Stuttgart they are new nodes on the taxiways K, I, H, G, F, E, D, C, B, A, W and Y, which changes the smoothed taxi paths a little: 9.3 instead of 9.7 deadlock calls per hour, Tower benchmark 11.0 instead of 10.9 arrivals handed to Ground per hour; departures and arrivals unchanged (13.1 / 6.5), no collisions, incursions, go-arounds or separation losses. The LVP tests (fog, one hour each at München, Gatwick, Stuttgart, Leipzig/Halle and Cologne/Bonn) find no collisions.
 
+**1.7.2** (pilot voices and speech recognition switched back on): the simulation is unchanged, the Ground and Tower results are identical to 1.7.1 (13.1 / 6.5 and 12.8 / 11.0 per hour, no collisions, incursions, go-arounds or separation losses). The computing time of 5.5 s per simulated hour comes from the machine: the test suite ran at the same time.
+
 ### Tower benchmark (since 0.7)
 
 The same 20 sessions with you as **Tower** (Ground and Delivery run by the simulator) and a simple scripted Tower controller: it clears arrivals to land inside 4 NM when nobody is lined up, clears a departure for take-off when the runway is free, the next arrival is more than 110 s away, the departure spacing is met and its CTOT window is open, hands departures to Radar and arrivals to Ground when they ask, and clears crossings when the runway is free and the next arrival is more than 90 s away - never within 15 s of its own last take-off or crossing clearance (since 1.5: the crew reads a clearance back a few seconds later, and until then the runway does not count as busy).
@@ -123,6 +126,7 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 | 1.6.0 (2026-10-31) | 12.8 | 10.9 | 0 | 0 | 0 | 0 | 0 |
 | 1.7.0 (2026-11-02) | 12.8 | 10.9 | 0 | 0 | 0 | 0 | 0 |
 | 1.7.1 (2026-11-02) | 12.8 | 11.0 | 0 | 0 | 0 | 0 | 0 |
+| 1.7.2 (2026-11-02) | 12.8 | 11.0 | 0 | 0 | 0 | 0 | 0 |
 
 Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
 
@@ -195,6 +199,9 @@ How many hours of traffic have been simulated while developing and testing the s
 | 1.7.1: release benchmark (Ground + Tower) and the LVP tests (5 airports in fog, run twice) | 50 h | measured: 1 full run of 2 x 20 h, 10 runs of 1 h |
 | 1.7.1: test-suite runs | ~120 h | estimate: 3 runs of about 40 h |
 | **Total up to 1.7.1** | **~10130 h** | of which about 4580 h exactly measured |
+| 1.7.2: release benchmark (Ground + Tower) | 40 h | measured: 1 full run of 2 x 20 h |
+| 1.7.2: test-suite runs | ~80 h | estimate: 2 runs of about 40 h |
+| **Total up to 1.7.2** | **~10250 h** | of which about 4620 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

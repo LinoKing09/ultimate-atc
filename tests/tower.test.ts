@@ -400,7 +400,7 @@ describe('rejected take-off', () => {
 
   it('parses "say reason"', () => {
     const c = ctx(['DLH1AA']);
-    for (const t of ['DLH1AA say reason', 'DLH1AA report reason for the rejected take-off', 'DLH1AA confirm reason', 'DLH1AA say reason for rejected takeoff']) {
+    for (const t of ['DLH1AA say reason', 'DLH1AA report reason for the rejected take-off', 'DLH1AA confirm reason', 'DLH1AA say reason for rejected takeoff', 'lufthansa one alpha alpha say reason']) {
       expect(parseTransmission(t, c).commands).toEqual([{ type: 'sayReason' }]);
     }
   });

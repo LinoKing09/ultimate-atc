@@ -4,9 +4,12 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.7.2] - 2026-11-02
+
 ### Added
 
-- **Pilot voices are back** (`TTS` in the toolbar, *Voice* in the settings: on/off with a *Test* button, volume, speed): every pilot transmission is read aloud, each callsign with its own voice. Speech recognition (`MIC`) stays switched off for now.
+- **Pilot voices are back** (`TTS` in the toolbar, *Voice* in the settings: on/off with a *Test* button, volume, speed): every pilot transmission is read aloud, each callsign with its own voice.
+- **Speech recognition is back**: hold `MIC` (or tap it to start and again to stop) or a push-to-talk key (`^` / `` ` ``, Right Ctrl, Insert) and speak the instruction; it is sent when you release (*Send voice automatically* and the *Recognition accent* are in the settings again). The pilots stay quiet while you transmit. Newer instructions work spoken too, e.g. `lufthansa five alpha bravo say reason`, `runway two six right cleared for take off`.
 - Text-to-speech says **runways with their side** (`two six right`, was `two six Romeo`), **altitudes in thousands and hundreds** (`five thousand feet`, `four thousand five hundred feet`) and abbreviations letter by letter (`Q-N-H`, `I-L-S`, `R-V-R`). At high simulation rates, transmissions that are still waiting are dropped, so the voices never fall minutes behind the radio.
 
 ## [1.7.1] - 2026-11-02

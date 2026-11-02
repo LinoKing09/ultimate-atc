@@ -70,11 +70,8 @@ interface QuickButton {
 const PTT_KEYS = new Set(['Backquote', 'ControlRight', 'Insert']);
 /** Pilot voices (text-to-speech): the TTS button and the Voice settings. */
 const TTS_ENABLED = true;
-/**
- * Speech recognition (MIC, push-to-talk) is switched off for now: not reliable enough on all devices yet.
- * The code stays; set this to true to bring it back.
- */
-const MIC_ENABLED = false;
+/** Speech recognition (MIC, push-to-talk keys) and its settings; false hides them. */
+const MIC_ENABLED = true;
 
 /**
  * The controller client: wires the simulation to the scope, the traffic

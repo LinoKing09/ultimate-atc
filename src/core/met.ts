@@ -210,7 +210,8 @@ function observe(sim: Simulation, t: number, qnh: number, baseFt: number, speci:
     tempC -= 3;
     dewC = Math.min(dewC, tempC - 1);
   }
-  // Fog: visibility 150-500 m, the runway visual range a little more, a sky obscured at 100 or 200 ft.
+  // Fog: visibility 150-500 m, the runway visual range a little more (below the LVP limit, so the fog of the scenario
+  // always brings low visibility procedures), a sky obscured at 100 or 200 ft.
   let rvr: Metar['rvr'];
   if (fogActive(sim) && !storm) {
     visibilityM = 150 + 50 * Math.floor(8 * v('fog'));
@@ -219,7 +220,7 @@ function observe(sim: Simulation, t: number, qnh: number, baseFt: number, speci:
     clouds.length = 0;
     clouds.push({ cover: 'OVC', baseFt: v('fogBase') < 0.5 ? 100 : 200 });
     dewC = tempC;
-    const rvrM = Math.min(1500, 25 * Math.round((visibilityM * (1.1 + 0.4 * v('rvr'))) / 25));
+    const rvrM = Math.min(LVP_RVR_M - 50, 25 * Math.round((visibilityM * (1.1 + 0.4 * v('rvr'))) / 25));
     rvr = sim.runways.map((runway) => ({ runway, m: rvrM }));
   }
   clouds.sort((a, b) => a.baseFt - b.baseFt);

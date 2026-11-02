@@ -17,6 +17,12 @@ describe('low visibility procedures (fog)', () => {
     expect(sim.atisDatis()).toContain('LVP IN OPS');
     // Approach spaces the arrivals at least 6 NM.
     expect(sim.traffic.requiredArrivalSpacingNm('M', '26R')).toBeGreaterThanOrEqual(6);
+    // Whatever the time of day (the observations vary with it): fog always brings LVP.
+    for (let h = 0; h < 24; h += 0.5) {
+      const startTime = new Date(Date.UTC(2026, 10, 2, 0, 0) + h * 3600_000);
+      const s = new Simulation({ airport: EDDM, position: 'TWR', density: 'medium', seed: 1, events: false, runway: '26R+26L', generateTraffic: false, startTime, scenario: { lowVisibility: true } });
+      expect(lvpInForce(s), startTime.toISOString()).toBe(true);
+    }
     // Without fog: no LVP.
     const clear = new Simulation({ airport: EDDM, position: 'TWR', density: 'medium', seed: 1, events: false, runway: '26R+26L' });
     expect(lvpInForce(clear)).toBe(false);

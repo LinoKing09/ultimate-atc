@@ -379,6 +379,31 @@ describe('rejected take-off', () => {
     expect(runUntil(sim, () => ac.phase === 'taxi', 300)).toBe(true);
     expect(sim.incidents).toEqual([]);
   });
+
+  it('the crew says "stopping", gives the reason after vacating and on "say reason"', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'TWR', runway: '25', density: 'medium', seed: 42, events: false, generateTraffic: false });
+    const ac = sim.traffic.spawnDeparture(2, { stand: '14', callsign: 'DLH1AA', type: 'A320' }) as Aircraft;
+    expect(runUntil(sim, () => ac.frequency === 'TWR' && ac.request === 'departure', 2400)).toBe(true);
+    sim.transmit('DLH1AA cleared for take-off runway 25');
+    expect(runUntil(sim, () => ac.phase === 'takeoff', 600)).toBe(true);
+    ac.rejectAtSpeed = 30; // force the event
+    expect(runUntil(sim, () => !!ac.rejectReason, 60)).toBe(true);
+    expect(runUntil(sim, () => last(sim, 'DLH1AA') === 'Lufthansa 1AA, stopping', 10)).toBe(true);
+    const reason = ac.rejectReason!.text;
+    sim.transmit('DLH1AA say reason');
+    expect(runUntil(sim, () => last(sim, 'DLH1AA').startsWith('Rejected take-off due to'), 15)).toBe(true);
+    expect(last(sim, 'DLH1AA')).toContain(reason);
+    expect(last(sim, 'DLH1AA')).toMatch(ac.rejectReason!.toStand ? /return to the stand/ : /depart again/);
+    expect(runUntil(sim, () => ac.request === 'vacated', 300)).toBe(true);
+    expect(last(sim, 'DLH1AA')).toContain(`we rejected take-off due to ${reason}, runway 25 vacated`);
+  });
+
+  it('parses "say reason"', () => {
+    const c = ctx(['DLH1AA']);
+    for (const t of ['DLH1AA say reason', 'DLH1AA report reason for the rejected take-off', 'DLH1AA confirm reason', 'DLH1AA say reason for rejected takeoff']) {
+      expect(parseTransmission(t, c).commands).toEqual([{ type: 'sayReason' }]);
+    }
+  });
 });
 
 describe('one-time instructions', () => {

@@ -7,7 +7,7 @@ import { KT_TO_MS, M_PER_FT, M_PER_NM, add, distance, headingDiff, headingOf, he
 import { vacateStopS } from './holdShort';
 import { findRoute, isRouteError } from './airport/routing';
 import { Path } from './path';
-import { call, requiredRunway } from './pilot';
+import { call, inform, requiredRunway } from './pilot';
 import type { Simulation } from './simulation';
 import { departureAllowed } from './night';
 import { LVP_ARRIVAL_PROTECTION_S, lvpInForce } from './met';
@@ -33,6 +33,21 @@ const REJECT_ROLL_SPEED = 25 * KT_TO_MS;
 const TOUCHDOWN_DISTANCE = 350; // metres past the threshold
 const LINEUP_DISTANCE = 50; // metres along the runway from the entry point
 const TAKEOFF_ACCEL = 2.0; // m/s^2
+/**
+ * Reasons for a rejected take-off, as the crew gives them, and whether the aircraft has to go back to the stand
+ * (inspection, maintenance) or can try again at once.
+ */
+export const REJECT_REASONS: readonly { text: string; toStand: boolean }[] = [
+  { text: 'an engine failure warning', toStand: true },
+  { text: 'a bird strike', toStand: true },
+  { text: 'an airspeed disagree', toStand: true },
+  { text: 'a bleed fault caution', toStand: true },
+  { text: 'a tyre pressure warning', toStand: true },
+  { text: 'a take-off configuration warning', toStand: false },
+  { text: 'a cabin door warning', toStand: false },
+  { text: 'a seat that slid back in the cockpit', toStand: false },
+];
+
 /** Chance of a random rejected take-off at the standard ("rare") event level. */
 const REJECTED_TAKEOFF_CHANCE = 0.015;
 const LINEUP_SPEED = 9 * KT_TO_MS;
@@ -699,7 +714,7 @@ export class TowerAI {
     ac.route = null;
     if (sim.userTower && ac.frequency === sim.stationFor('tower')) {
       // You staff Tower: the crew reports vacated and waits for "contact ground".
-      const what = ac.rejectedTakeoff ? 'we rejected take-off, ' : ac.emergency === 'medical' ? 'PAN PAN, medical emergency, ' : '';
+      const what = ac.rejectedTakeoff ? `${rejectedPhrase(ac)}, ` : ac.emergency === 'medical' ? 'PAN PAN, medical emergency, ' : '';
       call(sim, ac, 'vacated', `${sim.tel(ac)}, ${what}runway ${ac.runway ?? this.end.name} vacated via ${ac.exitName ?? ''}`);
       return;
     }
@@ -717,12 +732,12 @@ export class TowerAI {
     const head = `${sim.stationName(ac.frequency)}, ${sim.tel(ac)}`;
     const via = `vacated runway ${ac.runway ?? this.end.name} via ${ac.exitName ?? ''}`;
     if (ac.rejectedTakeoff) {
-      if (sim.rng.chance(0.6)) {
+      if (ac.rejectReason?.toStand ?? sim.rng.chance(0.6)) {
         ac.returnToStand = true;
         ac.assignedStand = sim.traffic.allocateStand(ac)?.id;
-        call(sim, ac, 'taxiIn', `${head}, we rejected take-off due to a technical problem, ${via}, request taxi back to the stand`);
+        call(sim, ac, 'taxiIn', `${head}, ${rejectedPhrase(ac)}, ${via}, request taxi back to the stand`);
       } else {
-        call(sim, ac, 'taxi', `${head}, we rejected take-off, problem solved, ${via}, request taxi for another departure`);
+        call(sim, ac, 'taxi', `${head}, ${rejectedPhrase(ac)}, problem solved, ${via}, request taxi for another departure`);
       }
       return;
     }
@@ -1022,6 +1037,7 @@ export class TowerAI {
   stopTakeoff(ac: Aircraft): void {
     ac.rejectAtSpeed = undefined;
     ac.rejectedTakeoff = true;
+    ac.rejectReason = { text: 'Tower instruction', toStand: false, atc: true };
     ac.takeoffCleared = false;
     this.sim.system(`Tower: ${ac.callsign} stopped its take-off on your instruction - runway blocked until vacated.`, 'warning', ac.callsign);
     this.planRollout(ac, this.departureEnd(ac), REJECT_DECEL, false, false, true);
@@ -1107,9 +1123,13 @@ export class TowerAI {
     const sim = this.sim;
     ac.rejectAtSpeed = undefined;
     ac.rejectedTakeoff = true;
+    const reason = (ac.rejectReason = sim.rng.pick(REJECT_REASONS));
     sim.stats.rejectedTakeoffs++;
-    sim.system(`Tower: ${ac.callsign} rejected the take-off on runway ${this.departureEnd(ac).name} - runway blocked until vacated.`, 'warning', ac.callsign);
+    sim.system(`Tower: ${ac.callsign} rejected the take-off on runway ${this.departureEnd(ac).name} (${reason.text}) - runway blocked until vacated.`, 'warning', ac.callsign);
     this.planRollout(ac, this.departureEnd(ac), REJECT_DECEL, false, false, true);
+    // On your frequency the crew says "stopping" at once (ICAO), the reason follows once it has vacated the runway
+    // (or when asked: "say reason").
+    if (sim.isOnMyFrequency(ac)) inform(sim, ac, `${sim.tel(ac)}, stopping`);
   }
 
   private climbOut(ac: Aircraft, dt: number): void {
@@ -1178,4 +1198,11 @@ function curveAt(prev: Vec2, corner: Vec2, dirOut: Vec2, radius: number): { poin
     points.push({ x: (1 - t) * (1 - t) * p1.x + 2 * (1 - t) * t * corner.x + t * t * p2.x, y: (1 - t) * (1 - t) * p1.y + 2 * (1 - t) * t * corner.y + t * t * p2.y });
   }
   return { points, tangent, ids: (id) => points.map((_, k) => (k === steps / 2 ? id : null)) };
+}
+
+/** "we rejected take-off due to a bird strike" / "we stopped the take-off on your instruction". */
+export function rejectedPhrase(ac: Aircraft): string {
+  const r = ac.rejectReason;
+  if (!r) return 'we rejected take-off';
+  return r.atc ? 'we stopped the take-off on Tower instruction' : `we rejected take-off due to ${r.text}`;
 }

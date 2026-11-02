@@ -1099,6 +1099,21 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       result.commands.push({ type: 'expedite' });
       continue;
     }
+    // "say reason [for (the) rejected take-off]", "report reason", "confirm reason", "reason for the rejected take-off"
+    if (((w === 'say' || w === 'report' || w === 'confirm' || w === 'state') && c.peek(1) === 'reason') || (w === 'reason' && c.peek(1) === 'for')) {
+      c.i += w === 'reason' ? 1 : 2;
+      if (c.accept('for')) {
+        c.accept('the');
+        c.accept('rejected', 'aborted');
+        if (!c.accept('takeoff')) {
+          c.accept('take');
+          c.accept('off');
+        }
+        c.accept('abort', 'rejection', 'stop');
+      }
+      result.commands.push({ type: 'sayReason' });
+      continue;
+    }
     if (w === 'say' && c.peek(1) === 'again') {
       c.i += 2;
       result.commands.push({ type: 'sayAgain' });

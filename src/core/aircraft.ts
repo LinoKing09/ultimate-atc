@@ -199,6 +199,12 @@ export interface Aircraft {
   emergencySince?: number;
   /** Special situation: the take-off was rejected (aborted) on the runway. */
   rejectedTakeoff?: boolean;
+  /**
+   * Why the take-off was rejected (`text` as the crew says it after "due to"), and whether the crew must taxi back
+   * to the stand (`toStand`) or can depart again; `atc`: stopped on Tower's "stop immediately". Given on the radio,
+   * and on "say reason".
+   */
+  rejectReason?: { text: string; toStand: boolean; atc?: boolean };
   /** Speed (m/s) at which a planned take-off rejection happens. */
   rejectAtSpeed?: number;
   /** Departure that wants to return to a stand (technical problem, medical emergency, night curfew). */

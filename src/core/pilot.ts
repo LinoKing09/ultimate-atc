@@ -76,6 +76,18 @@ export function call(sim: Simulation, ac: Aircraft, request: PilotRequest, text:
   });
 }
 
+/** A report that needs no answer ("stopping"): no request, nothing flashes. */
+export function inform(sim: Simulation, ac: Aircraft, text: string): void {
+  sim.frequency.pilotTransmit(sim.time, ac.callsign, text, {
+    delay: sim.rng.range(0.3, 1),
+    priority: 5,
+    ttl: 20,
+    onTransmit: () => {
+      ac.lastTransmission = text;
+    },
+  });
+}
+
 /** Longest time the frequency is kept free for a read-back after the instruction ended (seconds). */
 const READBACK_WAIT_S = 6;
 
@@ -254,6 +266,8 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
       return {};
     case 'askIntersection':
       return execAskIntersection(sim, ac, c.name);
+    case 'sayReason':
+      return execSayReason(ac);
     case 'clearance':
       return execClearance(sim, ac, c);
     case 'squawk': {
@@ -682,6 +696,15 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
     default:
       return { unable: 'say again' };
   }
+}
+
+/** "Say reason": why the take-off was rejected, and what the crew wants to do now. */
+function execSayReason(ac: Aircraft): ExecResult {
+  const r = ac.rejectReason;
+  if (!ac.rejectedTakeoff || !r) return { unable: 'negative, no problem on board' };
+  if (r.atc) return { readback: 'we stopped on your instruction, no problem on board, we can depart again', answers: false };
+  const next = r.toStand ? 'we need to return to the stand for an inspection' : 'problem solved, we can depart again';
+  return { readback: `rejected take-off due to ${r.text}, ${next}`, answers: false };
 }
 
 /** "Hold position, cancel take-off" (lined up) or "stop immediately" (rolling, below 80 kt). */

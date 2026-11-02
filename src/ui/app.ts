@@ -1607,6 +1607,7 @@ export class App {
       });
       items.push({ label: 'Standby', action: () => this.say(ac, 'standby') });
     }
+    if (ac.rejectedTakeoff) items.push({ label: 'Say reason', hint: 'rejected take-off', action: () => this.say(ac, 'say reason') });
     items.push({ label: 'Say again', action: () => this.say(ac, 'say again') });
     items.push({ divider: true, label: '' }, center, resetTag);
     return items;
@@ -1728,6 +1729,7 @@ export class App {
       const f = sim.frequencyFor(ground.type, ac);
       items.push({ label: `Contact Ground ${f}`, hint: ac.request === 'vacated' ? 'vacated' : undefined, action: () => this.say(ac, `contact ground ${f}`) });
     }
+    if (ac.rejectedTakeoff) items.push({ label: 'Say reason', hint: 'rejected take-off', action: () => this.say(ac, 'say reason') });
     if (ac.request) items.push({ label: 'Standby', action: () => this.say(ac, 'standby') });
     items.push({ label: 'Say again', action: () => this.say(ac, 'say again') });
     return items;

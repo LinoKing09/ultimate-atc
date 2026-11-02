@@ -47,6 +47,8 @@ export type Command =
   | { type: 'expect'; what: string; minutes: number }
   | { type: 'expedite' }
   | { type: 'sayAgain' }
+  /** "Say reason" (for a rejected take-off): the crew tells why it stopped. */
+  | { type: 'sayReason' }
   /** "Are you able intersection D?" - ask whether the aircraft can depart from an intersection. */
   | { type: 'askIntersection'; name: string }
   /** IFR (en-route) clearance: "cleared to Frankfurt via ETASA4B departure, climb 5000 feet, squawk 2312". */

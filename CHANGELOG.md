@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.7.1] - 2026-11-02
+
 ### Added
 
 - **CAT II/III holding positions at every CAT II/III airport**: in fog (low visibility procedures) departures and runway crossings now also wait at the CAT II/III holding positions at **Stuttgart** (every holding point, A-K, W and Y, about 150 m from the runway), **Cologne/Bonn** (runway 13L/31R: A, A1-A5, A7), **Leipzig/Halle** (A1-A9, S1-S10, H1, H5, H7, H8), **Nuremberg** (A, B, C/F, J) and **Bremen** (A, C, D, M), as before at München and Gatwick. The scope draws them faint, and as full bars `K CAT III` in fog. The positions come from OpenStreetMap (`holding_position:type=ILS`). Airport data: `lvpHoldingPoints` also takes a list of nodes, for holding points that taxiways from several sides join behind, each with its own line (Leipzig).

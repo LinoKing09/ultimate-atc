@@ -12,6 +12,8 @@ import { loadSettings, saveSettings } from './ui/settings';
 
 async function start(): Promise<void> {
   const settings = loadSettings();
+  // The interface theme already colours the Connect dialog.
+  document.documentElement.dataset.uiTheme = settings.uiTheme;
   // A shared link can carry a scenario code: ?scenario=EDDS-25-MB2-M10-K7Q2M
   const shared = new URLSearchParams(location.search).get('scenario') ?? undefined;
   const login = await showLogin(AIRPORTS, settings, shared);

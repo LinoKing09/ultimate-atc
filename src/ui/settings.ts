@@ -39,7 +39,20 @@ export interface Settings {
    * earlier Ultimate ATC colours with the EuroScope ground states.
    */
   scopeStyle: 'phx-night' | 'phx-day' | 'classic';
+  /** Colours of the interface around the scope (toolbar, lists, menus, dialogs), see UI_THEMES. */
+  uiTheme: UiTheme;
 }
+
+export type UiTheme = 'euroscope' | 'midnight' | 'light' | 'amber' | 'contrast';
+
+/** The interface themes offered in the settings; the colours are in src/style.css. */
+export const UI_THEMES: [UiTheme, string][] = [
+  ['euroscope', 'EuroScope'],
+  ['midnight', 'Midnight'],
+  ['light', 'Light'],
+  ['amber', 'Amber console'],
+  ['contrast', 'High contrast'],
+];
 
 const KEY = 'ultimate-atc.settings.v1';
 
@@ -61,6 +74,7 @@ const DEFAULTS: Settings = {
   ttsRate: 1,
   voiceLang: 'en-US',
   scopeStyle: 'phx-night',
+  uiTheme: 'euroscope',
 };
 
 /** Default device mode: touch screens without a fine pointer start in mobile mode. */
@@ -86,6 +100,7 @@ export function loadSettings(): Settings {
       delete stored.events;
       const s = { ...defaultSettings(), ...stored };
       s.eventLevel = clampLevel(s.eventLevel);
+      if (!UI_THEMES.some(([t]) => t === s.uiTheme)) s.uiTheme = DEFAULTS.uiTheme;
       return s;
     }
   } catch {

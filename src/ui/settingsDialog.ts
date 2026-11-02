@@ -3,7 +3,7 @@ import { h } from './dom';
 import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
 import { levelSlider } from './levelSlider';
 import { dropdown, segmented } from './pickers';
-import { defaultSettings, saveSettings, type Settings } from './settings';
+import { UI_THEMES, defaultSettings, saveSettings, type Settings } from './settings';
 
 const PHONE_ICON =
   '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18.5" r="1" fill="currentColor"/></svg>';
@@ -133,6 +133,11 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
             ['classic', 'Classic'],
           ], (v) => (settings.scopeStyle = v)),
           'PHX: the EuroScope ground radar of VATSIM Germany, modelled on the DFS PHOENIX tower display - departures blue, arrivals yellow, radar returns with an SSR symbol and history dots, PHX ground states (SUG, PBG, TXG, TX, ALU, DEP, ONB)',
+        ],
+        [
+          'Interface theme',
+          select(settings.uiTheme, UI_THEMES, (v) => (settings.uiTheme = v)),
+          'Colours of the toolbar, lists, menus and dialogs: EuroScope (default; with a PHX scope style the lists look like the VATSIM Germany windows), Midnight (deep blue), Light (for daylight - goes well with the PHX day scope), Amber console (amber on black) or High contrast (black, white and yellow)',
         ],
         ['Show cleared routes', check('showRoutes')],
       ),

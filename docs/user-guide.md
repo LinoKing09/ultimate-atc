@@ -148,6 +148,7 @@ Every airport added in the future comes with its own briefing.
 | Data tags                | **Compact when zoomed out** (default): with the whole airport in view, tags show only the callsign - see [tags](#4-aircraft-tags-and-colours); **Always full** |
 | Scope orientation        | Runway horizontal (like the chart) or north-up - the same as `ROT`                         |
 | Scope style              | **PHX night** (default), **PHX day** or **Classic** - see [Scope styles](#scope-styles)     |
+| Interface theme          | Colours of the toolbar, lists, menus and dialogs: **EuroScope** (default), **Midnight**, **Light**, **Amber console** or **High contrast** - see [Interface themes](#interface-themes) |
 | Show cleared routes      | The same as `ROUTES`                                                                       |
 | Pilot voices (TTS)       | The same as `TTS`                                                                          |
 | Voice volume / speed     | Volume and speaking rate of the pilot voices                                               |
@@ -157,6 +158,20 @@ Every airport added in the future comes with its own briefing.
 | Special events           | Slider: never, very rare, rare, occasional, often                                          |
 
 **Reset to defaults** restores everything except the airport and position.
+
+### Interface themes
+
+*Interface theme* in the settings colours everything around the scope - the toolbar, the departure and arrival lists, the message area, the command line, menus and dialogs (the Connect dialog too). The scope itself keeps its [scope style](#scope-styles), so both can be combined freely.
+
+| Theme | Look | Goes well with |
+| ----- | ---- | -------------- |
+| **EuroScope** (default) | The dark blue-grey EuroScope look of Ultimate ATC; with a PHX scope style the lists get the VATSIM Germany window colours (light grey title bars) | PHX night, Classic |
+| **Midnight** | Deep navy blue with cyan accents | PHX night |
+| **Light** | Light grey and white with dark text and blue accents - for daylight and screens in the sun | PHX day |
+| **Amber console** | Amber text on black, like an old radar console | PHX night |
+| **High contrast** | Black, white and yellow, thicker borders, white title bars - for poor screens and eyes | PHX night, Classic |
+
+With a PHX scope style the callsigns in the lists take the tag colours in every theme (departures blue, arrivals yellow, in shades that are readable on the theme), and traffic on other frequencies is dimmed.
 
 ### Systems window
 
@@ -195,7 +210,7 @@ The scope is a ground radar showing the aerodrome chart. By default it is rotate
 
 *Scope style* in the [settings](#settings) chooses the look:
 
-- **PHX night** (default) and **PHX day**: like the EuroScope ground radar of VATSIM Germany, which is modelled on the **DFS PHOENIX** tower display used at German airports - a dark green-black background (day: light green), dark grey aprons, grey taxiways, a lighter grey runway, amber holding points, white taxiway designators; aircraft as **radar returns** (olive green) with a small **SSR symbol** (the transponder square) and five **history dots** behind moving targets; tags in boxes, **departures blue, arrivals yellow**, vehicles green, traffic on other frequencies dimmed; the PHX ground states (`SUG`, `PBG`, `TXG` ...). The lists get the PHX window colours (light grey title bars).
+- **PHX night** (default) and **PHX day**: like the EuroScope ground radar of VATSIM Germany, which is modelled on the **DFS PHOENIX** tower display used at German airports - a dark green-black background (day: light green), dark grey aprons, grey taxiways, a lighter grey runway, amber holding points, white taxiway designators; aircraft as **radar returns** (olive green) with a small **SSR symbol** (the transponder square) and five **history dots** behind moving targets; tags in boxes, **departures blue, arrivals yellow**, vehicles green, traffic on other frequencies dimmed; the PHX ground states (`SUG`, `PBG`, `TXG` ...). With the *EuroScope* [interface theme](#interface-themes) the lists get the PHX window colours (light grey title bars).
 - **Classic**: the colours of Ultimate ATC before 1.2 (blue-grey background, black runway, white / grey silhouettes) with the EuroScope ground states (`ST-UP`, `PUSH`, `TAXI` ...).
 
 | Element                                | Drawn as (PHX; classic in brackets)                                            |

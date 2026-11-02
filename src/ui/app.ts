@@ -613,7 +613,11 @@ export class App {
     document.documentElement.style.setProperty('--ui-scale', String(s.uiScale));
     // Scope style: PHX (VATSIM Germany ground radar) or classic; the lists follow with their ground states.
     this.scope.setStyle(s.scopeStyle);
-    document.body.classList.toggle('phx', s.scopeStyle !== 'classic');
+    // Interface theme: the colour tokens of src/style.css. The PHX list windows belong to the EuroScope theme;
+    // the departure / arrival callsign colours follow any PHX scope style.
+    document.documentElement.dataset.uiTheme = s.uiTheme;
+    document.body.classList.toggle('phx', s.scopeStyle !== 'classic' && s.uiTheme === 'euroscope');
+    document.body.classList.toggle('phx-tags', s.scopeStyle !== 'classic');
     for (const l of this.lists) l.statusStyle = this.scope.statusStyle;
     this.scope.touchMode = mobile;
     this.scope.tagScale = s.tagScale * (mobile ? 1.25 : 1);

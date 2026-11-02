@@ -13,7 +13,7 @@ ultimate-atc/
 ├── index.html                 # page shell, loads src/main.ts
 ├── src/
 │   ├── main.ts                # entry point: login dialog -> Simulation -> App
-│   ├── style.css              # EuroScope-like dark theme
+│   ├── style.css              # interface colours as tokens; themes EuroScope (default), Midnight, Light, Amber, High contrast (html[data-ui-theme])
 │   ├── core/                  # simulation (no DOM access)
 │   │   ├── geo.ts             # vector maths, local projection, headings, units
 │   │   ├── path.ts            # smoothed polylines that aircraft move along

@@ -1,6 +1,8 @@
 /*
  * Ultimate ATC - EuroScope-inspired dark UI.
- * Colours are defined as tokens so the scope palette can be themed later.
+ * All interface colours are tokens. The interface themes (SETTINGS > Interface theme) override them
+ * on <html data-ui-theme="...">; 'euroscope' is the default set below. The scope has its own palettes
+ * (src/ui/scope.ts).
  */
 :root {
   --bg: #1d2528;
@@ -9,15 +11,231 @@
   --panel-border: #3d484e;
   --text: #cfd8dc;
   --text-dim: #8a979d;
+  --text-strong: #fff;
   --accent: #6fe3ff;
+  --accent-soft: #b9e9f5;
+  --on-accent: #10181c;
   --warn: #ffcf4d;
   --danger: #ff5a5a;
   --ok: #7bdc8f;
   --atc: #9fd3ff;
   --pilot: #e8f0f0;
   --system: #a2b0b5;
+  /* Surfaces */
+  --panel-bg: rgba(30, 38, 42, 0.94);
+  --popup-bg: #262f33;
+  --sunken: #1c2326;
+  --field-bg: #1f272a;
+  --header-bg: #222b2f;
+  --title-bg: #33404a;
+  --title-text: #e5eef2;
+  --tutorial-title: #24424c;
+  --active-bg: #35505a;
+  --open-bg: #3c5866;
+  --primary-bg: #2e5866;
+  --hover-bg: rgba(111, 227, 255, 0.08);
+  --selected-bg: rgba(111, 227, 255, 0.18);
+  --danger-bg: #6b2525;
+  --border-strong: #56636a;
+  --rule: #323c41;
+  --meter-off: #4f5c63;
+  --disabled: #5f6b70;
+  --overlay-bg: rgba(8, 12, 14, 0.75);
+  --shadow: rgba(0, 0, 0, 0.55);
+  /* Callsigns in the lists with a PHX scope style (departures blue, arrivals yellow). */
+  --dep: rgb(72, 184, 251);
+  --arr: rgb(244, 202, 3);
   --font: 'Consolas', 'Menlo', 'DejaVu Sans Mono', 'Liberation Mono', monospace;
   color-scheme: dark;
+  /* Native sliders and check boxes in the theme's accent. */
+  accent-color: var(--accent);
+}
+
+/* Midnight: deep navy blue, cyan accents. */
+:root[data-ui-theme='midnight'] {
+  --bg: #0b1220;
+  --panel: #111a2c;
+  --panel-2: #172238;
+  --panel-border: #24324d;
+  --text: #c8d4ea;
+  --text-dim: #7485a5;
+  --accent: #4fc3ff;
+  --accent-soft: #a9dcff;
+  --on-accent: #06101e;
+  --atc: #8ec9ff;
+  --pilot: #e6eeff;
+  --system: #93a3c2;
+  --panel-bg: rgba(14, 22, 38, 0.95);
+  --popup-bg: #121c30;
+  --sunken: #080e1a;
+  --field-bg: #0d1526;
+  --header-bg: #0e1729;
+  --title-bg: #1b2a47;
+  --title-text: #e6eeff;
+  --tutorial-title: #163456;
+  --active-bg: #1e3a63;
+  --open-bg: #24467a;
+  --primary-bg: #1f4f86;
+  --hover-bg: rgba(79, 195, 255, 0.08);
+  --selected-bg: rgba(79, 195, 255, 0.2);
+  --danger-bg: #5c1f2c;
+  --border-strong: #34476b;
+  --rule: #1c2840;
+  --meter-off: #2c3b58;
+  --disabled: #4a5875;
+  --overlay-bg: rgba(3, 6, 14, 0.8);
+  --shadow: rgba(0, 0, 0, 0.7);
+}
+
+/* Light: a bright interface for daylight and screens in the sun. */
+:root[data-ui-theme='light'] {
+  --bg: #e4e8ea;
+  --panel: #f4f6f7;
+  --panel-2: #e6eaec;
+  --panel-border: #b9c3c8;
+  --text: #1e2a30;
+  --text-dim: #5e6d74;
+  --text-strong: #000;
+  --accent: #0a7fb0;
+  --accent-soft: #d6f0fa;
+  --on-accent: #fff;
+  --warn: #a86a00;
+  --danger: #c62828;
+  --ok: #1d8a3a;
+  --atc: #0b5f96;
+  --pilot: #1e2a30;
+  --system: #5e6d74;
+  --panel-bg: rgba(248, 250, 251, 0.96);
+  --popup-bg: #fbfcfc;
+  --sunken: #ffffff;
+  --field-bg: #ffffff;
+  --header-bg: #e3e8ea;
+  --title-bg: #c9d3d8;
+  --title-text: #12202a;
+  --tutorial-title: #bfe0ec;
+  --active-bg: #b8dcea;
+  --open-bg: #cfe6ef;
+  --primary-bg: #0a7fb0;
+  --hover-bg: rgba(10, 127, 176, 0.08);
+  --selected-bg: rgba(10, 127, 176, 0.18);
+  --danger-bg: #f3c9c9;
+  --border-strong: #9aa7ad;
+  --rule: #d5dcdf;
+  --meter-off: #c3cbcf;
+  --disabled: #a5b0b5;
+  --overlay-bg: rgba(40, 52, 58, 0.45);
+  --shadow: rgba(0, 0, 0, 0.22);
+  --dep: rgb(20, 90, 180);
+  --arr: rgb(150, 110, 0);
+  color-scheme: light;
+}
+/* Light: the primary button keeps white text on its blue. */
+:root[data-ui-theme='light'] .dialog .actions .primary,
+:root[data-ui-theme='light'] .picker-item.on {
+  color: #fff;
+}
+:root[data-ui-theme='light'] .picker-item.on .pi-detail {
+  color: #e2f4fb;
+}
+
+/* Amber: an amber-on-black radar console. */
+:root[data-ui-theme='amber'] {
+  --bg: #0d0a05;
+  --panel: #161009;
+  --panel-2: #1f170c;
+  --panel-border: #3d2e14;
+  --text: #f0b54a;
+  --text-dim: #9a7533;
+  --text-strong: #ffd27a;
+  --accent: #ffb000;
+  --accent-soft: #ffe0a0;
+  --on-accent: #120c02;
+  --warn: #ffe066;
+  --danger: #ff5a3c;
+  --ok: #c8e05a;
+  --atc: #ffc861;
+  --pilot: #ffe3a8;
+  --system: #b38a45;
+  --panel-bg: rgba(20, 14, 7, 0.95);
+  --popup-bg: #1a130a;
+  --sunken: #0a0703;
+  --field-bg: #110c05;
+  --header-bg: #130e07;
+  --title-bg: #3a2a0f;
+  --title-text: #ffd27a;
+  --tutorial-title: #3f2c0b;
+  --active-bg: #4a3510;
+  --open-bg: #5a4013;
+  --primary-bg: #6b4a0e;
+  --hover-bg: rgba(255, 176, 0, 0.08);
+  --selected-bg: rgba(255, 176, 0, 0.2);
+  --danger-bg: #5a1a0c;
+  --border-strong: #5c4520;
+  --rule: #2b2010;
+  --meter-off: #3b2d15;
+  --disabled: #5e4a26;
+  --overlay-bg: rgba(5, 3, 0, 0.8);
+  --shadow: rgba(0, 0, 0, 0.7);
+  --dep: #ffd27a;
+  --arr: #ff9a3c;
+}
+
+/* High contrast: black, white and yellow, strong borders - for poor screens and eyes. */
+:root[data-ui-theme='contrast'] {
+  --bg: #000;
+  --panel: #000;
+  --panel-2: #141414;
+  --panel-border: #fff;
+  --text: #fff;
+  --text-dim: #d0d0d0;
+  --accent: #ffeb00;
+  --accent-soft: #fff7a0;
+  --on-accent: #000;
+  --warn: #ffeb00;
+  --danger: #ff4040;
+  --ok: #3cff6e;
+  --atc: #7fdcff;
+  --pilot: #fff;
+  --system: #d0d0d0;
+  --panel-bg: rgba(0, 0, 0, 0.97);
+  --popup-bg: #000;
+  --sunken: #000;
+  --field-bg: #000;
+  --header-bg: #1a1a1a;
+  --title-bg: #fff;
+  --title-text: #000;
+  --tutorial-title: #ffeb00;
+  --active-bg: #ffeb00;
+  --open-bg: #333;
+  --primary-bg: #005fcc;
+  --hover-bg: rgba(255, 235, 0, 0.15);
+  --selected-bg: rgba(255, 235, 0, 0.3);
+  --danger-bg: #a00000;
+  --border-strong: #fff;
+  --rule: #666;
+  --meter-off: #444;
+  --disabled: #8a8a8a;
+  --overlay-bg: rgba(0, 0, 0, 0.85);
+  --shadow: rgba(0, 0, 0, 0.9);
+  --dep: #5cc8ff;
+  --arr: #ffeb00;
+}
+/* High contrast: dark text on the yellow and white bars. */
+:root[data-ui-theme='contrast'] button.active,
+:root[data-ui-theme='contrast'] .seg button.on,
+:root[data-ui-theme='contrast'] .dd-item.active,
+:root[data-ui-theme='contrast'] .panel .title button,
+:root[data-ui-theme='contrast'] .dialog .dtitle button,
+:root[data-ui-theme='contrast'] .tutorial .ttitle,
+:root[data-ui-theme='contrast'] .tutorial .ttitle button {
+  color: #000;
+}
+:root[data-ui-theme='contrast'] .panel .title .count {
+  color: #333;
+}
+:root[data-ui-theme='contrast'] button,
+:root[data-ui-theme='contrast'] .panel {
+  border-width: 2px;
 }
 
 * {
@@ -60,9 +278,9 @@ button:hover {
   border-color: var(--accent);
 }
 button.active {
-  background: #35505a;
+  background: var(--active-bg);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--text-strong);
 }
 button:disabled {
   opacity: 0.4;
@@ -100,12 +318,12 @@ button:disabled {
 }
 .toolbar .field {
   padding: 2px 6px;
-  background: #1f272a;
+  background: var(--field-bg);
   border: 1px solid var(--panel-border);
   border-radius: 2px;
 }
 .toolbar .field b {
-  color: #fff;
+  color: var(--text-strong);
   font-weight: normal;
 }
 .toolbar .sep {
@@ -157,9 +375,9 @@ button:disabled {
 /* ------------------------------------------------------------------ floating panels */
 .panel {
   position: absolute;
-  background: rgba(30, 38, 42, 0.94);
+  background: var(--panel-bg);
   border: 1px solid var(--panel-border);
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.4);
+  box-shadow: 0 2px 10px var(--shadow);
   max-height: 45%;
   /* Never wider than the scope area: the title bar (and its collapse button) stays on the screen, the table scrolls. */
   max-width: calc(100% - 4px);
@@ -171,14 +389,14 @@ button:disabled {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: #33404a;
+  background: var(--title-bg);
   padding: 2px 6px;
   cursor: move;
   user-select: none;
   -webkit-user-select: none;
   /* The finger drags the panel - the browser must not scroll or zoom instead. */
   touch-action: none;
-  color: #e5eef2;
+  color: var(--title-text);
 }
 .panel .title .count {
   color: var(--text-dim);
@@ -209,7 +427,7 @@ button:disabled {
   border-bottom: 1px solid var(--panel-border);
   position: sticky;
   top: 0;
-  background: #222b2f;
+  background: var(--header-bg);
 }
 .panel td {
   padding: 1px 5px;
@@ -219,11 +437,11 @@ button:disabled {
   cursor: pointer;
 }
 .panel tr:hover td {
-  background: rgba(111, 227, 255, 0.08);
+  background: var(--hover-bg);
 }
 .panel tr.selected td {
-  background: rgba(111, 227, 255, 0.18);
-  color: #fff;
+  background: var(--selected-bg);
+  color: var(--text-strong);
 }
 .panel tr.other td {
   color: var(--text-dim);
@@ -236,7 +454,7 @@ button:disabled {
   color: var(--danger);
 }
 .panel td.cs {
-  color: #fff;
+  color: var(--text-strong);
 }
 .panel tr.other td.cs {
   color: var(--text-dim);
@@ -255,8 +473,8 @@ button:disabled {
   color: var(--ok);
 }
 
-/* PHX style (VATSIM Germany ground radar windows): light grey title bar, dark window, callsigns in the
-   departure / arrival colours of the tags. */
+/* PHX style (VATSIM Germany ground radar windows, EuroScope interface theme only): light grey title bar,
+   dark window. With any PHX scope style the callsigns take the departure / arrival colours of the tags. */
 body.phx .panel {
   background: rgba(24, 24, 24, 0.94);
   border-color: #4a4a4a;
@@ -281,14 +499,14 @@ body.phx .panel th {
 body.phx .panel td {
   color: rgb(250, 250, 250);
 }
-body.phx .panel.departures td.cs {
-  color: rgb(72, 184, 251);
+body.phx-tags .panel.departures td.cs {
+  color: var(--dep);
 }
-body.phx .panel.arrivals td.cs {
-  color: rgb(244, 202, 3);
+body.phx-tags .panel.arrivals td.cs {
+  color: var(--arr);
 }
-body.phx .panel tr.other td,
-body.phx .panel tr.other td.cs {
+body.phx-tags .panel tr.other td,
+body.phx-tags .panel tr.other td.cs {
   opacity: 0.55;
 }
 body.phx .panel tr.selected td {
@@ -325,7 +543,7 @@ body.phx .panel tr.selected td {
   gap: 4px;
   padding: 4px;
   border-left: 1px solid var(--panel-border);
-  background: #1c2326;
+  background: var(--sunken);
 }
 .sidebar button {
   flex: 1 1 0;
@@ -388,7 +606,7 @@ body.phx .panel tr.selected td {
   gap: 6px;
   padding: 3px 6px;
   border-top: 1px solid var(--panel-border);
-  background: #1c2326;
+  background: var(--sunken);
 }
 .cmdline .target {
   color: var(--accent);
@@ -400,7 +618,7 @@ body.phx .panel tr.selected td {
   background: transparent;
   border: none;
   outline: none;
-  color: #fff;
+  color: var(--text-strong);
   font-size: calc(13px * var(--ui-scale, 1));
   white-space: pre;
   overflow: hidden;
@@ -428,7 +646,7 @@ body.phx .panel tr.selected td {
   color: var(--danger);
 }
 button.mic.listening {
-  background: #6b2525;
+  background: var(--danger-bg);
   border-color: var(--danger);
 }
 
@@ -436,9 +654,9 @@ button.mic.listening {
 .popup {
   position: fixed;
   z-index: 50;
-  background: #262f33;
-  border: 1px solid #56636a;
-  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.55);
+  background: var(--popup-bg);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 3px 12px var(--shadow);
   min-width: 170px;
   padding: 2px 0;
   user-select: none;
@@ -457,11 +675,11 @@ button.mic.listening {
 }
 .popup .item:hover,
 .popup .item.open {
-  background: #3c5866;
-  color: #fff;
+  background: var(--open-bg);
+  color: var(--text-strong);
 }
 .popup .item.disabled {
-  color: #5f6b70;
+  color: var(--disabled);
   cursor: default;
   background: none;
 }
@@ -484,7 +702,7 @@ button.mic.listening {
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(8, 12, 14, 0.75);
+  background: var(--overlay-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -493,8 +711,8 @@ button.mic.listening {
 }
 .dialog {
   background: var(--panel);
-  border: 1px solid #56636a;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 8px 30px var(--shadow);
   width: min(560px, 100%);
   max-height: 100%;
   overflow: auto;
@@ -503,9 +721,9 @@ button.mic.listening {
   width: min(900px, 100%);
 }
 .dialog .dtitle {
-  background: #33404a;
+  background: var(--title-bg);
   padding: 6px 10px;
-  color: #fff;
+  color: var(--title-text);
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -521,7 +739,7 @@ button.mic.listening {
 }
 .dialog h2 {
   font-size: 13px;
-  color: #fff;
+  color: var(--text-strong);
   margin: 14px 0 6px;
   border-bottom: 1px solid var(--panel-border);
   padding-bottom: 3px;
@@ -563,7 +781,7 @@ button.mic.listening {
 }
 .dialog input[type='text'],
 .dialog input[type='number'] {
-  background: #1c2326;
+  background: var(--sunken);
   border: 1px solid var(--panel-border);
   padding: 4px 6px;
   width: 100%;
@@ -688,7 +906,7 @@ button.mic.listening {
 }
 .toolbar .stn.off {
   background: transparent;
-  border-color: #56636a;
+  border-color: var(--border-strong);
   border-style: dashed;
   color: var(--text-dim);
   text-decoration: line-through;
@@ -724,9 +942,9 @@ button.mic.listening {
   margin-top: 14px;
 }
 .dialog .actions .primary {
-  background: #2e5866;
+  background: var(--primary-bg);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--text-strong);
   padding: 5px 16px;
 }
 .dialog table.ref {
@@ -735,7 +953,7 @@ button.mic.listening {
 }
 .dialog table.ref td {
   padding: 3px 6px;
-  border-bottom: 1px solid #323c41;
+  border-bottom: 1px solid var(--rule);
   vertical-align: top;
 }
 .dialog table.ref td:first-child {
@@ -743,7 +961,7 @@ button.mic.listening {
   white-space: nowrap;
 }
 .dialog kbd {
-  background: #1c2326;
+  background: var(--sunken);
   border: 1px solid var(--panel-border);
   border-radius: 2px;
   padding: 0 4px;
@@ -773,7 +991,7 @@ button.mic.listening {
   gap: 10px;
   width: 100%;
   text-align: left;
-  background: #1c2326;
+  background: var(--sunken);
   border: 1px solid var(--panel-border);
   padding: 4px 8px;
 }
@@ -782,7 +1000,7 @@ button.mic.listening {
   border-color: var(--accent);
 }
 .dialog .airport-field.open {
-  background: #22343b;
+  background: var(--open-bg);
 }
 .picker {
   display: flex;
@@ -800,8 +1018,8 @@ button.mic.listening {
   max-height: calc(100vh - 32px);
   max-height: calc(100dvh - 32px);
   background: var(--panel);
-  border: 1px solid #56636a;
-  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--border-strong);
+  box-shadow: 0 8px 30px var(--shadow);
 }
 .picker-col.continents {
   width: 190px;
@@ -813,9 +1031,9 @@ button.mic.listening {
   width: 260px;
 }
 .picker-col .ptitle {
-  background: #33404a;
+  background: var(--title-bg);
   padding: 6px 10px;
-  color: #fff;
+  color: var(--title-text);
 }
 .picker-items {
   overflow-y: auto;
@@ -845,9 +1063,9 @@ button.mic.listening {
   outline: none;
 }
 .picker-item.on {
-  background: #2e5866;
+  background: var(--primary-bg);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--text-strong);
 }
 .picker-item.current {
   border-color: var(--accent);
@@ -874,7 +1092,7 @@ button.mic.listening {
 }
 .picker-item.on .pi-label,
 .dialog .airport-field .pi-label {
-  color: #fff;
+  color: var(--text-strong);
 }
 .pi-detail {
   font-size: 11px;
@@ -884,7 +1102,7 @@ button.mic.listening {
   text-overflow: ellipsis;
 }
 .picker-item.on .pi-detail {
-  color: #b9e9f5;
+  color: var(--accent-soft);
 }
 .pi-arrow {
   color: var(--text-dim);
@@ -903,7 +1121,7 @@ button.mic.listening {
 }
 .traffic i {
   width: 3px;
-  background: #46535a;
+  background: var(--meter-off);
 }
 .traffic i:nth-child(1) {
   height: 4px;
@@ -978,7 +1196,7 @@ body.mobile .picker-item {
   left: 50%;
   top: 12px;
   transform: translateX(-50%);
-  background: #5a1d1d;
+  background: var(--danger-bg);
   border: 1px solid var(--danger);
   color: #fff;
   padding: 6px 14px;
@@ -1038,7 +1256,7 @@ body.mobile .zoombar button {
   height: 46px;
   font-size: 22px;
   border-radius: 23px;
-  background: rgba(45, 54, 59, 0.92);
+  background: var(--panel-2);
 }
 body.mobile .quickbar.show {
   position: absolute;
@@ -1050,7 +1268,7 @@ body.mobile .quickbar.show {
   gap: 6px;
   align-items: center;
   z-index: 20;
-  background: rgba(38, 46, 50, 0.92);
+  background: var(--panel-bg);
   border: 1px solid var(--panel-border);
   padding: 6px;
 }
@@ -1071,7 +1289,7 @@ body.mobile .quickbar .qpos {
 /* A picked phrase: sent with SEND, together with the other picked ones. */
 body.mobile .quickbar button.picked {
   background: var(--accent);
-  color: #10181c;
+  color: var(--on-accent);
   border-color: var(--accent);
 }
 body.mobile button {
@@ -1183,7 +1401,7 @@ body.mobile .sidebar {
 .dialog .briefing code,
 .dialog table.ref code {
   color: var(--atc);
-  background: #1c2326;
+  background: var(--sunken);
   padding: 0 3px;
   border-radius: 2px;
 }
@@ -1213,13 +1431,13 @@ body.mobile .sidebar {
   align-items: center;
   gap: 10px;
   padding: 6px 0;
-  border-bottom: 1px solid #323c41;
+  border-bottom: 1px solid var(--rule);
 }
 .dialog .sysinfo {
   flex: 1;
 }
 .dialog .sysname {
-  color: #fff;
+  color: var(--text-strong);
 }
 .dialog .sysrow .sub {
   margin: 2px 0 0;
@@ -1229,7 +1447,7 @@ body.mobile .sidebar {
   height: 12px;
   border-radius: 6px;
   flex: 0 0 auto;
-  background: #55606a;
+  background: var(--meter-off);
 }
 .dialog .lamp.on {
   background: var(--ok);
@@ -1272,10 +1490,10 @@ body.mobile .sidebar {
   width: 4em;
 }
 .debrief-table td.plus {
-  color: #7fdc8a;
+  color: var(--ok);
 }
 .debrief-table td.minus {
-  color: #ff7a6b;
+  color: var(--danger);
 }
 .debrief-list {
   margin: 2px 0 8px 18px;
@@ -1302,9 +1520,9 @@ button.mic {
   max-height: 55%;
   display: flex;
   flex-direction: column;
-  background: rgba(30, 38, 42, 0.96);
+  background: var(--panel-bg);
   border: 1px solid var(--accent);
-  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 12px var(--shadow);
   z-index: 25;
 }
 .tutorial .ttitle {
@@ -1312,7 +1530,7 @@ button.mic {
   gap: 10px;
   align-items: center;
   padding: 4px 8px;
-  background: #24424c;
+  background: var(--tutorial-title);
   color: var(--accent);
   font-weight: bold;
   cursor: pointer;
@@ -1347,7 +1565,7 @@ button.mic {
   color: var(--accent);
 }
 .tutorial .texample {
-  background: #182024;
+  background: var(--sunken);
   border: 1px solid var(--panel-border);
   padding: 4px 6px;
   margin-bottom: 8px;
@@ -1368,7 +1586,7 @@ button.mic {
     box-shadow: 0 0 0 3px var(--accent);
   }
   to {
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+    box-shadow: 0 2px 12px var(--shadow);
   }
 }
 /* Mobile: above the quick-action bar, left of the zoom buttons. */
@@ -1445,9 +1663,9 @@ body.mobile .tutorial {
   border-radius: 0 2px 2px 0;
 }
 .seg button.on {
-  background: #35505a;
+  background: var(--active-bg);
   border-color: var(--accent);
-  color: #fff;
+  color: var(--text-strong);
   position: relative;
   z-index: 1;
 }
@@ -1458,7 +1676,7 @@ button.dd {
   gap: 10px;
   min-width: 140px;
   text-align: left;
-  background: #1c2326;
+  background: var(--sunken);
   padding: 4px 8px;
 }
 button.dd.open {
@@ -1474,7 +1692,7 @@ button.dd.open {
   overflow-y: auto;
   background: var(--panel);
   border: 1px solid var(--accent);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 4px 14px var(--shadow);
   padding: 2px 0;
 }
 .dd-item {
@@ -1483,8 +1701,8 @@ button.dd.open {
   white-space: nowrap;
 }
 .dd-item.active {
-  background: #35505a;
-  color: #fff;
+  background: var(--active-bg);
+  color: var(--text-strong);
 }
 .dd-item.chosen::before {
   content: '✓ ';
@@ -1508,9 +1726,9 @@ button.dd.open {
   min-width: 34px;
   text-align: center;
   font-weight: bold;
-  color: #fff;
+  color: var(--text-strong);
   border: 1px solid var(--panel-border);
-  background: #1c2326;
+  background: var(--sunken);
   padding: 3px 6px;
 }
 .stepper button {
@@ -1533,10 +1751,10 @@ button.dd.open {
 }
 .dialog .rwy-table td {
   padding: 3px 6px;
-  border-bottom: 1px solid #2f383c;
+  border-bottom: 1px solid var(--rule);
 }
 .dialog .rwy-table tr.on td.rwy {
-  color: #fff;
+  color: var(--text-strong);
   font-weight: bold;
 }
 .dialog .rwy-table tr:not(.on) td {

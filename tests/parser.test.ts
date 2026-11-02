@@ -106,6 +106,12 @@ describe('speech', () => {
       'Lufthansa five Alpha Bravo, taxi to holding point Golf one runway two five',
     );
     expect(toSpoken('Tower 118.805, goodbye')).toBe('Tower one one eight decimal eight zero five, goodbye');
+    // Runway designators, altitudes and abbreviations as they are said on the radio.
+    expect(toSpoken('runway 26R, cleared for take-off')).toBe('runway two six right, cleared for take-off');
+    expect(toSpoken('climb 5000 feet, QNH 1018')).toBe('climb five thousand feet, Q-N-H one zero one eight');
+    expect(toSpoken('passing 4500 feet')).toBe('passing four thousand five hundred feet');
+    expect(toSpoken('climb 10000 feet')).toBe('climb one zero thousand feet');
+    expect(toSpoken('cleared ILS approach runway 08L')).toBe('cleared I-L-S approach runway zero eight left');
   });
 
   it('parses questions about intersection departures', () => {

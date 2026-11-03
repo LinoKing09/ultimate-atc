@@ -28,7 +28,7 @@ npm run voice-model
 npm run dev
 ```
 
-`npm run voice-model` downloads the speech model of the own speech recogniser (vosk-model-small-en-us-0.15, about 40 MB, Apache 2.0) into `public/models/` and writes the list of words it knows next to it (`vosk-lexicon.txt`, read from the model's grammar graph). It is not committed; the GitHub Pages build runs the same script. Without it everything works, but the own speech recogniser cannot load and the app falls back to the browser's.
+`npm run voice-model` downloads the speech model of the own speech recogniser (vosk-model-small-en-us-0.15, about 40 MB, Apache 2.0) into `public/models/` and writes the list of words it knows next to it (`<model>.lexicon.txt`, read from the model's grammar graph); `npm run voice-model -- --all` also the large one (vosk-model-en-us-0.22-lgraph, about 128 MB) for the *Speech model* setting. It is not committed; the GitHub Pages build runs the same script. Without it everything works, but the own speech recogniser cannot load and the app falls back to the browser's.
 
 Open the URL Vite prints (normally `http://localhost:5173`). The page reloads automatically when you change the source code.
 
@@ -64,7 +64,7 @@ The repository contains two workflows in `.github/workflows/`:
 | Workflow     | Trigger                       | What it does                                                    |
 | ------------ | ----------------------------- | --------------------------------------------------------------- |
 | `ci.yml`     | every push and pull request   | `npm ci`, type check, tests, production build                   |
-| `pages.yml`  | push to `main`, manual run    | fetches the speech model, builds the site and publishes `dist/` to GitHub Pages |
+| `pages.yml`  | push to `main`, manual run    | fetches both speech models, builds the site and publishes `dist/` to GitHub Pages |
 
 **One-time setup:** in the repository, open **Settings -> Pages** and set **Source** to **GitHub Actions**. The `pages.yml` workflow fails until this is done. After that, every push to `main` updates the live site.
 

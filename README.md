@@ -64,7 +64,7 @@ Other scripts:
 | `npm run preview`   | Serves the production build locally                          |
 | `npm test`          | Runs the unit and scenario tests (Vitest)                     |
 | `npm run typecheck` | TypeScript type check only                                    |
-| `npm run voice-model` | Downloads the speech model of the own speech recogniser into `public/models/` (once) |
+| `npm run voice-model` | Downloads the speech model of the own speech recogniser into `public/models/` (once; `-- --all` also the large one) |
 
 The build is a fully static site. It is deployed to GitHub Pages automatically; see [Getting started](docs/getting-started.md#deploying-to-github-pages).
 
@@ -104,7 +104,7 @@ The EDDS layout (taxiways, holding points, stand numbers, aprons) was **digitise
 
 ## License
 
-The source code is released under the [MIT License](LICENSE). Airport data derived from OurAirports is public domain. The own speech recogniser uses [vosk-browser](https://github.com/ccoreilly/vosk-browser) and the speech model [vosk-model-small-en-us-0.15](https://alphacephei.com/vosk/models) by Alpha Cephei, both under the Apache License 2.0.
+The source code is released under the [MIT License](LICENSE). Airport data derived from OurAirports is public domain. The own speech recogniser uses [vosk-browser](https://github.com/ccoreilly/vosk-browser) and the speech models [vosk-model-small-en-us-0.15 and vosk-model-en-us-0.22-lgraph](https://alphacephei.com/vosk/models) by Alpha Cephei, all under the Apache License 2.0.
 
 ## Disclaimer
 

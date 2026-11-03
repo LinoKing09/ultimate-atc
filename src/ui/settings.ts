@@ -1,3 +1,4 @@
+import type { CorrectionStore } from '../core/phraseology/corrections';
 import { DEFAULT_EVENT_LEVEL, clampLevel, type Density } from '../core/levels';
 
 /**
@@ -37,6 +38,8 @@ export interface Settings {
   voiceLang: string;
   /** Speech recogniser: the own one (Vosk, in the browser, limited to the radio vocabulary) or the browser's. */
   voiceEngine: 'vosk' | 'browser';
+  /** Model of the own speech recogniser: small (about 40 MB, default) or large (about 128 MB, slower). */
+  voiceModel: 'small' | 'large';
   /**
    * Look of the scope: 'phx-night' / 'phx-day' as the VATSIM Germany EuroScope ground radar (modelled on
    * the DFS PHOENIX tower display: departures blue, arrivals yellow, PHX ground states), 'classic' the
@@ -79,6 +82,7 @@ const DEFAULTS: Settings = {
   ttsRate: 1,
   voiceLang: 'en-US',
   voiceEngine: 'vosk',
+  voiceModel: 'small',
   scopeStyle: 'phx-night',
   uiTheme: 'euroscope',
 };
@@ -118,6 +122,28 @@ export function loadSettings(): Settings {
 export function saveSettings(s: Settings): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(s));
+  } catch {
+    /* storage unavailable */
+  }
+}
+
+const CORRECTIONS_KEY = 'ultimate-atc.voice-corrections.v1';
+
+/** What the speech recogniser learnt from your corrections (core/phraseology/corrections.ts), in this browser. */
+export function loadCorrections(): CorrectionStore {
+  try {
+    const raw = localStorage.getItem(CORRECTIONS_KEY);
+    if (raw) return JSON.parse(raw) as CorrectionStore;
+  } catch {
+    /* storage unavailable */
+  }
+  return {};
+}
+
+export function saveCorrections(c: CorrectionStore): void {
+  try {
+    if (Object.keys(c).length) localStorage.setItem(CORRECTIONS_KEY, JSON.stringify(c));
+    else localStorage.removeItem(CORRECTIONS_KEY);
   } catch {
     /* storage unavailable */
   }

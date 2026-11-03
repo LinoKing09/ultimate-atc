@@ -1,29 +1,37 @@
 import type { KaldiRecognizer, Model } from 'vosk-browser';
-import { fromVosk, voskGrammar } from '../core/phraseology/voskGrammar';
+import { fromVosk, voskPhraseGrammar } from '../core/phraseology/voskGrammar';
 
 /**
  * The own speech recogniser: Vosk (Kaldi) running in the browser as WebAssembly, independent of the browser's
  * speech recognition (no Google / Apple service, offline once loaded). It is limited to a grammar of the radio
- * vocabulary of the session - it can recognise nothing but radio words. Model: vosk-model-small-en-us-0.15
+ * phrases of the session (radioPhrases: the phraseology in its order, the callsigns, holding points, stands and
+ * frequencies of the session) - it can recognise nothing but radio words, and inside a phrase only in its order. Model: vosk-model-small-en-us-0.15
  * (Apache 2.0), served with the app from models/ (npm run voice-model); loaded on the first transmission.
  *
  * Same interface as VoiceInput: start() on push-to-talk, stop() on release; onInterim while speaking, onFinal with
  * the transcript when the transmission ends.
  */
 
-const MODEL_URL = 'models/vosk-model-small-en-us-0.15.tar.gz';
-const LEXICON_URL = 'models/vosk-lexicon.txt';
+/** The speech models (npm run voice-model): the small one by default, the large one optional (settings). */
+export const VOSK_MODELS = {
+  small: { name: 'vosk-model-small-en-us-0.15', size: 'about 40 MB' },
+  large: { name: 'vosk-model-en-us-0.22-lgraph', size: 'about 128 MB' },
+} as const;
+export type VoskModelSize = keyof typeof VOSK_MODELS;
+/** Audio kept from before the key press (s). */
+const PRE_ROLL_S = 0.35;
 /** After the release the recogniser still has a little audio to finish: at most this long (ms). */
 const FINAL_RESULT_WAIT_MS = 2000;
 
 export class VoskInput {
   listening = false;
-  /** The radio vocabulary of the session (words), asked for at every transmission. */
-  vocabulary: () => Iterable<string> = () => [];
+  /** The radio phrases of the session, asked for at every transmission. */
+  phrases: () => Iterable<string> = () => [];
   private model?: Model;
   private lexicon?: Set<string>;
   private loading?: Promise<void>;
-  private failedWith?: string;
+  /** Why the model could not be loaded, and which model (another one gets its chance). */
+  private failedWith?: { size: VoskModelSize; error: string };
   private ctx?: AudioContext;
   private stream?: MediaStream;
   /** Kept referenced while the microphone is open (Safari stops a processor nobody holds). */
@@ -35,6 +43,11 @@ export class VoskInput {
   private partial = '';
   private finishTimer?: ReturnType<typeof setTimeout>;
   private finishing = false;
+  /**
+   * Audio not yet given to a recogniser: the last PRE_ROLL_S before the key press (the first word - mostly the
+   * callsign - is often spoken while the key goes down), and everything while the recogniser is being made.
+   */
+  private pending: Float32Array[] = [];
 
   constructor(
     private readonly onInterim: (text: string) => void,
@@ -50,7 +63,7 @@ export class VoskInput {
 
   /** The model could not be loaded (then the browser's recogniser takes over). */
   get failed(): string | undefined {
-    return this.failedWith;
+    return this.failedWith?.size === this.modelSize() ? this.failedWith.error : undefined;
   }
 
   /** The model is the model: the accent setting is for the browser's recogniser. */
@@ -62,19 +75,32 @@ export class VoskInput {
     this.partial = '';
   }
 
+  /** Which model to use (settings); asked at every transmission - a change loads the other model. */
+  modelSize: () => VoskModelSize = () => 'small';
+  private loadedSize?: VoskModelSize;
+
   private load(): Promise<void> {
+    const size = this.modelSize();
+    if (this.loadedSize !== size) {
+      // Another model chosen: the old one is let go (its worker ends), the new one loads.
+      this.model?.terminate();
+      this.model = undefined;
+      this.loading = undefined;
+      this.loadedSize = size;
+    }
+    const { name, size: mb } = VOSK_MODELS[size];
     this.loading ??= (async () => {
-      this.onStatus('Loading the speech model (about 40 MB, only the first time) ...');
+      this.onStatus(`Loading the speech model (${mb}, only the first time) ...`);
       const [{ createModel }, lexicon] = await Promise.all([
         import('vosk-browser'),
-        fetch(LEXICON_URL).then((r) => {
+        fetch(`models/${name}.lexicon.txt`).then((r) => {
           if (!r.ok) throw new Error(`lexicon: HTTP ${r.status}`);
           return r.text();
         }),
       ]);
       this.lexicon = new Set(lexicon.split('\n').filter(Boolean));
       // Log level -1: errors only (the worker would log every file it unpacks).
-      this.model = await createModel(new URL(MODEL_URL, document.baseURI).href, -1);
+      this.model = await createModel(new URL(`models/${name}.tar.gz`, document.baseURI).href, -1);
       this.onStatus('Speech model ready.');
     })();
     return this.loading;
@@ -89,7 +115,16 @@ export class VoskInput {
     // ScriptProcessor: deprecated, but available everywhere (also Safari on the iPad) and simple.
     const node = ctx.createScriptProcessor(4096, 1, 1);
     node.onaudioprocess = (e) => {
-      if ((this.listening || this.finishing) && this.rec) this.rec.acceptWaveform(e.inputBuffer);
+      if ((this.listening || this.finishing) && this.rec) {
+        this.rec.acceptWaveform(e.inputBuffer);
+        return;
+      }
+      // Kept: before a transmission the last PRE_ROLL_S, while the recogniser is being made all of it.
+      this.pending.push(e.inputBuffer.getChannelData(0).slice());
+      if (!this.listening) {
+        const keep = Math.max(1, Math.ceil((PRE_ROLL_S * e.inputBuffer.sampleRate) / e.inputBuffer.length));
+        if (this.pending.length > keep) this.pending.splice(0, this.pending.length - keep);
+      }
     };
     src.connect(node);
     // Connected to the output (silent) - otherwise some browsers never call onaudioprocess.
@@ -100,7 +135,7 @@ export class VoskInput {
   }
 
   start(): void {
-    if (this.listening || this.failedWith) return;
+    if (this.listening || this.failed) return;
     // The audio context belongs to the key press / tap (iOS): created or resumed before anything is awaited.
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     this.ctx ??= new Ctx();
@@ -113,9 +148,12 @@ export class VoskInput {
       try {
         await Promise.all([this.load(), this.openMic()]);
       } catch (e) {
-        this.failedWith = (e as Error).message || String(e);
+        this.failedWith = { size: this.modelSize(), error: (e as Error).message || String(e) };
+        // The next try starts from the beginning (the failed model is not kept).
+        this.loading = undefined;
+        this.loadedSize = undefined;
         this.listening = false;
-        this.onState(false, `speech model: ${this.failedWith}`);
+        this.onState(false, `speech model: ${this.failedWith.error}`);
         return;
       }
       // Released while the model was still loading: nothing was heard.
@@ -123,9 +161,9 @@ export class VoskInput {
         this.onState(false);
         return;
       }
-      const g = voskGrammar(this.vocabulary(), this.lexicon!);
+      const g = voskPhraseGrammar(this.phrases(), this.lexicon!);
       this.joins = g.joins;
-      const rec = new this.model!.KaldiRecognizer(this.ctx!.sampleRate, JSON.stringify([...g.words, '[unk]']));
+      const rec = new this.model!.KaldiRecognizer(this.ctx!.sampleRate, JSON.stringify([...g.phrases, '[unk]']));
       rec.on('partialresult', (m) => {
         if (rec !== this.rec || m.event !== 'partialresult') return;
         this.partial = m.result.partial;
@@ -138,6 +176,9 @@ export class VoskInput {
         if (this.finishing) this.finish();
         else this.interim();
       });
+      // What was said before the key press and while the recogniser was being made comes first.
+      for (const chunk of this.pending) rec.acceptWaveformFloat(chunk, this.ctx!.sampleRate);
+      this.pending = [];
       this.rec = rec;
     })();
   }

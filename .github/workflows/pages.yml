@@ -27,7 +27,7 @@ jobs:
       - run: npm ci
       - run: npm test
       # The speech model of the own speech recogniser (Vosk, Apache 2.0) is served with the site, not committed.
-      - run: npm run voice-model
+      - run: npm run voice-model -- --all
       - run: npm run build
       - uses: actions/upload-pages-artifact@v3
         with:

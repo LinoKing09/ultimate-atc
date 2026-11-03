@@ -7,6 +7,8 @@ import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
 import { BREAK_BREAK, parseTransmission } from '../core/phraseology/parser';
+import { applyCorrections, isCorrection, learnCorrection, learntCorrections, type CorrectionStore } from '../core/phraseology/corrections';
+import { radioPhrases, sessionPhraseContext } from '../core/phraseology/radioPhrases';
 import { recognitionPhrases, sessionVocabulary, snapToVocabulary, vocabularyScore, voiceVocabulary } from '../core/phraseology/vocabulary';
 import { catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
 import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, offBlockDue, sidsForDestination, suggestedSid } from '../core/delivery';
@@ -30,7 +32,7 @@ import { vehicleTel, type Vehicle } from '../core/vehicles';
 import { PopupMenu, type MenuItem } from './menu';
 import { Scope, type TagItem } from './scope';
 import { CommandInput } from './commandInput';
-import { saveSettings, type Settings } from './settings';
+import { loadCorrections, saveCorrections, saveSettings, type Settings } from './settings';
 import { showSettings } from './settingsDialog';
 import { showSystems } from './systemsDialog';
 import { PilotVoices, VoiceInput } from './voice';
@@ -71,6 +73,8 @@ interface QuickButton {
 }
 /** Keys that work as push-to-talk (held down). */
 const PTT_KEYS = new Set(['Backquote', 'ControlRight', 'Insert']);
+/** A transmission sent again changed within this time after a recognised one is a correction of it (ms). */
+const CORRECTION_WINDOW_MS = 30_000;
 /** Longest wait of the simulation for a pilot voice that reads longer than the frequency's estimate (ms). */
 const VOICE_HOLD_MS = 3000;
 /** Pilot voices (text-to-speech): the TTS button and the Voice settings. */
@@ -96,6 +100,10 @@ export class App {
   private readonly micButton: HTMLButtonElement;
   private readonly ttsButton: HTMLButtonElement;
   private sendBtn!: HTMLButtonElement;
+  /** What the speech recogniser learnt from your corrections; the last transcript put into the command line; the last sent unchanged. */
+  private readonly corrections: CorrectionStore = loadCorrections();
+  private voiceHeard?: string;
+  private voiceSent?: { text: string; at: number };
   /** Since when the simulation waits for a pilot voice to finish (0: not waiting). */
   private voiceHoldSince = 0;
   private readonly main: HTMLElement;
@@ -383,8 +391,11 @@ export class App {
       this.input.value = interim;
       this.updatePreview();
     };
-    const onFinal = (candidates: string[]) => {
+    const onFinal = (heard: string[]) => {
+      // What you corrected before, often enough: applied first (as another candidate - the parser decides).
+      const candidates = [...new Set([...heard.map((c) => applyCorrections(this.corrections, c)), ...heard])];
       const best = this.bestVoiceCandidate(candidates);
+      this.voiceHeard = best;
       this.input.value = best;
       this.updatePreview();
       if (best !== candidates[0]) this.hint(`Heard "${candidates[0]}" - using the alternative "${best}".`);
@@ -403,7 +414,8 @@ export class App {
     this.browserVoice = new VoiceInput(onInterim, onFinal, onState);
     this.browserVoice.phrases = () => recognitionPhrases(sessionVocabulary(this.sim));
     this.voskVoice = new VoskInput(onInterim, onFinal, onState, (status) => this.hint(status));
-    this.voskVoice.vocabulary = () => voiceVocabulary(sessionVocabulary(this.sim));
+    this.voskVoice.phrases = () => radioPhrases(sessionPhraseContext(this.sim));
+    this.voskVoice.modelSize = () => this.settings.voiceModel;
     if (!MIC_ENABLED) {
       this.micButton.disabled = true;
       this.micButton.title = 'Speech recognition: switched off in this version';
@@ -642,7 +654,14 @@ export class App {
 
   private openSettings(): void {
     this.menu.close();
-    showSettings(this.sim, this.settings, () => this.applySettings(), { tts: TTS_ENABLED && this.voices.supported, mic: MIC_ENABLED && this.voiceIn.supported, hidden: !TTS_ENABLED, micHidden: !MIC_ENABLED, test: () => this.voices.test('Stuttgart Ground, radio check, readability five') });
+    showSettings(this.sim, this.settings, () => this.applySettings(), { tts: TTS_ENABLED && this.voices.supported, mic: MIC_ENABLED && this.voiceIn.supported, hidden: !TTS_ENABLED, micHidden: !MIC_ENABLED,
+      corrections: {
+        list: () => learntCorrections(this.corrections),
+        forget: () => {
+          for (const k of Object.keys(this.corrections)) delete this.corrections[k];
+          saveCorrections(this.corrections);
+        },
+      }, test: () => this.voices.test('Stuttgart Ground, radio check, readability five') });
   }
 
   /** Applies the (possibly changed) settings to the running session. */
@@ -937,6 +956,7 @@ export class App {
 
   private clearInput(): void {
     this.voiceIn.discard();
+    this.voiceHeard = undefined;
     this.clearQuickSel();
     this.input.value = '';
     this.historyIdx = -1;
@@ -950,12 +970,32 @@ export class App {
     if (this.voiceIn.listening && !fromVoice) this.voiceIn.stop();
     if (!text) return;
     if (!this.transmit(text, fromVoice)) return;
+    this.learnFromTransmission(text);
     this.history.unshift(text);
     this.history = this.history.slice(0, 50);
     this.historyIdx = -1;
     this.input.value = '';
     this.updatePreview();
     this.updateSendLock();
+  }
+
+  /**
+   * Learning from your corrections: a recognised transmission edited before sending, or sent and then sent again
+   * corrected within CORRECTION_WINDOW_MS, teaches the speech recogniser the words it got wrong; one sent unchanged
+   * and not corrected counts as right.
+   */
+  private learnFromTransmission(text: string): void {
+    const now = performance.now();
+    const before = this.voiceSent;
+    this.voiceSent = undefined;
+    if (before && now - before.at < CORRECTION_WINDOW_MS && isCorrection(before.text, text)) {
+      learnCorrection(this.corrections, before.text, text);
+    } else if (before) learnCorrection(this.corrections, before.text, before.text);
+    const heard = this.voiceHeard;
+    this.voiceHeard = undefined;
+    if (heard && heard !== text) learnCorrection(this.corrections, heard, text);
+    else if (heard) this.voiceSent = { text, at: now };
+    saveCorrections(this.corrections);
   }
 
   /** Transmits (false: not sent - the frequency is waiting for a read-back). */

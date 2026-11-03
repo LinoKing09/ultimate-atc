@@ -4,7 +4,7 @@ import { voiceVocabulary } from '../src/core/phraseology/vocabulary';
 import { AIRLINES } from '../src/data/airlines';
 import { AIRPORTS } from '../src/data/airports';
 
-const LEXICON_FILE = 'public/models/vosk-lexicon.txt';
+const LEXICON_FILE = 'public/models/vosk-model-small-en-us-0.15.lexicon.txt';
 // Node's fs, loaded at run time (the project's types are those of the browser).
 const NODE_FS = 'node:fs';
 const { existsSync, readFileSync } = (await import(/* @vite-ignore */ NODE_FS)) as { existsSync(p: string): boolean; readFileSync(p: string, enc: string): string };

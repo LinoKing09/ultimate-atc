@@ -55,7 +55,9 @@ ultimate-atc/
 │   │       ├── format.ts      # commands -> canonical phraseology text
 │   │       ├── speech.ts      # telephony callsigns, phonetic spelling for TTS
 │   │       ├── vocabulary.ts  # radio vocabulary of a session, sound keys, snapping recognised words to it
-│   │       └── voskGrammar.ts # grammar of the own speech recogniser: radio words in words the Vosk model knows
+│   │       ├── radioPhrases.ts # the radio phrases of a session (grammar of the own speech recogniser)
+│   │       ├── voskGrammar.ts # radio words and phrases in words the Vosk model knows, and joining them back
+│   │       └── corrections.ts # learning the words the recogniser gets wrong from the controller's corrections
 │   ├── data/
 │   │   ├── aircraftTypes.ts   # dimensions and performance per ICAO type
 │   │   ├── airlines.ts        # operators, telephony, fleets, destinations

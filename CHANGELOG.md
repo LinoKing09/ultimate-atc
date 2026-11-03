@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Speech recognition learns from your corrections**: a recognised instruction you correct - in the command line before sending, or sent again corrected within 30 s - teaches the own and the browser's recogniser the words they keep getting wrong for your voice. A word is replaced once corrected 3 times and in at least 75 % of the times it was heard (a word that is mostly right is never replaced); stored in the browser, *Settings -> Learnt corrections* shows them and forgets them.
+- **Large speech model** (optional): *Settings -> Speech model -> Large (128 MB)*, vosk-model-en-us-0.22-lgraph, after a warning - it downloads about 128 MB and, in our tests, was not more accurate and needed several seconds per transmission.
+
+### Changed
+
+- **The own speech recogniser hears radio phrases, not just radio words**: its grammar are the radio phrases of the session - the phraseology in its order and the session's callsigns, holding points, taxiways, stands, runways, frequencies, SIDs and destinations - so inside a phrase the words come only in their order ("feet bird", "taxi two holding point" can no longer come out). Measured with 20 synthesised instructions (two voices) at Stuttgart: 20 of 20 understood exactly (with noise 19 of 20), with the word list before 12 (9), without a grammar 1 (0) - see `docs/benchmarks.md`.
+- **Nothing said is lost**: the own recogniser keeps the last 0.35 s before the key press (the callsign is often spoken while the key goes down) and everything said while its model is still loading.
+
 ## [1.7.4] - 2026-11-03
 
 ### Added

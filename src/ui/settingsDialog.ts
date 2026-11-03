@@ -23,7 +23,20 @@ const VOICE_LANGS: [string, string][] = [
  * In-game settings menu. Every change is applied immediately (via `apply`)
  * and stored in the browser.
  */
-export function showSettings(sim: Simulation, settings: Settings, apply: () => void, voice: { tts: boolean; mic: boolean; hidden?: boolean; micHidden?: boolean; test?: () => void }): void {
+export function showSettings(
+  sim: Simulation,
+  settings: Settings,
+  apply: () => void,
+  voice: {
+    tts: boolean;
+    mic: boolean;
+    hidden?: boolean;
+    micHidden?: boolean;
+    test?: () => void;
+    /** What the speech recogniser learnt from your corrections: [heard, replaced by]; forget() clears it. */
+    corrections?: { list: () => [string, string][]; forget: () => void };
+  },
+): void {
   if (document.querySelector('.overlay')) return;
   const changed = () => {
     saveSettings(settings);
@@ -63,6 +76,62 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
       changed();
     }).el;
   const pct = (v: number) => `${Math.round(v * 100)} %`;
+
+  // Model of the own speech recogniser: the large one only after a warning (download, speed).
+  const modelRow = () => {
+    const warn = h('div.model-warn');
+    warn.hidden = true;
+    const seg = segmented(
+      [
+        { value: 'small', label: 'Small (40 MB)' },
+        { value: 'large', label: 'Large (128 MB)' },
+      ],
+      settings.voiceModel,
+      (v) => {
+        if (v === 'large') {
+          seg.set('small');
+          warn.hidden = false;
+          return;
+        }
+        warn.hidden = true;
+        settings.voiceModel = v;
+        changed();
+      },
+    );
+    const yes = h('button', { type: 'button', text: 'Download 128 MB and use it' });
+    const no = h('button', { type: 'button', text: 'Cancel' });
+    yes.addEventListener('click', () => {
+      settings.voiceModel = 'large';
+      seg.set('large');
+      warn.hidden = true;
+      changed();
+    });
+    no.addEventListener('click', () => (warn.hidden = true));
+    warn.append(
+      h('div', {
+        text: 'The large model downloads about 128 MB at your next transmission (on a mobile connection too). In our tests it was not more accurate than the small one and needed several seconds per transmission - the instruction comes later; not recommended on a tablet or phone.',
+      }),
+      h('div.actions', {}, no, yes),
+    );
+    return h('div', {}, seg.el, warn);
+  };
+  // What the speech recogniser learnt from your corrections.
+  const correctionsRow = () => {
+    const c = voice.corrections!;
+    const out = h('span.val');
+    const forget = h('button', { type: 'button', text: 'Forget' });
+    const show = () => {
+      const list = c.list();
+      out.textContent = list.length ? `${list.length}: ${list.slice(0, 4).map(([a, b]) => `"${a}" -> ${b}`).join(', ')}${list.length > 4 ? ' ...' : ''}` : 'none yet';
+      forget.disabled = !list.length;
+    };
+    forget.addEventListener('click', () => {
+      c.forget();
+      show();
+    });
+    show();
+    return h('span', {}, out, ' ', forget);
+  };
 
   // Device switch: phone on the left, laptop on the right.
   const device = h('input', { type: 'range', min: '0', max: '1', step: '1', class: 'device-slider', 'aria-label': 'Device layout: mobile or PC' });
@@ -162,6 +231,10 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
                   ], (v) => (settings.voiceEngine = v)),
                   'Own: a speech recogniser in the app (Vosk), limited to the radio vocabulary - it hears only radio words; the model (about 40 MB) loads at the first transmission and then works offline. Browser: the speech recognition of Chrome, Edge or Safari (online, any English).',
                 ],
+                ['Speech model', modelRow(), 'For the own speech recogniser'],
+                ...(voice.corrections
+                  ? [['Learnt corrections', correctionsRow(), 'Words the speech recogniser keeps getting wrong for you: learnt when you correct a recognised instruction (edited before sending, or sent again corrected within 30 s), used after 3 corrections'] as [string, HTMLElement, string?]]
+                  : []),
                 ['Recognition accent', select(settings.voiceLang, VOICE_LANGS, (v) => (settings.voiceLang = v)), 'For the browser\'s speech recognition'],
               ] as [string, HTMLElement, string?][])),
           ),

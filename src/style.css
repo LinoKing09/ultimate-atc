@@ -1649,6 +1649,21 @@ body.mobile .tutorial {
 .dialog .sub.error {
   color: var(--warn);
 }
+/* Warning before the large speech model (settings). */
+.model-warn {
+  margin-top: 6px;
+  padding: 6px 8px;
+  border: 1px solid var(--warn);
+  color: var(--text);
+  max-width: 420px;
+}
+.model-warn .actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
 /* ------------------------------------------------------------------ loading screen (loading.ts) */
 .overlay.loading {
   background: var(--bg);

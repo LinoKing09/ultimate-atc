@@ -130,3 +130,29 @@ export function fromVosk(text: string, joins: [string[], string][]): string {
   }
   return out.join(' ');
 }
+
+/** The phrase grammar for Vosk: the radio phrases in words the model knows, and how to join them again. */
+export interface VoskPhraseGrammar {
+  /** Phrases in the model's words: Vosk recognises sequences of them (and of their pieces), nothing else. */
+  phrases: string[];
+  joins: [string[], string][];
+}
+
+/**
+ * Builds the grammar from radio phrases ("taxi to holding point alpha one", "lufthansa five alpha bravo"). Vosk
+ * learns from them which word may follow which: inside a phrase the order of the phraseology, between phrases
+ * anything (tested with the model: phrases are chained, pieces of them are recognised too). That restricts the
+ * recogniser far more than a list of single words, where every word may follow every other.
+ */
+export function voskPhraseGrammar(phrases: Iterable<string>, lexicon: Set<string>): VoskPhraseGrammar {
+  const list = [...new Set([...phrases].map((p) => p.toLowerCase().replace(/[^a-z' ]/g, ' ').replace(/\s+/g, ' ').trim()).filter(Boolean))];
+  const { joins } = voskGrammar(new Set(list.flatMap((p) => p.split(' '))), lexicon);
+  const said = new Map(joins.map(([parts, w]) => [w, parts.join(' ')]));
+  const out = new Set<string>();
+  for (const p of list) {
+    const words = p.split(' ').map((w) => (lexicon.has(w) ? w : said.get(w)));
+    // A phrase with a word that cannot be said at all is left out (all words of the vocabulary can, see the tests).
+    if (words.every((w) => w)) out.add(words.join(' '));
+  }
+  return { phrases: [...out], joins };
+}

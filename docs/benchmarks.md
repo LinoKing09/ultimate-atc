@@ -6,6 +6,7 @@ Every **major release** (1.0, 2.0, ...) gets a statistics section here that show
 
 - [How it is measured](#how-it-is-measured)
 - [Results by version](#results-by-version)
+- [Speech recognition](#speech-recognition)
 - [Simulated traffic](#simulated-traffic)
 - [Major release statistics](#major-release-statistics)
 
@@ -139,6 +140,19 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
 
 The first run of this benchmark found two problems that were fixed for the release: conflict resolution could send a departure on a detour across the runway (now never chosen by the AI Ground and shown last in the menu), and the AI Ground could not get out of a circle of aircraft blocking each other around a pushback.
+
+## Speech recognition
+
+How well the own speech recogniser understands instructions, measured on 2026-11-03 in Chromium (headless): 10 typical instructions at Stuttgart (push and start, taxi to a holding point via taxiways, take-off and landing clearances, hold short, a frequency change, taxi to a stand, line up, an IFR clearance with SID and squawk, give way), each spoken by two synthetic voices (Piper text-to-speech, US and British English), clean and with white noise at 10 dB signal-to-noise ratio. A transmission counts as understood when the parser gets exactly the same callsign and instructions from it as from the written instruction (after joining back and snapping to the vocabulary, as in the app).
+
+| Recogniser (model vosk-model-small-en-us-0.15) | Clean (of 20) | Noisy (of 20) |
+| ---------------------------------------------- | ------------: | ------------: |
+| No grammar (any English)                       | 1             | 0             |
+| Grammar of radio words (1.7.4)                 | 12            | 9             |
+| **Grammar of radio phrases**                   | **20**        | **19**        |
+| Radio phrases, large model (en-us-0.22-lgraph) | 18            | 15            |
+
+Typical errors of the word grammar: "feet bird" for Speedbird, "euro in" for Eurowings, "taxi two holding point", "contact tal"; the phrase grammar's one error: the SID name "kunod" heard as "hundred" in noise. The large model needed about 10 s of computing per instruction (the small one about 1 s) and loaded in about 7 s (the small one 2 s). Synthetic voices are cleaner than a real one through a laptop or tablet microphone, so real results will be lower - the comparison between the grammars is what counts.
 
 ## Simulated traffic
 

@@ -54,7 +54,8 @@ ultimate-atc/
 │   │       ├── parser.ts      # text -> callsign + commands
 │   │       ├── format.ts      # commands -> canonical phraseology text
 │   │       ├── speech.ts      # telephony callsigns, phonetic spelling for TTS
-│   │       └── vocabulary.ts  # radio vocabulary of a session, sound keys, snapping recognised words to it
+│   │       ├── vocabulary.ts  # radio vocabulary of a session, sound keys, snapping recognised words to it
+│   │       └── voskGrammar.ts # grammar of the own speech recogniser: radio words in words the Vosk model knows
 │   ├── data/
 │   │   ├── aircraftTypes.ts   # dimensions and performance per ICAO type
 │   │   ├── airlines.ts        # operators, telephony, fleets, destinations
@@ -80,7 +81,8 @@ ultimate-atc/
 │       ├── tutorialPanel.ts   # tutorial step panel on the scope
 │       ├── levelSlider.ts     # slider over named steps (dialogs)
 │       ├── labels.ts          # ground states for tags and lists (EuroScope / PHX names)
-│       ├── voice.ts           # text-to-speech and speech recognition
+│       ├── voice.ts           # text-to-speech and the browser's speech recognition
+│       ├── voskInput.ts       # the own speech recogniser (Vosk in the browser, model from public/models/)
 │       ├── settings.ts        # localStorage-backed preferences
 │       ├── sessionStore.ts    # saved sessions and the controller's totals (time on position) in localStorage
 │       ├── settingsDialog.ts  # in-game settings menu (device mode, sizes, voice, traffic)

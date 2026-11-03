@@ -4,3 +4,6 @@ dist/
 .DS_Store
 test-results/
 docs/handbook/handbook.html
+
+# Speech model (npm run voice-model; fetched by the Pages build)
+public/models/

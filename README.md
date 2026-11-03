@@ -39,7 +39,7 @@
 - **Safety nets:** collisions, runway incursions and go-arounds are detected and counted against your score.
 - **Voice** (see the [user guide](docs/user-guide.md#9-voice)):
   - Pilots speak their transmissions (`TTS`: text-to-speech, each pilot with their own voice; runways, altitudes and designators as they are said on the radio).
-  - You talk to them with push-to-talk speech recognition (`MIC` next to `TTS`, or a push-to-talk key; Chrome, Edge, Safari) once it comes back. It is built for **voice-only operation**: the best of several recognition alternatives is used, callsigns are matched even when slightly misrecognised, typical recognition errors are corrected, and pilots stay quiet while you transmit.
+  - You talk to them with push-to-talk speech recognition (`MIC` next to `TTS`, or a push-to-talk key) - by default with an **own speech recogniser** running in the browser (Vosk, offline, limited to the radio vocabulary: it hears only radio words), or the browser's (Chrome, Edge, Safari) once it comes back. It is built for **voice-only operation**: the best of several recognition alternatives is used, callsigns are matched even when slightly misrecognised, typical recognition errors are corrected, and pilots stay quiet while you transmit.
 - **Tutorials:** a guided first session for each position (Delivery, Ground, Tower): a fixed traffic situation, a panel that explains each step and shows the instruction, *Show me* puts it into the command line. See [Tutorials](docs/tutorials.md).
 - **Training scenarios:** a [scenario builder](docs/scenarios.md) creates shareable scenario codes (and links) for what you want to train: traffic density, departure rush ... arrival rush and the share of heavies on five-step sliders, a fixed runway, a start time with Stuttgart's **night flying restrictions**, **closed taxiways** (construction works), **de-icing** (winter: every departure via the de-icing pads DP1-DP4), and emergencies, rejected take-offs, a wind shift or a **thunderstorm** (gusts, windshear go-arounds, departure stop) at chosen minutes. The same code always gives the same session.
 
@@ -51,7 +51,8 @@ You need [Node.js](https://nodejs.org/) 20 or newer.
 git clone https://github.com/linoking09/ultimate-atc.git
 cd ultimate-atc
 npm install
-npm run dev        # open the printed URL (default http://localhost:5173)
+npm run voice-model   # once: the speech model for the microphone (about 40 MB, not committed)
+npm run dev           # open the printed URL (default http://localhost:5173)
 ```
 
 Other scripts:
@@ -63,6 +64,7 @@ Other scripts:
 | `npm run preview`   | Serves the production build locally                          |
 | `npm test`          | Runs the unit and scenario tests (Vitest)                     |
 | `npm run typecheck` | TypeScript type check only                                    |
+| `npm run voice-model` | Downloads the speech model of the own speech recogniser into `public/models/` (once) |
 
 The build is a fully static site. It is deployed to GitHub Pages automatically; see [Getting started](docs/getting-started.md#deploying-to-github-pages).
 
@@ -102,7 +104,7 @@ The EDDS layout (taxiways, holding points, stand numbers, aprons) was **digitise
 
 ## License
 
-The source code is released under the [MIT License](LICENSE). Airport data derived from OurAirports is public domain.
+The source code is released under the [MIT License](LICENSE). Airport data derived from OurAirports is public domain. The own speech recogniser uses [vosk-browser](https://github.com/ccoreilly/vosk-browser) and the speech model [vosk-model-small-en-us-0.15](https://alphacephei.com/vosk/models) by Alpha Cephei, both under the Apache License 2.0.
 
 ## Disclaimer
 

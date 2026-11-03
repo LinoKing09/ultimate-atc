@@ -481,7 +481,7 @@ const KEYS: [string, string][] = [
   ['SAVE (toolbar)', 'Save the session (or download it as a file); continue it with "Saved sessions" or "Load file..." in the Connect dialog. Also kept automatically as the Autosave. ON 0:42:10 next to the clock is your time on position.'],
   ['DISCONNECT (toolbar)', 'Debriefing of the session (what earned and what cost points, answer times, incidents, advice), then continue or end the session'],
   ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL and the ILS (localizer, glide path); switch them on or off. A runway without an ILS (Sylt 14) is always flown as an RNP approach'],
-  ['MIC (hold) / ^ ` / Right Ctrl / Insert (hold)', 'Push-to-talk: speak the instruction, it is sent when you release (SETTINGS > Voice)'],
+  ['MIC (hold) / ^ ` / Right Ctrl / Insert (hold)', 'Push-to-talk: speak the instruction, it is sent when you release. The own speech recogniser hears only radio words and works offline (the model loads at the first transmission); SETTINGS > Voice > Speech recognition'],
   ['break break ...', 'After an instruction SEND is locked until the read-back has come (at most 5 s); "break break" in front of a transmission cuts in anyway'],
   ['TTS (toolbar)', 'Pilot voices: the pilots read their transmissions aloud (volume, speed and a test in SETTINGS > Voice)'],
   ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, scope style, interface theme, traffic density, special events'],

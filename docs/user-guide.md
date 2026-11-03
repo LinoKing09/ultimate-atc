@@ -512,6 +512,11 @@ On the **iPad** (and iPhone) TTS is off until you switch it on (in mobile mode t
 
 ### You speaking (speech recognition)
 
+**Two speech recognisers** (*Settings -> Speech recognition*):
+
+- **Own (offline)** - the default: a speech recogniser running in the app itself (Vosk, WebAssembly), not the browser's. It is limited to the **radio vocabulary** of the session - the phraseology the parser understands, the phonetic alphabet, numbers, and the airline names, stations, SIDs and destinations of the traffic - so it can recognise **nothing but radio words**: "texi" or "holding paint" cannot come out. Words its model does not know are said with words it knows and joined again (Eurowings = "euro wings", QNH = "q n h", CTOT = "see tot", Juliett = "juliet"). The model (about 40 MB) loads at your first transmission (*Loading the speech model ...*, a few seconds) and then works offline; the audio never leaves your device. The microphone stays open after the first transmission (the browser asks once). English (US) model; the *Recognition accent* setting does not apply. If the model cannot be loaded, the browser's recogniser takes over.
+- **Browser** - the speech recognition of Chrome, Edge or Safari (online, any English, the accent of the settings).
+
 Hold a push-to-talk key and speak your instruction: the key left of `1` (`^` on German, `` ` `` on US keyboards), **Right Ctrl** or **Insert**. On a touch screen **hold MIC** while you speak (release ends the transmission, like a push-to-talk key), or tap MIC once to start and tap again to stop. Safari (iPad) ends its recognition at every short pause; the simulator restarts it at once and keeps everything you said until you release or tap MIC again (at most 60 s). For example: *"Lufthansa five alpha bravo, taxi to holding point golf one via november golf"*. The recognised text appears in the command line while you speak and is transmitted when you release the key.
 
 The goal is to work **by voice only**. Several things help with recognition errors:

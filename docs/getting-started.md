@@ -24,8 +24,11 @@ Requirements:
 git clone https://github.com/linoking09/ultimate-atc.git
 cd ultimate-atc
 npm install
+npm run voice-model
 npm run dev
 ```
+
+`npm run voice-model` downloads the speech model of the own speech recogniser (vosk-model-small-en-us-0.15, about 40 MB, Apache 2.0) into `public/models/` and writes the list of words it knows next to it (`vosk-lexicon.txt`, read from the model's grammar graph). It is not committed; the GitHub Pages build runs the same script. Without it everything works, but the own speech recogniser cannot load and the app falls back to the browser's.
 
 Open the URL Vite prints (normally `http://localhost:5173`). The page reloads automatically when you change the source code.
 
@@ -61,12 +64,12 @@ The repository contains two workflows in `.github/workflows/`:
 | Workflow     | Trigger                       | What it does                                                    |
 | ------------ | ----------------------------- | --------------------------------------------------------------- |
 | `ci.yml`     | every push and pull request   | `npm ci`, type check, tests, production build                   |
-| `pages.yml`  | push to `main`, manual run    | builds the site and publishes `dist/` to GitHub Pages           |
+| `pages.yml`  | push to `main`, manual run    | fetches the speech model, builds the site and publishes `dist/` to GitHub Pages |
 
 **One-time setup:** in the repository, open **Settings -> Pages** and set **Source** to **GitHub Actions**. The `pages.yml` workflow fails until this is done. After that, every push to `main` updates the live site.
 
 ## Browser notes
 
 - **Text-to-speech** (TTS button) uses the browser's built-in voices. The available voices depend on the operating system. English voices are preferred when installed.
-- **Speech recognition** (MIC button, or hold the key left of `1`, which is `^` on German keyboards and `` ` `` on US keyboards) uses the Web Speech API. Chrome sends the audio to Google's speech service for recognition. If you don't want that, don't use the microphone; everything can be typed.
+- **Speech recognition** (MIC button, or hold the key left of `1`, which is `^` on German keyboards and `` ` `` on US keyboards) uses the **own speech recogniser** by default: Vosk (Kaldi as WebAssembly) in the browser, with the model served by the site - the audio never leaves the device, and after the first load (about 40 MB, cached by the browser) it works offline. It needs WebAssembly, Web Workers and microphone access (all current browsers, also Safari on the iPad). In the settings you can switch to the browser's speech recognition (Web Speech API; Chrome sends the audio to Google's speech service). The `npm audit` warning about `uuid` (a dependency of vosk-browser) concerns uuid v3/v5/v6 with a given buffer; vosk-browser only creates v4 ids.
 - **Settings** (last airport, traffic density, special events, TTS on/off, route display) are stored in your browser's `localStorage`. If storage is blocked, for example in some private-browsing modes, the app still works with default settings.

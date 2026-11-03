@@ -154,7 +154,15 @@ export function showSettings(sim: Simulation, settings: Settings, apply: () => v
               ? []
               : ([
                 ['Send voice automatically', check('voiceAutoSend', !voice.mic), 'Transmit the recognised instruction as soon as you release push-to-talk'],
-                ['Recognition accent', select(settings.voiceLang, VOICE_LANGS, (v) => (settings.voiceLang = v))],
+                [
+                  'Speech recognition',
+                  select(settings.voiceEngine, [
+                    ['vosk', 'Own (offline)'],
+                    ['browser', 'Browser'],
+                  ], (v) => (settings.voiceEngine = v)),
+                  'Own: a speech recogniser in the app (Vosk), limited to the radio vocabulary - it hears only radio words; the model (about 40 MB) loads at the first transmission and then works offline. Browser: the speech recognition of Chrome, Edge or Safari (online, any English).',
+                ],
+                ['Recognition accent', select(settings.voiceLang, VOICE_LANGS, (v) => (settings.voiceLang = v)), 'For the browser\'s speech recognition'],
               ] as [string, HTMLElement, string?][])),
           ),
           ]),

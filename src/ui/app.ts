@@ -34,6 +34,7 @@ import { saveSettings, type Settings } from './settings';
 import { showSettings } from './settingsDialog';
 import { showSystems } from './systemsDialog';
 import { PilotVoices, VoiceInput } from './voice';
+import { VoskInput } from './voskInput';
 import { showDebrief } from './debriefDialog';
 
 const SPEEDS = [1, 2, 4, 8];
@@ -129,7 +130,9 @@ export class App {
   private densitySetting: Settings['density'];
   private eventsSetting: number;
   private readonly voices = new PilotVoices();
-  private readonly voiceIn: VoiceInput;
+  /** The browser's speech recognition and the own one (Vosk); `voiceIn` is the one in use. */
+  private readonly browserVoice: VoiceInput;
+  private readonly voskVoice: VoskInput;
 
   /** Your time on position in this session: real seconds while the simulation runs (not paused, page visible). */
   private controlSeconds = 0;
@@ -376,31 +379,35 @@ export class App {
     this.setTts(TTS_ENABLED && settings.tts && this.voices.supported);
     if (!this.voices.supported) this.ttsButton.disabled = true;
     if (!TTS_ENABLED) this.ttsButton.style.display = 'none';
-    this.voiceIn = new VoiceInput(
-      (interim) => {
-        this.input.value = interim;
-        this.updatePreview();
-      },
-      (candidates) => {
-        const best = this.bestVoiceCandidate(candidates);
-        this.input.value = best;
-        this.updatePreview();
-        if (best !== candidates[0]) this.hint(`Heard "${candidates[0]}" - using the alternative "${best}".`);
-        if (this.settings.voiceAutoSend) this.submit(true);
-      },
-      (listening, error) => {
-        this.micButton.classList.toggle('listening', listening);
-        // Pilots stop talking while you transmit, so the microphone doesn't pick them up.
-        if (listening) this.voices.hold();
-        else this.voices.release();
-        if (error && error !== 'aborted' && error !== 'no-speech') this.hint(`Speech recognition error: ${error}`);
-      },
-    );
-    this.voiceIn.phrases = () => recognitionPhrases(sessionVocabulary(this.sim));
+    const onInterim = (interim: string) => {
+      this.input.value = interim;
+      this.updatePreview();
+    };
+    const onFinal = (candidates: string[]) => {
+      const best = this.bestVoiceCandidate(candidates);
+      this.input.value = best;
+      this.updatePreview();
+      if (best !== candidates[0]) this.hint(`Heard "${candidates[0]}" - using the alternative "${best}".`);
+      if (this.settings.voiceAutoSend) this.submit(true);
+    };
+    const onState = (listening: boolean, error?: string) => {
+      this.micButton.classList.toggle('listening', listening);
+      // Pilots stop talking while you transmit, so the microphone doesn't pick them up.
+      if (listening) this.voices.hold();
+      else this.voices.release();
+      if (error && error !== 'aborted' && error !== 'no-speech') {
+        const fallback = this.voskVoice.failed && this.browserVoice.supported ? ' - using the browser\'s speech recognition instead' : '';
+        this.hint(`Speech recognition error: ${error}${fallback}`);
+      }
+    };
+    this.browserVoice = new VoiceInput(onInterim, onFinal, onState);
+    this.browserVoice.phrases = () => recognitionPhrases(sessionVocabulary(this.sim));
+    this.voskVoice = new VoskInput(onInterim, onFinal, onState, (status) => this.hint(status));
+    this.voskVoice.vocabulary = () => voiceVocabulary(sessionVocabulary(this.sim));
     if (!MIC_ENABLED) {
       this.micButton.disabled = true;
-      this.micButton.title = 'Speech recognition: switched off in this version (coming back after the tests on the iPad)';
-    } else if (!this.voiceIn.supported) {
+      this.micButton.title = 'Speech recognition: switched off in this version';
+    } else if (!this.voskVoice.supported && !this.browserVoice.supported) {
       this.micButton.disabled = true;
       this.micButton.title = 'Speech recognition is not supported by this browser (try Chrome or Edge)';
     }
@@ -667,7 +674,7 @@ export class App {
     this.voices.volume = s.ttsVolume;
     this.voices.rate = s.ttsRate;
     this.voices.radioNoise = s.radioNoise;
-    this.voiceIn.lang = s.voiceLang;
+    this.browserVoice.lang = s.voiceLang;
     if (s.density !== this.densitySetting) this.act({ k: 'density', density: (this.densitySetting = s.density) });
     if (s.eventLevel !== this.eventsSetting) this.act({ k: 'eventLevel', level: (this.eventsSetting = s.eventLevel) });
     this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : `Type an instruction, e.g. "DLH5AB ${this.exampleInstruction()}" - F1 for help`;
@@ -1113,6 +1120,15 @@ export class App {
   }
 
   /** Picks the speech recognition alternative that makes the most sense as an instruction. */
+  /**
+   * The speech recogniser in use: the own one (Vosk) by default, the browser's when chosen in the settings, or when
+   * the own one is not supported or its model could not be loaded.
+   */
+  private get voiceIn(): VoiceInput | VoskInput {
+    const vosk = this.settings.voiceEngine === 'vosk' && this.voskVoice.supported && !this.voskVoice.failed;
+    return vosk || !this.browserVoice.supported ? this.voskVoice : this.browserVoice;
+  }
+
   private bestVoiceCandidate(candidates: string[]): string {
     const callsigns = this.sim.radioCallsigns;
     // Each alternative as heard, and with the words that are no radio words replaced by the radio words that sound

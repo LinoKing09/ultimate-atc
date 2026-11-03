@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Own speech recogniser**: speech recognition no longer needs the browser's (Google / Apple) - by default it runs in the app itself: **Vosk** (Kaldi as WebAssembly, vosk-browser) with the English model vosk-model-small-en-us-0.15 (Apache 2.0), served with the site. It is limited to the **radio vocabulary** of the session as its grammar, so it can recognise nothing but radio words; radio words its model does not know are said with words it knows and joined again (Eurowings = "euro wings", QNH = "q n h", CTOT = "see tot"). The model (about 40 MB) loads at the first transmission and then works offline; the audio stays on the device. *Settings -> Speech recognition*: **Own (offline)** or **Browser**; if the model cannot be loaded, the browser's recogniser takes over. `npm run voice-model` downloads the model for development; the GitHub Pages build fetches it.
+
 ### Changed
 
 - **Speech recognition is back on**: `MIC` (in the toolbar next to `TTS`; hold it, or tap to start and again to stop) and the push-to-talk keys (`^` / `` ` ``, Right Ctrl, Insert); *Send voice automatically* and *Recognition accent* are in the settings again.

@@ -33,8 +33,10 @@ export interface Settings {
   tagDetail: 'compact' | 'full';
   /** Speaking rate of the pilot voices (1 = normal). */
   ttsRate: number;
-  /** Language/accent the speech recogniser listens for. */
+  /** Language/accent the speech recogniser listens for (the browser's). */
   voiceLang: string;
+  /** Speech recogniser: the own one (Vosk, in the browser, limited to the radio vocabulary) or the browser's. */
+  voiceEngine: 'vosk' | 'browser';
   /**
    * Look of the scope: 'phx-night' / 'phx-day' as the VATSIM Germany EuroScope ground radar (modelled on
    * the DFS PHOENIX tower display: departures blue, arrivals yellow, PHX ground states), 'classic' the
@@ -76,6 +78,7 @@ const DEFAULTS: Settings = {
   tagDetail: 'compact',
   ttsRate: 1,
   voiceLang: 'en-US',
+  voiceEngine: 'vosk',
   scopeStyle: 'phx-night',
   uiTheme: 'euroscope',
 };

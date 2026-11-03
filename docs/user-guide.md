@@ -85,7 +85,7 @@ The yellow notice shows how accurate the airport data is. Press **Connect** to s
 | `1x 2x 4x 8x`         | Simulation rate. Pilots and Tower run faster too; text-to-speech gets slightly faster.          |
 | `TTS`                 | Pilots read their transmissions aloud (text-to-speech), see [Voice](#9-voice). |
 | `ULTIMATE ATC v1.7.2` (example) | The name and the version of the simulator (also on the start screen and in the help window). |
-| `MIC`                 | Push-to-talk speech recognition. *Greyed out in this version, see [Voice](#9-voice).* |
+| `MIC`                 | Push-to-talk speech recognition: hold it while you speak, or tap to start and again to stop - see [Voice](#9-voice). |
 | `ROUTES`              | Shows the cleared taxi routes of all aircraft on your frequency. The selected aircraft's route is always shown. |
 | `ROT`                 | Rotates the scope: the main runway **horizontal** like the aerodrome chart (default; Stuttgart 07 on the left, Sylt 14) or north-up. |
 | `BRIEFING`            | Opens the [airport briefing](#airport-briefing).                                               |
@@ -503,7 +503,6 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 
 ## 9. Voice
 
-> **Speech recognition is switched off in this version**: `MIC` (in the toolbar next to `TTS`) is greyed out and the recognition settings are hidden until it has been tested on the iPad. The pilot voices (`TTS`) work.
 
 ### Pilots speaking (TTS)
 

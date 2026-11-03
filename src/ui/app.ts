@@ -74,11 +74,8 @@ const PTT_KEYS = new Set(['Backquote', 'ControlRight', 'Insert']);
 const VOICE_HOLD_MS = 3000;
 /** Pilot voices (text-to-speech): the TTS button and the Voice settings. */
 const TTS_ENABLED = true;
-/**
- * Speech recognition (MIC, push-to-talk keys) and its settings. Switched off for now (MIC greyed out, the
- * recognition settings hidden) until it has been tested on the iPad; the code stays.
- */
-const MIC_ENABLED = false;
+/** Speech recognition (MIC, push-to-talk keys) and its settings; false greys MIC out and hides the settings. */
+const MIC_ENABLED = true;
 
 /**
  * The controller client: wires the simulation to the scope, the traffic

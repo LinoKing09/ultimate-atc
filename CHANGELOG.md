@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- **Speech recognition is back on**: `MIC` (in the toolbar next to `TTS`; hold it, or tap to start and again to stop) and the push-to-talk keys (`^` / `` ` ``, Right Ctrl, Insert); *Send voice automatically* and *Recognition accent* are in the settings again.
 - **Speech recognition knows the radio vocabulary**: every recognised word that is no word of the radio is replaced by the radio word that sounds most like it (a sound key in the manner of Metaphone: `texi` -> taxi, `charly` -> charlie, `holding paint` -> holding point, two words for one: `a proved` -> approved). The vocabulary is the phraseology the parser understands, the phonetic alphabet and numbers, and from the session the airline radio names, stations, SIDs, destinations and taxiway words - `cleared to Frankfurt` stays. Of the recogniser's alternatives, as heard and as snapped, the one with the most radio words that the parser understands best is used. Where the browser supports contextual biasing (newer Chrome, `SpeechRecognitionPhrase`), the recogniser is told the radio phrases and names to expect. New phrase fixes: `clear for take of` -> cleared for take-off, `line up and weight`, `whole short of`, `clear to land`. (`MIC` stays greyed out until speech recognition is switched on again.)
 
 ## [1.7.3] - 2026-11-02

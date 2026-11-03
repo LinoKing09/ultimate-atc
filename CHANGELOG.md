@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.7.4] - 2026-11-03
+
 ### Added
 
 - **Loading screen** after Connect: the airport, your positions and what is being prepared, with a spinner that keeps turning and, for a take-over start, a progress bar (*Taking over the traffic ... 40 %*) - München with traffic in progress took about 3-4 s with no sign of life. The 20 minutes of the take-over now run in pieces of 60 s (the same result); tutorials and restored sessions use the same screen.

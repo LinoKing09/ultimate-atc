@@ -82,6 +82,7 @@ ultimate-atc/
 │       ├── levelSlider.ts     # slider over named steps (dialogs)
 │       ├── labels.ts          # ground states for tags and lists (EuroScope / PHX names)
 │       ├── voice.ts           # text-to-speech and the browser's speech recognition
+│       ├── loading.ts         # loading screen between Connect and the scope (steps, progress bar)
 │       ├── voskInput.ts       # the own speech recogniser (Vosk in the browser, model from public/models/)
 │       ├── settings.ts        # localStorage-backed preferences
 │       ├── sessionStore.ts    # saved sessions and the controller's totals (time on position) in localStorage

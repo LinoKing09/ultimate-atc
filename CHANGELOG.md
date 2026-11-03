@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Loading screen** after Connect: the airport, your positions and what is being prepared, with a spinner that keeps turning and, for a take-over start, a progress bar (*Taking over the traffic ... 40 %*) - München with traffic in progress took about 3-4 s with no sign of life. The 20 minutes of the take-over now run in pieces of 60 s (the same result); tutorials and restored sessions use the same screen.
 - **Own speech recogniser**: speech recognition no longer needs the browser's (Google / Apple) - by default it runs in the app itself: **Vosk** (Kaldi as WebAssembly, vosk-browser) with the English model vosk-model-small-en-us-0.15 (Apache 2.0), served with the site. It is limited to the **radio vocabulary** of the session as its grammar, so it can recognise nothing but radio words; radio words its model does not know are said with words it knows and joined again (Eurowings = "euro wings", QNH = "q n h", CTOT = "see tot"). The model (about 40 MB) loads at the first transmission and then works offline; the audio stays on the device. *Settings -> Speech recognition*: **Own (offline)** or **Browser**; if the model cannot be loaded, the browser's recogniser takes over. `npm run voice-model` downloads the model for development; the GitHub Pages build fetches it.
 
 ### Changed

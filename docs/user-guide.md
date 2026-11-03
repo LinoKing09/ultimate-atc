@@ -43,6 +43,8 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 
 There is no runway selection: the session starts with a random wind, and the **runway in use is the one with the most headwind** (runway 25 at EDDS unless the tailwind on it is above 3 kt; at Leipzig/Halle both parallel runways of that direction). The wind changes during the session with the weather (a new METAR every 30 minutes); when the tailwind on the runway in use grows above 5 kt, the METAR message suggests a runway change. You change the runway, wind, QNH and ATIS letter during the session in the [ATIS editor](#atis-editor).
 
+After **Connect** a **loading screen** shows the airport, your positions and what is being prepared (*Preparing the airport and the traffic*, *Taking over the traffic ... 40 %* with a progress bar for a take-over start, *Drawing the aerodrome chart*) - a large airport with traffic in progress takes a few seconds (München: about 2 s on a PC, longer on a tablet). Tutorials and restored sessions show it too (*Rebuilding the session from its start ... %*).
+
 Below, once you have controlled for a minute, your **totals** over all sessions in this browser: `Your time on position: 12 h 05 min in 8 sessions (15 h 40 min of traffic)`.
 
 ### Saving sessions

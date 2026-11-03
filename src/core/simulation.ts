@@ -77,6 +77,11 @@ export interface SimConfig {
    * HANDOVER_S first, so aircraft are already taxiing, holding, landing and pushing back.
    */
   start?: 'empty' | 'handover';
+  /**
+   * 'handover' start: do not run the HANDOVER_S in the constructor - the caller runs them with takeOverAsync()
+   * (the browser shows a loading screen meanwhile). The result is the same.
+   */
+  deferTakeOver?: boolean;
 }
 
 /** How long the simulator works the airport before you take over ('handover' start), seconds. */
@@ -370,7 +375,27 @@ export class Simulation {
     this.scenarioPending = (config.scenario?.events ?? []).map((e) => ({ ...e })).sort((a, b) => a.atMin - b.atMin);
 
     if (config.generateTraffic !== false) this.traffic.populateInitial();
-    if (config.start === 'handover' && config.generateTraffic !== false) this.takeOver();
+    if (config.start === 'handover' && config.generateTraffic !== false) {
+      this.takeOverPending = true;
+      if (!config.deferTakeOver) this.takeOver();
+    }
+  }
+
+  /** A 'handover' start whose takeover (takeOverAsync) has not run yet. */
+  takeOverPending = false;
+
+  /**
+   * The takeover of a 'handover' start in pieces (deferTakeOver): after every `chunkS` simulated seconds `progress`
+   * is told how far it is (0 ... 1) and awaited - the browser can draw a loading screen. Same ticks as takeOver().
+   */
+  async takeOverAsync(progress: (done: number) => Promise<void>, chunkS = 60): Promise<void> {
+    if (!this.takeOverPending) return;
+    const staffed = this.takeOverBegin();
+    for (let t = 0; t < HANDOVER_S; t++) {
+      this.tick(1);
+      if ((t + 1) % chunkS === 0) await progress((t + 1) / HANDOVER_S);
+    }
+    this.takeOverEnd(staffed);
   }
 
   /**
@@ -379,10 +404,21 @@ export class Simulation {
    * there; scheduled scenario events are shifted by the same time.
    */
   private takeOver(): void {
+    const staffed = this.takeOverBegin();
+    for (let t = 0; t < HANDOVER_S; t++) this.tick(1);
+    this.takeOverEnd(staffed);
+  }
+
+  /** The simulator works every position until the takeover: returns the positions you staff. */
+  private takeOverBegin(): StationType[] {
     const staffed = [...this.userStations];
     this.userStations.clear();
     for (const e of this.scenarioPending) e.atMin += HANDOVER_S / 60;
-    for (let t = 0; t < HANDOVER_S; t++) this.tick(1);
+    return staffed;
+  }
+
+  private takeOverEnd(staffed: StationType[]): void {
+    this.takeOverPending = false;
     for (const st of staffed) this.userStations.add(st);
     this.cleanHandover();
     this.sessionStart = this.time;

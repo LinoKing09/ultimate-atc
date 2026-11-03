@@ -55,4 +55,23 @@ describe('taking over from another controller', () => {
     expect(sim.time).toBe(0);
     expect(sim.aircraft.some((a) => a.onGround && a.phase === 'taxi')).toBe(false);
   });
+
+  it('takes over in pieces (loading screen) with exactly the same result', async () => {
+    const config = { airport: EDDS, position: 'GND' as const, runway: '25', density: 'medium' as const, seed: 5, start: 'handover' as const, events: false };
+    const direct = new Simulation(config);
+    const deferred = new Simulation({ ...config, deferTakeOver: true });
+    expect(deferred.takeOverPending).toBe(true);
+    const steps: number[] = [];
+    await deferred.takeOverAsync(async (f) => {
+      steps.push(f);
+    });
+    expect(deferred.takeOverPending).toBe(false);
+    expect(steps.at(-1)).toBe(1);
+    expect(steps.length).toBe(20);
+    const picture = (s: Simulation) => s.aircraft.map((a) => `${a.callsign} ${a.phase} ${a.pos.x.toFixed(3)},${a.pos.y.toFixed(3)} ${a.frequency} ${a.request}`).join('\n');
+    expect(picture(deferred)).toBe(picture(direct));
+    expect(deferred.time).toBe(direct.time);
+    expect(deferred.messages.map((m) => m.text)).toEqual(direct.messages.map((m) => m.text));
+  });
 });
+

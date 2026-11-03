@@ -1649,8 +1649,70 @@ body.mobile .tutorial {
 .dialog .sub.error {
   color: var(--warn);
 }
-.dialog.restoring {
-  min-width: 280px;
+/* ------------------------------------------------------------------ loading screen (loading.ts) */
+.overlay.loading {
+  background: var(--bg);
+}
+.dialog.loading-box {
+  width: min(420px, 100%);
+  text-align: center;
+}
+.dialog.loading-box .dbody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 26px 22px 22px;
+}
+/* A radar sweep: a transform animation keeps turning while the page is busy computing. */
+.loading .spinner {
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  border: 3px solid var(--panel-border);
+  border-top-color: var(--accent);
+  animation: loading-spin 0.9s linear infinite;
+  will-change: transform;
+}
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .loading .spinner {
+    animation: loading-pulse 1.6s ease-in-out infinite;
+  }
+  @keyframes loading-pulse {
+    50% {
+      opacity: 0.35;
+    }
+  }
+}
+.loading .ltitle {
+  color: var(--accent);
+  font-weight: bold;
+  font-size: calc(14px * var(--ui-scale, 1));
+  letter-spacing: 1px;
+}
+.loading .lsub {
+  color: var(--text-dim);
+}
+.loading .lstep {
+  min-height: 1.4em;
+}
+.loading .lbar {
+  width: 100%;
+  height: 6px;
+  background: var(--sunken);
+  border: 1px solid var(--panel-border);
+}
+.loading .lbar i {
+  display: block;
+  height: 100%;
+  width: 0;
+  background: var(--accent);
+  transition: width 0.15s linear;
 }
 
 /* ------------------------------------------------------------------ own selection controls (pickers.ts) */

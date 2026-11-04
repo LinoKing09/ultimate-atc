@@ -23,12 +23,15 @@ describe('pilot voices', () => {
     expect(v('Glocken', 'com.apple.speech.synthesis.voice.Bells')).toBe(false);
     expect(v('Hysterisch', 'com.apple.speech.synthesis.voice.Hysterical')).toBe(false);
     expect(v('Gute Nachrichten', 'com.apple.speech.synthesis.voice.GoodNews')).toBe(false);
-    expect(v('Oma', 'com.apple.eloquence.en-US.Grandma')).toBe(false);
+    // The Eloquence voices are normal voices (on many iPads the only English ones installed): kept.
+    expect(v('Oma', 'com.apple.eloquence.en-US.Grandma')).toBe(true);
+    expect(v('Eddy', 'com.apple.eloquence.en-US.Eddy')).toBe(true);
+    expect(v('Fred', 'com.apple.speech.synthesis.voice.Fred')).toBe(true);
     // And by the name where the identifier says nothing.
     expect(v('Bells', 'Bells')).toBe(false);
     expect(v('Good News', 'x')).toBe(false);
     expect(v('Cellos', 'x')).toBe(false);
     expect(v('Thomas', 'com.apple.voice.compact.fr-FR.Thomas')).toBe(true);
-    expect(v('Oma', 'x')).toBe(false);
+    expect(v('Orgel', 'x')).toBe(false);
   });
 });

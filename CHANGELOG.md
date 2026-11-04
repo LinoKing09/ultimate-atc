@@ -17,6 +17,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- **iPad: the pilot voices were silent** (since the voices that sang and laughed were left out): the filter also left out Apple's Eloquence voices (Eddy, Flo, Reed, Sandy, Shelley, Rocko, Grandma, Grandpa) - normal voices, and on many iPads the only English ones installed - so a voice that was not installed was chosen, and iOS stays silent then. Now only the effect voices are left out; on iOS only installed voices are used, else the system's default voice; and a voice that has not started speaking after 2.5 s is left out for the session and the text is spoken by the default voice. *Settings -> Pilot voices -> Test* now shows what happened: which voice, how many are usable, whether it started.
 - **iPad: no pilot voices, only the radio noise** (also on the *Test* button): Safari mutes speech synthesis while the page plays audio of its own. On iPad and iPhone the radio noise is now off (the setting greyed out, no Web Audio at all), and the own speech recogniser releases the microphone after every transmission (an open microphone keeps iOS in recording mode); the pilots speak again 0.4 s after it.
 
 ## [1.7.4] - 2026-11-03

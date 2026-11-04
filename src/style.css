@@ -1649,6 +1649,16 @@ body.mobile .tutorial {
 .dialog .sub.error {
   color: var(--warn);
 }
+/* What the voice test found (settings). */
+.test-result {
+  color: var(--text-dim);
+  margin-top: 4px;
+  max-width: 420px;
+}
+.test-result:empty {
+  display: none;
+}
+
 /* Warning before the large speech model (settings). */
 .model-warn {
   margin-top: 6px;

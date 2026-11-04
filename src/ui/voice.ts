@@ -16,15 +16,16 @@ function hash(s: string): number {
 }
 
 /**
- * Apple's novelty and effect voices: they sing ("Bells", "Good News", "Cellos", "Organ"), laugh ("Hysterical"), whisper
- * or wobble - unsuitable for pilots, some are silent on iOS. Their names are translated on a device in another
- * language (German: "Glocken", "Gute Nachrichten", "Orgel" ...), so they are recognised by their identifier first:
- * `com.apple.speech.synthesis.voice.*` (the old macOS voices - only Alex is a normal voice) and
- * `com.apple.eloquence.*` (Grandma, Grandpa, Rocko ...).
+ * Apple's effect voices: they sing ("Bells", "Good News", "Cellos", "Organ"), laugh ("Hysterical"), whisper or wobble -
+ * unsuitable for pilots. Their names are translated on a device in another language (German: "Glocken", "Gute
+ * Nachrichten", "Orgel" ...), so they are recognised by their identifier first (com.apple.speech.synthesis.voice.Bells).
+ * Only these: the Eloquence voices (Eddy, Flo, Reed, Sandy, Shelley, Rocko, Grandma, Grandpa) are normal voices -
+ * on many iPads the only English ones installed (left out, the pilots were silent).
  */
-const NOVELTY_URI = /speech\.synthesis\.voice\.(?!alex\b)|eloquence/i;
+const EFFECTS = 'albert|badnews|bahh|bells|boing|bubbles|cellos|deranged|goodnews|hysterical|jester|organ|pipeorgan|superstar|trinoids|whisper|wobble|zarvox';
+const NOVELTY_URI = new RegExp(`speech\\.synthesis\\.voice\\.(${EFFECTS})\\b`, 'i');
 const NOVELTY_NAME =
-  /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|pipe organ|superstar|trinoids|whisper|wobble|zarvox|deranged|hysterical|junior|ralph|fred|kathy|princess|grandma|grandpa|rocko|eddy|flo|reed|sandy|shelley|glocken|gute nachrichten|schlechte nachrichten|orgel|blubbern|blasen|fl\u00fcstern|hysterisch|narr|wackeln|verr\u00fcckt|oma|opa)\b/i;
+  /\b(albert|bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|pipe organ|superstar|trinoids|whisper|wobble|zarvox|deranged|hysterical|glocken|gute nachrichten|schlechte nachrichten|orgel|blubbern|blasen|fl\u00fcstern|hysterisch|narr|wackeln|verr\u00fcckt)\b/i;
 
 /**
  * The voice of a pilot, the same for a callsign every time: which of the voices, the pitch (0.92-1.08: a little higher
@@ -133,6 +134,8 @@ class RadioNoise {
 }
 
 
+/** A voice that has not started speaking after this time (ms) is left out (see sayChecked). */
+const VOICE_START_MS = 2500;
 /** iOS: pause after the microphone before the pilots speak again (ms). */
 const IOS_AFTER_MIC_MS = 400;
 
@@ -151,6 +154,9 @@ export class PilotVoices {
   private pilotLive = new Set<SpeechSynthesisUtterance>();
   private lastStart = 0;
   private unlocked = false;
+  /** Voices that did not start speaking (not installed, broken): left out for the session. */
+  private readonly badVoices = new Set<string>();
+  private reload = () => {};
   private readonly noise = new RadioNoise();
   /** Radio noise under the pilots' transmissions. */
   radioNoise = true;
@@ -173,16 +179,15 @@ export class PilotVoices {
     for (const ev of ['click', 'touchend', 'keydown']) document.addEventListener(ev, unlock, true);
     const load = () => {
       const all = window.speechSynthesis.getVoices().filter(normalVoice);
-      let en = all.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith('en'));
-      // On iOS only voices installed on the device speak reliably.
-      if (IOS) {
-        const local = en.filter((v) => v.localService);
-        if (local.length) en = local;
-      }
-      this.voices = en.length ? en : all;
+      let en = all.filter((v) => v.lang.toLowerCase().replace('_', '-').startsWith('en') && !this.badVoices.has(v.voiceURI));
+      // On iOS only voices installed on the device speak at all: without an English one installed, no voice is set
+      // and the system's default voice speaks (a voice that is not installed stays silent).
+      if (IOS) en = en.filter((v) => v.localService);
+      this.voices = en;
     };
     load();
     window.speechSynthesis.addEventListener?.('voiceschanged', load);
+    this.reload = load;
     // Safari sometimes gets stuck with utterances that never start: clear the queue then.
     setInterval(() => {
       const synth = window.speechSynthesis;
@@ -201,6 +206,43 @@ export class PilotVoices {
     return this.enabled && this.pilotLive.size > 0 && window.speechSynthesis.speaking;
   }
 
+  /**
+   * With a voice of its own: if the utterance has not started after VOICE_START_MS (the voice is not installed or
+   * broken - iOS then stays silent), that voice is left out from now on and the text is spoken by the default voice.
+   */
+  private sayChecked(u: SpeechSynthesisUtterance): void {
+    const voice = u.voice;
+    if (voice) {
+      let started = false;
+      u.addEventListener('start', () => (started = true));
+      const check = () => {
+        if (started || !this.live.has(u)) return;
+        // Still waiting behind another transmission that is being spoken: not the voice's fault - check again.
+        if (window.speechSynthesis.speaking && [...this.live][0] !== u) {
+          setTimeout(check, VOICE_START_MS);
+          return;
+        }
+        this.badVoices.add(voice.voiceURI);
+        this.reload();
+        this.live.delete(u);
+        window.speechSynthesis.cancel();
+        const again = new SpeechSynthesisUtterance(u.text);
+        again.lang = 'en-US';
+        again.pitch = u.pitch;
+        again.rate = u.rate;
+        again.volume = u.volume;
+        for (const ev of ['start', 'end', 'error'] as const) again.addEventListener(ev, (e) => u.dispatchEvent(new Event(e.type)));
+        this.lastVoice = `${voice.name} did not start - default voice instead`;
+        this.say(again);
+      };
+      setTimeout(check, VOICE_START_MS);
+    }
+    this.say(u);
+  }
+
+  /** The voice of the last test (for the settings): which, and what happened. */
+  lastVoice = '';
+
   private say(u: SpeechSynthesisUtterance): void {
     const synth = window.speechSynthesis;
     // Safari can be left paused (e.g. after an interrupted utterance): nothing would be heard.
@@ -214,8 +256,8 @@ export class PilotVoices {
   }
 
   /** Speaks a short test phrase; call it from a click so that iOS allows it. */
-  test(text = 'Stuttgart Ground, pilot voices on'): void {
-    if (!this.supported) return;
+  test(text = 'Stuttgart Ground, pilot voices on'): Promise<string> {
+    if (!this.supported) return Promise.resolve('This browser has no speech synthesis.');
     this.unlocked = true;
     this.noise.unlock();
     window.speechSynthesis.cancel();
@@ -226,7 +268,21 @@ export class PilotVoices {
     } else u.lang = 'en-US';
     u.volume = this.volume;
     this.withNoise(u);
-    this.say(u);
+    const all = window.speechSynthesis.getVoices();
+    const voice = u.voice ? `${u.voice.name} (${u.voice.lang}${u.voice.localService ? ', installed' : ', online'})` : 'the default voice (no English voice installed)';
+    this.lastVoice = '';
+    const t0 = performance.now();
+    // What happened, for the settings (if it stays silent, this says why).
+    const result = new Promise<string>((resolve) => {
+      const head = `${voice}; ${this.voices.length} of ${all.length} voices usable`;
+      let started = false;
+      u.addEventListener('start', () => (started = true));
+      u.addEventListener('end', () => resolve(`${head}; spoken (${((performance.now() - t0) / 1000).toFixed(1)} s)${this.lastVoice ? ` - ${this.lastVoice}` : ''}. Nothing heard? Check the volume and the silent mode.`));
+      u.addEventListener('error', (e) => resolve(`${head}; error: ${(e as SpeechSynthesisErrorEvent).error ?? 'unknown'}`));
+      setTimeout(() => resolve(`${head}; ${started ? 'started, no end reported' : 'did not start'}${this.lastVoice ? ` - ${this.lastVoice}` : ''}.`), 8000);
+    });
+    this.sayChecked(u);
+    return result;
   }
 
   /** Radio noise while the utterance is spoken (from its start: the speech engine may begin later). */
@@ -274,7 +330,7 @@ export class PilotVoices {
     const done = () => this.pilotLive.delete(u);
     u.addEventListener('end', done);
     u.addEventListener('error', done);
-    this.say(u);
+    this.sayChecked(u);
   }
 
   cancel(): void {

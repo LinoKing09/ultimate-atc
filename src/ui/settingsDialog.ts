@@ -33,7 +33,8 @@ export function showSettings(
     mic: boolean;
     hidden?: boolean;
     micHidden?: boolean;
-    test?: () => void;
+    /** Speaks a test phrase; resolves with what happened (which voice, whether it started). */
+    test?: () => Promise<string> | void;
     /** What the speech recogniser learnt from your corrections: [heard, replaced by]; forget() clears it. */
     corrections?: { list: () => [string, string][]; forget: () => void };
   },
@@ -56,8 +57,12 @@ export function showSettings(
   };
   const ttsRow = () => {
     const test = h('button', { type: 'button', text: 'Test', disabled: !voice.tts, title: 'Speak a test phrase' });
-    test.addEventListener('click', () => voice.test?.());
-    return h('span', {}, check('tts', !voice.tts), ' ', test);
+    const result = h('div.test-result');
+    test.addEventListener('click', () => {
+      result.textContent = 'Speaking ...';
+      void Promise.resolve(voice.test?.()).then((r) => (result.textContent = r ?? ''));
+    });
+    return h('div', {}, h('span', {}, check('tts', !voice.tts), ' ', test), result);
   };
   const range = (key: 'uiScale' | 'tagScale' | 'ttsRate' | 'ttsVolume', min: number, max: number, step: number, fmt: (v: number) => string) => {
     const el = h('input', { type: 'range', min: String(min), max: String(max), step: String(step) });

@@ -86,6 +86,13 @@ export class VoskInput {
     this.partial = '';
   }
 
+  /**
+   * Keep the microphone open between transmissions (pre-roll, no waiting at the press). False on the iPad with the
+   * pilot voices on: there the speech synthesis takes an open microphone away (it goes silent), so it is opened at
+   * every press and let go after the transmission.
+   */
+  keepMicOpen: () => boolean = () => true;
+
   /** Which model to use (settings); asked at every transmission - a change loads the other model. */
   modelSize: () => VoskModelSize = () => 'small';
   private loadedSize?: VoskModelSize;
@@ -198,7 +205,7 @@ export class VoskInput {
     if (ctx.state !== 'running') void ctx.resume().catch(() => {});
     if (prepare && !this.stream && !this.preparing) {
       this.preparing = true;
-      void Promise.all([this.load(), this.openMic()])
+      void Promise.all([this.load(), this.keepMicOpen() ? this.openMic() : undefined])
         .catch(() => {
           /* start() tries again and reports the error */
         })
@@ -329,6 +336,10 @@ export class VoskInput {
     const text = this.text();
     this.rec?.remove();
     this.rec = undefined;
+    if (!this.keepMicOpen()) {
+      this.closeMic();
+      this.pending = [];
+    }
     this.onPhase('idle');
     this.onState(false);
     if (text) this.onFinal([text]);

@@ -214,7 +214,7 @@ Mobile mode is made for touch screens, above all the **iPad** (a phone screen is
 
 *Settings -> Control -> Instructions -> Realistic (Beta)* makes the work as on a real position:
 
-- **Instructions only by voice**: hold **PTT** (the large button right of the message window, where SEND was), `MIC`, or a push-to-talk key (`^` / `` ` ``, Right Ctrl, Insert) and speak; the transmission is sent when you release (always, whatever *Send voice automatically* says). The command line only shows what the microphone hears - nothing can be typed. `SEND`, `ROGER`, `SAY AGAIN`, `ALL STN` and the mobile quick-action bar are gone: say `roger`, `say again`, `all stations ...` instead. If the frequency waits for a read-back, the transmission is dropped - say it again, or start with `break break`.
+- **Instructions only by voice**: hold **PTT** (it shows **WAIT** while the microphone opens and **TX** while it records) (the large button right of the message window, where SEND was), `MIC`, or a push-to-talk key (`^` / `` ` ``, Right Ctrl, Insert) and speak; the transmission is sent when you release (always, whatever *Send voice automatically* says). The command line only shows what the microphone hears - nothing can be typed. `SEND`, `ROGER`, `SAY AGAIN`, `ALL STN` and the mobile quick-action bar are gone: say `roger`, `say again`, `all stations ...` instead. If the frequency waits for a read-back, the transmission is dropped - say it again, or start with `break break`.
 - **The menus give no instructions.** What is not said on the radio stays: **Send DCL (datalink)** - the PDC on Delivery -, *Request hand-off*, *Acknowledge CATC alert*, the flight plan, *Centre view*, *Reset tag position*. Follow-me cars too get their instructions only by voice.
 - **You keep the lists by hand**, like a strip board or the EuroScope lists. Nothing is filled in from the radio: the lists, tags and Tab show only what you entered. Click (tap) a cell, or right-click the aircraft for its strip menu:
 
@@ -543,7 +543,7 @@ On the **iPad** (and iPhone) TTS is off until you switch it on (in mobile mode t
 
 ### You speaking (speech recognition)
 
-With the pilot voices on, the iPad can take the microphone away while a pilot speaks; the own recogniser notices a microphone that went silent and opens it again at the next press (MIC may show amber for a moment).
+With the pilot voices on, the iPad would take an open microphone away while a pilot speaks: there the own recogniser opens the microphone at every press and lets it go after the transmission - MIC shows amber (PTT **WAIT**) for a moment, start speaking when it turns red (**TX**). Elsewhere a microphone that went silent is noticed and opened again at the next press.
 
 **Two speech recognisers** (*Settings -> Speech recognition*):
 

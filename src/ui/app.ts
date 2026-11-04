@@ -37,7 +37,7 @@ import { loadCorrections, saveCorrections, saveSettings, type Settings } from '.
 import { ARRIVAL_REQUESTS, ARRIVAL_STATES, DEPARTURE_REQUESTS, DEPARTURE_STATES, REQUEST_HINTS, STATE_HINTS, TOW_REQUESTS, TOW_STATES, type StripField } from '../core/strips';
 import { showSettings } from './settingsDialog';
 import { showSystems } from './systemsDialog';
-import { PilotVoices, VoiceInput } from './voice';
+import { IOS, PilotVoices, VoiceInput } from './voice';
 import { VoskInput } from './voskInput';
 import { showDebrief } from './debriefDialog';
 
@@ -436,6 +436,8 @@ export class App {
         b.classList.toggle('listening', phase === 'recording');
         b.classList.toggle('processing', phase === 'processing');
       }
+      // PTT says when to speak: WAIT while the microphone opens, TX while recording.
+      this.pttButton.textContent = phase === 'waiting' ? 'WAIT' : phase === 'recording' ? 'TX' : 'PTT';
     };
     this.browserVoice = new VoiceInput(onInterim, onFinal, (listening, error) => {
       setPhase(listening ? 'recording' : 'idle');
@@ -445,6 +447,7 @@ export class App {
     this.voskVoice = new VoskInput(onInterim, onFinal, onState, (status) => this.hint(status), setPhase);
     this.voskVoice.phrases = () => radioPhrases(sessionPhraseContext(this.sim));
     this.voskVoice.modelSize = () => this.settings.voiceModel;
+    this.voskVoice.keepMicOpen = () => !(IOS && this.voices.enabled);
     if (!MIC_ENABLED) {
       this.micButton.disabled = true;
       this.micButton.title = 'Speech recognition: switched off in this version';
@@ -787,6 +790,8 @@ export class App {
   /** Starts the audio of the own speech recogniser; in the realistic mode also loads its model and opens the microphone. */
   private unlockVoice(): void {
     if (!MIC_ENABLED || this.micButton.disabled || this.voiceIn !== this.voskVoice) return;
+    // Not while a pilot is being read aloud: on the iPad starting the audio or the microphone cuts the voice off.
+    if (this.voices.enabled && this.voices.supported && window.speechSynthesis.speaking) return;
     this.voskVoice.unlock(this.realistic);
   }
 

@@ -126,6 +126,8 @@ class RadioNoise {
 }
 
 
+/** An utterance queued this long ago (ms) is not waiting or being spoken any more, whatever the engine reported. */
+const STALE_UTTERANCE_MS = 30_000;
 /** A voice that has not started speaking after this time (ms) is left out (see sayChecked). */
 const VOICE_START_MS = 2500;
 
@@ -214,8 +216,8 @@ export class PilotVoices {
         }
         this.badVoices.add(voice.voiceURI);
         this.reload();
-        this.live.delete(u);
-        window.speechSynthesis.cancel();
+        const pilot = this.pilotLive.has(u);
+        this.stopSpeech();
         const again = new SpeechSynthesisUtterance(u.text);
         again.lang = 'en-US';
         again.pitch = u.pitch;
@@ -223,11 +225,27 @@ export class PilotVoices {
         again.volume = u.volume;
         for (const ev of ['start', 'end', 'error'] as const) again.addEventListener(ev, (e) => u.dispatchEvent(new Event(e.type)));
         this.lastVoice = `${voice.name} did not start - default voice instead`;
+        // Still a pilot transmission being spoken (the simulation waits for it at 1x).
+        if (pilot) {
+          this.pilotLive.add(again);
+          const done = () => this.pilotLive.delete(again);
+          again.addEventListener('end', done);
+          again.addEventListener('error', done);
+        }
         this.say(again);
       };
       setTimeout(check, VOICE_START_MS);
     }
     this.say(u);
+  }
+
+  /** When each utterance was handed to the speech engine. */
+  private readonly startedAt = new Map<SpeechSynthesisUtterance, number>();
+
+  private forget(u: SpeechSynthesisUtterance): void {
+    this.live.delete(u);
+    this.pilotLive.delete(u);
+    this.startedAt.delete(u);
   }
 
   /** The voice of the last test (for the settings): which, and what happened. */
@@ -238,7 +256,8 @@ export class PilotVoices {
     // Safari can be left paused (e.g. after an interrupted utterance): nothing would be heard.
     if (synth.paused) synth.resume();
     this.live.add(u);
-    const done = () => this.live.delete(u);
+    this.startedAt.set(u, performance.now());
+    const done = () => this.forget(u);
     u.onend = done;
     u.onerror = done;
     this.lastStart = performance.now();
@@ -250,7 +269,7 @@ export class PilotVoices {
     if (!this.supported) return Promise.resolve('This browser has no speech synthesis.');
     this.unlocked = true;
     this.noise.unlock();
-    window.speechSynthesis.cancel();
+    this.stopSpeech();
     const u = new SpeechSynthesisUtterance(text);
     if (this.voices.length) {
       u.voice = this.voices[0];
@@ -301,11 +320,10 @@ export class PilotVoices {
     }
     // At high simulation rates the pilots talk faster than the voices can speak: rather than falling minutes behind
     // the radio, drop what is still waiting and go on with the newest transmission.
-    if (this.live.size >= 3) {
-      window.speechSynthesis.cancel();
-      this.live.clear();
-      this.pilotLive.clear();
-    }
+    // Utterances whose end was never reported (Safari) do not count.
+    const now = performance.now();
+    for (const [u, at] of this.startedAt) if (now - at > STALE_UTTERANCE_MS) this.forget(u);
+    if (this.live.size >= 3) this.stopSpeech();
     const u = new SpeechSynthesisUtterance(text);
     const style = pilotVoiceStyle(callsign);
     if (this.voices.length) {
@@ -323,11 +341,21 @@ export class PilotVoices {
     this.sayChecked(u);
   }
 
+  /**
+   * Stops everything the speech engine says or has queued. Safari often reports no end for cancelled utterances, so
+   * they are forgotten here - kept, they counted as still being spoken, and from three on every new pilot transmission
+   * cut off the one being spoken mid-sentence.
+   */
+  private stopSpeech(): void {
+    if (this.supported) window.speechSynthesis.cancel();
+    this.live.clear();
+    this.pilotLive.clear();
+  }
+
   cancel(): void {
     this.noise.stop(false);
-    this.pilotLive.clear();
     this.held = this.held ? [] : null;
-    if (this.supported) window.speechSynthesis.cancel();
+    this.stopSpeech();
   }
 
   /**
@@ -338,9 +366,8 @@ export class PilotVoices {
     if (!this.supported || this.held) return;
     this.held = [];
     this.heldSince = performance.now();
-    window.speechSynthesis.cancel();
     this.noise.stop(false);
-    this.pilotLive.clear();
+    this.stopSpeech();
   }
 
   /** Speaks the messages that came in during the transmission (the last three at most). */
@@ -348,7 +375,7 @@ export class PilotVoices {
     const queued = this.held ?? [];
     this.held = null;
     // After the microphone iOS may leave the speech engine in a bad state: start clean.
-    if (this.supported) window.speechSynthesis.cancel();
+    this.stopSpeech();
     for (const m of queued.slice(-3)) this.speak(m.callsign, m.text, m.rate);
   }
 }

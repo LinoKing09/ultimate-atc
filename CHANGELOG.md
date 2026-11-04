@@ -13,6 +13,8 @@ All notable changes to this project are documented in this file. The format is b
 ### Fixed
 
 - **PTT / MIC only worked when held a second time on the iPad**: Safari lets the audio of the own speech recogniser start only from the release of a tap, not from pressing the button, so the first press recorded nothing. Now every tap, click or key press starts (or resumes) the audio beforehand, the release of PTT / MIC starts it too, and in the realistic mode the speech model loads and the microphone opens at the start of the session (first tap), so the first press records at once. If a press still recorded nothing, a hint says so instead of nothing happening.
+- **MIC stopped working with the pilot voices (TTS) on** (iPad): the speech synthesis took the audio over and ended or muted the microphone, which the app kept open between transmissions - it then recorded silence. A microphone that went dead is now noticed (its track ended or muted, or no sound within 0.6 s of the press) and opened again, so the transmission is recorded.
+- **"line up and wait" heard as "land and wait"** (also "land up and wait", "line and wait", "lined up and wait"): understood as line up and wait.
 
 ## [1.8.0] - 2026-11-04
 

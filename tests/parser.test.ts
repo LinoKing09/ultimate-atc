@@ -117,6 +117,10 @@ describe('speech', () => {
   it('repairs phrases a recogniser hears in the wrong order or form', () => {
     expect(parseTransmission('speedbird one two clear for take of runway two five', { ...ctx, callsigns: ['BAW12'] }).commands).toEqual([{ type: 'takeoff', runway: '25' }]);
     expect(parseTransmission('lufthansa five alpha bravo line up and weight runway two five', ctx).commands).toEqual([{ type: 'lineUp', runway: '25' }]);
+    // "line up" spoken quickly, heard as "land".
+    for (const heard of ['land and wait', 'land up and wait', 'line and wait', 'lined up and wait']) {
+      expect(parseTransmission(`eurowings seven charlie delta ${heard} runway two five`, { ...ctx, callsigns: ['EWG7CD'] }).commands).toEqual([{ type: 'lineUp', runway: '25' }]);
+    }
     expect(parseTransmission('lufthansa five alpha bravo whole short of runway two five', ctx).commands).toEqual([{ type: 'holdShort', target: { kind: 'runway', runway: '25' } }]);
   });
 

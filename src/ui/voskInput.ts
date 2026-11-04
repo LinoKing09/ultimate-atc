@@ -20,6 +20,8 @@ export const VOSK_MODELS = {
 export type VoskModelSize = keyof typeof VOSK_MODELS;
 /** Audio kept from before the key press (s). */
 const PRE_ROLL_S = 0.35;
+/** An open microphone that delivers nothing this long after the press is opened again (ms). */
+const MIC_SILENT_MS = 600;
 /** After the release the recogniser still has a little audio to finish: at most this long (ms). */
 const FINAL_RESULT_WAIT_MS = 2000;
 
@@ -115,11 +117,42 @@ export class VoskInput {
     return this.loading;
   }
 
-  /** The microphone, kept open after the first transmission (one permission prompt). */
+  /**
+   * The open microphone no longer delivers sound: on iOS the pilot voices (speech synthesis) take the audio over and
+   * end or mute its track, or interrupt the audio context.
+   */
+  private micStale = false;
+
+  private micDead(): boolean {
+    const tracks = this.stream?.getAudioTracks() ?? [];
+    return this.micStale || !tracks.length || tracks.some((t) => t.readyState === 'ended' || t.muted);
+  }
+
+  /** Lets the microphone go (the next transmission opens it again). */
+  private closeMic(): void {
+    for (const t of this.stream?.getTracks() ?? []) t.stop();
+    this.stream = undefined;
+    if (this.node) this.node.onaudioprocess = null;
+    this.node?.disconnect();
+    this.node = undefined;
+    this.micStale = false;
+  }
+
+  /** The microphone, kept open after the first transmission (one permission prompt) - opened again when it went dead. */
   private async openMic(): Promise<void> {
-    if (this.stream) return;
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
-    const ctx = this.ctx!;
+    if (this.stream && !this.micDead()) return;
+    if (this.stream) this.closeMic();
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: { channelCount: 1, echoCancellation: true, noiseSuppression: true, autoGainControl: true } });
+    this.stream = stream;
+    for (const t of stream.getAudioTracks()) {
+      const stale = () => {
+        if (this.stream === stream) this.micStale = true;
+      };
+      t.addEventListener('ended', stale);
+      t.addEventListener('mute', stale);
+    }
+    const ctx = this.audio();
+    if (ctx.state !== 'running') void ctx.resume().catch(() => {});
     const src = ctx.createMediaStreamSource(this.stream);
     // ScriptProcessor: deprecated, but available everywhere (also Safari on the iPad) and simple.
     const node = ctx.createScriptProcessor(4096, 1, 1);
@@ -174,6 +207,7 @@ export class VoskInput {
   }
 
   private preparing = false;
+  private watchdog?: ReturnType<typeof setTimeout>;
 
   start(): void {
     if (this.listening || this.failed) return;
@@ -195,8 +229,22 @@ export class VoskInput {
     this.stopRequested = false;
     this.discard();
     this.onState(true);
-    // Recording from the first moment where the microphone is open already (and its audio is kept); else as soon as it is.
-    this.onPhase(this.stream ? 'recording' : 'waiting');
+    // Recording from the first moment where the microphone is open and alive (its audio is kept); else as soon as it is.
+    const alive = !!this.stream && !this.micDead();
+    this.onPhase(alive ? 'recording' : 'waiting');
+    // No sound from an open microphone soon after the press (iOS after the pilot voices): open it again.
+    clearTimeout(this.watchdog);
+    this.watchdog = setTimeout(() => {
+      if (!this.listening || this.captured) return;
+      this.micStale = true;
+      this.onPhase('waiting');
+      void this.audio().resume().catch(() => {});
+      void this.openMic()
+        .then(() => {
+          if (this.listening) this.onPhase('recording');
+        })
+        .catch(() => {});
+    }, MIC_SILENT_MS);
     void (async () => {
       try {
         await Promise.all([

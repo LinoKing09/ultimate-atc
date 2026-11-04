@@ -44,6 +44,7 @@ ultimate-atc/
 │   │   ├── opposite.ts        # pilots stop short of a junction for opposite traffic and ask
 │   │   ├── debrief.ts         # score table and the debriefing after a session
 │   │   ├── session.ts         # saved sessions: the controller's actions (logged with their step), save, replay
+│   │   ├── strips.ts          # realistic mode: the list marks the controller enters by hand (request, state, flags)
 │   │   ├── systems.ts         # airport/ATC systems (A-SMGCS services, A-CDM, DCL, ILS) and their states
 │   │   ├── vehicles.ts        # follow-me cars, tug positions, tow creation
 │   │   ├── traffic.ts         # traffic generator: departures, arrivals (Approach spacing, runway per arrival), callsigns, stands
@@ -221,7 +222,7 @@ Because `Simulation` is DOM-free and deterministic for a given seed and input se
 
 ### Saved sessions
 
-The simulation is deterministic: it runs in fixed steps of 0.2 s (`Simulation.steps` counts them) from its seed, and everything else comes from the controller. `core/session.ts` therefore saves a session as its start configuration (`Simulation.startConfig`, with the seed and the start time) plus the **action log**: every change the controller makes - a transmission, an ATIS, a system, a frequency, a coordination switch, a hand-off request, a DCL, a CATC acknowledgement, density and event level - as a `SessionAction` with the step it happened at. `restoreSession` builds a new simulation from the same start and repeats each action at its step (`Simulation.runSteps`), in chunks so the browser stays responsive; a fingerprint (time, score, aircraft, phases, positions) checks the result. Nothing else is stored - no aircraft, routes or radio queues.
+The simulation is deterministic: it runs in fixed steps of 0.2 s (`Simulation.steps` counts them) from its seed, and everything else comes from the controller. `core/session.ts` therefore saves a session as its start configuration (`Simulation.startConfig`, with the seed and the start time) plus the **action log**: every change the controller makes - a transmission, an ATIS, a system, a frequency, a coordination switch, a hand-off request, a DCL, a CATC acknowledgement, a strip mark of the realistic mode (`core/strips.ts`: what the controller entered in the lists by hand - it never changes what the aircraft do), density and event level - as a `SessionAction` with the step it happened at. `restoreSession` builds a new simulation from the same start and repeats each action at its step (`Simulation.runSteps`), in chunks so the browser stays responsive; a fingerprint (time, score, aircraft, phases, positions) checks the result. Nothing else is stored - no aircraft, routes or radio queues.
 
 This only works if **the UI changes the simulation through `perform(sim, action)`** and nothing else: a call such as `sim.transmit(...)` or `sim.setFlow(...)` straight from the UI is not logged and is lost on restore. And reading the simulation must not change it - a menu that draws from `sim.rng` (or sets a value the first time it is read) changes the traffic of the replay; use `sim.variation(key)` for such per-aircraft values. `tests/session.test.ts` checks a replay against the original.
 

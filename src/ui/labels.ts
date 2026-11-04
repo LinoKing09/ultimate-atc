@@ -10,9 +10,14 @@ export type StatusStyle = 'euroscope' | 'phx';
 /** PHX names of the EuroScope-style codes (the others are the same in both). */
 const PHX_STATES: Record<string, string> = { 'ST-UP': 'SUG', PUSH: 'PBG', 'L/U': 'ALU', DEPA: 'DEP', PARK: 'ONB' };
 
-/** Short status code shown in tags and lists (ground state). */
-export function statusCode(ac: Aircraft, style: StatusStyle = 'euroscope'): string {
-  const code = euroscopeStatus(ac);
+/** Short status code shown in tags and lists (ground state). `manual`: realistic mode, the state entered by hand. */
+export function statusCode(ac: Aircraft, style: StatusStyle = 'euroscope', manual = false): string {
+  const code = manual ? ac.strip?.status ?? '' : euroscopeStatus(ac);
+  return styledStatus(code, ac, style);
+}
+
+/** A EuroScope ground state code in the given style. */
+export function styledStatus(code: string, ac: Aircraft, style: StatusStyle): string {
   if (style !== 'phx') return code;
   // Taxi out (departures) and taxi in (arrivals) are separate states in PHX.
   if (code === 'TAXI') return ac.category === 'arrival' ? 'TX' : 'TXG';
@@ -57,8 +62,9 @@ function euroscopeStatus(ac: Aircraft): string {
   }
 }
 
-/** Short description of where the aircraft is cleared to. */
-export function clearedTo(ac: Aircraft): string {
+/** Short description of where the aircraft is cleared to (`manual`: realistic mode, as entered by hand). */
+export function clearedTo(ac: Aircraft, manual = false): string {
+  if (manual) return ac.strip?.target ?? '';
   const d = ac.pendingTaxi?.destination ?? ac.routeDestination;
   if (d) {
     if (d.kind === 'holdingPoint') return d.name;
@@ -104,4 +110,13 @@ export function requestLabel(ac: Aircraft): string {
     default:
       return '';
   }
+}
+
+/**
+ * The open request of an aircraft as the lists and tags show it: what the crew asked for (and is not yet
+ * acknowledged) with its time, or in realistic mode (`manual`) what the controller noted.
+ */
+export function shownRequest(ac: Aircraft, manual: boolean): { label: string; since: number; open: boolean } | undefined {
+  if (manual) return ac.strip?.request ? { label: ac.strip.request, since: ac.strip.requestAt ?? 0, open: true } : undefined;
+  return ac.request ? { label: requestLabel(ac), since: ac.requestSince, open: !ac.requestAck } : undefined;
 }

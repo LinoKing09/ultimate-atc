@@ -159,6 +159,7 @@ Every airport added in the future comes with its own briefing.
 | Radio noise              | A quiet hiss under the pilot voices, with a short squelch at the end of each transmission (on by default) |
 | Send voice automatically | Transmit the recognised instruction when you release push-to-talk; off = check and press Enter |
 | Recognition accent       | English accent the speech recogniser expects (US, UK, Australia, India, Ireland)           |
+| Instructions (Control)   | **Both** (default) or **Realistic (Beta)** - see [Realistic mode](#realistic-mode-beta); *Only text* is greyed out (follows later) |
 | Traffic density          | Slider in five steps from light to heavy; applies to traffic generated from now on         |
 | Special events           | Slider: never, very rare, rare, occasional, often                                          |
 
@@ -208,6 +209,26 @@ Mobile mode is made for touch screens, above all the **iPad** (a phone screen is
 - The command-line preview is hidden; use voice (`MIC`), the menus or a keyboard.
 
 **iPad with a hardware (Bluetooth) keyboard**: just start typing, the first letter already goes into the command line. Tapping the command line does not push the page up any more: the layout shrinks to the area above the keyboard bar. The command line is not a form field, so Safari shows no AutoFill buttons (passwords, cards, contacts) and no form arrows for it. The small bar iPadOS shows at the bottom while a hardware keyboard is connected (language switch, shortcuts) belongs to the system and cannot be removed by a web page; iPadOS can hide the shortcut part under *Settings > General > Keyboard > Shortcuts*.
+
+### Realistic mode (beta)
+
+*Settings -> Control -> Instructions -> Realistic (Beta)* makes the work as on a real position:
+
+- **Instructions only by voice**: hold **PTT** (the large button right of the message window, where SEND was), `MIC`, or a push-to-talk key (`^` / `` ` ``, Right Ctrl, Insert) and speak; the transmission is sent when you release (always, whatever *Send voice automatically* says). The command line only shows what the microphone hears - nothing can be typed. `SEND`, `ROGER`, `SAY AGAIN`, `ALL STN` and the mobile quick-action bar are gone: say `roger`, `say again`, `all stations ...` instead. If the frequency waits for a read-back, the transmission is dropped - say it again, or start with `break break`.
+- **The menus give no instructions.** What is not said on the radio stays: **Send DCL (datalink)** - the PDC on Delivery -, *Request hand-off*, *Acknowledge CATC alert*, the flight plan, *Centre view*, *Reset tag position*. Follow-me cars too get their instructions only by voice.
+- **You keep the lists by hand**, like a strip board or the EuroScope lists. Nothing is filled in from the radio: the lists, tags and Tab show only what you entered. Click (tap) a cell, or right-click the aircraft for its strip menu:
+
+  | Cell | What you enter |
+  | ---- | -------------- |
+  | `REQ` | What the crew asked for: `CLR` (IFR clearance), `STUP` (start-up), `PUSH`, `TAXI` (ready for taxi), `RDY` (ready for departure), `XRWY` (runway crossing); arrivals `LDG`, `VACD`, `TXIN`; tows `TOW`. The time since you noted it runs on, the cell flashes (red after 60 s) until you clear it |
+  | `STS` | Ground state: departures `CLRD`, `ST-UP`, `PUSH`, `TAXI`, `H/P` (at the holding point), `L/U`, `T/O` (cleared for take-off), `DEPA`; arrivals `APP`, `LAND`, `VAC`, `TAXI`, `PARK`; tows `PUSH`, `TAXI`, `PARK` - shown with the PHX names in the PHX scope styles (`SUG`, `PBG`, `TXG` / `TX`, `ALU`, `DEP`, `ONB`) |
+  | `C` | Clearance flag: a click switches it on or off |
+  | `TAXI` / `STND` | Where you cleared it to: a holding point or runway of the departure runways in use (de-icing pads when the aircraft needs de-icing), or a stand (the assigned one, the tow's, and the free stands nearby) |
+  | `LND` | Landing clearance: a click switches it on or off |
+
+  Each menu ends with *Clear*. The tag on the scope shows the same state and cleared-to, and `*` for a request you noted. The marks are only notes: they never change what the aircraft do, and a saved session shows them again.
+
+Not available in a tutorial (it works with the command line), and not without speech recognition.
 
 ## 3. The scope
 

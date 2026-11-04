@@ -28,11 +28,13 @@ import { windWords } from '../core/weather';
 import type { TutorialRunner } from '../core/tutorial';
 import { TutorialPanel } from './tutorialPanel';
 import { arrivalList, departureList, VehicleList, type ListItem, type TrafficList } from './lists';
+import { shownRequest, styledStatus } from './labels';
 import { vehicleTel, type Vehicle } from '../core/vehicles';
 import { PopupMenu, type MenuItem } from './menu';
 import { Scope, type TagItem } from './scope';
 import { CommandInput } from './commandInput';
 import { loadCorrections, saveCorrections, saveSettings, type Settings } from './settings';
+import { ARRIVAL_REQUESTS, ARRIVAL_STATES, DEPARTURE_REQUESTS, DEPARTURE_STATES, REQUEST_HINTS, STATE_HINTS, TOW_REQUESTS, TOW_STATES, type StripField } from '../core/strips';
 import { showSettings } from './settingsDialog';
 import { showSystems } from './systemsDialog';
 import { PilotVoices, VoiceInput } from './voice';
@@ -98,6 +100,10 @@ export class App {
   private readonly speedButtons: HTMLButtonElement[] = [];
   private readonly pauseButton: HTMLButtonElement;
   private readonly micButton: HTMLButtonElement;
+  /** Realistic mode: a large push-to-talk button where SEND and the quick phrases were. */
+  private readonly pttButton: HTMLButtonElement;
+  /** The control mode last applied (to tell you when it changes). */
+  private appliedRealistic?: boolean;
   private readonly ttsButton: HTMLButtonElement;
   private sendBtn!: HTMLButtonElement;
   private scopeFx!: HTMLElement;
@@ -367,9 +373,11 @@ export class App {
       else this.hint('Select an aircraft first.');
     };
     const allBtn = side('ALL STN', 'Broadcast to all stations', () => this.openAllStations(allBtn));
+    this.pttButton = h('button.ptt', { text: 'PTT', type: 'button', title: 'Push-to-talk: hold while you speak (or tap to start and tap again to stop)' });
     const sidebar = h(
       'div.sidebar',
       {},
+      this.pttButton,
       sendBtn,
       side('ROGER', 'Roger - acknowledge the call of the selected aircraft (or the last caller): it stops flashing', toSelected('roger')),
       side('SAY AGAIN', 'Say again - the selected aircraft (or the last caller) repeats its last transmission', toSelected('say again')),
@@ -410,7 +418,7 @@ export class App {
       this.input.value = best;
       this.updatePreview();
       if (best !== candidates[0]) this.hint(`Heard "${candidates[0]}" - using the alternative "${best}".`);
-      if (this.settings.voiceAutoSend) this.submit(true);
+      if (this.settings.voiceAutoSend || this.realistic) this.submit(true);
     };
     const onState = (listening: boolean, error?: string) => {
       // Pilots stop talking while you transmit, so the microphone doesn't pick them up.
@@ -423,9 +431,11 @@ export class App {
     };
     // MIC shows what the recogniser does: waiting for the microphone (amber), recording (red), finishing (dimmed).
     const setPhase = (phase: 'waiting' | 'recording' | 'processing' | 'idle') => {
-      this.micButton.classList.toggle('waiting', phase === 'waiting');
-      this.micButton.classList.toggle('listening', phase === 'recording');
-      this.micButton.classList.toggle('processing', phase === 'processing');
+      for (const b of [this.micButton, this.pttButton]) {
+        b.classList.toggle('waiting', phase === 'waiting');
+        b.classList.toggle('listening', phase === 'recording');
+        b.classList.toggle('processing', phase === 'processing');
+      }
     };
     this.browserVoice = new VoiceInput(onInterim, onFinal, (listening, error) => {
       setPhase(listening ? 'recording' : 'idle');
@@ -442,32 +452,36 @@ export class App {
       this.micButton.disabled = true;
       this.micButton.title = 'Speech recognition is not supported by this browser (try Chrome or Edge)';
     }
-    // MIC: hold it like a push-to-talk key (release ends the transmission), or tap to start and tap again to stop.
+    // MIC (and PTT in the realistic mode): hold it like a push-to-talk key (release ends the transmission), or tap to
+    // start and tap again to stop.
+    this.pttButton.disabled = this.micButton.disabled;
     let pressedAt = 0;
     let startedByPress = false;
-    this.micButton.addEventListener('pointerdown', (e) => {
-      e.preventDefault();
-      // The release reaches the button even when the finger or the mouse has slid off it (else the transmission went
-      // on until the next press).
-      try {
-        this.micButton.setPointerCapture(e.pointerId);
-      } catch {
-        /* not supported */
-      }
-      pressedAt = performance.now();
-      startedByPress = !this.voiceIn.listening;
-      if (startedByPress) this.voiceIn.start();
-    });
-    const release = () => {
-      if (!pressedAt) return;
-      const held = performance.now() - pressedAt;
-      pressedAt = 0;
-      // A long press is push-to-talk; a short tap toggles (a second tap stops).
-      if (!startedByPress || held > 400) this.voiceIn.stop();
-    };
-    this.micButton.addEventListener('pointerup', release);
-    this.micButton.addEventListener('pointercancel', release);
-    this.micButton.addEventListener('contextmenu', (e) => e.preventDefault());
+    for (const button of [this.micButton, this.pttButton]) {
+      button.addEventListener('pointerdown', (e) => {
+        e.preventDefault();
+        // The release reaches the button even when the finger or the mouse has slid off it (else the transmission went
+        // on until the next press).
+        try {
+          button.setPointerCapture(e.pointerId);
+        } catch {
+          /* not supported */
+        }
+        pressedAt = performance.now();
+        startedByPress = !this.voiceIn.listening;
+        if (startedByPress) this.voiceIn.start();
+      });
+      const release = () => {
+        if (!pressedAt) return;
+        const held = performance.now() - pressedAt;
+        pressedAt = 0;
+        // A long press is push-to-talk; a short tap toggles (a second tap stops).
+        if (!startedByPress || held > 400) this.voiceIn.stop();
+      };
+      button.addEventListener('pointerup', release);
+      button.addEventListener('pointercancel', release);
+      button.addEventListener('contextmenu', (e) => e.preventDefault());
+    }
     this.applySettings();
 
     // ---------------------------------------------------------------- events
@@ -687,7 +701,7 @@ export class App {
           for (const k of Object.keys(this.corrections)) delete this.corrections[k];
           saveCorrections(this.corrections);
         },
-      }, test: () => this.voices.test('Stuttgart Ground, radio check, readability five') });
+      }, test: () => this.voices.test('Stuttgart Ground, radio check, readability five'), realisticBlocked: this.realisticBlocked() });
   }
 
   /** Applies the (possibly changed) settings to the running session. */
@@ -725,10 +739,44 @@ export class App {
     this.browserVoice.lang = s.voiceLang;
     if (s.density !== this.densitySetting) this.act({ k: 'density', density: (this.densitySetting = s.density) });
     if (s.eventLevel !== this.eventsSetting) this.act({ k: 'eventLevel', level: (this.eventsSetting = s.eventLevel) });
-    this.input.placeholder = mobile ? 'Tap an aircraft, or type / speak an instruction' : `Type an instruction, e.g. "DLH5AB ${this.exampleInstruction()}" - F1 for help`;
+    // Realistic control mode: instructions only by voice, the lists kept by hand.
+    const realistic = this.realistic;
+    document.body.classList.toggle('realistic', realistic);
+    for (const l of this.lists) l.manual = realistic;
+    this.scope.manualStrips = realistic;
+    this.input.readOnly = realistic;
+    if (realistic) this.clearInput();
+    this.input.placeholder = realistic
+      ? 'Realistic mode: hold PTT / MIC (or ^ `, Right Ctrl, Insert) and speak - you keep the lists yourself'
+      : mobile
+        ? 'Tap an aircraft, or type / speak an instruction'
+        : `Type an instruction, e.g. "DLH5AB ${this.exampleInstruction()}" - F1 for help`;
+    if (this.appliedRealistic !== undefined && this.appliedRealistic !== realistic) {
+      this.hint(
+        realistic
+          ? 'Realistic mode (beta): instructions only by voice. Click a request, state, C, TAXI or LND cell (or the aircraft) to keep the lists yourself.'
+          : 'Both: type, speak or use the menus; the lists fill in from the radio again.',
+      );
+    }
+    this.appliedRealistic = realistic;
     this.quickbarKey = '';
     this.updateQuickbar();
     requestAnimationFrame(() => this.scope.resize());
+  }
+
+  /**
+   * Realistic control mode (beta, settings): instructions only by voice - not in a tutorial (it works with the command
+   * line) and not without speech recognition.
+   */
+  private get realistic(): boolean {
+    return this.settings.controlMode === 'realistic' && !this.realisticBlocked();
+  }
+
+  /** Why the realistic control mode cannot be used now, if so. */
+  private realisticBlocked(): string | undefined {
+    if (this.tutorial) return 'Not in a tutorial (it works with the command line)';
+    if (!MIC_ENABLED || this.micButton.disabled) return 'Needs speech recognition, which this browser does not support (try Chrome or Edge)';
+    return undefined;
   }
 
   /** An example instruction for the command line, for this airport, runway and position. */
@@ -749,6 +797,11 @@ export class App {
    * now is greyed out instead of left away, so a button is always in the same place.
    */
   private updateQuickbar(): void {
+    if (this.realistic) {
+      this.quickbar.classList.remove('show');
+      this.quickbarKey = '';
+      return;
+    }
     const mobile = this.settings.device === 'mobile';
     if (this.allStationsMode && mobile && !this.selected) {
       const key = `ALL|${this.sim.atisLetter}|${this.sim.runwayKey}`;
@@ -1011,7 +1064,11 @@ export class App {
     this.voiceIn.discard();
     if (this.voiceIn.listening && !fromVoice) this.voiceIn.stop();
     if (!text) return;
-    if (!this.transmit(text, fromVoice)) return;
+    if (!this.transmit(text, fromVoice)) {
+      // Realistic mode: nothing can be edited - say it again.
+      if (this.realistic) this.clearInput();
+      return;
+    }
     this.learnFromTransmission(text);
     this.history.unshift(text);
     this.history = this.history.slice(0, 50);
@@ -1097,10 +1154,10 @@ export class App {
     if (e.key === 'Tab') {
       e.preventDefault();
       this.selectNextRequest();
-      this.input.focus();
+      if (!this.realistic) this.input.focus();
       return;
     }
-    if (e.key === ' ' && !this.input.value) {
+    if (e.key === ' ' && (this.realistic || !this.input.value)) {
       e.preventDefault();
       this.togglePause();
       return;
@@ -1114,7 +1171,8 @@ export class App {
       this.select(undefined);
       return;
     }
-    if (!this.input.focused && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
+    // Realistic mode: nothing is typed.
+    if (!this.realistic && !this.input.focused && e.key.length === 1 && !e.ctrlKey && !e.metaKey && !e.altKey) {
       // Typing anywhere goes to the command line. The key is inserted here: focusing during the
       // key event is too late for this key on iPad (with a hardware keyboard), so "taxi" became "axi".
       e.preventDefault();
@@ -1125,10 +1183,15 @@ export class App {
 
   private selectNextRequest(): void {
     const ground = this.sim.userControls(this.sim.stationFor('ground'));
+    // Realistic mode: the requests you noted.
+    const manual = this.realistic;
     const pending = [
-      ...this.sim.aircraft.filter((a) => a.request && this.sim.isOnMyFrequency(a)),
-      ...this.sim.vehicles.filter((v) => v.request && ground),
-    ].sort((a, b) => a.requestSince - b.requestSince);
+      ...this.sim.aircraft.flatMap((a) => {
+        const q = manual || this.sim.isOnMyFrequency(a) ? shownRequest(a, manual) : undefined;
+        return q ? [{ callsign: a.callsign, since: q.since }] : [];
+      }),
+      ...(manual ? [] : this.sim.vehicles.filter((v) => v.request && ground).map((v) => ({ callsign: v.callsign, since: v.requestSince }))),
+    ].sort((a, b) => a.since - b.since);
     if (!pending.length) return;
     const idx = pending.findIndex((a) => a.callsign === this.selected);
     const next = pending[(idx + 1) % pending.length];
@@ -1253,6 +1316,12 @@ export class App {
       if (this.sim.findVehicle(cs)) this.openMenu(cs, x, y);
       return;
     }
+    if (this.realistic) {
+      this.onStripCell(ac, item, x, y);
+      return;
+    }
+    // The request and the landing clearance: the aircraft menu, as the status.
+    if (item === 'request' || item === 'landing') item = 'status';
     if (item === 'squawk' || item === 'clearance') {
       if (this.onMyDelivery(ac)) this.menu.open(`${ac.callsign} - clearance`, this.deliveryItems(ac), x, y);
       else this.menu.open(`${ac.callsign} - ${this.sim.tel(ac).toUpperCase()}`, this.flightPlanItems(ac), x, y);
@@ -1265,6 +1334,10 @@ export class App {
   private onTagItem(cs: string, item: TagItem, x: number, y: number): void {
     const ac = this.sim.find(cs);
     if (!ac) return;
+    if (this.realistic) {
+      this.onStripCell(ac, item, x, y);
+      return;
+    }
     if (item === 'sid') {
       // The SID: on your Delivery frequency the clearance menu, otherwise the flight plan.
       if (this.onMyDelivery(ac)) this.menu.open(`${ac.callsign} - clearance`, this.deliveryItems(ac), x, y);
@@ -1297,7 +1370,7 @@ export class App {
       info('Frequency', ac.frequency),
     ];
     if (ac.emergency) items.push(info('EMERGENCY', 'PAN PAN - medical'));
-    items.push({ divider: true, label: '' }, { label: 'Aircraft menu', submenu: () => this.menuItems(ac) });
+    items.push({ divider: true, label: '' }, { label: this.realistic ? 'Strip' : 'Aircraft menu', submenu: () => (this.realistic ? this.stripItems(ac) : this.menuItems(ac)) });
     return items;
   }
 
@@ -1306,12 +1379,14 @@ export class App {
   private openMenu(cs: string, x: number, y: number): void {
     const v = this.sim.findVehicle(cs);
     if (v) {
-      this.menu.open(`${v.callsign}  ${vehicleTel(v).toUpperCase()}${v.aircraft ? `  > ${v.aircraft}` : ''}`, this.vehicleItems(v), x, y);
+      // Realistic mode: the follow-me cars too get their instructions only by voice.
+      const items = this.realistic ? [{ label: 'Centre view', action: () => this.scope.centerOn(v.pos) }] : this.vehicleItems(v);
+      this.menu.open(`${v.callsign}  ${vehicleTel(v).toUpperCase()}${v.aircraft ? `  > ${v.aircraft}` : ''}`, items, x, y);
       return;
     }
     const ac = this.sim.find(cs);
     if (!ac) return;
-    this.menu.open(`${ac.callsign}  ${ac.type.icao}  ${ac.category === 'departure' ? `> ${ac.flightPlan.destination}` : `< ${ac.flightPlan.departure}`}`, this.menuItems(ac), x, y);
+    this.menu.open(`${ac.callsign}  ${ac.type.icao}  ${ac.category === 'departure' ? `> ${ac.flightPlan.destination}` : `< ${ac.flightPlan.departure}`}`, this.realistic ? this.stripItems(ac) : this.menuItems(ac), x, y);
   }
 
   /** Broadcasts to all stations on your frequencies (no read-back). */
@@ -1894,36 +1969,180 @@ export class App {
     return items;
   }
 
+  /** The SIDs for a clearance (the suggested one first) and their hints. */
+  private clearanceSids(ac: Aircraft): { sids: { name: string; fix: string }[]; hint: (name: string, fix: string) => string } {
+    const sim = this.sim;
+    const suggested = suggestedSid(sim, ac);
+    const sids = sim.config.airport.sids
+      .filter((sd) => sim.isDepartureRunway(sd.runway))
+      .sort((a, b) => (a.name === suggested ? -1 : b.name === suggested ? 1 : a.name.localeCompare(b.name)));
+    return { sids, hint: (name, fix) => (name === suggested ? `${fix || 'radar vectors'} - flight plan` : fix || 'radar vectors') };
+  }
+
+  /**
+   * Send DCL (PDC, datalink): for a departure on your frequency that asked for its clearance by datalink.
+   * Not a radio instruction, so the realistic mode offers it too.
+   */
+  private dclItem(ac: Aircraft): MenuItem | undefined {
+    const sim = this.sim;
+    if (!sim.isOnMyFrequency(ac) || !ac.dcl || !sim.systemOn('dcl') || ac.cleared) return undefined;
+    const squawk = ac.clearance?.squawk || allocateSquawk(sim);
+    const { sids, hint } = this.clearanceSids(ac);
+    return {
+      label: 'Send DCL (datalink)',
+      hint: `squawk ${squawk}`,
+      submenu: () =>
+        sids.map((sd) => ({
+          label: sd.name,
+          hint: hint(sd.name, sd.fix),
+          action: () => {
+            const err = this.act({ k: 'dcl', callsign: ac.callsign, sid: sd.name, squawk });
+            if (err) this.toast(err);
+            this.slowUpdate();
+          },
+        })),
+    };
+  }
+
+  // ------------------------------------------------------------------ realistic mode: the strips
+
+  /** Enters a mark in the lists by hand (realistic mode, see core/strips.ts). */
+  private mark(ac: Aircraft, field: StripField, value?: string | boolean): void {
+    this.act({ k: 'strip', callsign: ac.callsign, field, value });
+    for (const l of this.lists) l.update(this.sim, this.selected);
+  }
+
+  /** Realistic mode: a click on a list cell or a tag item edits that mark (or shows the flight plan). */
+  private onStripCell(ac: Aircraft, item: ListItem, x: number, y: number): void {
+    const title = `${ac.callsign} - ${this.sim.tel(ac).toUpperCase()}`;
+    switch (item) {
+      case 'request':
+        this.menu.open(`${ac.callsign} - request`, this.stripChoices(ac, 'request'), x, y);
+        return;
+      case 'status':
+        this.menu.open(`${ac.callsign} - state`, this.stripChoices(ac, 'status'), x, y);
+        return;
+      case 'target':
+        this.menu.open(`${ac.callsign} - cleared to`, this.stripChoices(ac, 'target'), x, y);
+        return;
+      case 'clearance':
+        this.mark(ac, 'cleared', !ac.strip?.cleared);
+        return;
+      case 'landing':
+        this.mark(ac, 'landing', !ac.strip?.landing);
+        return;
+      default: {
+        // Callsign, type, SID, squawk: the flight plan (with a DCL on your Delivery frequency).
+        const dcl = this.dclItem(ac);
+        this.menu.open(title, [...(dcl ? [dcl, { divider: true, label: '' }] : []), ...this.flightPlanItems(ac)], x, y);
+      }
+    }
+  }
+
+  /** The choices for a mark: the states, requests or places of the aircraft's kind, and "none". */
+  private stripChoices(ac: Aircraft, field: 'status' | 'request' | 'target'): MenuItem[] {
+    const current = field === 'status' ? ac.strip?.status : field === 'request' ? ac.strip?.request : ac.strip?.target;
+    const choice = (value: string, label = value, hint?: string): MenuItem => ({
+      label: `${value === current ? '\u2713 ' : ''}${label}`,
+      hint,
+      action: () => this.mark(ac, field, value),
+    });
+    const kind = ac.category === 'departure' ? 0 : ac.category === 'arrival' ? 1 : 2;
+    const items: MenuItem[] = [];
+    if (field === 'status') {
+      const style = this.scope.statusStyle;
+      for (const code of [DEPARTURE_STATES, ARRIVAL_STATES, TOW_STATES][kind]) {
+        const shown = styledStatus(code, ac, style);
+        items.push(choice(code, shown, STATE_HINTS[code]));
+      }
+    } else if (field === 'request') {
+      for (const code of [DEPARTURE_REQUESTS, ARRIVAL_REQUESTS, TOW_REQUESTS][kind]) items.push(choice(code, code, REQUEST_HINTS[code]));
+    } else {
+      for (const t of this.stripTargets(ac)) items.push(t.divider ? { divider: true, label: '' } : choice(t.value, t.value, t.hint));
+    }
+    if (current) items.push({ divider: true, label: '' }, { label: 'Clear', action: () => this.mark(ac, field, undefined) });
+    return items;
+  }
+
+  /** Places an aircraft can be cleared to, as the TAXI / STND columns show them. */
+  private stripTargets(ac: Aircraft): { value: string; hint?: string; divider?: boolean }[] {
+    const sim = this.sim;
+    const out: { value: string; hint?: string; divider?: boolean }[] = [];
+    const add = (value: string, hint?: string) => {
+      if (!out.some((o) => o.value === value)) out.push({ value, hint });
+    };
+    const divide = () => {
+      if (out.length && !out[out.length - 1].divider) out.push({ value: '', divider: true });
+    };
+    if (ac.category === 'departure' && !ac.returnToStand) {
+      if (needsDeicing(sim, ac) || ac.deicingPad) for (const pad of sim.airport.deicingPads) add(pad.name, 'de-icing');
+      for (const ops of sim.config.airport.runwayOps.filter((o) => sim.isDepartureRunway(o.runway))) {
+        divide();
+        for (const e of ops.departureEntries) add(e.holdingPoint, `RWY ${ops.runway}${e.fullLength ? '' : ' (intersection)'}`);
+        add(`R${ops.runway}`, 'runway');
+      }
+      return out;
+    }
+    if (ac.assignedStand) add(`S${ac.assignedStand}`, 'assigned');
+    if (ac.tow?.to) add(`S${ac.tow.to}`, 'tow');
+    divide();
+    for (const st of sim
+      .freeStands(ac.type.wingspanM, () => true, ac)
+      .sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos))
+      .slice(0, 14))
+      add(`S${st.id}`, st.apron);
+    return out;
+  }
+
+  /**
+   * Realistic mode: the aircraft menu keeps the strip (request, state, clearance flag, cleared-to, landing
+   * clearance) and what is no radio instruction: a DCL, a hand-off request, a CATC acknowledgement.
+   */
+  private stripItems(ac: Aircraft): MenuItem[] {
+    const sim = this.sim;
+    const items: MenuItem[] = [];
+    const alert = catcAlert(sim, ac);
+    if (alert) {
+      const other = alert.a === ac ? alert.b : alert.a;
+      items.push({ label: 'Acknowledge CATC alert', hint: other.callsign, action: () => this.acknowledgeCatc(ac) }, { divider: true, label: '' });
+    }
+    const dcl = this.dclItem(ac);
+    if (dcl) items.push(dcl, { divider: true, label: '' });
+    if (!sim.isOnMyFrequency(ac)) {
+      items.push({ label: `On ${ac.frequency} frequency`, disabled: true });
+      const to = sim.handoffTarget(ac);
+      if (to) items.push(sim.handoffPending(ac) ? { label: `Hand-off to ${to} requested`, disabled: true } : { label: `Request hand-off to ${to}`, action: () => this.requestHandoff(ac) });
+      items.push({ divider: true, label: '' });
+    }
+    const strip = ac.strip ?? {};
+    items.push(
+      { label: 'Request', hint: strip.request ?? '-', submenu: () => this.stripChoices(ac, 'request') },
+      { label: 'State', hint: strip.status ? styledStatus(strip.status, ac, this.scope.statusStyle) : '-', submenu: () => this.stripChoices(ac, 'status') },
+      { label: ac.category === 'departure' && !ac.returnToStand ? 'Cleared to' : 'Stand', hint: strip.target ?? '-', submenu: () => this.stripChoices(ac, 'target') },
+    );
+    if (ac.category === 'departure') items.push({ label: `${strip.cleared ? '\u2713 ' : ''}IFR clearance given (C)`, action: () => this.mark(ac, 'cleared', !strip.cleared) });
+    if (ac.category === 'arrival') items.push({ label: `${strip.landing ? '\u2713 ' : ''}Cleared to land (LND)`, action: () => this.mark(ac, 'landing', !strip.landing) });
+    items.push(
+      { divider: true, label: '' },
+      { label: 'Flight plan', submenu: () => this.flightPlanItems(ac).slice(0, -2) },
+      { label: 'Centre view', action: () => this.scope.centerOn(ac.pos) },
+      { label: 'Reset tag position', action: () => (ac.tagOffset = undefined) },
+    );
+    return items;
+  }
+
   /** Clearance Delivery: IFR clearance (voice or DCL), squawk, readback, start-up, hand-off to Ground. */
   private deliveryItems(ac: Aircraft): MenuItem[] {
     const sim = this.sim;
     const items: MenuItem[] = [];
     // Keep the code of an earlier clearance; otherwise the next free code.
     const squawk = ac.clearance?.squawk || allocateSquawk(sim);
-    const suggested = suggestedSid(sim, ac);
-    const sids = sim.config.airport.sids
-      .filter((sd) => sim.isDepartureRunway(sd.runway))
-      .sort((a, b) => (a.name === suggested ? -1 : b.name === suggested ? 1 : a.name.localeCompare(b.name)));
-    const sidHint = (name: string, fix: string) => (name === suggested ? `${fix || 'radar vectors'} - flight plan` : fix || 'radar vectors');
+    const { sids, hint: sidHint } = this.clearanceSids(ac);
     const dest = destinationName(ac.flightPlan.destination);
     const ctot = ac.ctot !== undefined ? `, CTOT ${hhmm(sim, ac.ctot)}` : '';
     const dclRequest = ac.dcl && sim.systemOn('dcl') && !ac.cleared;
-    if (dclRequest) {
-      items.push({
-        label: 'Send DCL (datalink)',
-        hint: `squawk ${squawk}`,
-        submenu: () =>
-          sids.map((sd) => ({
-            label: sd.name,
-            hint: sidHint(sd.name, sd.fix),
-            action: () => {
-              const err = this.act({ k: 'dcl', callsign: ac.callsign, sid: sd.name, squawk });
-              if (err) this.toast(err);
-              this.slowUpdate();
-            },
-          })),
-      });
-    }
+    const dcl = this.dclItem(ac);
+    if (dcl) items.push(dcl);
     items.push({
       label: ac.cleared ? 'Amend IFR clearance' : dclRequest ? 'IFR clearance by voice' : 'IFR clearance',
       hint: `squawk ${squawk}`,

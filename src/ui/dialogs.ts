@@ -485,7 +485,8 @@ const KEYS: [string, string][] = [
   ['... disregard [, new instruction]', 'Cancels what was said before it: alone nothing is sent and the command line is cleared, else only what follows is sent (spoken or typed)'],
   ['break break ...', 'After an instruction SEND is locked until the read-back has come (at most 5 s); "break break" in front of a transmission cuts in anyway'],
   ['TTS (toolbar)', 'Pilot voices: the pilots read their transmissions aloud (volume, speed and a test in SETTINGS > Voice)'],
-  ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, scope style, interface theme, traffic density, special events'],
+  ['F2 / SETTINGS (toolbar)', 'Settings: mobile or PC layout, interface and tag size, scope style, interface theme, control mode (Both / Realistic), traffic density, special events'],
+  ['Realistic mode (SETTINGS > Control, beta)', 'Instructions only by voice: hold PTT / MIC or a push-to-talk key and speak. No command line, no quick-action bar, the menus give no instructions (a DCL / PDC still works). You keep the lists yourself: click REQ, STS, C, TAXI / STND or LND (or right-click the aircraft) to enter the request, ground state, clearance flag, cleared-to or landing clearance'],
   ['Mobile mode: tap / tap again / long press', 'Select the aircraft / open its menu (or the tag item) / open its menu; + and - buttons zoom'],
   ['Mobile mode: quick-action bar', 'The same buttons for every aircraft of a position (DEL, GND, TWR), greyed out what does not apply; buttons and menu choices are picked into the command line and sent together with SEND'],
 ];

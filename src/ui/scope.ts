@@ -5,7 +5,7 @@ import { catcAlert } from '../core/conflicts';
 import { KT_TO_MS, M_PER_NM, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
 import { lvpInForce } from '../core/met';
 import type { Simulation } from '../core/simulation';
-import { clearedTo, statusCode, type StatusStyle } from './labels';
+import { clearedTo, shownRequest, statusCode, type StatusStyle } from './labels';
 
 /**
  * The ground radar scope: draws the aerodrome chart, aircraft symbols and
@@ -374,6 +374,11 @@ export class Scope {
   tagScale = 1;
   /** Zoomed out, tags show only the callsign; the selected (and hovered) aircraft gets the full tag. */
   compactTags = true;
+  /**
+   * Realistic control mode: the tags show the ground state, cleared-to and request the controller entered by hand
+   * (core/strips.ts), not what the radio did.
+   */
+  manualStrips = false;
   /** Colours (see `setStyle`). */
   private t: ScopeTheme = PHX_NIGHT;
   /** Ground state names in the tags. */
@@ -1142,14 +1147,19 @@ export class Scope {
     if (ac.emergency) return Math.floor(now / 400) % 2 === 0 ? this.t.emergency : base;
     // A-SMGCS CATC: aircraft routed head-on flash red - only conflicts that involve your traffic, until acknowledged.
     if (catcAlert(this.sim, ac)) return Math.floor(now / 350) % 2 === 0 ? this.t.danger : base;
-    const mine = this.sim.isOnMyFrequency(ac);
-    // Acknowledged requests ("roger", "standby") do not flash.
-    if (mine && ac.request && !ac.requestAck) {
-      const late = this.sim.time - ac.requestSince > 60;
+    // Acknowledged requests ("roger", "standby") do not flash; in realistic mode the requests you noted flash.
+    const q = this.request(ac);
+    if (q?.open) {
+      const late = this.sim.time - q.since > 60;
       const blink = Math.floor(now / 500) % 2 === 0;
       return blink ? (late ? this.t.late : this.t.request) : base;
     }
     return base;
+  }
+
+  /** The request a tag shows: the crew's own on your frequency, or in realistic mode the one you noted. */
+  private request(ac: Aircraft): ReturnType<typeof shownRequest> {
+    return this.manualStrips || this.sim.isOnMyFrequency(ac) ? shownRequest(ac, this.manualStrips) : undefined;
   }
 
   /** PHX: traffic that is not on your frequency is drawn dimmed. */
@@ -1370,12 +1380,11 @@ export class Scope {
     const ctx = this.ctx;
     const p = this.toScreen(ac.pos);
     const off = ac.tagOffset ?? defaultTagOffset();
-    const mine = this.sim.isOnMyFrequency(ac);
     const hovered = this.hover?.callsign === ac.callsign;
     const selected = ac.callsign === this.selected;
     // Quiet parked aircraft, and zoomed out everybody but the selected / hovered aircraft: callsign only.
     const zoomedOut = this.compactTags && this.zoom < COMPACT_TAG_ZOOM && !selected && !hovered;
-    const compact = (ac.phase === 'parked' && !ac.request) || ac.phase === 'arrived' || zoomedOut;
+    const compact = (ac.phase === 'parked' && !this.request(ac)) || ac.phase === 'arrived' || zoomedOut;
     const dep = ac.category === 'departure';
     // Each line is a list of items; items are clickable.
     type Part = { text: string; item?: TagItem; color?: string };
@@ -1386,15 +1395,15 @@ export class Scope {
       if (where) head.push({ text: ` ${where}`, item: dep ? undefined : 'target' });
     }
     if (ac.emergency) head.push({ text: ' PAN', color: this.t.emergency });
-    if (mine && ac.request) head.push({ text: ' *' });
+    if (this.request(ac)) head.push({ text: ' *' });
     lines.push(head);
     // Hovering the callsign shows the radiotelephony callsign (e.g. "SPEEDBIRD 947").
     if (hovered && this.hover?.item === 'callsign') lines.push([{ text: this.sim.tel(ac).toUpperCase(), color: this.t.selected }]);
     if (!compact) {
       const kt = Math.round(ac.speed / KT_TO_MS);
       if (ac.onGround) {
-        lines.push([{ text: `${ac.type.icao} ${ac.type.wake}`, item: 'type' }, { text: ' ' }, { text: statusCode(ac, this.statusStyle), item: 'status' }]);
-        const target = clearedTo(ac) || (!dep && ac.assignedStand ? `>${ac.assignedStand}` : '');
+        lines.push([{ text: `${ac.type.icao} ${ac.type.wake}`, item: 'type' }, { text: ' ' }, { text: statusCode(ac, this.statusStyle, this.manualStrips), item: 'status' }]);
+        const target = clearedTo(ac, this.manualStrips) || (!dep && ac.assignedStand ? `>${ac.assignedStand}` : '');
         const third: Part[] = [];
         if (dep && ac.flightPlan.sid) third.push({ text: ac.flightPlan.sid, item: 'sid' }, { text: ' ' });
         third.push({ text: target || '---', item: 'target' });
@@ -1480,7 +1489,7 @@ export class Scope {
     this.drawVehicles();
     for (const ac of list) {
       // Declutter: quiet parked aircraft only get a tag when zoomed in or selected.
-      const quiet = (ac.phase === 'parked' && !ac.request) || ac.phase === 'arrived';
+      const quiet = (ac.phase === 'parked' && !this.request(ac)) || ac.phase === 'arrived';
       if (quiet && this.zoom < COMPACT_TAG_ZOOM && ac.callsign !== this.selected) continue;
       // Without A-SMGCS surveillance the targets have no identity: no data tags.
       if (!this.sim.systemOn('surveillance')) continue;

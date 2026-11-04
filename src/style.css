@@ -717,6 +717,27 @@ body.phx .panel tr.selected td {
   opacity: 0.4;
   border-style: dashed;
 }
+/*
+ * Realistic control mode: instructions only by voice - the sidebar holds one large PTT button instead of SEND and
+ * the quick phrases, and the command line only shows what the microphone hears.
+ */
+.sidebar button.ptt {
+  display: none;
+  font-size: calc(18px * var(--ui-scale, 1));
+}
+body.realistic .sidebar button {
+  display: none;
+}
+body.realistic .sidebar button.ptt {
+  display: block;
+}
+body.realistic .cmdline .clear,
+body.realistic .quickbar {
+  display: none;
+}
+body.realistic .cmdline .cmd {
+  cursor: default;
+}
 /* SEND on top, larger than the other buttons. */
 .sidebar button.send {
   flex: 2.4 1 0;
@@ -806,18 +827,21 @@ body.phx .panel tr.selected td {
 .cmdline .preview.err {
   color: var(--danger);
 }
-button.mic.listening {
+button.mic.listening,
+button.ptt.listening {
   background: var(--danger-bg);
   border-color: var(--danger);
 }
 /* Pressed, the microphone is not capturing yet (first time: the speech model loads) - wait a moment before speaking. */
-button.mic.waiting {
+button.mic.waiting,
+button.ptt.waiting {
   background: var(--panel-2);
   border-color: var(--warn);
   color: var(--warn);
 }
 /* Released: the recogniser finishes the transmission. */
-button.mic.processing {
+button.mic.processing,
+button.ptt.processing {
   opacity: 0.6;
 }
 
@@ -1674,8 +1698,9 @@ body.mobile .sidebar {
   margin: 2px 0;
 }
 
-/* MIC is held like a push-to-talk key: no text selection or callout on a long press. */
-button.mic {
+/* MIC and PTT are held like a push-to-talk key: no text selection or callout on a long press. */
+button.mic,
+button.ptt {
   touch-action: none;
   user-select: none;
   -webkit-user-select: none;

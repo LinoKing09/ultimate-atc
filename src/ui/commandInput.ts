@@ -9,6 +9,8 @@ import { h } from './dom';
  */
 export class CommandInput {
   readonly el: HTMLDivElement;
+  /** The editing mode this browser supports ('plaintext-only' or 'true'). */
+  private readonly editMode: string;
 
   constructor(placeholder: string) {
     this.el = h('div.cmd', {
@@ -25,6 +27,7 @@ export class CommandInput {
       this.el.contentEditable = 'true';
     }
     if (this.el.contentEditable !== 'plaintext-only') this.el.contentEditable = 'true';
+    this.editMode = this.el.contentEditable;
     this.placeholder = placeholder;
     // Keep it a single line of plain text (pasted line breaks, rich text).
     this.el.addEventListener('input', () => {
@@ -43,6 +46,13 @@ export class CommandInput {
   set value(text: string) {
     this.el.textContent = text;
     if (this.focused) this.caretToEnd();
+  }
+
+  /** Read-only (realistic mode: instructions only by voice): shows what the microphone hears, nothing can be typed. */
+  set readOnly(on: boolean) {
+    this.el.contentEditable = on ? 'false' : this.editMode;
+    this.el.setAttribute('aria-readonly', String(on));
+    if (on) this.el.blur();
   }
 
   set placeholder(text: string) {

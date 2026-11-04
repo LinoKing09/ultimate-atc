@@ -4,6 +4,7 @@ import type { Compass, StationType } from './airport/types';
 import type { TaxiRoute } from './airport/routing';
 import { KT_TO_MS, headingVector, normHeading, type Vec2 } from './geo';
 import type { Path } from './path';
+import type { StripMarks } from './strips';
 import type { Command, TaxiDestination } from './phraseology/commands';
 import { telephonyCallsign } from './phraseology/speech';
 
@@ -282,6 +283,11 @@ export interface Aircraft {
   deicingUntil?: number;
   /** Tag offset on screen in pixels (UI state kept with the aircraft for convenience). */
   tagOffset?: { x: number; y: number };
+  /**
+   * Realistic control mode: what the controller entered in the lists by hand (ground state, request, clearance
+   * flag, cleared-to, landing clearance) - see core/strips.ts. Never changed by the simulation itself.
+   */
+  strip?: StripMarks;
 }
 
 export function createAircraft(init: {

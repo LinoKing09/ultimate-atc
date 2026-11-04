@@ -2,11 +2,18 @@ import type { Aircraft } from '../core/aircraft';
 import type { Simulation } from '../core/simulation';
 import { formatDuration, h } from './dom';
 import { hhmm } from '../core/delivery';
-import { clearedTo, requestLabel, statusCode, type StatusStyle } from './labels';
+import { clearedTo, shownRequest, statusCode, type StatusStyle } from './labels';
 import type { TagItem } from './scope';
 
 /** Cell functions of the lists: the tag items plus the squawk and the clearance flag. */
-export type ListItem = TagItem | 'squawk' | 'clearance';
+export type ListItem = TagItem | 'squawk' | 'clearance' | 'request' | 'landing';
+
+/** How the lists show the ground states: their names, and whether the lists are kept by hand (realistic mode). */
+export interface ListView {
+  style: StatusStyle;
+  /** Realistic control mode: request, state, clearance flag, cleared-to and landing clearance as entered by hand. */
+  manual: boolean;
+}
 
 interface Column {
   key: string;
@@ -14,7 +21,7 @@ interface Column {
   cls?: string;
   /** Clicking the cell opens this function (EuroScope list items), e.g. the SID or the taxi menu. */
   item?: ListItem;
-  get: (ac: Aircraft, sim: Simulation, style: StatusStyle) => string;
+  get: (ac: Aircraft, sim: Simulation, view: ListView) => string;
 }
 
 /**
@@ -26,6 +33,8 @@ interface Column {
 export class TrafficList {
   /** Ground state names (follows the scope style). */
   statusStyle: StatusStyle = 'phx';
+  /** Realistic control mode: the lists are kept by hand (see core/strips.ts). */
+  manual = false;
 
   readonly el: HTMLElement;
   private readonly tbody: HTMLTableSectionElement;
@@ -68,10 +77,12 @@ export class TrafficList {
 
   update(sim: Simulation, selected?: string): void {
     const rows = sim.aircraft.filter(this.filter);
+    const view: ListView = { style: this.statusStyle, manual: this.manual };
+    const request = (a: Aircraft) => (view.manual || sim.isOnMyFrequency(a) ? shownRequest(a, view.manual) : undefined);
     rows.sort((a, b) => {
-      const ra = a.request && sim.isOnMyFrequency(a) ? 0 : 1;
-      const rb = b.request && sim.isOnMyFrequency(b) ? 0 : 1;
-      return ra - rb || (ra === 0 ? a.requestSince - b.requestSince : a.spawnedAt - b.spawnedAt);
+      const qa = request(a);
+      const qb = request(b);
+      return (qa ? 0 : 1) - (qb ? 0 : 1) || (qa && qb ? qa.since - qb.since : a.spawnedAt - b.spawnedAt);
     });
     this.countEl.textContent = `(${rows.length})`;
     if (this.hideWhenEmpty) this.el.style.display = rows.length ? '' : 'none';
@@ -85,12 +96,13 @@ export class TrafficList {
       this.rows,
       rows.map((ac) => {
         const mine = sim.isOnMyFrequency(ac);
-        const req = mine && ac.request && !ac.requestAck;
-        const late = req && sim.time - ac.requestSince > 60;
+        const q = request(ac);
+        const req = !!q?.open;
+        const late = req && sim.time - q.since > 60;
         return {
           key: ac.callsign,
           cls: [ac.callsign === selected ? 'selected' : '', mine ? '' : 'other', req ? 'request' : '', late ? 'late' : ''].filter(Boolean).join(' '),
-          cells: this.columns.map((c) => ({ text: c.get(ac, sim, this.statusStyle), cls: [c.cls, c.item ? 'fn' : ''].filter(Boolean).join(' '), item: c.item })),
+          cells: this.columns.map((c) => ({ text: c.get(ac, sim, view), cls: [c.cls, c.item ? 'fn' : ''].filter(Boolean).join(' '), item: c.item })),
         };
       }),
       this.cb,
@@ -218,10 +230,11 @@ function keepInside(panel: HTMLElement): void {
   if (Math.abs(top - (r.top - p.top)) > 0.5 || panel.style.top) panel.style.top = `${top}px`;
 }
 
-function reqCell(ac: Aircraft, sim: Simulation): string {
-  if (!ac.request || !sim.isOnMyFrequency(ac)) return '';
-  const seq = ac.sequence ? ` #${ac.sequence.number}` : '';
-  return `${requestLabel(ac)}${seq} ${formatDuration(sim.time - ac.requestSince)}`;
+function reqCell(ac: Aircraft, sim: Simulation, view: ListView): string {
+  const q = view.manual || sim.isOnMyFrequency(ac) ? shownRequest(ac, view.manual) : undefined;
+  if (!q) return '';
+  const seq = !view.manual && ac.sequence ? ` #${ac.sequence.number}` : '';
+  return `${q.label}${seq} ${formatDuration(sim.time - q.since)}`;
 }
 
 function csCell(ac: Aircraft): string {
@@ -232,7 +245,7 @@ export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]):
   return new TrafficList(
     'DEPARTURES',
     [
-      { key: 'req', label: 'REQ', cls: 'req', item: 'status', get: reqCell },
+      { key: 'req', label: 'REQ', cls: 'req', item: 'request', get: reqCell },
       { key: 'cs', label: 'C/S', cls: 'cs', item: 'callsign', get: csCell },
       { key: 'stand', label: 'STND', get: (a) => a.stand ?? '' },
       { key: 'tsat', label: 'TSAT', get: (a, sim) => (a.tsat !== undefined && sim.systemOn('acdm') ? hhmm(sim, a.tsat) : '') },
@@ -244,11 +257,11 @@ export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]):
       { key: 'sid', label: 'SID', item: 'sid', get: (a) => a.flightPlan.sid ?? '' },
       { key: 'sq', label: 'ASSR', item: 'squawk', get: (a) => a.flightPlan.squawk },
       // Clearance flag (EuroScope "C"): the IFR clearance has been given.
-      { key: 'clr', label: 'C', cls: 'flag', item: 'clearance', get: (a) => (a.cleared ? '\u2713' : '') },
+      { key: 'clr', label: 'C', cls: 'flag', item: 'clearance', get: (a, _sim, v) => ((v.manual ? a.strip?.cleared : a.cleared) ? '\u2713' : '') },
       // Earliest intersection the crew accepts (COORD: Ground asks every departure).
       { key: 'int', label: 'INT', get: (a) => a.earliestIntersection ?? '' },
-      { key: 'taxi', label: 'TAXI', item: 'target', get: (a) => clearedTo(a) },
-      { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, style) => statusCode(a, style) },
+      { key: 'taxi', label: 'TAXI', item: 'target', get: (a, _sim, v) => clearedTo(a, v.manual) },
+      { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, v) => statusCode(a, v.style, v.manual) },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],
     (a) => a.category === 'departure' && a.phase !== 'climb' && a.phase !== 'gone',
@@ -291,6 +304,14 @@ export class VehicleList {
     this.tows.statusStyle = style;
   }
 
+  get manual(): boolean {
+    return this.tows.manual;
+  }
+
+  set manual(on: boolean) {
+    this.tows.manual = on;
+  }
+
   update(sim: Simulation, selected?: string): void {
     this.tows.update(sim, selected);
     const active = sim.vehicles.filter((v) => v.state !== 'idle');
@@ -328,13 +349,13 @@ function towList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList 
   return new TrafficList(
     'VEHICLES',
     [
-      { key: 'req', label: 'REQ', cls: 'req', item: 'status', get: reqCell },
+      { key: 'req', label: 'REQ', cls: 'req', item: 'request', get: reqCell },
       { key: 'cs', label: 'C/S', cls: 'cs', item: 'callsign', get: csCell },
       { key: 'acft', label: 'ACFT', get: (a) => a.tow?.aircraft ?? '' },
       { key: 'type', label: 'ATYP', get: (a) => a.type.icao },
       { key: 'from', label: 'FROM', get: (a) => a.tow?.from ?? '' },
       { key: 'to', label: 'TO', get: (a) => a.tow?.to ?? '' },
-      { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, style) => statusCode(a, style) },
+      { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, v) => statusCode(a, v.style, v.manual) },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],
     (a) => a.category === 'tow' && a.phase !== 'gone' && a.phase !== 'arrived',
@@ -347,7 +368,7 @@ export function arrivalList(cb: ConstructorParameters<typeof TrafficList>[3]): T
   return new TrafficList(
     'ARRIVALS',
     [
-      { key: 'req', label: 'REQ', cls: 'req', item: 'status', get: reqCell },
+      { key: 'req', label: 'REQ', cls: 'req', item: 'request', get: reqCell },
       { key: 'cs', label: 'C/S', cls: 'cs', item: 'callsign', get: csCell },
       { key: 'type', label: 'ATYP', item: 'type', get: (a) => a.type.icao },
       { key: 'wtc', label: 'W', get: (a) => a.type.wake },
@@ -364,14 +385,14 @@ export function arrivalList(cb: ConstructorParameters<typeof TrafficList>[3]): T
           return String(1 + sim.aircraft.filter((o) => o.phase === 'approach' && sim.distanceToThresholdNm(o) < d).length);
         },
       },
-      { key: 'lnd', label: 'LND', get: (a) => (a.phase === 'approach' && a.landingCleared ? 'CLR' : '') },
+      { key: 'lnd', label: 'LND', item: 'landing', get: (a, _sim, v) => ((v.manual ? a.strip?.landing : a.phase === 'approach' && a.landingCleared) ? 'CLR' : '') },
       {
         key: 'dist',
         label: 'DIST',
         get: (a, sim) => (a.phase === 'approach' ? `${sim.distanceToThresholdNm(a).toFixed(1)}nm` : a.exitName ?? ''),
       },
-      { key: 'std', label: 'STND', item: 'target', get: (a) => (a.phase === 'arrived' ? a.stand ?? '' : clearedTo(a) || (a.assignedStand ? `(${a.assignedStand})` : '')) },
-      { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, style) => statusCode(a, style) },
+      { key: 'std', label: 'STND', item: 'target', get: (a, _sim, v) => (a.phase === 'arrived' ? a.stand ?? '' : clearedTo(a, v.manual) || (a.assignedStand ? `(${a.assignedStand})` : '')) },
+      { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, v) => statusCode(a, v.style, v.manual) },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],
     (a) => a.category === 'arrival' && a.phase !== 'gone' && a.phase !== 'goAround',

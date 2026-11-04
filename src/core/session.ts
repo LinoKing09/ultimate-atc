@@ -7,6 +7,7 @@
 import type { AirportData } from './airport/types';
 import { acknowledgeCatc, catcAlert } from './conflicts';
 import { sendDcl } from './delivery';
+import { setStripMark, type StripField } from './strips';
 import type { ScenarioSetup } from './scenario';
 import { HANDOVER_S, Simulation, type AtisChange, type SimConfig, type TransmitResult } from './simulation';
 import type { SystemId } from './systems';
@@ -26,6 +27,8 @@ export type SessionAction =
   | { k: 'handoff'; callsign: string }
   | { k: 'dcl'; callsign: string; sid: string; squawk: string }
   | { k: 'catcAck'; callsign: string }
+  /** Realistic control mode: a mark the controller entered in the lists by hand (see strips.ts). */
+  | { k: 'strip'; callsign: string; field: StripField; value?: string | boolean }
   | { k: 'density'; density: Density }
   | { k: 'eventLevel'; level: number };
 
@@ -70,6 +73,11 @@ function apply(sim: Simulation, a: SessionAction): ActionResult {
       const ac = sim.find(a.callsign);
       const alert = ac && catcAlert(sim, ac);
       if (ac && alert && acknowledgeCatc(sim, ac)) sim.system(`CATC alert ${alert.a.callsign} / ${alert.b.callsign} acknowledged.`, 'system', ac.callsign);
+      return undefined;
+    }
+    case 'strip': {
+      const ac = sim.find(a.callsign);
+      if (ac) setStripMark(sim, ac, a.field, a.value);
       return undefined;
     }
     case 'density':

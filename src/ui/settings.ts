@@ -49,7 +49,15 @@ export interface Settings {
   scopeStyle: 'phx-night' | 'phx-day' | 'classic' | 'modern' | 'phosphor' | 'map';
   /** Colours of the interface around the scope (toolbar, lists, menus, dialogs), see UI_THEMES. */
   uiTheme: UiTheme;
+  /**
+   * How you give instructions: 'text' only typed (not available yet), 'both' typed, by voice and with the menus
+   * and the quick-action bar, 'realistic' (beta) only by voice - no command line, no quick-action bar, no
+   * instructions from the menus (except a DCL / PDC on Delivery), and the lists are kept by hand.
+   */
+  controlMode: ControlMode;
 }
+
+export type ControlMode = 'text' | 'both' | 'realistic';
 
 export type UiTheme = 'euroscope' | 'glass' | 'midnight' | 'light' | 'amber' | 'phosphor' | 'contrast';
 
@@ -88,6 +96,7 @@ const DEFAULTS: Settings = {
   voiceModel: 'small',
   scopeStyle: 'phx-night',
   uiTheme: 'euroscope',
+  controlMode: 'both',
 };
 
 /** Default device mode: touch screens without a fine pointer start in mobile mode. */
@@ -114,6 +123,8 @@ export function loadSettings(): Settings {
       const s = { ...defaultSettings(), ...stored };
       s.eventLevel = clampLevel(s.eventLevel);
       if (!UI_THEMES.some(([t]) => t === s.uiTheme)) s.uiTheme = DEFAULTS.uiTheme;
+      // 'text' is not available yet.
+      if (s.controlMode !== 'realistic') s.controlMode = 'both';
       return s;
     }
   } catch {

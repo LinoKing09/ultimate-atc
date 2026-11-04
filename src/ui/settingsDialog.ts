@@ -36,6 +36,8 @@ export function showSettings(
     test?: () => Promise<string> | void;
     /** What the speech recogniser learnt from your corrections: [heard, replaced by]; forget() clears it. */
     corrections?: { list: () => [string, string][]; forget: () => void };
+    /** Why the realistic control mode cannot be chosen now (no speech recognition, a tutorial), if so. */
+    realisticBlocked?: string;
   },
 ): void {
   if (document.querySelector('.overlay')) return;
@@ -81,6 +83,26 @@ export function showSettings(
       changed();
     }).el;
   const pct = (v: number) => `${Math.round(v * 100)} %`;
+
+  // Control mode: Only text is not available yet (greyed out); Realistic needs speech recognition.
+  const modeRow = () =>
+    segmented(
+      [
+        { value: 'text', label: 'Only text', disabled: true, title: 'Instructions only typed - coming later' },
+        { value: 'both', label: 'Both', title: 'Typed, by voice, from the menus and the quick-action bar' },
+        {
+          value: 'realistic',
+          label: 'Realistic (Beta)',
+          disabled: !!voice.realisticBlocked && settings.controlMode !== 'realistic',
+          title: voice.realisticBlocked ?? 'Only by voice; you keep the lists by hand',
+        },
+      ],
+      settings.controlMode,
+      (v) => {
+        settings.controlMode = v;
+        changed();
+      },
+    ).el;
 
   // Model of the own speech recogniser: the large one only after a warning (download, speed).
   const modelRow = () => {
@@ -247,6 +269,14 @@ export function showSettings(
               ] as [string, HTMLElement, string?][])),
           ),
           ]),
+      section(
+        'Control',
+        [
+          'Instructions',
+          modeRow(),
+          'Both: type, speak, or use the menus and the quick-action bar; the lists fill in from the radio. Realistic (Beta): instructions only by voice (MIC or a push-to-talk key) - no command line, no quick-action bar, the menus give no instructions (except a DCL / PDC on Delivery), and you keep the lists by hand like on a real strip board: request, ground state, clearance flag, cleared-to and landing clearance. Only text: coming later.',
+        ],
+      ),
       section(
         'Traffic',
         [

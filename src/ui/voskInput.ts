@@ -1,6 +1,5 @@
 import type { KaldiRecognizer, Model } from 'vosk-browser';
 import { fromVosk, voskPhraseGrammar } from '../core/phraseology/voskGrammar';
-import { IOS } from './voice';
 
 /**
  * The own speech recogniser: Vosk (Kaldi) running in the browser as WebAssembly, independent of the browser's
@@ -222,17 +221,6 @@ export class VoskInput {
     if (t) this.onInterim(t);
   }
 
-  /** Closes the microphone and pauses the audio (the next transmission opens it again). */
-  private releaseMic(): void {
-    for (const t of this.stream?.getTracks() ?? []) t.stop();
-    this.stream = undefined;
-    if (this.node) this.node.onaudioprocess = null;
-    this.node?.disconnect();
-    this.node = undefined;
-    this.pending = [];
-    void this.ctx?.suspend();
-  }
-
   stop(): void {
     if (!this.listening) return;
     this.listening = false;
@@ -260,9 +248,6 @@ export class VoskInput {
     const text = this.text();
     this.rec?.remove();
     this.rec = undefined;
-    // iOS: an open microphone keeps the audio in recording mode, which mutes the pilot voices - let it go after
-    // every transmission (no pre-roll there).
-    if (IOS) this.releaseMic();
     this.onPhase('idle');
     this.onState(false);
     if (text) this.onFinal([text]);

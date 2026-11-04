@@ -45,12 +45,6 @@ export function normalVoice(v: Pick<SpeechSynthesisVoice, 'name' | 'voiceURI'>):
 export const IOS = typeof navigator !== 'undefined' && (/iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1));
 
 /**
- * Radio noise needs Web Audio while the pilots speak. On iPad and iPhone, Safari mutes speech synthesis while the
- * page plays its own audio (the noise was heard, the voice not): there is no radio noise there.
- */
-export const RADIO_NOISE_SUPPORTED = !IOS;
-
-/**
  * Radio noise under a pilot's transmission: band-limited hiss (like an AM receiver) with a short squelch tail when
  * the transmission ends. Web Audio; started from the first tap (iOS needs that, as for speech).
  */
@@ -60,8 +54,6 @@ class RadioNoise {
   private current?: { src: AudioBufferSourceNode; gain: GainNode };
 
   unlock(): void {
-    // iOS: no audio context at all - its audio would mute the pilot voices.
-    if (!RADIO_NOISE_SUPPORTED) return;
     if (this.ctx) {
       void this.ctx.resume?.();
       return;
@@ -136,8 +128,6 @@ class RadioNoise {
 
 /** A voice that has not started speaking after this time (ms) is left out (see sayChecked). */
 const VOICE_START_MS = 2500;
-/** iOS: pause after the microphone before the pilots speak again (ms). */
-const IOS_AFTER_MIC_MS = 400;
 
 export class PilotVoices {
   enabled = false;
@@ -359,13 +349,7 @@ export class PilotVoices {
     this.held = null;
     // After the microphone iOS may leave the speech engine in a bad state: start clean.
     if (this.supported) window.speechSynthesis.cancel();
-    const speak = () => {
-      for (const m of queued.slice(-3)) this.speak(m.callsign, m.text, m.rate);
-    };
-    // iOS switches the audio back from recording to playing after the microphone is released: speech started at
-    // once may go unheard.
-    if (IOS && queued.length) setTimeout(speak, IOS_AFTER_MIC_MS);
-    else speak();
+    for (const m of queued.slice(-3)) this.speak(m.callsign, m.text, m.rate);
   }
 }
 

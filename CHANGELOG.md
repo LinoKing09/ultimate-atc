@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.8.0] - 2026-11-04
+
 ### Added
 
 - **`disregard`**: what was said before it in a transmission is cancelled (ICAO) - `..., disregard` alone sends nothing and clears the command line, `..., disregard, DLH5AB hold position` sends only what follows; spoken (also shown live while you speak) or typed. Both speech recognisers know the word.

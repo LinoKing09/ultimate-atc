@@ -56,7 +56,14 @@ export class VoskInput {
     private readonly onState: (listening: boolean, error?: string) => void,
     /** Progress for the user (loading the model). */
     private readonly onStatus: (text: string) => void,
+    /**
+     * What the MIC button shows: 'waiting' (pressed, the microphone is not capturing yet), 'recording', 'processing'
+     * (released, the recogniser finishes), 'idle'.
+     */
+    private readonly onPhase: (phase: 'waiting' | 'recording' | 'processing' | 'idle') => void = () => {},
   ) {}
+  /** Released before the recogniser was ready: it finishes as soon as it is (nothing said is dropped). */
+  private stopRequested = false;
 
   get supported(): boolean {
     return typeof WebAssembly === 'object' && typeof Worker !== 'undefined' && !!navigator.mediaDevices?.getUserMedia && !!(window.AudioContext ?? (window as unknown as { webkitAudioContext?: unknown }).webkitAudioContext);
@@ -120,6 +127,8 @@ export class VoskInput {
         this.rec.acceptWaveform(e.inputBuffer);
         return;
       }
+      // Released while the recogniser is being made: what was said is kept as it is, nothing more is added.
+      if (this.stopRequested) return;
       // Kept: before a transmission the last PRE_ROLL_S, while the recogniser is being made all of it.
       this.pending.push(e.inputBuffer.getChannelData(0).slice());
       if (!this.listening) {
@@ -137,29 +146,44 @@ export class VoskInput {
 
   start(): void {
     if (this.listening || this.failed) return;
+    // Pressed again before the recogniser was even ready: the same transmission goes on.
+    if (this.stopRequested) {
+      this.stopRequested = false;
+      this.finishing = false;
+      this.listening = true;
+      this.onPhase(this.stream ? 'recording' : 'waiting');
+      return;
+    }
+    // Pressed again while the last transmission is still being finished: that one is sent first, with what was heard.
+    if (this.finishing) this.finish();
     // The audio context belongs to the key press / tap (iOS): created or resumed before anything is awaited.
     const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
     this.ctx ??= new Ctx();
     void this.ctx.resume();
     this.listening = true;
     this.finishing = false;
+    this.stopRequested = false;
     this.discard();
     this.onState(true);
+    // Recording from the first moment where the microphone is open already (and its audio is kept); else as soon as it is.
+    this.onPhase(this.stream ? 'recording' : 'waiting');
     void (async () => {
       try {
-        await Promise.all([this.load(), this.openMic()]);
+        await Promise.all([
+          this.load(),
+          this.openMic().then(() => {
+            if (this.listening) this.onPhase('recording');
+          }),
+        ]);
       } catch (e) {
         this.failedWith = { size: this.modelSize(), error: (e as Error).message || String(e) };
         // The next try starts from the beginning (the failed model is not kept).
         this.loading = undefined;
         this.loadedSize = undefined;
         this.listening = false;
+        this.stopRequested = false;
+        this.onPhase('idle');
         this.onState(false, `speech model: ${this.failedWith.error}`);
-        return;
-      }
-      // Released while the model was still loading: nothing was heard.
-      if (!this.listening) {
-        this.onState(false);
         return;
       }
       const g = voskPhraseGrammar(this.phrases(), this.lexicon!);
@@ -181,6 +205,11 @@ export class VoskInput {
       for (const chunk of this.pending) rec.acceptWaveformFloat(chunk, this.ctx!.sampleRate);
       this.pending = [];
       this.rec = rec;
+      // Released while the model was loading or the microphone opening: what was said is recognised now.
+      if (this.stopRequested) {
+        this.stopRequested = false;
+        this.beginFinish();
+      }
     })();
   }
 
@@ -207,9 +236,20 @@ export class VoskInput {
   stop(): void {
     if (!this.listening) return;
     this.listening = false;
-    if (!this.rec) return; // still loading: start() ends it
+    this.onPhase('processing');
+    // Still loading / opening: the recogniser finishes once it is there, with the audio kept meanwhile.
+    if (!this.rec) {
+      this.stopRequested = true;
+      this.finishing = true;
+      return;
+    }
+    this.beginFinish();
+  }
+
+  private beginFinish(): void {
     this.finishing = true;
-    this.rec.retrieveFinalResult();
+    this.rec!.retrieveFinalResult();
+    clearTimeout(this.finishTimer);
     this.finishTimer = setTimeout(() => this.finish(), FINAL_RESULT_WAIT_MS);
   }
 
@@ -223,6 +263,7 @@ export class VoskInput {
     // iOS: an open microphone keeps the audio in recording mode, which mutes the pilot voices - let it go after
     // every transmission (no pre-roll there).
     if (IOS) this.releaseMic();
+    this.onPhase('idle');
     this.onState(false);
     if (text) this.onFinal([text]);
   }

@@ -409,7 +409,6 @@ export class App {
       if (this.settings.voiceAutoSend) this.submit(true);
     };
     const onState = (listening: boolean, error?: string) => {
-      this.micButton.classList.toggle('listening', listening);
       // Pilots stop talking while you transmit, so the microphone doesn't pick them up.
       if (listening) this.voices.hold();
       else this.voices.release();
@@ -418,9 +417,18 @@ export class App {
         this.hint(`Speech recognition error: ${error}${fallback}`);
       }
     };
-    this.browserVoice = new VoiceInput(onInterim, onFinal, onState);
+    // MIC shows what the recogniser does: waiting for the microphone (amber), recording (red), finishing (dimmed).
+    const setPhase = (phase: 'waiting' | 'recording' | 'processing' | 'idle') => {
+      this.micButton.classList.toggle('waiting', phase === 'waiting');
+      this.micButton.classList.toggle('listening', phase === 'recording');
+      this.micButton.classList.toggle('processing', phase === 'processing');
+    };
+    this.browserVoice = new VoiceInput(onInterim, onFinal, (listening, error) => {
+      setPhase(listening ? 'recording' : 'idle');
+      onState(listening, error);
+    });
     this.browserVoice.phrases = () => recognitionPhrases(sessionVocabulary(this.sim));
-    this.voskVoice = new VoskInput(onInterim, onFinal, onState, (status) => this.hint(status));
+    this.voskVoice = new VoskInput(onInterim, onFinal, onState, (status) => this.hint(status), setPhase);
     this.voskVoice.phrases = () => radioPhrases(sessionPhraseContext(this.sim));
     this.voskVoice.modelSize = () => this.settings.voiceModel;
     if (!MIC_ENABLED) {
@@ -435,6 +443,13 @@ export class App {
     let startedByPress = false;
     this.micButton.addEventListener('pointerdown', (e) => {
       e.preventDefault();
+      // The release reaches the button even when the finger or the mouse has slid off it (else the transmission went
+      // on until the next press).
+      try {
+        this.micButton.setPointerCapture(e.pointerId);
+      } catch {
+        /* not supported */
+      }
       pressedAt = performance.now();
       startedByPress = !this.voiceIn.listening;
       if (startedByPress) this.voiceIn.start();

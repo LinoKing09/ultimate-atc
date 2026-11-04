@@ -658,6 +658,16 @@ button.mic.listening {
   background: var(--danger-bg);
   border-color: var(--danger);
 }
+/* Pressed, the microphone is not capturing yet (first time: the speech model loads) - wait a moment before speaking. */
+button.mic.waiting {
+  background: var(--panel-2);
+  border-color: var(--warn);
+  color: var(--warn);
+}
+/* Released: the recogniser finishes the transmission. */
+button.mic.processing {
+  opacity: 0.6;
+}
 
 /* ------------------------------------------------------------------ popup menu */
 .popup {

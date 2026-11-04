@@ -48,6 +48,8 @@ export class VoskInput {
    * callsign - is often spoken while the key goes down), and everything while the recogniser is being made.
    */
   private pending: Float32Array[] = [];
+  /** Audio blocks taken in during this transmission (0: the microphone delivered nothing - the audio was not running). */
+  private captured = 0;
 
   constructor(
     private readonly onInterim: (text: string) => void,
@@ -122,6 +124,7 @@ export class VoskInput {
     // ScriptProcessor: deprecated, but available everywhere (also Safari on the iPad) and simple.
     const node = ctx.createScriptProcessor(4096, 1, 1);
     node.onaudioprocess = (e) => {
+      if (this.listening) this.captured++;
       if ((this.listening || this.finishing) && this.rec) {
         this.rec.acceptWaveform(e.inputBuffer);
         return;
@@ -143,6 +146,35 @@ export class VoskInput {
     this.node = node;
   }
 
+  /** The audio context, created on first use (it belongs to a tap or key press on iOS). */
+  private audio(): AudioContext {
+    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    this.ctx ??= new Ctx();
+    return this.ctx;
+  }
+
+  /**
+   * Called on every tap, click and key press: Safari on the iPad lets the audio start only from the release of a tap
+   * (pressing PTT / MIC is no such moment), so the audio is started - or resumed after the pilot voices interrupted it
+   * - by the taps before. `prepare`: also load the speech model and open the microphone now, so the first press
+   * records at once (the realistic mode, where every instruction is spoken).
+   */
+  unlock(prepare = false): void {
+    if (!this.supported || this.failed) return;
+    const ctx = this.audio();
+    if (ctx.state !== 'running') void ctx.resume().catch(() => {});
+    if (prepare && !this.stream && !this.preparing) {
+      this.preparing = true;
+      void Promise.all([this.load(), this.openMic()])
+        .catch(() => {
+          /* start() tries again and reports the error */
+        })
+        .finally(() => (this.preparing = false));
+    }
+  }
+
+  private preparing = false;
+
   start(): void {
     if (this.listening || this.failed) return;
     // Pressed again before the recogniser was even ready: the same transmission goes on.
@@ -156,9 +188,8 @@ export class VoskInput {
     // Pressed again while the last transmission is still being finished: that one is sent first, with what was heard.
     if (this.finishing) this.finish();
     // The audio context belongs to the key press / tap (iOS): created or resumed before anything is awaited.
-    const Ctx = window.AudioContext ?? (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-    this.ctx ??= new Ctx();
-    void this.ctx.resume();
+    void this.audio().resume().catch(() => {});
+    this.captured = 0;
     this.listening = true;
     this.finishing = false;
     this.stopRequested = false;
@@ -223,6 +254,8 @@ export class VoskInput {
 
   stop(): void {
     if (!this.listening) return;
+    // The release of a tap may start the audio where the press could not (iPad): ready for the next transmission.
+    if (this.ctx && this.ctx.state !== 'running') void this.ctx.resume().catch(() => {});
     this.listening = false;
     this.onPhase('processing');
     // Still loading / opening: the recogniser finishes once it is there, with the audio kept meanwhile.
@@ -251,5 +284,7 @@ export class VoskInput {
     this.onPhase('idle');
     this.onState(false);
     if (text) this.onFinal([text]);
+    // Nothing came from the microphone (the audio was not running yet): say so instead of doing nothing.
+    else if (!this.captured) this.onStatus('Nothing was recorded - the microphone was not ready yet. Hold PTT / MIC again and speak.');
   }
 }

@@ -228,7 +228,7 @@ Mobile mode is made for touch screens, above all the **iPad** (a phone screen is
 
   Each menu ends with *Clear*. The tag on the scope shows the same state and cleared-to, and `*` for a request you noted. The marks are only notes: they never change what the aircraft do, and a saved session shows them again.
 
-Not available in a tutorial (it works with the command line), and not without speech recognition.
+The speech model loads and the microphone opens when the session starts (or with your first tap), so the first press of PTT already records - the browser may ask for the microphone then. Not available in a tutorial (it works with the command line), and not without speech recognition.
 
 ## 3. The scope
 

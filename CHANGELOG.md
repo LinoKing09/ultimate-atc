@@ -10,6 +10,10 @@ All notable changes to this project are documented in this file. The format is b
 - **Control modes** (*Settings -> Control -> Instructions*): **Both** (as before: type, speak, use the menus and the quick-action bar) and **Realistic (Beta)**. In the realistic mode instructions are given only by voice: no command line (it only shows what the microphone hears), no SEND / ROGER / SAY AGAIN / ALL STN buttons and no quick-action bar - a large **PTT** button takes their place - and the menus give no instructions; a DCL (PDC) on Delivery, hand-off requests and CATC acknowledgements still work. The lists are no longer filled in from the radio: you enter the request (`TAXI`, `RDY` ...), the ground state (`PUSH`, `TAXI`, `L/U`, `T/O` ...), the clearance flag, where the aircraft is cleared to and the landing clearance yourself by clicking the cells (or in the aircraft's strip menu), and the tags show what you entered. The marks are kept in saved sessions. **Only text** is shown greyed out and follows later.
 - **Two new interface themes**: **Glass** (dark slate with translucent, blurred panels and rounded corners, made for Modern) and **Phosphor console** (green on black, made for Phosphor).
 
+### Fixed
+
+- **PTT / MIC only worked when held a second time on the iPad**: Safari lets the audio of the own speech recogniser start only from the release of a tap, not from pressing the button, so the first press recorded nothing. Now every tap, click or key press starts (or resumes) the audio beforehand, the release of PTT / MIC starts it too, and in the realistic mode the speech model loads and the microphone opens at the start of the session (first tap), so the first press records at once. If a press still recorded nothing, a hint says so instead of nothing happening.
+
 ## [1.8.0] - 2026-11-04
 
 ### Added

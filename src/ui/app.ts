@@ -483,6 +483,11 @@ export class App {
       button.addEventListener('contextmenu', (e) => e.preventDefault());
     }
     this.applySettings();
+    // iPad: the audio of the own speech recogniser can only start from the release of a tap, not from pressing PTT /
+    // MIC - every tap, click and key press starts (or resumes) it, so a press records at once. Also right away: the
+    // Connect tap may still count.
+    for (const type of ['pointerup', 'touchend', 'click', 'keydown']) document.addEventListener(type, () => this.unlockVoice(), { capture: true, passive: true });
+    this.unlockVoice();
 
     // ---------------------------------------------------------------- events
     sim.on('message', (m) => this.addMessage(m));
@@ -777,6 +782,12 @@ export class App {
     if (this.tutorial) return 'Not in a tutorial (it works with the command line)';
     if (!MIC_ENABLED || this.micButton.disabled) return 'Needs speech recognition, which this browser does not support (try Chrome or Edge)';
     return undefined;
+  }
+
+  /** Starts the audio of the own speech recogniser; in the realistic mode also loads its model and opens the microphone. */
+  private unlockVoice(): void {
+    if (!MIC_ENABLED || this.micButton.disabled || this.voiceIn !== this.voskVoice) return;
+    this.voskVoice.unlock(this.realistic);
   }
 
   /** An example instruction for the command line, for this airport, runway and position. */

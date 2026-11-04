@@ -100,6 +100,7 @@ export class App {
   private readonly micButton: HTMLButtonElement;
   private readonly ttsButton: HTMLButtonElement;
   private sendBtn!: HTMLButtonElement;
+  private scopeFx!: HTMLElement;
   /** What the speech recogniser learnt from your corrections; the last transcript put into the command line; the last sent unchanged. */
   private readonly corrections: CorrectionStore = loadCorrections();
   private voiceHeard?: string;
@@ -288,7 +289,10 @@ export class App {
       this.slowUpdate();
     });
 
-    this.main = h('div.main', {}, canvas);
+    // The look of some scope styles over the drawing (glow, scan lines, sweep, darker edges): above the scope, below
+    // the lists, never in the way of the mouse.
+    this.scopeFx = h('div.scope-fx', {}, h('div.sweep'));
+    this.main = h('div.main', {}, canvas, this.scopeFx);
     const listCb = {
       select: (cs: string) => this.select(cs),
       center: (cs: string) => {
@@ -696,13 +700,16 @@ export class App {
       for (const l of this.lists) l.el.classList.toggle('collapsed', mobile && window.innerWidth < 900);
     }
     document.documentElement.style.setProperty('--ui-scale', String(s.uiScale));
-    // Scope style: PHX (VATSIM Germany ground radar) or classic; the lists follow with their ground states.
+    // Scope style: PHX (VATSIM Germany ground radar), classic, modern, phosphor or map; the lists follow with their
+    // ground states.
     this.scope.setStyle(s.scopeStyle);
-    // Interface theme: the colour tokens of src/style.css. The PHX list windows belong to the EuroScope theme;
-    // the departure / arrival callsign colours follow any PHX scope style.
+    this.scopeFx.className = `scope-fx${this.scope.effect ? ` fx-${this.scope.effect}` : ''}`;
+    this.main.classList.toggle('fx-phosphor', this.scope.effect === 'phosphor');
+    // Interface theme: the colour tokens of src/style.css. The PHX list windows (light grey title bars) belong to the
+    // PHX scope styles with the EuroScope theme; the departure / arrival callsign colours to every style with them.
     document.documentElement.dataset.uiTheme = s.uiTheme;
-    document.body.classList.toggle('phx', s.scopeStyle !== 'classic' && s.uiTheme === 'euroscope');
-    document.body.classList.toggle('phx-tags', s.scopeStyle !== 'classic');
+    document.body.classList.toggle('phx', (s.scopeStyle === 'phx-night' || s.scopeStyle === 'phx-day') && s.uiTheme === 'euroscope');
+    document.body.classList.toggle('phx-tags', this.scope.isPhx);
     for (const l of this.lists) l.statusStyle = this.scope.statusStyle;
     this.scope.touchMode = mobile;
     this.scope.tagScale = s.tagScale * (mobile ? 1.25 : 1);

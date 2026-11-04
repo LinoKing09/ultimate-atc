@@ -4,6 +4,11 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **Three new scope styles** (*Settings -> Scope style*): **Modern** (a modern A-SMGCS look: slate background, cyan departures, gold arrivals, darkened edges), **Phosphor** (an old radar screen: green on black with glow, scan lines and a slow radar sweep - off with reduced motion) and **Map** (like an aerodrome chart: green grass, grey concrete, yellow-on-black designators, blue departures, brown arrivals). They draw aircraft and tags like PHX.
+- **Two new interface themes**: **Glass** (dark slate with translucent, blurred panels and rounded corners, made for Modern) and **Phosphor console** (green on black, made for Phosphor).
+
 ## [1.8.0] - 2026-11-04
 
 ### Added

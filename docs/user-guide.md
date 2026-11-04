@@ -151,8 +151,8 @@ Every airport added in the future comes with its own briefing.
 | Tag size                 | Size of the aircraft data tags on the scope (80-200 %)                                     |
 | Data tags                | **Compact when zoomed out** (default): with the whole airport in view, tags show only the callsign - see [tags](#4-aircraft-tags-and-colours); **Always full** |
 | Scope orientation        | Runway horizontal (like the chart) or north-up - the same as `ROT`                         |
-| Scope style              | **PHX night** (default), **PHX day** or **Classic** - see [Scope styles](#scope-styles)     |
-| Interface theme          | Colours of the toolbar, lists, menus and dialogs: **EuroScope** (default), **Midnight**, **Light**, **Amber console** or **High contrast** - see [Interface themes](#interface-themes) |
+| Scope style              | **PHX night** (default), **PHX day**, **Modern**, **Phosphor**, **Map** or **Classic** - see [Scope styles](#scope-styles) |
+| Interface theme          | Colours of the toolbar, lists, menus and dialogs: **EuroScope** (default), **Glass**, **Midnight**, **Light**, **Amber console**, **Phosphor console** or **High contrast** - see [Interface themes](#interface-themes) |
 | Show cleared routes      | The same as `ROUTES`                                                                       |
 | Pilot voices (TTS)       | The same as `TTS`                                                                          |
 | Voice volume / speed     | Volume and speaking rate of the pilot voices                                               |
@@ -172,8 +172,10 @@ Every airport added in the future comes with its own briefing.
 | ----- | ---- | -------------- |
 | **EuroScope** (default) | The dark blue-grey EuroScope look of Ultimate ATC; with a PHX scope style the lists get the VATSIM Germany window colours (light grey title bars) | PHX night, Classic |
 | **Midnight** | Deep navy blue with cyan accents | PHX night |
-| **Light** | Light grey and white with dark text and blue accents - for daylight and screens in the sun | PHX day |
+| **Glass** | Dark slate with translucent, blurred panels, rounded corners and a sans-serif font - a modern A-SMGCS workstation | Modern |
+| **Light** | Light grey and white with dark text and blue accents - for daylight and screens in the sun | PHX day, Map |
 | **Amber console** | Amber text on black, like an old radar console | PHX night |
+| **Phosphor console** | Green text on black with a slight glow, like a phosphor radar console | Phosphor |
 | **High contrast** | Black, white and yellow, thicker borders, white title bars - for poor screens and eyes | PHX night, Classic |
 
 With a PHX scope style the callsigns in the lists take the tag colours in every theme (departures blue, arrivals yellow, in shades that are readable on the theme), and traffic on other frequencies is dimmed.
@@ -216,6 +218,12 @@ The scope is a ground radar showing the aerodrome chart. By default it is rotate
 *Scope style* in the [settings](#settings) chooses the look:
 
 - **PHX night** (default) and **PHX day**: like the EuroScope ground radar of VATSIM Germany, which is modelled on the **DFS PHOENIX** tower display used at German airports - a dark green-black background (day: light green), dark grey aprons, grey taxiways, a lighter grey runway, amber holding points, white taxiway designators; aircraft as **radar returns** (olive green) with a small **SSR symbol** (the transponder square) and five **history dots** behind moving targets; tags in boxes, **departures blue, arrivals yellow**, vehicles green, traffic on other frequencies dimmed; the PHX ground states (`SUG`, `PBG`, `TXG` ...). With the *EuroScope* [interface theme](#interface-themes) the lists get the PHX window colours (light grey title bars).
+- **Modern**: a modern A-SMGCS look - slate blue-grey background, cyan departures, gold arrivals, the edges of the scope slightly darkened. Best with the *Glass* interface theme.
+- **Phosphor**: an old phosphor radar screen - everything in shades of green on black with a slight glow, scan lines and a slow radar sweep (switched off when the system asks for reduced motion). Best with the *Phosphor console* interface theme. The glow costs some drawing time on slower tablets.
+- **Map**: like an aerodrome chart - green grass, grey concrete, yellow-on-black designators like the signs at the taxiways, blue departures, brown arrivals. Best with the *Light* interface theme.
+
+Modern, Phosphor and Map draw aircraft and tags like PHX (radar returns, SSR symbol, history dots, PHX ground states), in their own colours.
+
 - **Classic**: the colours of Ultimate ATC before 1.2 (blue-grey background, black runway, white / grey silhouettes) with the EuroScope ground states (`ST-UP`, `PUSH`, `TAXI` ...).
 
 | Element                                | Drawn as (PHX; classic in brackets)                                            |

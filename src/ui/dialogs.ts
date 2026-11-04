@@ -544,7 +544,7 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
           h('table.ref', {}, ...KEYS.map(([a, b]) => h('tr', {}, h('td', {}, h('kbd', { text: a })), h('td', { text: b })))),
           h('h2', { text: 'Colours' }),
           h('p', {
-            text: 'PHX scope style (default, SETTINGS): departures blue, arrivals yellow, vehicles green; dimmed: on another frequency (Tower, or an AI Delivery / Ground). The aircraft shape is the radar return, the small square the transponder (SSR) symbol with history dots behind it. Classic style: white on your frequency, grey on another. Both: flashing (white / yellow) = waiting for your answer, orange after one minute; flashing red = CATC head-on alert; magenta "PAN" = emergency; red = incident. The colours around the scope (toolbar, lists, menus, dialogs) follow the interface theme in SETTINGS: EuroScope, Midnight, Light, Amber console or High contrast.',
+            text: 'PHX scope style (default, SETTINGS): departures blue, arrivals yellow, vehicles green; dimmed: on another frequency (Tower, or an AI Delivery / Ground). The aircraft shape is the radar return, the small square the transponder (SSR) symbol with history dots behind it. Modern, Phosphor and Map: the same, in their own colours. Classic style: white on your frequency, grey on another. Both: flashing (white / yellow) = waiting for your answer, orange after one minute; flashing red = CATC head-on alert; magenta "PAN" = emergency; red = incident. The colours around the scope (toolbar, lists, menus, dialogs) follow the interface theme in SETTINGS: EuroScope, Glass, Midnight, Light, Amber console, Phosphor console or High contrast.',
           }),
           h('h2', { text: 'Tags and lists' }),
           h('p', {

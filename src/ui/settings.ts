@@ -42,22 +42,25 @@ export interface Settings {
   voiceModel: 'small' | 'large';
   /**
    * Look of the scope: 'phx-night' / 'phx-day' as the VATSIM Germany EuroScope ground radar (modelled on
-   * the DFS PHOENIX tower display: departures blue, arrivals yellow, PHX ground states), 'classic' the
-   * earlier Ultimate ATC colours with the EuroScope ground states.
+   * the DFS PHOENIX tower display: departures blue, arrivals yellow, PHX ground states), 'modern' (slate-grey
+   * A-SMGCS), 'phosphor' (green radar tube), 'map' (seen from above), 'classic' the earlier Ultimate ATC colours
+   * with the EuroScope ground states.
    */
-  scopeStyle: 'phx-night' | 'phx-day' | 'classic';
+  scopeStyle: 'phx-night' | 'phx-day' | 'classic' | 'modern' | 'phosphor' | 'map';
   /** Colours of the interface around the scope (toolbar, lists, menus, dialogs), see UI_THEMES. */
   uiTheme: UiTheme;
 }
 
-export type UiTheme = 'euroscope' | 'midnight' | 'light' | 'amber' | 'contrast';
+export type UiTheme = 'euroscope' | 'glass' | 'midnight' | 'light' | 'amber' | 'phosphor' | 'contrast';
 
 /** The interface themes offered in the settings; the colours are in src/style.css. */
 export const UI_THEMES: [UiTheme, string][] = [
   ['euroscope', 'EuroScope'],
+  ['glass', 'Glass'],
   ['midnight', 'Midnight'],
   ['light', 'Light'],
   ['amber', 'Amber console'],
+  ['phosphor', 'Phosphor console'],
   ['contrast', 'High contrast'],
 ];
 

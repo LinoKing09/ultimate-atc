@@ -16,6 +16,11 @@ import { clearedTo, statusCode, type StatusStyle } from './labels';
 interface ScopeTheme {
   /** PHX: radar returns with an SSR symbol, history dots, departures / arrivals in their colours, label boxes. */
   phx: boolean;
+  /**
+   * A look over the drawing (CSS layer above the scope, below the lists): 'phosphor' - glow, scan lines and a
+   * rotating sweep like a radar tube; 'vignette' - darker edges.
+   */
+  effect?: 'phosphor' | 'vignette';
   background: string;
   apron: string;
   taxiway: string;
@@ -188,8 +193,125 @@ const PHX_DAY: ScopeTheme = {
   selected: 'rgb(0, 0, 0)',
 };
 
-export type ScopeStyle = 'phx-night' | 'phx-day' | 'classic';
-const THEMES: Record<ScopeStyle, ScopeTheme> = { 'phx-night': PHX_NIGHT, 'phx-day': PHX_DAY, classic: CLASSIC };
+/** Modern A-SMGCS: a calm slate-grey ground radar like current tower displays, data blocks in boxes. */
+const MODERN: ScopeTheme = {
+  ...PHX_NIGHT,
+  effect: 'vignette',
+  background: 'rgb(26, 33, 41)',
+  apron: 'rgb(40, 49, 60)',
+  taxiway: 'rgb(58, 68, 80)',
+  taxiwayEdge: 'rgb(78, 90, 104)',
+  centreline: 'rgba(235, 200, 60, 0.55)',
+  standLine: 'rgba(235, 200, 60, 0.35)',
+  runway: 'rgb(18, 20, 22)',
+  runwayMark: 'rgb(240, 240, 240)',
+  building: 'rgb(52, 62, 76)',
+  buildingEdge: 'rgb(96, 112, 132)',
+  buildingLabel: 'rgb(140, 155, 172)',
+  label: 'rgb(225, 232, 240)',
+  labelBg: 'rgba(16, 20, 24, 0.8)',
+  standLabel: 'rgb(120, 130, 140)',
+  holdBar: 'rgb(255, 176, 0)',
+  scaleBar: 'rgb(150, 160, 170)',
+  route: 'rgba(120, 220, 255, 0.9)',
+  routeOther: 'rgba(150, 170, 185, 0.45)',
+  centrelineActive: 'rgba(120, 220, 255, 0.5)',
+  mine: 'rgb(255, 255, 255)',
+  other: 'rgb(120, 130, 140)',
+  departure: 'rgb(110, 200, 255)',
+  arrival: 'rgb(255, 214, 90)',
+  unknown: 'rgb(120, 220, 140)',
+  rawVideo: 'rgb(190, 235, 140)',
+  tagBg: 'rgba(12, 16, 20, 0.88)',
+  tagBgSelected: 'rgba(24, 56, 78, 0.95)',
+  request: 'rgb(255, 255, 255)',
+  selected: 'rgb(120, 220, 255)',
+};
+
+/**
+ * Phosphor: the classic radar tube - everything in shades of green with a glow, scan lines and a sweep. Departures
+ * green-cyan, arrivals green-yellow; alerts stay red and magenta.
+ */
+const PHOSPHOR: ScopeTheme = {
+  ...PHX_NIGHT,
+  effect: 'phosphor',
+  background: 'rgb(2, 10, 5)',
+  apron: 'rgb(5, 28, 12)',
+  taxiway: 'rgb(9, 46, 19)',
+  taxiwayEdge: 'rgb(20, 86, 38)',
+  centreline: 'rgba(70, 210, 100, 0.45)',
+  standLine: 'rgba(60, 190, 90, 0.35)',
+  runway: 'rgb(12, 58, 24)',
+  runwayMark: 'rgb(110, 255, 140)',
+  building: 'rgb(7, 34, 15)',
+  buildingEdge: 'rgb(28, 118, 52)',
+  buildingLabel: 'rgb(60, 170, 90)',
+  closedCross: 'rgb(220, 90, 60)',
+  holdBar: 'rgb(190, 255, 120)',
+  deicing: 'rgb(60, 160, 90)',
+  label: 'rgb(140, 255, 165)',
+  labelBg: 'rgba(0, 10, 4, 0.6)',
+  standLabel: 'rgb(50, 150, 80)',
+  scaleBar: 'rgb(90, 200, 110)',
+  route: 'rgba(160, 255, 170, 0.85)',
+  routeOther: 'rgba(80, 170, 100, 0.4)',
+  previewOk: 'rgba(160, 255, 170, 0.9)',
+  centrelineActive: 'rgba(160, 255, 170, 0.5)',
+  centrelineOther: 'rgba(80, 170, 100, 0.25)',
+  followMe: 'rgb(230, 255, 120)',
+  mine: 'rgb(200, 255, 210)',
+  other: 'rgb(60, 140, 80)',
+  departure: 'rgb(150, 255, 220)',
+  arrival: 'rgb(225, 255, 140)',
+  unknown: 'rgb(120, 220, 140)',
+  rawVideo: 'rgb(150, 255, 160)',
+  tagBg: 'rgba(0, 14, 6, 0.55)',
+  tagBgSelected: 'rgba(10, 50, 20, 0.9)',
+  request: 'rgb(235, 255, 235)',
+  late: 'rgb(255, 170, 60)',
+  selected: 'rgb(230, 255, 230)',
+};
+
+/**
+ * Map: the airport as seen from above - grass, concrete aprons, asphalt, yellow centre lines; taxiway designators as
+ * the airport's location signs (yellow on black). Friendly for a first session.
+ */
+const MAP: ScopeTheme = {
+  ...PHX_DAY,
+  effect: 'vignette',
+  background: 'rgb(58, 78, 52)',
+  apron: 'rgb(132, 134, 136)',
+  taxiway: 'rgb(84, 86, 90)',
+  taxiwayEdge: 'rgb(70, 72, 76)',
+  centreline: 'rgba(250, 210, 50, 0.85)',
+  standLine: 'rgba(250, 210, 50, 0.6)',
+  runway: 'rgb(48, 50, 53)',
+  runwayMark: 'rgb(250, 250, 250)',
+  building: 'rgb(170, 160, 148)',
+  buildingEdge: 'rgb(120, 112, 102)',
+  buildingLabel: 'rgb(40, 40, 40)',
+  holdBar: 'rgb(255, 200, 0)',
+  deicing: 'rgb(150, 190, 230)',
+  label: 'rgb(255, 214, 40)',
+  labelBg: 'rgba(18, 18, 18, 0.92)',
+  standLabel: 'rgb(30, 30, 30)',
+  scaleBar: 'rgb(240, 240, 240)',
+  route: 'rgba(0, 120, 255, 0.9)',
+  routeOther: 'rgba(255, 255, 255, 0.5)',
+  centrelineActive: 'rgba(0, 120, 255, 0.5)',
+  centrelineOther: 'rgba(255, 255, 255, 0.3)',
+  mine: 'rgb(255, 255, 255)',
+  other: 'rgb(90, 90, 90)',
+  departure: 'rgb(20, 90, 210)',
+  arrival: 'rgb(170, 70, 0)',
+  rawVideo: 'rgb(255, 255, 255)',
+  tagBg: 'rgba(255, 255, 255, 0.88)',
+  tagBgSelected: 'rgba(255, 255, 255, 1)',
+  selected: 'rgb(0, 90, 200)',
+};
+
+export type ScopeStyle = 'phx-night' | 'phx-day' | 'classic' | 'modern' | 'phosphor' | 'map';
+const THEMES: Record<ScopeStyle, ScopeTheme> = { 'phx-night': PHX_NIGHT, 'phx-day': PHX_DAY, classic: CLASSIC, modern: MODERN, phosphor: PHOSPHOR, map: MAP };
 
 /** Number of history dots behind a moving target (PHX) and the time between them (simulation seconds). */
 const HISTORY_DOTS = 5;
@@ -332,7 +454,7 @@ export class Scope {
     return this.viewHeading !== 0;
   }
 
-  /** Scope style: the PHX palettes (VATSIM Germany) or the classic one. */
+  /** Scope style: the PHX palettes (VATSIM Germany), the classic one, or Modern, Phosphor, Map. */
   setStyle(style: ScopeStyle): void {
     this.t = THEMES[style] ?? PHX_NIGHT;
     this.statusStyle = this.t.phx ? 'phx' : 'euroscope';
@@ -340,6 +462,11 @@ export class Scope {
 
   get isPhx(): boolean {
     return this.t.phx;
+  }
+
+  /** The look over the drawing (CSS layer, see ScopeTheme.effect). */
+  get effect(): ScopeTheme['effect'] {
+    return this.t.effect;
   }
 
   resetView(): void {

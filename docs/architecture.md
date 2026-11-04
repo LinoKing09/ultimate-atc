@@ -14,7 +14,7 @@ ultimate-atc/
 ├── src/
 │   ├── main.ts                # entry point: login dialog -> Simulation -> App
 │   ├── version.ts             # APP_VERSION from package.json (start screen, toolbar, help)
-│   ├── style.css              # interface colours as tokens; themes EuroScope (default), Midnight, Light, Amber, High contrast (html[data-ui-theme])
+│   ├── style.css              # interface colours as tokens; themes EuroScope (default), Glass, Midnight, Light, Amber, Phosphor, High contrast (html[data-ui-theme])
 │   ├── core/                  # simulation (no DOM access)
 │   │   ├── geo.ts             # vector maths, local projection, headings, units
 │   │   ├── path.ts            # smoothed polylines that aircraft move along
@@ -73,7 +73,7 @@ ultimate-atc/
 │   │       └── *.layout.ts    # layouts generated from OpenStreetMap by scripts/osm-import.mjs
 │   └── ui/                    # browser client
 │       ├── app.ts             # wires sim <-> scope, lists, messages, command line, menus
-│       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input, rotation (runway-aligned / north-up), styles (PHX night / day, classic)
+│       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input, rotation (runway-aligned / north-up), styles (PHX night / day, Modern, Phosphor, Map, classic; effect layer .scope-fx)
 │       ├── lists.ts           # departure / arrival lists (clickable cells)
 │       ├── menu.ts            # popup menus
 │       ├── dialogs.ts         # connect dialog, help window (tabs), ATIS editor

@@ -180,6 +180,111 @@
   --arr: #ff9a3c;
 }
 
+/* Glass: a modern, calm interface - slate blue, translucent rounded windows, a sans-serif typeface for the controls. */
+:root[data-ui-theme='glass'] {
+  --bg: #12171c;
+  --panel: #182028;
+  --panel-2: #222c36;
+  --panel-border: #33404d;
+  --text: #d3dde6;
+  --text-dim: #7f90a0;
+  --accent: #6fc8ff;
+  --accent-soft: #bfe6ff;
+  --on-accent: #08141c;
+  --atc: #9fd3ff;
+  --pilot: #e8eef3;
+  --system: #93a4b4;
+  --panel-bg: rgba(22, 28, 35, 0.8);
+  --popup-bg: #1b232c;
+  --sunken: #0f1418;
+  --field-bg: #151b21;
+  --header-bg: rgba(255, 255, 255, 0.03);
+  --title-bg: rgba(255, 255, 255, 0.05);
+  --title-text: #a9bccd;
+  --tutorial-title: #1d3a50;
+  --active-bg: #1e4a63;
+  --open-bg: #24506a;
+  --primary-bg: #1d5a7c;
+  --hover-bg: rgba(111, 200, 255, 0.08);
+  --selected-bg: rgba(111, 200, 255, 0.16);
+  --border-strong: #3d4a58;
+  --rule: #26303a;
+  --meter-off: #2e3945;
+  --overlay-bg: rgba(5, 8, 12, 0.72);
+  --shadow: rgba(0, 0, 0, 0.55);
+}
+:root[data-ui-theme='glass'] button,
+:root[data-ui-theme='glass'] .toolbar,
+:root[data-ui-theme='glass'] .panel .title,
+:root[data-ui-theme='glass'] .dialog .dtitle {
+  font-family: Inter, 'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+:root[data-ui-theme='glass'] button,
+:root[data-ui-theme='glass'] .toolbar .field {
+  border-radius: 6px;
+}
+:root[data-ui-theme='glass'] .panel,
+:root[data-ui-theme='glass'] .dialog,
+:root[data-ui-theme='glass'] .popup {
+  border-radius: 8px;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-color: rgba(111, 200, 255, 0.18);
+}
+:root[data-ui-theme='glass'] .panel .title {
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  font-size: 0.92em;
+}
+:root[data-ui-theme='glass'] .sidebar button {
+  margin: 3px;
+  border-radius: 8px;
+}
+
+/* Phosphor console: a green radar console - goes with the Phosphor scope style. */
+:root[data-ui-theme='phosphor'] {
+  --bg: #020a05;
+  --panel: #03120a;
+  --panel-2: #062014;
+  --panel-border: #14512a;
+  --text: #8fe9a2;
+  --text-dim: #4f9c63;
+  --text-strong: #c8ffd2;
+  --accent: #6dff96;
+  --accent-soft: #bfffcf;
+  --on-accent: #021006;
+  --warn: #e6ff6a;
+  --ok: #8dff9e;
+  --atc: #a8ffbb;
+  --pilot: #c8ffd2;
+  --system: #6fbf82;
+  --panel-bg: rgba(2, 16, 8, 0.92);
+  --popup-bg: #03140a;
+  --sunken: #010603;
+  --field-bg: #020c06;
+  --header-bg: #041409;
+  --title-bg: #0a2a16;
+  --title-text: #9dffb4;
+  --tutorial-title: #0c3a1c;
+  --active-bg: #0d3a1c;
+  --open-bg: #12482a;
+  --primary-bg: #145a2e;
+  --hover-bg: rgba(109, 255, 150, 0.08);
+  --selected-bg: rgba(109, 255, 150, 0.18);
+  --border-strong: #1d6b38;
+  --rule: #0c2a16;
+  --meter-off: #0f3019;
+  --disabled: #2f6b40;
+  --overlay-bg: rgba(0, 6, 2, 0.8);
+  --shadow: rgba(0, 0, 0, 0.7);
+  --dep: #96ffdc;
+  --arr: #e1ff8c;
+}
+:root[data-ui-theme='phosphor'] body {
+  text-shadow: 0 0 4px rgba(80, 255, 120, 0.3);
+}
+
 /* High contrast: black, white and yellow, strong borders - for poor screens and eyes. */
 :root[data-ui-theme='contrast'] {
   --bg: #000;
@@ -368,6 +473,53 @@ button:disabled {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
+}
+/*
+ * Looks of some scope styles over the drawing (scope.ts ScopeTheme.effect), in a layer above the canvas and below the
+ * lists: 'vignette' darker edges; 'phosphor' a radar tube - glow, scan lines, a slowly turning sweep, darker edges.
+ */
+.scope-fx {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.scope-fx .sweep {
+  display: none;
+}
+.scope-fx.fx-vignette {
+  background: radial-gradient(ellipse at center, transparent 62%, rgba(0, 0, 0, 0.38) 100%);
+}
+.scope-fx.fx-phosphor {
+  background:
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 3px),
+    radial-gradient(ellipse at center, transparent 55%, rgba(0, 0, 0, 0.62) 100%);
+}
+.scope-fx.fx-phosphor .sweep {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 160vmax;
+  height: 160vmax;
+  margin: -80vmax 0 0 -80vmax;
+  background: conic-gradient(from 0deg, rgba(90, 255, 130, 0.12) 0deg, rgba(90, 255, 130, 0) 38deg, transparent 360deg);
+  animation: scope-sweep 6s linear infinite;
+  will-change: transform;
+}
+@keyframes scope-sweep {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .scope-fx.fx-phosphor .sweep {
+    animation: none;
+  }
+}
+/* Phosphor: the drawing glows a little. */
+.main.fx-phosphor canvas.scope {
+  filter: drop-shadow(0 0 2px rgba(90, 255, 130, 0.5));
 }
 .main canvas.scope {
   position: absolute;

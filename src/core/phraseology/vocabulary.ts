@@ -28,7 +28,7 @@ reason reduce rejected rejection report request resume return right roger route 
 sid slot south speed squawk stand standby start startup state station stop take takeoff taxi taxiing taxiway
 thank thanks the then thousand time to too tow tower delivery approach departure turn until up vacate variable
 vector vectoring vectors via wait way west when wilco wind with you your all stations information current
-holding readback correct pan mayday emergency ambulance tug turnaround around reason say again unable
+holding readback correct pan mayday emergency ambulance tug turnaround around reason say again unable disregard
 `;
 
 const PHONETIC = 'alpha bravo charlie delta echo foxtrot golf hotel india juliett juliet kilo lima mike november oscar papa quebec romeo sierra tango uniform victor whiskey xray x-ray yankee zulu';

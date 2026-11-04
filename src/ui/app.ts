@@ -6,7 +6,7 @@ import type { Compass, StationType } from '../core/airport/types';
 import type { Aircraft } from '../core/aircraft';
 import { distance, headingDiff, headingOf, sub, type Vec2 } from '../core/geo';
 import { formatCommand } from '../core/phraseology/format';
-import { BREAK_BREAK, parseTransmission } from '../core/phraseology/parser';
+import { BREAK_BREAK, afterDisregard, parseTransmission } from '../core/phraseology/parser';
 import { applyCorrections, isCorrection, learnCorrection, learntCorrections, type CorrectionStore } from '../core/phraseology/corrections';
 import { radioPhrases, sessionPhraseContext } from '../core/phraseology/radioPhrases';
 import { recognitionPhrases, sessionVocabulary, snapToVocabulary, vocabularyScore, voiceVocabulary } from '../core/phraseology/vocabulary';
@@ -387,11 +387,18 @@ export class App {
     this.setTts(TTS_ENABLED && settings.tts && this.voices.supported);
     if (!this.voices.supported) this.ttsButton.disabled = true;
     if (!TTS_ENABLED) this.ttsButton.style.display = 'none';
+    // "disregard": what was said before it does not count (also while you are still speaking).
     const onInterim = (interim: string) => {
-      this.input.value = interim;
+      this.input.value = afterDisregard(interim).rest;
       this.updatePreview();
     };
-    const onFinal = (heard: string[]) => {
+    const onFinal = (heardAll: string[]) => {
+      const cut = heardAll.map((c) => afterDisregard(c));
+      const heard = cut.map((c) => c.rest).filter(Boolean);
+      if (cut.some((c) => c.disregarded) && !heard.length) {
+        this.disregarded();
+        return;
+      }
       // What you corrected before, often enough: applied first (as another candidate - the parser decides).
       const candidates = [...new Set([...heard.map((c) => applyCorrections(this.corrections, c)), ...heard])];
       const best = this.bestVoiceCandidate(candidates);
@@ -963,8 +970,21 @@ export class App {
     this.updatePreview();
   }
 
+  /** "disregard" with nothing after it: the instruction is cancelled, nothing is sent. */
+  private disregarded(): void {
+    this.clearInput();
+    this.hint('Disregard - the instruction was cancelled, nothing was sent.');
+  }
+
   private submit(fromVoice = false): void {
-    const text = this.input.value.trim();
+    const typed = afterDisregard(this.input.value.trim());
+    if (typed.disregarded && !typed.rest) {
+      this.voiceIn.discard();
+      if (this.voiceIn.listening && !fromVoice) this.voiceIn.stop();
+      this.disregarded();
+      return;
+    }
+    const text = typed.rest;
     // Sent: what the microphone heard so far must not come back into the command line.
     this.voiceIn.discard();
     if (this.voiceIn.listening && !fromVoice) this.voiceIn.stop();

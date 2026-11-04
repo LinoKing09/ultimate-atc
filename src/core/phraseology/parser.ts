@@ -501,6 +501,17 @@ function matchCallsign(tokens: string[], i: number, callsigns: string[]): Callsi
   return best;
 }
 
+/**
+ * "disregard" (ICAO: consider that transmission as not sent): what was said before it is cancelled, the transmission
+ * goes on with what follows ("..., disregard, DLH5AB hold position"). `rest` is empty when nothing follows.
+ */
+export function afterDisregard(text: string): { disregarded: boolean; rest: string } {
+  const re = /\bdisregard\b[\s,.;:!?]*/gi;
+  let end = -1;
+  for (let m = re.exec(text); m; m = re.exec(text)) end = m.index + m[0].length;
+  return end < 0 ? { disregarded: false, rest: text } : { disregarded: true, rest: text.slice(end).trim() };
+}
+
 /** "break break" in front of a transmission: the controller cuts in (it overrides the wait for a read-back). */
 export const BREAK_BREAK = /^\s*break[\s,]+break\b[\s,]*/i;
 

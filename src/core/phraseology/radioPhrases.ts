@@ -32,7 +32,7 @@ monitor tower | monitor ground | frequency change approved | goodbye | good day
 cleared to | departure | flight planned route | climb via sid to altitude | climb via sid | to altitude | climb | feet | thousand | hundred
 flight level | initial climb | squawk | ctot | slot time | readback correct | read back correct | negative | correction
 information | is current | qnh | altimeter | hectopascal | hectopascals
-standby | stand by | roger | wilco | affirm | affirmative | negative | break break | all stations
+standby | stand by | roger | wilco | disregard | affirm | affirmative | negative | break break | all stations
 number | for pushback | for start up | for taxi | for departure
 expect pushback in | expect start up in | expect taxi in | expect departure in | minutes
 advise able for departure from intersection | are you able intersection | able intersection | intersection departure | intersection

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { parseTransmission, tokenize } from '../src/core/phraseology/parser';
+import { afterDisregard, parseTransmission, tokenize } from '../src/core/phraseology/parser';
 import { toSpoken, telephonyCallsign } from '../src/core/phraseology/speech';
 
 const ctx = {
@@ -118,6 +118,13 @@ describe('speech', () => {
     expect(parseTransmission('speedbird one two clear for take of runway two five', { ...ctx, callsigns: ['BAW12'] }).commands).toEqual([{ type: 'takeoff', runway: '25' }]);
     expect(parseTransmission('lufthansa five alpha bravo line up and weight runway two five', ctx).commands).toEqual([{ type: 'lineUp', runway: '25' }]);
     expect(parseTransmission('lufthansa five alpha bravo whole short of runway two five', ctx).commands).toEqual([{ type: 'holdShort', target: { kind: 'runway', runway: '25' } }]);
+  });
+
+  it('cancels what was said before "disregard"', () => {
+    expect(afterDisregard('lufthansa five alpha bravo taxi to holding point alpha disregard')).toEqual({ disregarded: true, rest: '' });
+    expect(afterDisregard('DLH5AB taxi to holding point A, disregard, DLH5AB hold position')).toEqual({ disregarded: true, rest: 'DLH5AB hold position' });
+    expect(afterDisregard('DLH5AB hold position')).toEqual({ disregarded: false, rest: 'DLH5AB hold position' });
+    expect(afterDisregard('Disregard.')).toEqual({ disregarded: true, rest: '' });
   });
 
   it('ignores "break break" in front of a transmission', () => {

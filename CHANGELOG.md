@@ -6,6 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **`disregard`**: what was said before it in a transmission is cancelled (ICAO) - `..., disregard` alone sends nothing and clears the command line, `..., disregard, DLH5AB hold position` sends only what follows; spoken (also shown live while you speak) or typed. Both speech recognisers know the word.
 - **Speech recognition learns from your corrections**: a recognised instruction you correct - in the command line before sending, or sent again corrected within 30 s - teaches the own and the browser's recogniser the words they keep getting wrong for your voice. A word is replaced once corrected 3 times and in at least 75 % of the times it was heard (a word that is mostly right is never replaced); stored in the browser, *Settings -> Learnt corrections* shows them and forgets them.
 - **Large speech model** (optional): *Settings -> Speech model -> Large (128 MB)*, vosk-model-en-us-0.22-lgraph, after a warning - it downloads about 128 MB and, in our tests, was not more accurate and needed several seconds per transmission.
 

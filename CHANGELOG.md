@@ -14,6 +14,10 @@ All notable changes to this project are documented in this file. The format is b
 - **The own speech recogniser hears radio phrases, not just radio words**: its grammar are the radio phrases of the session - the phraseology in its order and the session's callsigns, holding points, taxiways, stands, runways, frequencies, SIDs and destinations - so inside a phrase the words come only in their order ("feet bird", "taxi two holding point" can no longer come out). Measured with 20 synthesised instructions (two voices) at Stuttgart: 20 of 20 understood exactly (with noise 19 of 20), with the word list before 12 (9), without a grammar 1 (0) - see `docs/benchmarks.md`.
 - **Nothing said is lost**: the own recogniser keeps the last 0.35 s before the key press (the callsign is often spoken while the key goes down) and everything said while its model is still loading.
 
+### Fixed
+
+- **iPad: no pilot voices, only the radio noise** (also on the *Test* button): Safari mutes speech synthesis while the page plays audio of its own. On iPad and iPhone the radio noise is now off (the setting greyed out, no Web Audio at all), and the own speech recogniser releases the microphone after every transmission (an open microphone keeps iOS in recording mode); the pilots speak again 0.4 s after it.
+
 ## [1.7.4] - 2026-11-03
 
 ### Added

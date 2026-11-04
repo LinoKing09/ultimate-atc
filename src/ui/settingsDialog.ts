@@ -4,6 +4,7 @@ import { DENSITIES, EVENT_LEVELS, densityIndex } from '../core/levels';
 import { levelSlider } from './levelSlider';
 import { dropdown, segmented } from './pickers';
 import { UI_THEMES, defaultSettings, saveSettings, type Settings } from './settings';
+import { RADIO_NOISE_SUPPORTED } from './voice';
 
 const PHONE_ICON =
   '<svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><rect x="7" y="2" width="10" height="20" rx="2" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="18.5" r="1" fill="currentColor"/></svg>';
@@ -218,7 +219,18 @@ export function showSettings(
             ['Pilot voices (TTS)', ttsRow()],
             ['Voice volume', range('ttsVolume', 0, 1, 0.05, pct)],
             ['Voice speed', range('ttsRate', 0.7, 1.5, 0.05, pct)],
-            ['Radio noise', check('radioNoise', !voice.tts), 'A quiet hiss under the pilot voices, with a short squelch at the end of each transmission'],
+            [
+              'Radio noise',
+              (() => {
+                const el = check('radioNoise', !voice.tts || !RADIO_NOISE_SUPPORTED);
+                // Not available: shown off (the setting is kept for other devices).
+                if (!RADIO_NOISE_SUPPORTED) el.checked = false;
+                return el;
+              })(),
+              RADIO_NOISE_SUPPORTED
+                ? 'A quiet hiss under the pilot voices, with a short squelch at the end of each transmission'
+                : 'Not on iPad and iPhone: Safari mutes the pilot voices while the app plays a sound of its own',
+            ],
             ...(voice.micHidden
               ? []
               : ([

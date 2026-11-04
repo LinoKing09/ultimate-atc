@@ -20,6 +20,11 @@ export const VOSK_MODELS = {
 export type VoskModelSize = keyof typeof VOSK_MODELS;
 /** Audio kept from before the key press (s). */
 const PRE_ROLL_S = 0.35;
+/** Recognising a recording: done this long after its last result (ms), at most RECORDING_RESULT_WAIT_MS. */
+const RECORDING_QUIET_MS = 500;
+const RECORDING_RESULT_WAIT_MS = 8000;
+/** The live way must have heard this share of the time the microphone was open, else the recording is used. */
+const LIVE_SHARE_NEEDED = 0.7;
 /** An open microphone that delivers nothing this long after the press is opened again (ms). */
 const MIC_SILENT_MS = 600;
 /** After the release the recogniser still has a little audio to finish: at most this long (ms). */
@@ -137,6 +142,7 @@ export class VoskInput {
 
   /** Lets the microphone go (the next transmission opens it again). */
   private closeMic(): void {
+    this.stopRecorder();
     for (const t of this.stream?.getTracks() ?? []) t.stop();
     this.stream = undefined;
     if (this.node) this.node.onaudioprocess = null;
@@ -164,7 +170,10 @@ export class VoskInput {
     // ScriptProcessor: deprecated, but available everywhere (also Safari on the iPad) and simple.
     const node = ctx.createScriptProcessor(4096, 1, 1);
     node.onaudioprocess = (e) => {
-      if (this.listening) this.captured++;
+      if (this.listening) {
+        this.captured++;
+        this.capturedSamples += e.inputBuffer.length;
+      }
       if ((this.listening || this.finishing) && this.rec) {
         this.rec.acceptWaveform(e.inputBuffer);
         return;
@@ -214,7 +223,103 @@ export class VoskInput {
   }
 
   private preparing = false;
+  /**
+   * Second way of recording, independent of the audio context: the microphone recorded as it is (MediaRecorder). On
+   * the iPad the pilot voices interrupt the audio context, and pressing PTT / MIC cannot start it again (only the
+   * release of a tap can) - the live way then hears nothing. The recording is recognised after the release instead.
+   * One recording per opening of the microphone in this transmission.
+   */
+  private recorder?: MediaRecorder;
+  private recordings: Promise<Blob | undefined>[] = [];
+  /** Live audio taken in during this transmission (samples), and since when the microphone was open (ms). */
+  private capturedSamples = 0;
+  private micOpenSince = 0;
   private watchdog?: ReturnType<typeof setTimeout>;
+
+  /** Starts recording the open microphone (the second way, see `recorder`). */
+  private startRecorder(): void {
+    if (!this.stream || this.recorder || typeof MediaRecorder === 'undefined') return;
+    try {
+      const r = new MediaRecorder(this.stream);
+      const chunks: Blob[] = [];
+      r.ondataavailable = (e) => {
+        if (e.data.size) chunks.push(e.data);
+      };
+      this.recordings.push(
+        new Promise((resolve) => {
+          r.onstop = () => resolve(chunks.length ? new Blob(chunks, { type: r.mimeType || chunks[0].type }) : undefined);
+          r.onerror = () => resolve(undefined);
+        }),
+      );
+      r.start();
+      this.recorder = r;
+      this.micOpenSince ||= performance.now();
+    } catch {
+      /* not supported for this stream: only the live way */
+    }
+  }
+
+  private stopRecorder(): void {
+    const r = this.recorder;
+    this.recorder = undefined;
+    if (r && r.state !== 'inactive') {
+      try {
+        r.stop();
+      } catch {
+        /* already stopped */
+      }
+    }
+  }
+
+  /** The recordings of this transmission as samples at the audio context's rate (undefined: nothing recorded). */
+  private async recorded(): Promise<Float32Array | undefined> {
+    const blobs = (await Promise.all(this.recordings)).filter((b): b is Blob => !!b);
+    this.recordings = [];
+    const ctx = this.audio();
+    const parts: Float32Array[] = [];
+    for (const b of blobs) {
+      const data = await b.arrayBuffer();
+      // decodeAudioData also works while the context is suspended or interrupted; old Safari only has the callbacks.
+      const buf = await new Promise<AudioBuffer>((resolve, reject) => {
+        const p = ctx.decodeAudioData(data, resolve, reject) as Promise<AudioBuffer> | undefined;
+        p?.then(resolve, reject);
+      });
+      parts.push(buf.getChannelData(0));
+    }
+    const total = parts.reduce((n, x) => n + x.length, 0);
+    if (!total) return undefined;
+    const out = new Float32Array(total);
+    let at = 0;
+    for (const x of parts) {
+      out.set(x, at);
+      at += x.length;
+    }
+    return out;
+  }
+
+  /** A recogniser for this transmission's grammar; its results go to this transmission. */
+  private makeRecognizer(): KaldiRecognizer {
+    const rec = new this.model!.KaldiRecognizer(this.ctx!.sampleRate, this.grammar);
+    rec.on('partialresult', (m) => {
+      if (rec !== this.rec || m.event !== 'partialresult') return;
+      this.partial = m.result.partial;
+      this.interim();
+    });
+    rec.on('result', (m) => {
+      if (rec !== this.rec || m.event !== 'result') return;
+      if (m.result.text) this.heard.push(m.result.text);
+      this.partial = '';
+      if (this.recordedFallback) {
+        // The recording comes in at once: a result at every pause in it - done when no more follow.
+        clearTimeout(this.finishTimer);
+        this.finishTimer = setTimeout(() => this.finish(), RECORDING_QUIET_MS);
+      } else if (this.finishing) this.finish();
+      else this.interim();
+    });
+    return rec;
+  }
+
+  private grammar = '[]';
 
   start(): void {
     if (this.listening || this.failed) return;
@@ -231,6 +336,10 @@ export class VoskInput {
     // The audio context belongs to the key press / tap (iOS): created or resumed before anything is awaited.
     void this.audio().resume().catch(() => {});
     this.captured = 0;
+    this.capturedSamples = 0;
+    this.micOpenSince = 0;
+    this.stopRecorder();
+    this.recordings = [];
     this.listening = true;
     this.finishing = false;
     this.stopRequested = false;
@@ -239,16 +348,21 @@ export class VoskInput {
     // Recording from the first moment where the microphone is open and alive (its audio is kept); else as soon as it is.
     const alive = !!this.stream && !this.micDead();
     this.onPhase(alive ? 'recording' : 'waiting');
+    if (alive) this.startRecorder();
     // No sound from an open microphone soon after the press (iOS after the pilot voices): open it again.
     clearTimeout(this.watchdog);
     this.watchdog = setTimeout(() => {
       if (!this.listening || this.captured) return;
+      // The audio context does not run (iPad, after the pilot voices): the recording takes it - keep the microphone.
+      if (!this.micDead() && this.audio().state !== 'running') return;
       this.micStale = true;
       this.onPhase('waiting');
       void this.audio().resume().catch(() => {});
       void this.openMic()
         .then(() => {
-          if (this.listening) this.onPhase('recording');
+          if (!this.listening) return;
+          this.onPhase('recording');
+          this.startRecorder();
         })
         .catch(() => {});
     }, MIC_SILENT_MS);
@@ -257,7 +371,9 @@ export class VoskInput {
         await Promise.all([
           this.load(),
           this.openMic().then(() => {
-            if (this.listening) this.onPhase('recording');
+            if (!this.listening) return;
+            this.onPhase('recording');
+            this.startRecorder();
           }),
         ]);
       } catch (e) {
@@ -273,19 +389,8 @@ export class VoskInput {
       }
       const g = voskPhraseGrammar(this.phrases(), this.lexicon!);
       this.joins = g.joins;
-      const rec = new this.model!.KaldiRecognizer(this.ctx!.sampleRate, JSON.stringify([...g.phrases, '[unk]']));
-      rec.on('partialresult', (m) => {
-        if (rec !== this.rec || m.event !== 'partialresult') return;
-        this.partial = m.result.partial;
-        this.interim();
-      });
-      rec.on('result', (m) => {
-        if (rec !== this.rec || m.event !== 'result') return;
-        if (m.result.text) this.heard.push(m.result.text);
-        this.partial = '';
-        if (this.finishing) this.finish();
-        else this.interim();
-      });
+      this.grammar = JSON.stringify([...g.phrases, '[unk]']);
+      const rec = this.makeRecognizer();
       // What was said before the key press and while the recogniser was being made comes first.
       for (const chunk of this.pending) rec.acceptWaveformFloat(chunk, this.ctx!.sampleRate);
       this.pending = [];
@@ -324,10 +429,42 @@ export class VoskInput {
 
   private beginFinish(): void {
     this.finishing = true;
-    this.rec!.retrieveFinalResult();
     clearTimeout(this.finishTimer);
-    this.finishTimer = setTimeout(() => this.finish(), FINAL_RESULT_WAIT_MS);
+    const rec = this.rec!;
+    // Did the live way hear the whole transmission? Else the recording is recognised instead (see `recorder`).
+    const ctx = this.audio();
+    const openMs = this.micOpenSince ? performance.now() - this.micOpenSince : 0;
+    const liveMs = (this.capturedSamples / ctx.sampleRate) * 1000;
+    const useRecording = this.recordings.length > 0 && openMs > 300 && liveMs < openMs * LIVE_SHARE_NEEDED;
+    this.stopRecorder();
+    if (!useRecording) {
+      this.recordings = [];
+      rec.retrieveFinalResult();
+      this.finishTimer = setTimeout(() => this.finish(), FINAL_RESULT_WAIT_MS);
+      return;
+    }
+    void this.recorded()
+      .catch(() => undefined)
+      .then((pcm) => {
+        // Pressed again meanwhile: that transmission was finished with what the live way heard.
+        if (this.rec !== rec || !this.finishing) return;
+        if (pcm) {
+          // The whole transmission again from the recording, in a new recogniser (the live way heard only part of it).
+          this.rec.remove();
+          this.heard = [];
+          this.partial = '';
+          this.rec = this.makeRecognizer();
+          this.recordedFallback = true;
+          const step = 4096;
+          for (let i = 0; i < pcm.length; i += step) this.rec.acceptWaveformFloat(pcm.subarray(i, i + step), ctx.sampleRate);
+        }
+        this.rec.retrieveFinalResult();
+        this.finishTimer = setTimeout(() => this.finish(), pcm ? RECORDING_RESULT_WAIT_MS : FINAL_RESULT_WAIT_MS);
+      });
   }
+
+  /** This transmission was recognised from the recording (for the hint when nothing came out). */
+  private recordedFallback = false;
 
   private finish(): void {
     if (!this.finishing) return;
@@ -336,6 +473,10 @@ export class VoskInput {
     const text = this.text();
     this.rec?.remove();
     this.rec = undefined;
+    this.stopRecorder();
+    this.recordings = [];
+    const fromRecording = this.recordedFallback;
+    this.recordedFallback = false;
     if (!this.keepMicOpen()) {
       this.closeMic();
       this.pending = [];
@@ -344,6 +485,6 @@ export class VoskInput {
     this.onState(false);
     if (text) this.onFinal([text]);
     // Nothing came from the microphone (the audio was not running yet): say so instead of doing nothing.
-    else if (!this.captured) this.onStatus('Nothing was recorded - the microphone was not ready yet. Hold PTT / MIC again and speak.');
+    else if (!this.captured && !fromRecording) this.onStatus('Nothing was recorded - the microphone was not ready yet. Hold PTT / MIC again and speak.');
   }
 }

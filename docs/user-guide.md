@@ -543,7 +543,7 @@ On the **iPad** (and iPhone) TTS is off until you switch it on (in mobile mode t
 
 ### You speaking (speech recognition)
 
-With the pilot voices on, the iPad would take an open microphone away while a pilot speaks: there the own recogniser opens the microphone at every press and lets it go after the transmission - MIC shows amber (PTT **WAIT**) for a moment, start speaking when it turns red (**TX**). Elsewhere a microphone that went silent is noticed and opened again at the next press.
+With the pilot voices on, the iPad would take an open microphone away while a pilot speaks: there the own recogniser opens the microphone at every press and lets it go after the transmission - MIC shows amber (PTT **WAIT**) for a moment, start speaking when it turns red (**TX**). Elsewhere a microphone that went silent is noticed and opened again at the next press. If the iPad still keeps the live audio from the recogniser, the transmission is recorded as well and recognised after you release (the words then appear only after the release).
 
 **Two speech recognisers** (*Settings -> Speech recognition*):
 

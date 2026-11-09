@@ -2062,3 +2062,46 @@ button.dd.open {
 .dialog .atis-form[hidden] {
   display: none;
 }
+
+/* Performance overlay on the scope and the performance window (perfStats.ts). */
+.perf-overlay {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 2px 8px;
+  font: 11px Consolas, Menlo, monospace;
+  color: var(--text, #ddd);
+  background: rgba(0, 0, 0, 0.55);
+  border-radius: 3px;
+  pointer-events: none;
+  z-index: 5;
+  white-space: nowrap;
+}
+.overlay.perf .dialog {
+  min-width: min(560px, 94vw);
+}
+.overlay.perf .grid {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 14px;
+  align-items: baseline;
+}
+.perfval {
+  font-family: Consolas, Menlo, monospace;
+}
+.perfrating {
+  margin: 8px 0;
+  padding: 6px 10px;
+  border-radius: 4px;
+  font-weight: bold;
+}
+.perfrating.good {
+  background: rgba(60, 170, 90, 0.25);
+}
+.perfrating.ok {
+  background: rgba(220, 170, 40, 0.25);
+}
+.perfrating.poor {
+  background: rgba(220, 60, 60, 0.3);
+}

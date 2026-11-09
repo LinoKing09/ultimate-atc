@@ -42,3 +42,7 @@ jobs:
     steps:
       - id: deployment
         uses: actions/deploy-pages@v4
+        with:
+          # The site carries the speech models (about 170 MB): GitHub sometimes needs longer than the default
+          # 10 minutes to sync them, and the deployment was cancelled although the build was fine.
+          timeout: 1800000

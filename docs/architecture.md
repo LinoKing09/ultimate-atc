@@ -76,7 +76,8 @@ ultimate-atc/
 │   └── ui/                    # browser client
 │       ├── app.ts             # wires sim <-> scope, lists, messages, command line, menus
 │       ├── radarScope.ts      # canvas radar scope of Approach / Departure (EuroScope style: fixes, centre lines, targets with history and speed vector, data tags, 4 s sweep)
-│       ├── radarMenus.ts      # radar menus: heading, level, speed, direct, holding, approach, hand-off
+│       ├── radarMenus.ts      # radar menus: heading, level, speed, direct, holding, approach, hand-off (Simple / Real)
+│       ├── perfStats.ts       # performance monitor (frame, simulation and drawing times) and the performance window
 │       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input, rotation (runway-aligned / north-up), styles (PHX night / day, Modern, Phosphor, Map, classic; effect layer .scope-fx)
 │       ├── lists.ts           # departure / arrival lists (clickable cells)
 │       ├── menu.ts            # popup menus

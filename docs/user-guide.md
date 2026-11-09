@@ -162,6 +162,7 @@ Every airport added in the future comes with its own briefing.
 | Send voice automatically | Transmit the recognised instruction when you release push-to-talk; off = check and press Enter |
 | Recognition accent       | English accent the speech recogniser expects (US, UK, Australia, India, Ireland)           |
 | Instructions (Control)   | **Both** (default) or **Realistic (Beta)** - see [Realistic mode](#realistic-mode-beta); *Only text* is greyed out (follows later) |
+| Performance              | **Overlay**: a small line on the scope with frames per second, frame time, simulation and drawing time. **Open performance window** (also **F6**): live statistics over the last ~5 s - frame rate with a rating (smooth / usable / slow), frame time (average, 95 %, maximum), slow frames (> 50 ms), simulation and drawing time per frame, the real simulation rate against the one set, aircraft and vehicles, radio messages, scope canvas size and pixel ratio, JS memory (Chromium browsers), processor cores. Measured only in your browser |
 | Traffic density          | Slider in five steps from light to heavy; applies to traffic generated from now on         |
 | Special events           | Slider: never, very rare, rare, occasional, often                                          |
 
@@ -526,6 +527,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | **F1**                                  | Help                                                           |
 | **F2**                                  | Settings                                                       |
 | **F3**                                  | Systems window                                                 |
+| **F6**                                  | Performance window (frame rate, frame times, simulation and drawing time) |
 | **F4** / `RADAR` / `GROUND` (toolbar)   | Approach combined with a tower position: switch between the radar scope and the ground radar |
 | **Hold the key left of `1`** (`^` / `` ` ``), **Right Ctrl** or **Insert** | Push-to-talk (speech recognition)          |
 | Mouse wheel / pinch                     | Zoom                                                           |

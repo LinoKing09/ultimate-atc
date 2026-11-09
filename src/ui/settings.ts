@@ -60,6 +60,8 @@ export interface Settings {
    * flight level 80"); 'real' - short like EuroScope ("ALT" > "-FL080"), the phrase is only in the radio.
    */
   menuStyle: 'simple' | 'real';
+  /** A small line with the frame rate and frame times on the scope (performance overlay). */
+  perfOverlay: boolean;
 }
 
 export type ControlMode = 'text' | 'both' | 'realistic';
@@ -103,6 +105,7 @@ const DEFAULTS: Settings = {
   uiTheme: 'euroscope',
   controlMode: 'both',
   menuStyle: 'simple',
+  perfOverlay: false,
 };
 
 /** Default device mode: touch screens without a fine pointer start in mobile mode. */

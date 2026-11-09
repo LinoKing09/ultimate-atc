@@ -38,6 +38,8 @@ export function showSettings(
     corrections?: { list: () => [string, string][]; forget: () => void };
     /** Why the realistic control mode cannot be chosen now (no speech recognition, a tutorial), if so. */
     realisticBlocked?: string;
+    /** Opens the performance window. */
+    performance?: () => void;
   },
 ): void {
   if (document.querySelector('.overlay')) return;
@@ -192,6 +194,14 @@ export function showSettings(
 
   const close = h('button.primary', { type: 'button', text: 'Close' });
   const reset = h('button', { type: 'button', text: 'Reset to defaults' });
+  const perfButton = () => {
+    const b = h('button', { type: 'button', text: 'Open performance window', disabled: !voice.performance });
+    b.addEventListener('click', () => {
+      document.querySelector('.overlay')?.remove();
+      voice.performance?.();
+    });
+    return b;
+  };
 
   const dialog = h(
     'div.dialog.settings',
@@ -303,6 +313,18 @@ export function showSettings(
           }).el,
           'Medical emergencies and rejected take-offs: never, very rare ... often',
         ],
+      ),
+      section(
+        'Performance',
+        [
+          'Overlay',
+          select(settings.perfOverlay ? 'on' : 'off', [
+            ['off', 'Off'],
+            ['on', 'Frame rate on the scope'],
+          ], (v) => (settings.perfOverlay = v === 'on')),
+          'A small line at the top left of the scope: frames per second, frame time, simulation and drawing time',
+        ],
+        ['Statistics', perfButton(), 'Live statistics of the app: frame rate, frame times, slow frames, simulation and drawing time, real simulation rate, aircraft, canvas size, memory (F6)'],
       ),
       h('div.actions', {}, reset, close),
     ),

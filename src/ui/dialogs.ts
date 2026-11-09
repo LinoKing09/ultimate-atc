@@ -507,6 +507,7 @@ const KEYS: [string, string][] = [
   ['DISCONNECT (toolbar)', 'Debriefing of the session (what earned and what cost points, answer times, incidents, advice), then continue or end the session'],
   ['Select an aircraft (radar)', 'Its route is drawn in white through every fix ahead (SID, STAR, transition); Show route / ROUTE in its menu keeps it drawn'],
   ['Settings > Aircraft menus', 'Simple: entries are the full phrases; Real: short like EuroScope (ALT > -FL080, HDG > L > L250)'],
+  ['F6 / SETTINGS > Performance', 'Performance window: frame rate, frame times, slow frames, simulation and drawing time, real simulation rate, canvas size, memory; an overlay line on the scope can be switched on there'],
   ['F4 / RADAR (toolbar)', 'Approach combined with a tower position: switch between the radar scope and the ground radar'],
   ['Radar tag (Approach)', 'Line 1 callsign (aircraft menu); line 2 level, trend, cleared level (level menu); line 3 speed (speed menu), heading or next fix (heading / direct menu), approach clearance (approach menu). Square: yours, diamond: others, yellow flashing: waiting for you, red: STCA. The picture updates every 4 s (radar sweep), with a history trail and a one-minute speed vector.'],
   ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL and the ILS (localizer, glide path); switch them on or off. A runway without an ILS (Sylt 14) is always flown as an RNP approach'],

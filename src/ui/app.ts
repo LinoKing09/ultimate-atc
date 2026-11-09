@@ -33,6 +33,7 @@ import { vehicleTel, type Vehicle } from '../core/vehicles';
 import { PopupMenu, type MenuItem } from './menu';
 import { Scope, type TagItem } from './scope';
 import { RadarScope, type RadarTagItem } from './radarScope';
+import { PerfMonitor, overlayText, showPerformance } from './perfStats';
 import { onMyRadar, radarItems, radarTagItems, type RadarMenuContext } from './radarMenus';
 import { CommandInput } from './commandInput';
 import { loadCorrections, saveCorrections, saveSettings, type Settings } from './settings';
@@ -181,6 +182,9 @@ export class App {
   private historyIdx = -1;
   private menuPreview = false;
   private tutorialPanel?: TutorialPanel;
+  /** Frame rate and frame times (performance window, overlay). */
+  private readonly perf = new PerfMonitor();
+  private perfEl!: HTMLElement;
 
   constructor(
     root: HTMLElement,
@@ -322,7 +326,8 @@ export class App {
     // The look of some scope styles over the drawing (glow, scan lines, sweep, darker edges): above the scope, below
     // the lists, never in the way of the mouse.
     this.scopeFx = h('div.scope-fx', {}, h('div.sweep'));
-    this.main = h('div.main', {}, canvas, ...(radarCanvas ? [radarCanvas] : []), this.scopeFx);
+    this.perfEl = h('div.perf-overlay');
+    this.main = h('div.main', {}, canvas, ...(radarCanvas ? [radarCanvas] : []), this.scopeFx, this.perfEl);
     const listCb = {
       select: (cs: string) => this.select(cs),
       center: (cs: string) => {
@@ -593,7 +598,8 @@ export class App {
   // ------------------------------------------------------------------ main loop
 
   private frame(t: number): void {
-    const dt = Math.min(0.5, (t - this.last) / 1000);
+    const rawMs = t - this.last;
+    const dt = Math.min(0.5, rawMs / 1000);
     this.last = t;
     // At 1x the radio waits for the voice: while a pilot is still being read aloud after the frequency's own estimate
     // has ended, the simulation holds (at most VOICE_HOLD_MS per transmission), so the radio-discipline gaps start
@@ -602,6 +608,8 @@ export class App {
     if (!voiceBehind) this.voiceHoldSince = 0;
     else if (!this.voiceHoldSince) this.voiceHoldSince = t;
     const holdForVoice = voiceBehind && t - this.voiceHoldSince < VOICE_HOLD_MS;
+    const simBefore = this.sim.time;
+    const t0 = performance.now();
     if (!this.paused && !holdForVoice) {
       this.sim.tick(dt * this.speed);
       if (!document.hidden) {
@@ -609,8 +617,10 @@ export class App {
         this.statsPending += dt;
       }
     }
+    const t1 = performance.now();
     this.scope.selected = this.selected;
     this.scope.render(t);
+    this.perf.record({ frameMs: rawMs, simMs: t1 - t0, renderMs: performance.now() - t1, simSeconds: this.sim.time - simBefore });
     if (t - this.lastSlowUpdate > 250) {
       this.lastSlowUpdate = t;
       this.slowUpdate();
@@ -635,6 +645,8 @@ export class App {
   }
 
   private slowUpdate(): void {
+    this.perfEl.style.display = this.settings.perfOverlay ? '' : 'none';
+    if (this.settings.perfOverlay) this.perfEl.textContent = overlayText(this.perf.snapshot());
     const sim = this.sim;
     this.updateSendLock();
     this.fields.ontime.innerHTML = `ON <b>${formatDuration(this.controlSeconds, true)}</b>`;
@@ -744,7 +756,18 @@ export class App {
           for (const k of Object.keys(this.corrections)) delete this.corrections[k];
           saveCorrections(this.corrections);
         },
-      }, test: () => this.voices.test('Stuttgart Ground, radio check, readability five'), realisticBlocked: this.realisticBlocked() });
+      }, test: () => this.voices.test('Stuttgart Ground, radio check, readability five'), realisticBlocked: this.realisticBlocked(), performance: () => this.openPerformance() });
+  }
+
+  /** The performance window (SETTINGS -> Performance, F6). */
+  private openPerformance(): void {
+    showPerformance({
+      monitor: this.perf,
+      sim: this.sim,
+      speed: () => this.speed,
+      paused: () => this.paused,
+      canvas: () => (this.radarView ? this.radarCanvas : this.groundCanvas),
+    });
   }
 
   /** Applies the (possibly changed) settings to the running session. */
@@ -1262,6 +1285,11 @@ export class App {
     if (e.key === 'F3') {
       e.preventDefault();
       this.openSystems();
+      return;
+    }
+    if (e.key === 'F6') {
+      e.preventDefault();
+      this.openPerformance();
       return;
     }
     if (e.key === 'F4' && this.viewBtn) {

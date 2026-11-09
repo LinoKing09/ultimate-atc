@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Performance window** (*Settings -> Performance -> Open performance window*, or **F6**): live statistics of the app over the last ~5 seconds - frame rate with a rating, frame time (average, 95 %, maximum), slow frames over 50 ms, how long the simulation and the drawing of the scope take per frame, the real simulation rate against the one set, aircraft, radio messages, scope canvas size, JS memory and processor cores. *Performance -> Overlay* shows a short line with the frame rate and frame times on the scope.
+
 - **SIDs, STARs and RNAV transitions (Approach / Departure, Stuttgart)**: departures fly the waypoints of their SID, arrivals their STAR (TEKSI via BABEG) and - with an approach clearance on their own navigation, or `via LBU 25 transition` - the RNAV transition to final (LBU, BADSO, REUTL, TEKSI for runways 25 and 07: downwind, base, final to UNSER / VATER). Routes after the AIP route descriptions and transition charts (2012 edition, the latest public one) with the published waypoint positions.
 - **Routes on the radar** (like EuroScope's "show route"): the selected aircraft shows its route as white lines through the fixes ahead with their names; *Show route* (`ROUTE`) keeps it drawn.
 - **Aircraft menus: Simple or Real** (*Settings -> Aircraft menus*): Simple as before (each entry is the full phrase); Real short like EuroScope (`ALT` > `-FL080`, `HDG` > `L` > `L250`, `SPD` > `-200`, `DCT` > `LBU`, `TRANS`, `APP` > `ILS25`) - the full phrase still goes on the radio. Radar menus only for now.
@@ -17,6 +19,8 @@ All notable changes to this project are documented in this file. The format is b
 - **Two new interface themes**: **Glass** (dark slate with translucent, blurred panels and rounded corners, made for Modern) and **Phosphor console** (green on black, made for Phosphor).
 
 ### Fixed
+
+- **Deployment to GitHub Pages cancelled** after 10 minutes while GitHub was still syncing the files (the site with the speech models is about 170 MB): the deployment now waits up to 30 minutes.
 
 - **PTT / MIC only worked when held a second time on the iPad**: Safari lets the audio of the own speech recogniser start only from the release of a tap, not from pressing the button, so the first press recorded nothing. Now every tap, click or key press starts (or resumes) the audio beforehand, the release of PTT / MIC starts it too, and in the realistic mode the speech model loads and the microphone opens at the start of the session (first tap), so the first press records at once. If a press still recorded nothing, a hint says so instead of nothing happening.
 - **MIC stopped working with the pilot voices (TTS) on** (iPad): the speech synthesis took the audio over and ended or muted the microphone, which the app kept open between transmissions - it then recorded silence. A microphone that went dead is now noticed (its track ended or muted, or no sound within 0.6 s of the press) and opened again, so the transmission is recorded.

@@ -215,6 +215,14 @@ export function showSettings(
           'Compact: zoomed out to the whole airport, the tags show only the callsign (and * for a request); select (tap) an aircraft, or point at it with the mouse, for its full tag',
         ],
         [
+          'Aircraft menus',
+          select(settings.menuStyle, [
+            ['simple', 'Simple (full phrases)'],
+            ['real', 'Real (EuroScope, short)'],
+          ], (v) => (settings.menuStyle = v)),
+          'Radar (Approach / Departure): Simple shows every entry as the phrase that is said ("Descend flight level 80"); Real is short like EuroScope ("ALT" > "-FL080", "HDG" > "L250") - the full phrase is only on the radio',
+        ],
+        [
           'Scope orientation',
           select(settings.runwayAligned ? 'runway' : 'north', [
             ['runway', 'Runway horizontal'],

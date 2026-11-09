@@ -25,7 +25,7 @@ function inbound(sim: Simulation, origin = 'EDDH', callsign = 'EWG7AB'): Aircraf
   return ac;
 }
 
-const fixes = ['LBU', 'TEKSI', 'STG', 'BADSO', 'REUTL', 'ETASA'];
+const fixes = ['LBU', 'TEKSI', 'STG', 'BADSO', 'REUTL', 'ETASA', 'DS531'];
 const ctx = (cs: string[]) => ({ callsigns: cs, taxiways: new Set(['A', 'B', 'C']), fixes });
 
 describe('radar phraseology', () => {
@@ -105,7 +105,7 @@ describe('Approach / Departure position (radar)', () => {
   it('flies the STAR to the IAF and holds there without a clearance', () => {
     const sim = appSim(3);
     const ac = inbound(sim, 'LTAI');
-    expect(ac.radar?.route).toEqual(['TEKSI', 'STG']);
+    expect(ac.radar?.route).toEqual(['TEKSI', 'BABEG', 'STG']);
     expect(runUntil(sim, () => !!ac.radar?.hold, 1800)).toBe(true);
     expect(runUntil(sim, () => ac.request === 'vectors', 30)).toBe(true);
     expect(last(sim, ac.callsign)).toMatch(/entering the hold over STG/);
@@ -200,4 +200,58 @@ describe('radar sessions', () => {
     }
     expect(fingerprint(back)).toBe(fingerprint(sim));
   }, 60000);
+});
+
+describe('SIDs, STARs and RNAV transitions', () => {
+  it('parses transitions', () => {
+    const c = ctx(['EWG7AB']);
+    expect(parseTransmission('EWG7AB via LBU 25 transition, cleared ILS approach runway 25', c).commands).toEqual([
+      { type: 'transition', name: 'LBU 25' },
+      { type: 'approachClearance', kind: 'ILS', runway: '25' },
+    ]);
+    expect(parseTransmission('EWG7AB cleared teksi 25 transition', c).commands).toEqual([{ type: 'transition', name: 'TEKSI 25' }]);
+    expect(parseTransmission('EWG7AB proceed via transition lima bravo uniform 2 5', c).commands).toEqual([{ type: 'transition', name: 'LBU 25' }]);
+  });
+
+  it('departures fly the waypoints of their SID', () => {
+    const sim = appSim(5, true);
+    let dep: Aircraft | undefined;
+    expect(runUntil(sim, () => !!(dep = sim.aircraft.find((a) => a.category === 'departure' && !!a.radar)), 3600)).toBe(true);
+    const sid = EDDS.sids.find((s) => s.name === dep!.flightPlan.sid)!;
+    expect(sid.route?.length).toBeGreaterThan(1);
+    expect(dep!.radar!.route).toEqual(sid.route);
+    // Every waypoint of every SID, STAR and transition is a known fix.
+    const known = new Set(EDDS.airspace!.fixes.map((f) => f.name));
+    for (const s of EDDS.sids) for (const f of s.route ?? []) expect(known.has(f), `${s.name} ${f}`).toBe(true);
+    for (const t of EDDS.airspace!.transitions ?? []) for (const f of t.route) expect(known.has(f), `${t.name} ${f}`).toBe(true);
+    for (const e of EDDS.airspace!.entries) for (const f of [e.fix, e.iaf, ...(e.via ?? [])]) expect(known.has(f)).toBe(true);
+  });
+
+  it('an approach clearance on the STAR flies the RNAV transition and joins the final', () => {
+    for (const origin of ['LTAI', 'EDDH', 'LEPA', 'LSZH']) {
+      const sim = appSim(17);
+      const ac = inbound(sim, origin);
+      runUntil(sim, () => ac.request === 'checkIn', 60);
+      const entry = ac.radar!.route[0];
+      sim.transmit(`${ac.callsign} identified, descend altitude 5000 feet, cleared ILS approach runway 25`);
+      runUntil(sim, () => /cleared ILS approach runway 25/.test(last(sim, ac.callsign)), 20);
+      expect(ac.radar?.transition, origin).toBe(`${entry} 25`);
+      expect(ac.radar?.route.at(-1)).toBe('UNSER');
+      expect(runUntil(sim, () => ac.phase === 'approach', 2400), origin).toBe(true);
+      sim.transmit(`${ac.callsign} contact Stuttgart Tower 118.805`);
+      expect(runUntil(sim, () => ac.onGround, 900), origin).toBe(true);
+    }
+  });
+
+  it('a transition from the hold over LBU', () => {
+    const sim = appSim(19);
+    const ac = inbound(sim, 'EDDH');
+    expect(runUntil(sim, () => !!ac.radar?.hold, 1800)).toBe(true);
+    sim.transmit(`${ac.callsign} descend altitude 5000 feet, via LBU 25 transition, cleared ILS approach runway 25`);
+    runUntil(sim, () => /via LBU 25 transition/.test(last(sim, ac.callsign)), 20);
+    expect(ac.radar?.hold).toBeUndefined();
+    expect(ac.radar?.transition).toBe('LBU 25');
+    expect(ac.radar?.route.slice(0, 2)).toContain('DS531');
+    expect(runUntil(sim, () => ac.phase === 'approach', 2400)).toBe(true);
+  });
 });

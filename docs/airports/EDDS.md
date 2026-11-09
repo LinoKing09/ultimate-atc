@@ -109,9 +109,11 @@ The radar position is a **prototype**; the airspace is a simplified model of the
 | REUTL | south (150-215°)       | FL100 | STG |
 | BADSO | west (215-300°)        | FL100 | LBU |
 
-- **STARs** are flown as direct lines entry fix - IAF; the published RNAV transitions to final are replaced by an intercept point 11 NM before the threshold (and a gate when coming from the airport side). The STAR designators are not used on the radio.
+- **STARs**: BADSO - LBU, REUTL - STG, TEKSI - BABEG - STG (AIP STAR page AD 2 EDDS 3-1-1); the designators are not used on the radio.
+- **RNAV transitions to final** (LBU, BADSO, REUTL, TEKSI for runways 25 and 07, ending at the FAF UNSER / VATER) after the AIP transition charts AD 2 EDDS 3-1-3 / 3-1-4 (overlay to the radar vector pattern). The waypoint positions (DS4xx / DS5xx) are the published ones (via opennav.com); DS542 is computed from DS543 (4.0 NM on track 254.7° true), because its listed position duplicates DS511. Altitude constraints are not flown.
+- **SIDs** fly the GPS/FMS RNAV waypoints of the AIP SID descriptions (AD 2 EDDS 5-7-1 / 5-7-2 / 5-7-5). These pages and the STAR / transition charts are the **2012 edition** (the latest publicly available - the current AIP needs a login): the tracks may differ in detail from the current procedures, the designators in the simulator are the current ones. KUNOD is not in the 2012 edition: its route is assumed (via TEDGO for 25, after the ROTWE / SUL turn for 07). Charts were used as a reference only, nothing of them is part of the project.
 - **Holdings** over LBU (MHA 6000 ft), STG (7000), BADSO and TEKSI (5000), REUTL (6000) as in the SOP; the inbound courses are simplified (towards the airport) with right turns.
-- **Departures** fly runway heading to 1000 ft above the aerodrome, then direct to the SID exit fix, climbing to 5000 ft. Release levels: FL140 (sector BAD), DKB / GEBNO FL100 and OKIBA FL140 (sector DKB), KRH 8000 ft. In the SOP KRH goes to sector PFA and SUL to Switzerland - simplified to BAD.
+- **Departures** fly runway heading to 1000 ft above the aerodrome, then their SID's waypoints, climbing to 5000 ft. Release levels: FL140 (sector BAD), DKB / GEBNO FL100 and OKIBA FL140 (sector DKB), KRH 8000 ft. In the SOP KRH goes to sector PFA and SUL to Switzerland - simplified to BAD.
 - **MVA**: 4000 ft, 5000 ft beyond 25 NM, FL70 over the Black Forest (230-290° beyond 20 NM; the SOP gives 6300 ft between Baden-Baden / Lahr and Stuttgart) - approximate, no published MVA chart used.
 - **Missed approach**: straight ahead to 5000 ft (simplified).
 - **Your airspace** is drawn as a 30 NM circle (not the real TMA boundary).

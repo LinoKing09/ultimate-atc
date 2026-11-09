@@ -95,7 +95,9 @@ export type Command =
   /** Radar: "identified" / "radar contact" (answers the first call). */
   | { type: 'identified' }
   /** Radar: "report established (on the localizer)". */
-  | { type: 'reportEstablished' };
+  | { type: 'reportEstablished' }
+  /** Radar: "cleared LBU 25 transition" / "via transition LBU 25" (RNAV transition to final). */
+  | { type: 'transition'; name: string };
 
 /** Conditional clearance: "behind the A320 passing left to right, ...". */
 export interface Condition {

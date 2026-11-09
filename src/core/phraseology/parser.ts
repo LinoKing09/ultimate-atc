@@ -130,7 +130,7 @@ const KEYWORDS = new Set([
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
   'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise', 'climb', 'squawk',
   'readback', 'ctot', 'slot', 'tow', 'proceed', 'return', 'wind', 'go', 'vacate', 'abort', 'reduce', 'increase', 'maintain', 'resume', 'speed', 'no',
-  'backtrack', 'enter', 'information', 'qnh', 'altimeter', 'descend', 'heading', 'turn', 'fly', 'direct', 'identified',
+  'backtrack', 'enter', 'information', 'qnh', 'altimeter', 'descend', 'heading', 'turn', 'fly', 'direct', 'identified', 'transition',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -797,6 +797,26 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       if (fix) {
         if (c.peek() === 'as' && c.peek(1) === 'published') c.i += 2;
         result.commands.push({ type: 'holdAt', fix });
+        continue;
+      }
+      c.i = save;
+    }
+    // RNAV transition: "cleared LBU 25 transition", "via TEKSI 25 transition", "proceed via transition LBU 25".
+    {
+      const save = c.i;
+      while (['cleared', 'via', 'proceed', 'the'].includes(c.peek() ?? '')) c.next();
+      let name: string | undefined;
+      if (c.accept('transition')) {
+        const fix = matchFix(c, ctx.fixes, true);
+        const rwy = fix ? readRunway(c) : undefined;
+        if (fix && rwy) name = `${fix} ${rwy}`;
+      } else {
+        const fix = matchFix(c, ctx.fixes, true);
+        const rwy = fix ? readRunway(c) : undefined;
+        if (fix && rwy && c.accept('transition')) name = `${fix} ${rwy}`;
+      }
+      if (name) {
+        result.commands.push({ type: 'transition', name });
         continue;
       }
       c.i = save;

@@ -179,7 +179,8 @@ The data check requires a SID for every destination of the airport's traffic on 
 airspace: {
   source: 'Navaids: OurAirports (public domain); fixes: AIP Germany (facts) ...',
   fixes: [{ name: 'LBU', pos: { lat: 48.912998, lon: 9.34023 }, kind: 'vor' }, { name: 'TEKSI', pos: { ... }, kind: 'fix' }, ...],
-  entries: [{ fix: 'TEKSI', iaf: 'STG', levelFt: 11000, from: [45, 150] }, ...],
+  entries: [{ fix: 'TEKSI', iaf: 'STG', via: ['BABEG'], levelFt: 11000, from: [45, 150] }, ...],
+  transitions: [{ name: 'LBU 25', runway: '25', route: ['LBU', 'DS531', 'DS532', ..., 'DS512', 'UNSER'] }, ...],
   holdings: [{ fix: 'LBU', inboundCourse: 200, turn: 'right', minAltFt: 6000 }, ...],
   centerSectors: [{ name: 'BAD', callsign: 'Langen Radar', frequency: '131.300', fixes: ['ETASA', ...], releaseFt: 14000 }, ...],
   mvaFt: 4000,
@@ -191,8 +192,10 @@ airspace: {
 }
 ```
 
-- `fixes`: navaids (`vor`, `dme`, `ndb`) and fixes shown on the radar scope and usable in `proceed direct` and `hold over`. Navaid positions from OurAirports (public domain); fix positions are published facts (AIP ENR 4.4), digitised by hand - never copy a chart.
-- `entries`: where Center hands the arrivals over (the start of the STAR), the IAF the STAR ends at, the level the arrival is cleared to at the hand-over, and the bearings of the origins (degrees true from the airport, clockwise) that use the entry.
+- `fixes`: navaids (`vor`, `dme`, `ndb`), fixes (`fix`) and RNAV waypoints (`rnav`, e.g. DS531: drawn only on a route that is shown) shown on the radar scope and usable in `proceed direct` and `hold over`. Navaid positions from OurAirports (public domain); fix positions are published facts (AIP ENR 4.4), digitised by hand - never copy a chart.
+- `entries`: where Center hands the arrivals over (the start of the STAR), the STAR's waypoints in between (`via`), the IAF the STAR ends at, the level the arrival is cleared to at the hand-over, and the bearings of the origins (degrees true from the airport, clockwise) that use the entry.
+- `transitions` (optional): the RNAV transitions to final, by runway, each from its start fix to the FAF.
+- SIDs: `route` (in `sids`) lists the SID's waypoints up to the exit fix, flown by the departures under radar control.
 - `holdings`: the holding over a fix: inbound course (degrees magnetic), turn direction, minimum holding altitude.
 - `centerSectors`: the Center sectors the departures go to, by SID exit fix (the first sector takes every fix not listed), with the release level.
 - `mvaFt` / `mvaAreas`: the minimum vectoring altitude (MSAW), higher in sectors beyond a distance.

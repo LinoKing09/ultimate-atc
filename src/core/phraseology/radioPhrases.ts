@@ -70,6 +70,8 @@ export interface PhraseContext {
   destinations: string[];
   /** Navaids and fixes of the radar position ("LBU", "TEKSI"). */
   fixes?: string[];
+  /** RNAV transitions ("LBU 25"). */
+  transitions?: string[];
 }
 
 /** Spoken form, lower case: "A1" -> "alpha one", "26R" -> "two six right". */
@@ -130,6 +132,11 @@ export function radioPhrases(ctx: PhraseContext): string[] {
     add(`proceed direct ${spoken}`);
     add(`hold over ${spoken}`);
   }
+  for (const t of ctx.transitions ?? []) {
+    const [fix, rwy] = t.split(' ');
+    const spoken = `${fix.length <= 3 ? say(fix.split('').join(' ')) : fix.toLowerCase()} ${say(rwy)}`;
+    add(`via ${spoken} transition`);
+  }
   return [...out];
 }
 
@@ -146,6 +153,7 @@ export function sessionPhraseContext(sim: Simulation): PhraseContext {
     runways: [...sim.airport.runwayEnds.keys()],
     sids: sim.sidNames,
     destinations: [...destinations],
-    fixes: sim.airspace?.fixNames ?? [],
+    fixes: (sim.airspace?.fixNames ?? []).filter((f) => !/^DS\d/.test(f)),
+    transitions: sim.airspace?.data.transitions?.map((t) => t.name) ?? [],
   };
 }

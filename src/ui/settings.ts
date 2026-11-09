@@ -55,6 +55,11 @@ export interface Settings {
    * instructions from the menus (except a DCL / PDC on Delivery), and the lists are kept by hand.
    */
   controlMode: ControlMode;
+  /**
+   * How the aircraft menus of the radar read: 'simple' - every entry is the full phrase that is said ("Descend
+   * flight level 80"); 'real' - short like EuroScope ("ALT" > "-FL080"), the phrase is only in the radio.
+   */
+  menuStyle: 'simple' | 'real';
 }
 
 export type ControlMode = 'text' | 'both' | 'realistic';
@@ -97,6 +102,7 @@ const DEFAULTS: Settings = {
   scopeStyle: 'phx-night',
   uiTheme: 'euroscope',
   controlMode: 'both',
+  menuStyle: 'simple',
 };
 
 /** Default device mode: touch screens without a fine pointer start in mobile mode. */
@@ -125,6 +131,7 @@ export function loadSettings(): Settings {
       if (!UI_THEMES.some(([t]) => t === s.uiTheme)) s.uiTheme = DEFAULTS.uiTheme;
       // 'text' is not available yet.
       if (s.controlMode !== 'realistic') s.controlMode = 'both';
+      if (s.menuStyle !== 'real') s.menuStyle = 'simple';
       return s;
     }
   } catch {

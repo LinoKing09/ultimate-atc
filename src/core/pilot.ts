@@ -317,6 +317,7 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
     case 'approachClearance':
     case 'identified':
     case 'reportEstablished':
+    case 'transition':
       return execRadar(sim, ac, c);
   }
 }

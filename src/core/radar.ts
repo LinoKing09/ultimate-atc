@@ -118,6 +118,8 @@ export interface RadarState {
   msaw?: boolean;
   /** The crew asked for the frequency change to Tower on final. */
   askedTower?: boolean;
+  /** The RNAV transition to final the crew flies (its route is in `route`), e.g. "LBU 25". */
+  transition?: string;
   /** Own navigation to the final: the gate before the intercept point is passed (or not needed). */
   gatePassed?: boolean;
   /** Flying the missed approach (a go-around taken over by the radar). */
@@ -245,9 +247,9 @@ export function setupInbound(sim: Simulation, ac: Aircraft, origin: string): voi
   const ias = ac.altitudeFt > 10000 ? ARRIVAL_HIGH_KT : SPEED_LIMIT_FL100_KT;
   ac.speed = ias * KT_TO_MS;
   ac.verticalSpeedFpm = -DESCENT_FPM;
-  const route = entry.iaf === entry.fix ? [entry.fix] : [entry.fix, entry.iaf];
+  const route = [...new Set([entry.fix, ...(entry.via ?? []), entry.iaf])].filter((f) => as.fix(f));
   ac.radar = { ...newState(ac, entry.levelFt, isFlightLevel(sim, entry.levelFt), route), holdAtEnd: entry.iaf };
-  ac.flightPlan.route = `${entry.fix} ${entry.iaf === entry.fix ? '' : `${entry.iaf} `}${sim.config.airport.icao}`.replace(/\s+/g, ' ');
+  ac.flightPlan.route = `${route.join(' ')} ${sim.config.airport.icao}`;
   // The first call a few seconds after the hand-over from Center.
   ac.standbyUntil = sim.time + 3 + 8 * sim.variation(`${ac.callsign}:ci`);
 }
@@ -298,7 +300,9 @@ function adoptAirborne(sim: Simulation, ac: Aircraft): void {
   if (ac.category === 'departure' && ac.phase === 'climb') {
     const sid = sim.config.airport.sids.find((s) => s.name === ac.flightPlan.sid);
     const climb = sim.config.airport.initialClimbFt ?? 5000;
-    ac.radar = newState(ac, climb, isFlightLevel(sim, climb), sid?.fix && as.fix(sid.fix) ? [sid.fix] : []);
+    // The SID's waypoints (or direct to its exit fix).
+    const sidRoute = (sid?.route ?? (sid?.fix ? [sid.fix] : [])).filter((f) => as.fix(f));
+    ac.radar = newState(ac, climb, isFlightLevel(sim, climb), sidRoute);
     ac.radar.sector = as.sectorFor(sid?.fix);
     ac.radar.ias = Math.max(ac.radar.ias, ac.type.vrKt + 20);
     return;
@@ -811,6 +815,7 @@ export function execRadar(sim: Simulation, ac: Aircraft, c: Command): RadarResul
       // A vector off the final: the approach is broken off, the clearance stays for the next intercept.
       if (onFinal) breakOffFinal(sim, ac);
       r.heading = normHeading(mag) || 360;
+      r.transition = undefined;
       r.turn = c.present ? undefined : c.turn;
       r.route = [];
       r.hold = undefined;
@@ -859,6 +864,7 @@ export function execRadar(sim: Simulation, ac: Aircraft, c: Command): RadarResul
       if (!sim.airspace!.fix(c.fix)) return { unable: `unable, confirm fix ${c.fix}` };
       if (onFinal) return { unable: `unable, we are established on final runway ${ac.runway}` };
       r.route = [c.fix];
+      r.transition = undefined;
       r.heading = undefined;
       r.turn = undefined;
       r.hold = undefined;
@@ -871,6 +877,7 @@ export function execRadar(sim: Simulation, ac: Aircraft, c: Command): RadarResul
       if (!sim.airspace!.fix(c.fix)) return { unable: `unable, confirm fix ${c.fix}` };
       if (onFinal) return { unable: `unable, we are established on final runway ${ac.runway}` };
       r.route = [c.fix];
+      r.transition = undefined;
       r.heading = undefined;
       r.turn = undefined;
       r.hold = undefined;
@@ -896,7 +903,20 @@ export function execRadar(sim: Simulation, ac: Aircraft, c: Command): RadarResul
       r.holdAtEnd = undefined;
       ac.runway = runway;
       ac.flightPlan.runway = runway;
+      // On its own navigation (no vectors): it flies the RNAV transition to final of that runway.
+      if (r.heading === undefined && !r.locCaptured && (!r.transition || !r.transition.endsWith(runway))) joinTransition(sim, ac, runway);
       return { readback: `cleared ${approachWordOf(c.kind)} approach runway ${runway}`, answers };
+    }
+    case 'transition': {
+      if (ac.category !== 'arrival') return { unable: 'say again, we are a departure' };
+      if (onFinal) return { unable: `unable, we are established on final runway ${ac.runway}` };
+      const t = sim.airspace!.data.transitions?.find((x) => x.name.replace(/\s/g, '') === c.name.replace(/\s/g, ''));
+      if (!t) return { unable: `unable, confirm transition ${c.name}` };
+      if (!sim.isArrivalRunway(t.runway)) return { unable: `confirm ${t.name} transition, the ATIS gives runway ${sim.arrivalRunways.join(' and ')} for landing` };
+      joinTransition(sim, ac, t.runway, t.name);
+      ac.runway = t.runway;
+      ac.flightPlan.runway = t.runway;
+      return { readback: `via ${t.name} transition`, answers };
     }
     default:
       return { unable: 'say again' };
@@ -943,3 +963,54 @@ function finalSpeed(sim: Simulation, ac: Aircraft, c: Extract<Command, { type: '
 
 /** The approach intercept point the crew flies to after an approach clearance without vectors (NM before the threshold). */
 export const INTERCEPT_POINT_NM = 11;
+
+/**
+ * Puts an arrival on an RNAV transition to final: the one named, or the one whose start is still ahead on its STAR,
+ * or - already past it - the transition fix nearest ahead (no turn of more than 90 degrees to it). It flies there
+ * directly, then along the transition to the FAF.
+ */
+export function joinTransition(sim: Simulation, ac: Aircraft, runway: string, name?: string): boolean {
+  const as = sim.airspace!;
+  const r = ac.radar!;
+  const all = (as.data.transitions ?? []).filter((t) => t.runway === runway && (!name || t.name === name));
+  if (!all.length) return false;
+  let pick: { t: (typeof all)[number]; from: number; keep: string[] } | undefined;
+  // The start of a transition still ahead on the route (STAR): keep the route up to it.
+  for (const t of all) {
+    const i = r.route.indexOf(t.route[0]);
+    if (i >= 0 && (!pick || i < pick.keep.length)) pick = { t, from: 0, keep: r.route.slice(0, i) };
+  }
+  // At (or holding over) the start of a transition: from there.
+  if (!pick) {
+    for (const t of all) {
+      const p = as.fix(t.route[0]);
+      if (p && distance(ac.pos, p) < 6 * M_PER_NM) pick = { t, from: 0, keep: [] };
+    }
+  }
+  if (!pick) {
+    let best = Infinity;
+    for (const t of all) {
+      // Not onto the final part (the last four fixes): the crew joins the downwind or the base.
+      t.route.slice(0, Math.max(1, t.route.length - 4)).forEach((f, i) => {
+        const p = as.fix(f);
+        if (!p) return;
+        const d = distance(ac.pos, p);
+        const ahead = d < 3 * M_PER_NM || Math.abs(headingDiff(ac.heading, headingOf(sub(p, ac.pos)))) <= 90;
+        const cost = d + (ahead ? 0 : 1e6);
+        if (cost < best) {
+          best = cost;
+          pick = { t, from: i, keep: [] };
+        }
+      });
+    }
+  }
+  if (!pick) return false;
+  r.route = [...pick.keep, ...pick.t.route.slice(pick.from)].filter((f) => as.fix(f));
+  r.transition = pick.t.name;
+  r.heading = undefined;
+  r.turn = undefined;
+  r.hold = undefined;
+  r.holdAtEnd = undefined;
+  r.gatePassed = true;
+  return true;
+}

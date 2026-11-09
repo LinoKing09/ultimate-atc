@@ -40,6 +40,8 @@ interface RadarTheme {
   emergency: string;
   selected: string;
   text: string;
+  /** Routes of the selected aircraft. */
+  route: string;
 }
 
 /** EuroScope-like: dark grey screen, grey maps, white assumed tracks, green-grey others. */
@@ -61,6 +63,7 @@ const ES_DARK: RadarTheme = {
   emergency: 'rgb(255, 92, 240)',
   selected: 'rgb(111, 227, 255)',
   text: 'rgb(170, 180, 190)',
+  route: 'rgba(245, 245, 245, 0.9)',
 };
 
 /** Day palette (for the PHX day / map styles): light grey screen. */
@@ -81,6 +84,7 @@ const ES_DAY: RadarTheme = {
   history: 'rgba(40, 50, 60, 0.6)',
   selected: 'rgb(0, 90, 160)',
   text: 'rgb(40, 50, 60)',
+  route: 'rgba(20, 20, 20, 0.85)',
 };
 
 /** Phosphor (green tube). */
@@ -100,6 +104,7 @@ const PHOSPHOR: RadarTheme = {
   other: 'rgb(60, 160, 80)',
   history: 'rgba(120, 255, 150, 0.5)',
   text: 'rgb(120, 220, 140)',
+  route: 'rgba(200, 255, 210, 0.9)',
 };
 
 /** Radar sweep: the targets move on the screen once per sweep (s). */
@@ -143,6 +148,8 @@ export class RadarScope {
   private longPress?: ReturnType<typeof setTimeout>;
   /** Tag offsets (screen pixels) per callsign - the radar tags are placed independently of the ground scope. */
   private readonly offsets = new Map<string, Vec2>();
+  /** Aircraft whose route stays drawn (menu "Show route"). */
+  private readonly routesShown = new Set<string>();
 
   selected?: string;
   touchMode = false;
@@ -472,7 +479,8 @@ export class RadarScope {
     ctx.font = `${Math.round(10 * this.tagScale)}px Consolas, Menlo, monospace`;
     const placed: Vec2[] = [];
     // Navaids first: a fix right next to one already drawn keeps its symbol but not its name.
-    const fixes = [...as.fixes].sort((a, b) => (a[1].kind === 'fix' ? 1 : 0) - (b[1].kind === 'fix' ? 1 : 0));
+    // RNAV waypoints (DS531 ...) only on a route that is shown, like in EuroScope's sector file.
+    const fixes = [...as.fixes].filter(([, f]) => f.kind !== 'rnav').sort((a, b) => (a[1].kind === 'fix' ? 1 : 0) - (b[1].kind === 'fix' ? 1 : 0));
     for (const [name, f] of fixes) {
       const p = this.toScreen(f.pos);
       if (p.x < -40 || p.y < -40 || p.x > this.width + 40 || p.y > this.height + 40) continue;
@@ -555,22 +563,64 @@ export class RadarScope {
       ctx.beginPath();
       ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
       ctx.stroke();
-      // The next fix of its route.
-      const next = ac.radar?.route[0] ?? ac.radar?.hold?.fix;
-      const f = next ? this.sim.airspace?.fix(next) : undefined;
-      if (f && ac.radar?.heading === undefined) {
-        const q = this.toScreen(f);
-        ctx.save();
-        ctx.setLineDash([4, 4]);
-        ctx.globalAlpha = 0.6;
-        ctx.beginPath();
-        ctx.moveTo(p.x, p.y);
-        ctx.lineTo(q.x, q.y);
-        ctx.stroke();
-        ctx.restore();
-      }
     }
+    if (ac.callsign === this.selected || this.routesShown.has(ac.callsign)) this.drawRoute(ac, p);
     this.symbolHits.push({ callsign: ac.callsign, x: p.x, y: p.y });
+  }
+
+  /**
+   * The route the aircraft flies (EuroScope "show route"): white lines from the target through every fix still ahead -
+   * SID, STAR, RNAV transition or direct-to - with the fix names; a holding fix with its racetrack sign.
+   */
+  private drawRoute(ac: Aircraft, from: Vec2): void {
+    const r = ac.radar;
+    const as = this.sim.airspace;
+    if (!r || !as) return;
+    const names = r.hold ? [r.hold.fix] : r.route;
+    if (!names.length) return;
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.strokeStyle = this.t.route;
+    ctx.fillStyle = this.t.route;
+    ctx.lineWidth = 1;
+    // On vectors the route is no longer flown: dashed (where it would go when cleared back on it).
+    if (r.heading !== undefined) ctx.setLineDash([5, 5]);
+    ctx.beginPath();
+    ctx.moveTo(from.x, from.y);
+    const pts: { name: string; p: Vec2 }[] = [];
+    for (const n of names) {
+      const f = as.fix(n);
+      if (!f) continue;
+      const q = this.toScreen(f);
+      ctx.lineTo(q.x, q.y);
+      pts.push({ name: n, p: q });
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.font = `${Math.round(10 * this.tagScale)}px Consolas, Menlo, monospace`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    for (const { name, p } of pts) {
+      ctx.fillRect(p.x - 2, p.y - 2, 4, 4);
+      ctx.fillText(name, p.x + 5, p.y + 3);
+    }
+    if (r.transition && pts.length) ctx.fillText(r.transition, pts[pts.length - 1].p.x + 5, pts[pts.length - 1].p.y + 14);
+    ctx.restore();
+  }
+
+  /** Shows (or hides) the route of an aircraft also when it is not selected. */
+  toggleRoute(callsign: string): void {
+    if (this.routesShown.has(callsign)) this.routesShown.delete(callsign);
+    else this.routesShown.add(callsign);
+  }
+
+  /** Back to the default tag position. */
+  resetTag(callsign: string): void {
+    this.offsets.delete(callsign);
+  }
+
+  routeShown(callsign: string): boolean {
+    return this.routesShown.has(callsign);
   }
 
   /** Data tag (EuroScope style): callsign / level, trend, cleared level / speed, heading or fix, approach. */

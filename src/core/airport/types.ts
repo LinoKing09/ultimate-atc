@@ -117,7 +117,17 @@ export interface FixData {
   /** Designator as published, e.g. "LBU", "TEKSI". */
   name: string;
   pos: LatLon;
-  kind: 'vor' | 'dme' | 'ndb' | 'fix';
+  /** `rnav`: a terminal waypoint of a SID, STAR or transition (DS531): drawn only on a route that uses it. */
+  kind: 'vor' | 'dme' | 'ndb' | 'fix' | 'rnav';
+}
+
+/** An RNAV transition to final (overlay to the radar vector pattern), e.g. "LBU 25": from its first fix to the FAF. */
+export interface TransitionData {
+  /** As said on the radio: start fix and runway ("LBU 25"). */
+  name: string;
+  runway: string;
+  /** Fixes in order, the first is where it starts, the last the final approach fix. */
+  route: string[];
 }
 
 /** Where arrivals enter the terminal airspace from Center, and where their STAR ends. */
@@ -126,6 +136,8 @@ export interface ArrivalEntryData {
   fix: string;
   /** Initial approach fix the STAR leads to (the arrival holds there without further clearance). */
   iaf: string;
+  /** Fixes of the STAR between the entry fix and the IAF (TEKSI: BABEG). */
+  via?: string[];
   /** Level Center has cleared the arrival to at the hand-over (feet; 10000 = FL100). */
   levelFt: number;
   /** Bearings (degrees true, clockwise from the first to the second) of the origins that use this entry. */
@@ -170,6 +182,8 @@ export interface AirspaceData {
   missedApproachFt: number;
   /** Radius of the terminal airspace around the ARP (NM): departures are handed to Center by then. */
   radiusNm: number;
+  /** RNAV transitions to final by runway (flown after an approach clearance without vectors, or when cleared for one). */
+  transitions?: TransitionData[];
   /** Spacing on final the arrivals need at touchdown (NM, LVP the larger value). */
   finalSpacingNm: number;
   /** Hand-off to Tower at the latest at this distance from the threshold (NM). */
@@ -486,6 +500,11 @@ export interface SidData {
    * where the AIP allows vectors and no SID is available to the simulator). `fix` is empty.
    */
   vectors?: boolean;
+  /**
+   * The waypoints of the SID after take-off up to the exit fix (included), flown by the departures when you work
+   * Approach / Departure. Omitted: direct to the exit fix.
+   */
+  route?: string[];
   /** Radar frequency departures on this SID contact after take-off (default: the APP station's frequency). */
   frequency?: string;
 }

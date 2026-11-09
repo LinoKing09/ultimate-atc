@@ -321,6 +321,7 @@ A wrong runway is queried: `confirm runway 07, we are departing runway 25`. A de
 | `hold over LBU [as published]` / `hold at LBU` | `Hold over LBU` - flies to the fix and holds there |
 | `cleared ILS approach runway 25` / `cleared ILS 25` / `cleared RNP approach runway 07` / `cleared localizer approach runway 25` | `Cleared ILS approach runway 25` - captures the localizer from its heading, or (without a heading) flies to the final on its own. Usually with an intercept heading: `turn left heading 280, cleared ILS approach runway 25` |
 | `report established [on the localizer]` | `Wilco` - reports `established localizer runway 25` |
+| `via LBU 25 transition[, cleared ILS approach runway 25]` / `cleared TEKSI 25 transition` / `proceed via transition LBU 25` | `Via LBU 25 transition` - flies the RNAV transition to final (downwind, base, final to the FAF); a runway not in use: `confirm LBU 07 transition, the ATIS gives runway 25 for landing` |
 | `contact Stuttgart Tower 118.805` | Arrival to Tower: `Tower 118.805, goodbye` |
 | `contact Langen Radar 131.300` | Departure to its Center sector: `Langen Radar 131.300, goodbye` |
 
@@ -553,6 +554,6 @@ At US airports (`phraseology: 'faa'` in the airport data, so far San Diego KSAN)
 - `follow` with real follow-the-leader behaviour.
 - Expected-start-up phrases with a time (`expect start-up at 1452`); use `expect start-up in 5 minutes`.
 - Clearance amendments in parts (`climb amended ...`) - give the full clearance again.
-- Radar (prototype): turns by degrees (`turn left by 20 degrees`), `expedite descent`, `when ready descend`, `cleared via <STAR>` / transitions, traffic information, `squawk ident`, the Director position.
+- Radar (prototype): turns by degrees (`turn left by 20 degrees`), `expedite descent`, `when ready descend`, `cleared via <STAR>`, `resume own navigation`, `descend via` constraints, traffic information, `squawk ident`, the Director position.
 - Non-English phraseology (German "Rollkontrolle" phrases).
 - FAA: progressive taxi, `monitor` hand-offs without a call, and US runway designators in the flight strips and menus (they keep "09"; the toolbar, the ATIS and the pilots say "9").

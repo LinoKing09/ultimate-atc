@@ -143,6 +143,8 @@ export function formatCommand(c: Command): string {
       return 'identified';
     case 'reportEstablished':
       return 'report established';
+    case 'transition':
+      return `via ${c.name} transition`;
   }
 }
 

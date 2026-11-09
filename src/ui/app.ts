@@ -834,9 +834,12 @@ export class App {
   private get radarCtx(): RadarMenuContext {
     return {
       sim: this.sim,
+      real: this.settings.menuStyle === 'real',
+      toggleRoute: (ac) => this.radarScope?.toggleRoute(ac.callsign),
+      routeShown: (ac) => !!this.radarScope?.routeShown(ac.callsign),
       say: (ac, phrase) => this.say(ac, phrase),
       center: (ac) => this.scope.centerOn(ac.pos),
-      resetTag: () => undefined,
+      resetTag: (ac) => this.radarScope?.resetTag(ac.callsign),
     };
   }
 
@@ -999,14 +1002,15 @@ export class App {
     const specs: QuickSpec[] =
       pos === 'APP'
         ? [
-            { text: 'IDENT', re: /^Identified$/ },
-            { text: 'HDG', re: /^Heading$/ },
-            { text: 'ALT', re: /^(Climb|Descend \/ climb)$/ },
-            { text: 'SPD', re: /^Speed$/ },
-            { text: 'DCT', re: /^Proceed direct$/ },
-            { text: 'HOLD', re: /^Hold over$/ },
-            { text: 'APCH', re: /^Approach$/ },
-            { text: ac.category === 'arrival' ? 'TWR' : 'CTR', re: /^Contact / },
+            { text: 'IDENT', re: /^(Identified|IDENT)$/ },
+            { text: 'HDG', re: /^(Heading|HDG)$/ },
+            { text: 'ALT', re: /^(Climb|Descend \/ climb|ALT)$/ },
+            { text: 'SPD', re: /^(Speed|SPD)$/ },
+            { text: 'DCT', re: /^(Proceed direct|DCT)$/ },
+            { text: 'HOLD', re: /^(Hold over|HOLD)$/ },
+            { text: 'TRANS', re: /^(Transition|TRANS)$/ },
+            { text: 'APCH', re: /^(Approach|APP)$/ },
+            { text: ac.category === 'arrival' ? 'TWR' : 'CTR', re: /^(Contact |TWR |[A-Z]{3} \d)/ },
           ]
         : pos === 'DEL'
         ? [

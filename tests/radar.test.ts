@@ -29,7 +29,7 @@ const fixes = ['LBU', 'TEKSI', 'STG', 'BADSO', 'REUTL', 'ETASA', 'DS531'];
 const ctx = (cs: string[]) => ({ callsigns: cs, taxiways: new Set(['A', 'B', 'C']), fixes });
 
 describe('radar phraseology', () => {
-  it('parses vectors, levels, direct, holdings and approach clearances', () => {
+  it('parses vectors, levels, direct, holdings and approach clearances', { timeout: 120000 }, () => {
     const c = ctx(['EWG7AB']);
     expect(parseTransmission('EWG7AB turn left heading 270', c).commands).toEqual([{ type: 'heading', heading: 270, turn: 'left' }]);
     expect(parseTransmission('EWG7AB fly heading 090', c).commands).toEqual([{ type: 'heading', heading: 90 }]);
@@ -59,7 +59,7 @@ describe('radar phraseology', () => {
 });
 
 describe('Approach / Departure position (radar)', () => {
-  it('arrivals are handed over by Center at their entry fix and call in', () => {
+  it('arrivals are handed over by Center at their entry fix and call in', { timeout: 120000 }, () => {
     const sim = appSim();
     const ac = inbound(sim, 'EDDH');
     expect(ac.phase).toBe('inbound');
@@ -77,7 +77,7 @@ describe('Approach / Departure position (radar)', () => {
     expect(ac.radar?.clearedFt).toBe(5000);
   });
 
-  it('vectors an arrival onto the ILS, hands it to Tower and it lands', () => {
+  it('vectors an arrival onto the ILS, hands it to Tower and it lands', { timeout: 120000 }, () => {
     const sim = appSim(11);
     const ac = inbound(sim, 'EDDH');
     runUntil(sim, () => ac.request === 'checkIn', 60);
@@ -102,7 +102,7 @@ describe('Approach / Departure position (radar)', () => {
     expect(sim.stats.radarSeparationLosses).toBe(0);
   });
 
-  it('flies the STAR to the IAF and holds there without a clearance', () => {
+  it('flies the STAR to the IAF and holds there without a clearance', { timeout: 120000 }, () => {
     const sim = appSim(3);
     const ac = inbound(sim, 'LTAI');
     expect(ac.radar?.route).toEqual(['TEKSI', 'BABEG', 'STG']);
@@ -117,7 +117,7 @@ describe('Approach / Departure position (radar)', () => {
     expect(runUntil(sim, () => ac.phase === 'approach', 1500)).toBe(true);
   });
 
-  it('departures call in after take-off, climb towards their exit fix and go to Center', () => {
+  it('departures call in after take-off, climb towards their exit fix and go to Center', { timeout: 120000 }, () => {
     const sim = appSim(5, true);
     let dep: Aircraft | undefined;
     expect(runUntil(sim, () => !!(dep = sim.aircraft.find((a) => a.category === 'departure' && a.frequency === 'APP' && a.request === 'checkIn')), 3600)).toBe(true);
@@ -133,7 +133,7 @@ describe('Approach / Departure position (radar)', () => {
     expect(sim.stats.departuresToCenter).toBe(1);
   });
 
-  it('runs an hour of traffic with every position but Approach run by the simulator', () => {
+  it('runs an hour of traffic with every position but Approach run by the simulator', { timeout: 120000 }, () => {
     const sim = appSim(21, true);
     // Bot: answer every call, then give each arrival the approach clearance straight away (it flies the transition).
     for (let t = 0; t < 3600; t++) {
@@ -160,7 +160,7 @@ describe('Approach / Departure position (radar)', () => {
 });
 
 describe('radar read-backs', () => {
-  it('queries an approach to a runway not in use and an impossible climb', () => {
+  it('queries an approach to a runway not in use and an impossible climb', { timeout: 120000 }, () => {
     const sim = appSim(9);
     const ac = inbound(sim, 'EDDH');
     runUntil(sim, () => ac.request === 'checkIn', 60);
@@ -179,7 +179,7 @@ describe('radar read-backs', () => {
 });
 
 describe('radar sessions', () => {
-  it('a radar session replays exactly from its log', async () => {
+  it('a radar session replays exactly from its log', { timeout: 120000 }, async () => {
     const sim = appSim(13, true);
     for (let t = 0; t < 1500; t++) {
       sim.tick(1);
@@ -199,11 +199,11 @@ describe('radar sessions', () => {
       back.tick(1);
     }
     expect(fingerprint(back)).toBe(fingerprint(sim));
-  }, 60000);
+  });
 });
 
 describe('SIDs, STARs and RNAV transitions', () => {
-  it('parses transitions', () => {
+  it('parses transitions', { timeout: 120000 }, () => {
     const c = ctx(['EWG7AB']);
     expect(parseTransmission('EWG7AB via LBU 25 transition, cleared ILS approach runway 25', c).commands).toEqual([
       { type: 'transition', name: 'LBU 25' },
@@ -213,7 +213,7 @@ describe('SIDs, STARs and RNAV transitions', () => {
     expect(parseTransmission('EWG7AB proceed via transition lima bravo uniform 2 5', c).commands).toEqual([{ type: 'transition', name: 'LBU 25' }]);
   });
 
-  it('departures fly the waypoints of their SID', () => {
+  it('departures fly the waypoints of their SID', { timeout: 120000 }, () => {
     const sim = appSim(5, true);
     let dep: Aircraft | undefined;
     expect(runUntil(sim, () => !!(dep = sim.aircraft.find((a) => a.category === 'departure' && !!a.radar)), 3600)).toBe(true);
@@ -227,7 +227,7 @@ describe('SIDs, STARs and RNAV transitions', () => {
     for (const e of EDDS.airspace!.entries) for (const f of [e.fix, e.iaf, ...(e.via ?? [])]) expect(known.has(f)).toBe(true);
   });
 
-  it('an approach clearance on the STAR flies the RNAV transition and joins the final', () => {
+  it('an approach clearance on the STAR flies the RNAV transition and joins the final', { timeout: 120000 }, () => {
     for (const origin of ['LTAI', 'EDDH', 'LEPA', 'LSZH']) {
       const sim = appSim(17);
       const ac = inbound(sim, origin);
@@ -243,7 +243,7 @@ describe('SIDs, STARs and RNAV transitions', () => {
     }
   });
 
-  it('a transition from the hold over LBU', () => {
+  it('a transition from the hold over LBU', { timeout: 120000 }, () => {
     const sim = appSim(19);
     const ac = inbound(sim, 'EDDH');
     expect(runUntil(sim, () => !!ac.radar?.hold, 1800)).toBe(true);

@@ -111,16 +111,18 @@ export class VoskInput {
       this.loading = undefined;
       this.loadedSize = size;
     }
-    const { name, size: mb } = VOSK_MODELS[size];
     this.loading ??= (async () => {
+      let { name, size: mb } = VOSK_MODELS[size];
+      // The large model is not served with every build of the site (GitHub Pages: only the small one): then the small one.
+      let lexiconResponse = await fetch(`models/${name}.lexicon.txt`);
+      if (!lexiconResponse.ok && size === 'large') {
+        this.onStatus('The large speech model is not available on this site - using the small one.');
+        ({ name, size: mb } = VOSK_MODELS.small);
+        lexiconResponse = await fetch(`models/${name}.lexicon.txt`);
+      }
+      if (!lexiconResponse.ok) throw new Error(`lexicon: HTTP ${lexiconResponse.status}`);
       this.onStatus(`Loading the speech model (${mb}, only the first time) ...`);
-      const [{ createModel }, lexicon] = await Promise.all([
-        import('vosk-browser'),
-        fetch(`models/${name}.lexicon.txt`).then((r) => {
-          if (!r.ok) throw new Error(`lexicon: HTTP ${r.status}`);
-          return r.text();
-        }),
-      ]);
+      const [{ createModel }, lexicon] = await Promise.all([import('vosk-browser'), lexiconResponse.text()]);
       this.lexicon = new Set(lexicon.split('\n').filter(Boolean));
       // Log level -1: errors only (the worker would log every file it unpacks).
       this.model = await createModel(new URL(`models/${name}.tar.gz`, document.baseURI).href, -1);

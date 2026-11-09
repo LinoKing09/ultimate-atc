@@ -138,7 +138,7 @@ export function showSettings(
     no.addEventListener('click', () => (warn.hidden = true));
     warn.append(
       h('div', {
-        text: 'The large model downloads about 128 MB at your next transmission (on a mobile connection too). In our tests it was not more accurate than the small one and needed several seconds per transmission - the instruction comes later; not recommended on a tablet or phone.',
+        text: 'The large model downloads about 128 MB at your next transmission (on a mobile connection too). The public site (GitHub Pages) does not serve it - there the small one is used. In our tests it was not more accurate than the small one and needed several seconds per transmission - the instruction comes later; not recommended on a tablet or phone.',
       }),
       h('div.actions', {}, no, yes),
     );

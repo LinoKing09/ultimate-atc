@@ -4,7 +4,7 @@ import type { AirportData, ParallelRunwayData, StationData, StationType } from '
 import type { AircraftType } from '../data/aircraftTypes';
 import { destinationBearing } from '../data/destinations';
 import { telephony, type Aircraft } from './aircraft';
-import { M_PER_NM, distance, projectOnSegment } from './geo';
+import { M_PER_NM, distance, normHeading, projectOnSegment } from './geo';
 import { detectCollisions, updateMovement, updateSeparation } from './movement';
 import { createVehicles, executeVehicleTransmission, updateVehicles, type Vehicle } from './vehicles';
 import { parseTransmission } from './phraseology/parser';
@@ -20,6 +20,9 @@ import { Rng } from './random';
 import { SYSTEMS, approachType, defaultSystemStates, type ApproachType, type SystemId, type SystemStates } from './systems';
 import { SCENARIO_EVENT_TEXT, type ScenarioEvent, type ScenarioSetup } from './scenario';
 import { TowerAI } from './tower';
+import { Airspace, updateRadar } from './radar';
+import type { PilotRequest } from './aircraft';
+import { call, inform } from './pilot';
 import { TrafficGenerator } from './traffic';
 import { EVENT_LEVELS, clampLevel, type Density } from './levels';
 import { updateNight } from './night';
@@ -89,7 +92,7 @@ export const HANDOVER_S = 20 * 60;
 /** At the hand-over an arrival this close to the threshold (NM) has its landing clearance if the runway is free. */
 const HANDOVER_LANDING_NM = 4;
 /** The positions you can staff (Approach and Radar to follow). */
-export const STAFFABLE: StationType[] = ['DEL', 'GND', 'TWR'];
+export const STAFFABLE: StationType[] = ['DEL', 'GND', 'TWR', 'APP'];
 
 export type IncidentType = 'collision' | 'incursion' | 'goAround';
 
@@ -137,6 +140,13 @@ export interface Stats {
   separationLosses: number;
   /** Tower: go-arounds you instructed. */
   goAroundsInstructed: number;
+  /** Approach / Departure: arrivals handed to Tower on final, departures handed to Center. */
+  arrivalsToTower: number;
+  departuresToCenter: number;
+  /** Approach / Departure: losses of radar separation (STCA), hand-offs the crews had to make themselves, MSAW warnings. */
+  radarSeparationLosses: number;
+  radarHandoffsMissed: number;
+  mvaViolations: number;
   /** Minutes Approach held all arrivals on your request. */
   arrivalStopMinutes: number;
   /** Minutes Ground held all departures on your request. */
@@ -231,6 +241,8 @@ export class Simulation {
   }
   readonly frequency: Frequency;
   readonly tower: TowerAI;
+  /** Terminal airspace of the Approach / Departure position (airports with airspace data only). */
+  readonly airspace?: Airspace;
   readonly traffic: TrafficGenerator;
   readonly station: StationData;
   /** Stations staffed by the user. */
@@ -296,6 +308,11 @@ export class Simulation {
     arrivalStopMinutes: 0,
     departureStopMinutes: 0,
     goAroundsInstructed: 0,
+    arrivalsToTower: 0,
+    departuresToCenter: 0,
+    radarSeparationLosses: 0,
+    radarHandoffsMissed: 0,
+    mvaViolations: 0,
     slotsMissed: 0,
     curfewMissed: 0,
     weatherGoArounds: 0,
@@ -351,6 +368,7 @@ export class Simulation {
     }
     this.frequency = new Frequency(station.frequency, (m) => this.pushMessage(m), config.airport.phraseology === 'faa' ? faaStyle : undefined, config.airport.phraseology === 'faa');
     this.tower = new TowerAI(this);
+    if (config.airport.airspace) this.airspace = new Airspace(config.airport.airspace, this.airport.proj);
     this.traffic = new TrafficGenerator(this);
 
     // Wind first; the active runway is the one with the most headwind unless given.
@@ -556,6 +574,7 @@ export class Simulation {
     updateNight(this);
     if (this.config.generateTraffic !== false) this.traffic.update();
     this.tower.update(dt);
+    updateRadar(this, dt);
     this.updateFlow(dt);
     this.updateHandoffs();
     updateSeparation(this);
@@ -603,11 +622,12 @@ export class Simulation {
     if (!trimmed) return { ok: false };
     if (/^all stations\b/i.test(trimmed)) return this.broadcast(trimmed);
     const callsigns = this.radioCallsigns;
-    let parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected, sids: this.sidNames });
+    const fixes = this.airspace?.fixNames;
+    let parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected, sids: this.sidNames, fixes });
     // Voice-only operation: without callsign and selection, address the pilot who called last.
     if (!parsed.callsign && opts.fallbackToLastCaller) {
       const last = this.lastCaller();
-      if (last) parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected: last.callsign, sids: this.sidNames });
+      if (last) parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected: last.callsign, sids: this.sidNames, fixes });
     }
     const vehicle = this.vehicles.find((v) => v.callsign === parsed.callsign);
     if (vehicle) return executeVehicleTransmission(this, vehicle, parsed, trimmed);
@@ -1152,7 +1172,22 @@ export class Simulation {
         ac.flightPlan.sid = sid?.name;
       }
       // Approach re-sequences arrivals that are not yet on short final onto the new runway.
+      // Radar: an approach clearance for a runway no longer in use is void - the crew waits for new vectors.
+      if (ac.radar?.approach && ac.phase === 'inbound' && !this.isArrivalRunway(ac.radar.approach.runway)) {
+        ac.radar.approach = undefined;
+        ac.radar.locCaptured = ac.radar.established = false;
+        ac.radar.heading ??= Math.round(normHeading(ac.heading - this.config.airport.magneticVariation));
+      }
+      if (ac.radar && ac.phase === 'inbound') continue;
       if (ac.phase === 'approach' && this.distanceToThresholdNm(ac) > 3.5 && !this.isArrivalRunway(ac.runway)) {
+        // Under your radar control: back to vectors (heading as now), the approach clearance is void.
+        if (ac.radar && ac.frequency === 'APP') {
+          ac.phase = 'inbound';
+          ac.radar.approach = undefined;
+          ac.radar.locCaptured = ac.radar.established = false;
+          ac.radar.heading = Math.round(normHeading(ac.heading - this.config.airport.magneticVariation));
+          continue;
+        }
         const freq = ac.frequency;
         this.tower.setupApproach(ac, Math.max(6, this.distanceToThresholdNm(ac)), this.runwayFor(ac.assignedStand, ac.type, 'arrival', this.bearingTo(ac.flightPlan.departure)));
         if (freq !== 'APP') ac.frequency = freq; // already talking to Tower: it stays there
@@ -1203,9 +1238,9 @@ export class Simulation {
     return this.userControls(tower) && (!!this.airport.station('TWR') || tower !== this.stationFor('ground'));
   }
 
-  /** Positions of this airport you could still take over during the session (Delivery, Ground, Tower). */
+  /** Positions of this airport you could still take over during the session (Delivery, Ground, Tower, Approach). */
   get vacantStations(): StationType[] {
-    return STAFFABLE.filter((t) => !this.loggedInStations.includes(t) && this.airport.station(t));
+    return STAFFABLE.filter((t) => !this.loggedInStations.includes(t) && this.airport.station(t) && (t !== 'APP' || !!this.airspace));
   }
 
   /**
@@ -1495,6 +1530,16 @@ export class Simulation {
 
   updateScore(): void {
     this.stats.score = scoreOf(this.stats);
+  }
+
+  /** A pilot call on the radar frequency (request): see pilot.ts `call`. */
+  radarCall(ac: Aircraft, request: PilotRequest, text: string): void {
+    call(this, ac, request, text);
+  }
+
+  /** A pilot report on the radar frequency that needs no answer. */
+  radarInform(ac: Aircraft, text: string): void {
+    inform(this, ac, text);
   }
 
   /** Display name of an aircraft for messages. */

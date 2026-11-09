@@ -12,6 +12,7 @@ import { DELAYED_ARRIVAL_SHARE, NIGHT_APPROACH_ESTIMATE_S, landingStatus, nightR
 import { minutesToHhmm } from './time';
 import { STORM_ARRIVAL_RATE, STORM_ARRIVAL_SPACING_NM } from './weather';
 import { LVP_ARRIVAL_SPACING_NM, LVP_DEPARTURE_GAP_NM, lvpInForce } from './met';
+import { ENTRY_INTERVAL_S, radarActive, setupInbound } from './radar';
 
 const SPAWN_DISTANCE_NM = 12;
 /** Largest wingspan of a code D stand (m): stands up to this size are used by all aircraft up to code D. */
@@ -40,6 +41,8 @@ export class TrafficGenerator {
   private nextDepartureAt = 0;
   private nextArrivalAt = 0;
   private usedCallsigns = new Set<string>();
+  /** Radar: when the last arrival was handed over at each entry fix (Center delivers them spaced out). */
+  private lastAtEntry = new Map<string, number>();
 
   constructor(private readonly sim: Simulation) {}
 
@@ -88,7 +91,11 @@ export class TrafficGenerator {
     staggerInitialCalls(sim, initial);
     // A couple of arrivals already inbound (none in the landing curfew).
     const firstArrival = sim.rng.range(4, 6);
-    if (landingStatus(sim, sim.time + 120) === 'open') this.spawnArrival(firstArrival);
+    if (landingStatus(sim, sim.time + 120) === 'open') {
+      // You work Approach: the first arrival is handed over by Center at its entry fix, not already on final.
+      if (radarActive(sim)) this.spawnInbound();
+      else this.spawnArrival(firstArrival);
+    }
     this.nextArrivalAt = sim.time + sim.rng.range(60, 180);
     this.nextDepartureAt = sim.time + sim.rng.exponential(3600 / r.departures);
   }
@@ -110,6 +117,19 @@ export class TrafficGenerator {
         this.nextArrivalAt = status === 'closed' ? sim.time + 60 : sim.time + sim.rng.exponential(3600 / r.arrivals);
         return;
       }
+    }
+    // You work Approach: Center hands the arrivals over at their entry fixes; the spacing on final is yours.
+    if (sim.time >= this.nextArrivalAt && radarActive(sim)) {
+      this.pendingArrival ??= this.pickArrivalSpec();
+      const pending = this.pendingArrival;
+      const standFree = !this.standReserve || this.sim.freeStands(pending.type.wingspanM).length > 0;
+      const ac = standFree ? this.spawnInbound(pending) : undefined;
+      if (ac) {
+        if (landingStatus(sim, sim.time + NIGHT_APPROACH_ESTIMATE_S) === 'delayed') this.announceDelayed(ac);
+        this.pendingArrival = undefined;
+        this.nextArrivalAt = sim.time + sim.rng.exponential(3600 / r.arrivals);
+      } else this.nextArrivalAt = sim.time + 20;
+      return;
     }
     if (sim.time >= this.nextArrivalAt) {
       // Pick the next arrival first: the required gap depends on its wake category.
@@ -376,6 +396,26 @@ export class TrafficGenerator {
     prepareDeparture(sim, ac);
     ac.taxiPace = 0.85 + 0.3 * sim.variation(`${ac.callsign}:pace`);
     sim.aircraft.push(ac);
+    return ac;
+  }
+
+  /**
+   * An arrival handed over by Center at its entry fix (you work Approach, see radar.ts). Returns undefined while the
+   * entry fix of its origin had an arrival less than ENTRY_INTERVAL_S ago.
+   */
+  spawnInbound(pending?: { airline: Airline; type: AircraftType; stand?: string; origin?: string }): Aircraft | undefined {
+    const sim = this.sim;
+    const as = sim.airspace!;
+    const airline = pending?.airline ?? this.pickAirline();
+    if (pending) pending.origin ??= sim.rng.pick(airline.destinations);
+    const origin = pending?.origin ?? sim.rng.pick(airline.destinations);
+    const entry = as.entryFor(sim.bearingTo(origin) ?? 0);
+    if (sim.time - (this.lastAtEntry.get(entry.fix) ?? -Infinity) < ENTRY_INTERVAL_S) return undefined;
+    const runway = sim.runwayFor(pending?.stand, pending?.type ?? aircraftType(sim.rng.pick(airline.types)), 'arrival', sim.bearingTo(origin));
+    const ac = this.spawnArrival(SPAWN_DISTANCE_NM, { airline, type: pending?.type.icao, stand: pending?.stand, runway, origin });
+    if (!ac) return undefined;
+    setupInbound(sim, ac, origin);
+    this.lastAtEntry.set(entry.fix, sim.time);
     return ac;
   }
 

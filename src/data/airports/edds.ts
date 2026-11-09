@@ -570,6 +570,79 @@ export const EDDS: AirportData = {
     { callsign: 'EDDS_APP', type: 'APP', name: 'Langen Radar', frequency: '125.050' },
     { callsign: 'EDDS_ATIS', type: 'ATIS', name: 'Stuttgart Information', frequency: '126.130' },
   ],
+  // Terminal airspace of the Approach / Departure position (Langen Radar, sectors STG and REU combined). Navaids from
+  // OurAirports (public domain); fix positions are published facts (AIP Germany ENR 4.4 / AD 2 EDDS, as listed by
+  // opennav.com); entries, IAFs, holdings, release levels and the 6 NM spacing after the VATSIM Germany SOP EDDS
+  // Arrival / Departure. Simplified: the STAR is flown direct entry fix - IAF, holdings inbound towards the airport
+  // with standard right turns, MVA areas approximate. See docs/airports/EDDS.md.
+  airspace: {
+    source: 'Navaids: OurAirports (public domain); fixes: AIP Germany (facts, via opennav.com); procedures: VATSIM Germany SOP EDDS (Arrival, Departure); simplified',
+    fixes: [
+      { name: 'LBU', pos: { lat: 48.912998, lon: 9.34023 }, kind: 'vor' },
+      { name: 'TGO', pos: { lat: 48.618401, lon: 9.25921 }, kind: 'vor' },
+      { name: 'SUL', pos: { lat: 48.381599, lon: 8.64484 }, kind: 'vor' },
+      { name: 'KRH', pos: { lat: 48.992901, lon: 8.58424 }, kind: 'vor' },
+      { name: 'DKB', pos: { lat: 49.142799, lon: 10.2383 }, kind: 'vor' },
+      { name: 'STG', pos: { lat: 48.696428, lon: 9.256547 }, kind: 'fix' },
+      { name: 'BADSO', pos: { lat: 48.820617, lon: 8.604656 }, kind: 'fix' },
+      { name: 'TEKSI', pos: { lat: 48.69055, lon: 10.068086 }, kind: 'fix' },
+      { name: 'REUTL', pos: { lat: 48.368823, lon: 9.361233 }, kind: 'fix' },
+      { name: 'ARSUT', pos: { lat: 48.166667, lon: 9.328489 }, kind: 'fix' },
+      { name: 'VATER', pos: { lat: 48.647808, lon: 9.001114 }, kind: 'fix' },
+      { name: 'UNSER', pos: { lat: 48.7338, lon: 9.454075 }, kind: 'fix' },
+      { name: 'IBIRU', pos: { lat: 48.623017, lon: 9.280289 }, kind: 'fix' },
+      { name: 'TEDGO', pos: { lat: 48.618408, lon: 9.259208 }, kind: 'fix' },
+      { name: 'NOSBU', pos: { lat: 49.051028, lon: 9.455136 }, kind: 'fix' },
+      { name: 'BABEG', pos: { lat: 48.672, lon: 9.665333 }, kind: 'fix' },
+      { name: 'DITBA', pos: { lat: 48.519469, lon: 9.645428 }, kind: 'fix' },
+      { name: 'DODIL', pos: { lat: 48.732567, lon: 10.573739 }, kind: 'fix' },
+      { name: 'LUPOL', pos: { lat: 48.218042, lon: 9.910872 }, kind: 'fix' },
+      { name: 'DENEL', pos: { lat: 48.365415, lon: 7.884134 }, kind: 'fix' },
+      // SID exit fixes.
+      { name: 'ABTAL', pos: { lat: 48.854635, lon: 10.107062 }, kind: 'fix' },
+      { name: 'ETASA', pos: { lat: 49.190794, lon: 9.128403 }, kind: 'fix' },
+      { name: 'GEBNO', pos: { lat: 49.166689, lon: 9.932292 }, kind: 'fix' },
+      { name: 'KUNOD', pos: { lat: 48.33885, lon: 9.618542 }, kind: 'fix' },
+      { name: 'OKIBA', pos: { lat: 49.214753, lon: 9.316125 }, kind: 'fix' },
+      { name: 'ROTWE', pos: { lat: 48.513279, lon: 8.674611 }, kind: 'fix' },
+      { name: 'TAGIK', pos: { lat: 49.195225, lon: 8.949728 }, kind: 'fix' },
+      { name: 'VESID', pos: { lat: 49.166186, lon: 8.792586 }, kind: 'fix' },
+    ],
+    // Hand-over levels: the planned crossing levels of the VATSIM Germany pilot briefing where given (TEKSI FL110),
+    // otherwise FL100 (simplified).
+    entries: [
+      { fix: 'LBU', iaf: 'LBU', levelFt: 10000, from: [300, 45] },
+      { fix: 'TEKSI', iaf: 'STG', levelFt: 11000, from: [45, 150] },
+      { fix: 'REUTL', iaf: 'STG', levelFt: 10000, from: [150, 215] },
+      { fix: 'BADSO', iaf: 'LBU', levelFt: 10000, from: [215, 300] },
+    ],
+    // Minimum holding altitudes from the SOP; inbound courses simplified (towards the airport), right turns.
+    holdings: [
+      { fix: 'LBU', inboundCourse: 200, turn: 'right', minAltFt: 6000 },
+      { fix: 'STG', inboundCourse: 250, turn: 'right', minAltFt: 7000 },
+      { fix: 'BADSO', inboundCourse: 105, turn: 'right', minAltFt: 5000 },
+      { fix: 'TEKSI', inboundCourse: 270, turn: 'right', minAltFt: 5000 },
+      { fix: 'REUTL', inboundCourse: 345, turn: 'right', minAltFt: 6000 },
+    ],
+    // Departure release levels after the SOP (DKB / GEBNO FL100, OKIBA FL140 to DKB, KRH 8000 ft, the others FL140 to
+    // BAD). The SOP hands KRH to PFA and SUL to Switzerland - simplified to BAD here.
+    centerSectors: [
+      { name: 'BAD', callsign: 'Langen Radar', frequency: '131.300', fixes: ['ETASA', 'TAGIK', 'VESID', 'ROTWE', 'SUL', 'KUNOD', 'ABTAL'], releaseFt: 14000 },
+      { name: 'BAD', callsign: 'Langen Radar', frequency: '131.300', fixes: ['KRH'], releaseFt: 8000 },
+      { name: 'DKB', callsign: 'Langen Radar', frequency: '125.200', fixes: ['DKB', 'GEBNO'], releaseFt: 10000 },
+      { name: 'DKB', callsign: 'Langen Radar', frequency: '125.200', fixes: ['OKIBA'], releaseFt: 14000 },
+    ],
+    // MVA: about 4000 ft around the airport; the Black Forest to the south-west needs FL70 (SOP: MVA 6300 ft).
+    mvaFt: 4000,
+    mvaAreas: [
+      { from: [230, 290], beyondNm: 20, altFt: 7000 },
+      { from: [0, 360], beyondNm: 25, altFt: 5000 },
+    ],
+    missedApproachFt: 5000,
+    radiusNm: 30,
+    finalSpacingNm: 6,
+    towerHandoffNm: 6,
+  },
   runwayOps: [
     {
       runway: '25',

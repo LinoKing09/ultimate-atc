@@ -17,6 +17,7 @@ import { minutesToHhmm } from './time';
 import { lvpInForce } from './met';
 import { apronClosed, takeoffsSuspended } from './weather';
 import { holdShortS } from './holdShort';
+import { execRadar, radarActive } from './radar';
 import { deicingMinutesLeft, freePads, needsDeicing, onPad, padUser, startDeicing, updateDeicing } from './deicing';
 
 /**
@@ -304,8 +305,19 @@ function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
     case 'goAround':
     case 'cancelTakeoff':
     case 'vacate':
-    case 'speed':
       return execTower(sim, ac, c);
+    case 'speed':
+      // On the radar frequency the speed is Approach's (also on final while still with you).
+      if (ac.radar && ac.frequency === 'APP') return execRadar(sim, ac, c);
+      return execTower(sim, ac, c);
+    case 'heading':
+    case 'level':
+    case 'direct':
+    case 'holdAt':
+    case 'approachClearance':
+    case 'identified':
+    case 'reportEstablished':
+      return execRadar(sim, ac, c);
   }
 }
 
@@ -1365,6 +1377,9 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   if (ac.category === 'tow') return { unable: 'negative, we stay on your frequency until the tow is complete' };
   let type = stationType;
   const tower = sim.stationFor('tower');
+  // Radar: a departure to the Center sector (Langen Radar 131.300) - "contact Center" or a Center frequency.
+  const centerFreqs = sim.airspace?.centerFrequencies ?? [];
+  if (ac.radar && ac.frequency === 'APP' && radarActive(sim) && ((frequency && centerFreqs.includes(frequency)) || type === 'CTR')) return handoffToCenter(sim, ac, frequency);
   // "Contact departure": at airports without a separate departure position that is Approach (Radar).
   if (type === 'DEP' && !sim.airport.station('DEP')) type = 'APP';
   // Radar frequencies of the SIDs (e.g. a sector for the southern departures) belong to Approach too.
@@ -1390,9 +1405,10 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
   if (ac.category === 'departure' && !fromDelivery && type === sim.stationFor('tower') && !['taxi', 'holding'].includes(ac.phase)) {
     return { unable: `confirm contact ${STATION_WORD[type]}, we are not yet taxiing` };
   }
-  if (ac.category === 'arrival' && type === sim.stationFor('tower')) return { unable: 'confirm contact Tower, we have already landed' };
+  if (ac.category === 'arrival' && type === sim.stationFor('tower') && ac.onGround) return { unable: 'confirm contact Tower, we have already landed' };
 
   const wasTower = ac.frequency === tower;
+  const fromRadar = ac.frequency === 'APP' && radarActive(sim) && !ac.onGround;
   return {
     readback: `${STATION_WORD[type]} ${said}, goodbye`,
     answers: true,
@@ -1402,6 +1418,11 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
       sim.frequency.cancel(ac.callsign);
       if (ac.category === 'departure' && type === sim.stationFor('tower')) {
         sim.stats.departuresHandedOff++;
+        sim.updateScore();
+      }
+      // Approach: an arrival handed to Tower on final.
+      if (fromRadar && ac.category === 'arrival' && type === tower) {
+        sim.stats.arrivalsToTower++;
         sim.updateScore();
       }
       // Tower: departures to Radar once airborne, arrivals to Ground once they have vacated.
@@ -1422,6 +1443,27 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
         // Ground expects the call for pushback (or taxi) now.
         ac.readyAt = Math.min(ac.readyAt, sim.time + 20);
       }
+    },
+  };
+}
+
+/** Approach / Departure: a departure handed to its Center sector. */
+function handoffToCenter(sim: Simulation, ac: Aircraft, frequency: string | undefined): ExecResult {
+  const r = ac.radar!;
+  if (ac.category !== 'departure') return { unable: 'say again, we are inbound' };
+  const sector = r.sector ?? sim.airspace!.sectorFor(undefined);
+  const said = frequency ?? sector.frequency;
+  return {
+    readback: `${sector.callsign.replace(/ Radar$/, '')} Radar ${said}, goodbye`,
+    answers: true,
+    after: () => {
+      ac.frequency = 'CTR';
+      ac.request = null;
+      r.toCenter = true;
+      sim.frequency.cancel(ac.callsign);
+      sim.stats.departuresToCenter++;
+      sim.updateScore();
+      if (said !== sector.frequency) sim.system(`${ac.callsign} went to ${said}, but its exit fix belongs to sector ${sector.name} (${sector.frequency}) - Center took it over (landline).`, 'warning', ac.callsign);
     },
   };
 }
@@ -1694,6 +1736,8 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       landing: `${stationName}, ${tel}, ${milesFinal(Math.max(1, Math.round(sim.distanceToThresholdNm(ac))))} runway ${ac.runway ?? sim.runway}`,
       vacated: `${stationName}, ${tel}, runway vacated, request taxi`,
       radar: `${stationName}, ${tel}, request frequency change`,
+      checkIn: `${stationName}, ${tel}, ${ac.radar ? `${Math.round(ac.altitudeFt / 100) * 100 >= sim.transitionLevel(sim.atis.qnh) * 100 ? `flight level ${Math.round(ac.altitudeFt / 100)}` : `${Math.round(ac.altitudeFt / 100) * 100} feet`}` : ''}`,
+      vectors: ac.radar?.hold ? `${stationName}, ${tel}, holding over ${ac.radar.hold.fix}, request further instructions` : `${stationName}, ${tel}, request vectors`,
     };
     // Datalink requests (DCL) are not repeated by voice.
     if (ac.request === 'clearance' && ac.dcl && sim.systemOn('dcl')) return;

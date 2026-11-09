@@ -105,6 +105,75 @@ export interface AirportData {
   lvpHoldingPoints?: Record<string, string | string[]>;
   /** Climate for the METAR (default: Central Europe). */
   climate?: { /** Mean temperature of each month (degrees C), January first. */ monthlyMeanC: number[] };
+  /**
+   * Terminal airspace for the Approach / Departure (radar) position: navaids and fixes, where the arrivals enter,
+   * the holdings and the Center sectors the departures go to. Without it the airport has no radar position.
+   */
+  airspace?: AirspaceData;
+}
+
+/** A navaid or fix shown on the radar scope and usable in "proceed direct". */
+export interface FixData {
+  /** Designator as published, e.g. "LBU", "TEKSI". */
+  name: string;
+  pos: LatLon;
+  kind: 'vor' | 'dme' | 'ndb' | 'fix';
+}
+
+/** Where arrivals enter the terminal airspace from Center, and where their STAR ends. */
+export interface ArrivalEntryData {
+  /** Entry fix (the start of the STAR). */
+  fix: string;
+  /** Initial approach fix the STAR leads to (the arrival holds there without further clearance). */
+  iaf: string;
+  /** Level Center has cleared the arrival to at the hand-over (feet; 10000 = FL100). */
+  levelFt: number;
+  /** Bearings (degrees true, clockwise from the first to the second) of the origins that use this entry. */
+  from: [number, number];
+}
+
+/** A holding over a fix (racetrack: one-minute legs). */
+export interface HoldingData {
+  fix: string;
+  /** Inbound course to the fix (degrees magnetic). */
+  inboundCourse: number;
+  turn: 'left' | 'right';
+  /** Minimum holding altitude (feet). */
+  minAltFt: number;
+}
+
+/** A Center sector departures are handed to. */
+export interface CenterSectorData {
+  /** Sector designator, e.g. "BAD". */
+  name: string;
+  /** Radio name, e.g. "Langen Radar". */
+  callsign: string;
+  frequency: string;
+  /** SID exit fixes whose departures go to this sector. */
+  fixes: string[];
+  /** Level the departures are released to (feet; 14000 = FL140). */
+  releaseFt: number;
+}
+
+export interface AirspaceData {
+  /** Where the facts come from (shown in the airport documentation). */
+  source: string;
+  fixes: FixData[];
+  entries: ArrivalEntryData[];
+  holdings: HoldingData[];
+  /** Center sectors for departures (the first one takes every exit fix not listed elsewhere). */
+  centerSectors: CenterSectorData[];
+  /** Lowest altitude to vector to (feet), and areas where it is higher (bearing range and distance from the ARP). */
+  mvaFt: number;
+  mvaAreas?: { from: [number, number]; beyondNm: number; altFt: number }[];
+  /** Missed approach: climb straight ahead to this altitude (feet), then the crew calls Radar. */
+  missedApproachFt: number;
+  /** Radius of the terminal airspace around the ARP (NM): departures are handed to Center by then. */
+  radiusNm: number;
+  /** Spacing on final the arrivals need at touchdown (NM, LVP the larger value). */
+  finalSpacingNm: number;
+  /** Hand-off to Tower at the latest at this distance from the threshold (NM). */
+  towerHandoffNm: number;
 }
 
 /** Separation between arrivals on adjacent final approaches to parallel runways. */

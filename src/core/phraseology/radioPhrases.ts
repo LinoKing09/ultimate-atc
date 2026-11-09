@@ -38,6 +38,11 @@ expect pushback in | expect start up in | expect taxi in | expect departure in |
 advise able for departure from intersection | are you able intersection | able intersection | intersection departure | intersection
 via | and | then | when ready | after | approved | request
 runway | taxiway | stand | holding point | gate | pad
+identified | radar contact | turn left heading | turn right heading | fly heading | continue present heading | heading
+descend altitude | descend to altitude | descend flight level | climb flight level | climb altitude | maintain altitude
+maintain flight level | descend and maintain | proceed direct | direct | hold over | as published
+cleared ils approach runway | cleared rnp approach runway | cleared localizer approach runway | report established
+report established on the localizer | reduce speed | increase speed | speed | no speed restrictions | contact langen radar
 `;
 
 /** Words that stand alone and may come anywhere (digits, letters, numbers, sides). */
@@ -63,6 +68,8 @@ export interface PhraseContext {
   sids: string[];
   /** Destination names ("Frankfurt"). */
   destinations: string[];
+  /** Navaids and fixes of the radar position ("LBU", "TEKSI"). */
+  fixes?: string[];
 }
 
 /** Spoken form, lower case: "A1" -> "alpha one", "26R" -> "two six right". */
@@ -117,6 +124,12 @@ export function radioPhrases(ctx: PhraseContext): string[] {
     if (m) add(`${m[1]} ${spell(m[2])} ${spell(m[3])} departure`);
   }
   for (const d of ctx.destinations) add(`cleared to ${d}`);
+  // Fixes: three-letter navaids spelled ("lima bravo uniform"), five-letter fixes as words ("teksi").
+  for (const f of ctx.fixes ?? []) {
+    const spoken = f.length <= 3 ? say(f.split('').join(' ')) : f.toLowerCase();
+    add(`proceed direct ${spoken}`);
+    add(`hold over ${spoken}`);
+  }
   return [...out];
 }
 
@@ -133,5 +146,6 @@ export function sessionPhraseContext(sim: Simulation): PhraseContext {
     runways: [...sim.airport.runwayEnds.keys()],
     sids: sim.sidNames,
     destinations: [...destinations],
+    fixes: sim.airspace?.fixNames ?? [],
   };
 }

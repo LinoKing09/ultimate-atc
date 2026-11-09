@@ -12,6 +12,7 @@ import type { Simulation } from './simulation';
 import { departureAllowed } from './night';
 import { LVP_ARRIVAL_PROTECTION_S, lvpInForce } from './met';
 import { WEATHER_DECISION_NM, takeoffsSuspended, weatherGoAround } from './weather';
+import { radarActive } from './radar';
 
 /**
  * AI tower controller. Owns the runway: flies arrivals down the final
@@ -87,6 +88,9 @@ const RRSM_DISTANCE = 2400;
 const GO_AROUND_CHECK_NM = 0.5;
 /** Without a landing clearance (you staff Tower) the crew goes around only just before the threshold (NM, about 280 m). */
 const NO_CLEARANCE_GO_AROUND_NM = 0.15;
+/** An arrival more than this far above the glide path (ft) at this distance (NM) is not stabilised and goes around. */
+const UNSTABLE_CHECK_NM = 3;
+const UNSTABLE_ABOVE_FT = 400;
 /** Approach (simulator) hands arrivals to Tower between these distances from the threshold (NM). */
 const APP_HANDOFF_MIN_NM = 8;
 const APP_HANDOFF_MAX_NM = 10;
@@ -350,11 +354,23 @@ export class TowerAI {
     const distNm = this.sim.distanceToThresholdNm(ac);
     ac.speed = stepSpeedKt(ac.speed / KT_TO_MS, targetSpeedKt(p, distNm, ac.speedRestriction), distNm, p, dt) * KT_TO_MS;
     moveFree(ac, dt);
-    if (ac.frequency === 'APP' && this.sim.distanceToThresholdNm(ac) <= (ac.approachHandoffNm ?? APP_HANDOFF_MAX_NM)) ac.frequency = this.sim.stationFor('tower');
+    // The simulator's Approach hands the arrival to Tower; when you work Approach that is your job (radar.ts).
+    if (ac.frequency === 'APP' && !radarActive(this.sim) && this.sim.distanceToThresholdNm(ac) <= (ac.approachHandoffNm ?? APP_HANDOFF_MAX_NM)) ac.frequency = this.sim.stationFor('tower');
     const c = this.sim.airport.runwayCoordinates(end, ac.pos);
     const toThreshold = this.sim.airport.runwayCoordinates(end, end.threshold).along - c.along;
-    ac.altitudeFt = end.elevationFt + Math.max(0, 50 + (toThreshold * GLIDE_SLOPE) / M_PER_FT);
-    ac.verticalSpeedFpm = -(ac.speed * GLIDE_SLOPE * 60) / M_PER_FT;
+    // On the glide path; an arrival vectored onto the final from below stays level until it meets the glide path, one
+    // above it descends up to 1000 ft/min faster than the glide path until it is on it.
+    const glide = end.elevationFt + Math.max(0, 50 + (toThreshold * GLIDE_SLOPE) / M_PER_FT);
+    const glideFpm = (ac.speed * GLIDE_SLOPE * 60) / M_PER_FT;
+    if (ac.altitudeFt > glide) {
+      ac.altitudeFt = Math.max(glide, ac.altitudeFt - ((glideFpm + 1000) / 60) * dt);
+      ac.verticalSpeedFpm = ac.altitudeFt > glide ? -(glideFpm + 1000) : -glideFpm;
+    } else if (ac.altitudeFt < glide - 1) {
+      ac.verticalSpeedFpm = 0;
+    } else {
+      ac.altitudeFt = glide;
+      ac.verticalSpeedFpm = -glideFpm;
+    }
 
     // Still no landing clearance at one mile: the crew asks once more (also if it is waiting for an answer).
     const towerFreq = ac.frequency === this.sim.stationFor('tower');
@@ -365,6 +381,11 @@ export class TowerAI {
     // No landing clearance (you staff Tower): the crew goes around only just before the threshold.
     if (toThreshold < NO_CLEARANCE_GO_AROUND_NM * M_PER_NM && toThreshold > 0 && this.sim.userTower && !ac.landingCleared && ac.frequency !== 'APP') {
       this.goAround(ac);
+      return;
+    }
+    // Not stabilised (still far above the glide path at 3 NM, e.g. vectored onto the final too high): go around.
+    if (toThreshold < UNSTABLE_CHECK_NM * M_PER_NM && toThreshold > 0 && ac.altitudeFt > glide + UNSTABLE_ABOVE_FT) {
+      this.unstableGoAround(ac);
       return;
     }
     // Thunderstorm overhead: windshear or too much tailwind - the crew goes around (once per approach).
@@ -426,6 +447,16 @@ export class TowerAI {
     const why = reason === 'windshear' ? 'windshear' : `tailwind out of limits on runway ${ac.runway ?? this.end.name}`;
     sim.system(`${ac.callsign} went around - ${why} (weather, no penalty).`, 'warning', ac.callsign);
     if (sim.isOnMyFrequency(ac)) call(sim, ac, 'radar', `${sim.tel(ac)}, going around, ${reason === 'windshear' ? 'windshear' : 'tailwind out of limits'}`);
+  }
+
+  /** Unstable approach (too high on final): the crew goes around - the fault of whoever vectored it. */
+  private unstableGoAround(ac: Aircraft): void {
+    ac.phase = 'goAround';
+    ac.verticalSpeedFpm = 2000;
+    ac.landingCleared = false;
+    ac.assignedStand = undefined;
+    this.sim.incident('goAround', `${ac.callsign} went around - unstable approach, too high on final.`, [ac.callsign]);
+    if (this.sim.isOnMyFrequency(ac)) call(this.sim, ac, 'radar', `${this.sim.tel(ac)}, going around, unstable approach`);
   }
 
   /** "Go around" from Tower: costs less than a go-around the crew has to make on its own. */
@@ -1136,6 +1167,21 @@ export class TowerAI {
 
   private climbOut(ac: Aircraft, dt: number): void {
     const sim = this.sim;
+    // Under your radar control (radar.ts flies it): only the Tower's hand-off check.
+    if (ac.radar) {
+      if (!ac.leftTowerAirspace && ac.phase === 'climb' && (ac.altitudeFt - sim.airport.data.elevationFt > 4000 || length(ac.pos) > 15000)) {
+        ac.leftTowerAirspace = true;
+        if (sim.userTower && ac.frequency === sim.stationFor('tower')) {
+          sim.stats.handoffsMissed++;
+          sim.updateScore();
+          sim.system(`${ac.callsign} left the control zone without a frequency change to Radar - it calls Radar on its own.`, 'warning', ac.callsign);
+          sim.frequency.release(ac.callsign);
+          ac.request = null;
+          ac.frequency = 'APP';
+        }
+      }
+      return;
+    }
     ac.speed = Math.min(ac.speed + 1.2 * dt, 200 * KT_TO_MS);
     if (ac.phase === 'goAround') ac.speed = Math.max(ac.speed, ac.type.approachSpeedKt * KT_TO_MS);
     moveFree(ac, dt);

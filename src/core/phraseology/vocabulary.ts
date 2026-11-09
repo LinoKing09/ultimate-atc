@@ -234,6 +234,6 @@ export function sessionVocabulary(sim: Simulation): VocabularyContext {
     stations: sim.config.airport.stations.map((st) => st.name),
     sids: sim.sidNames,
     // Destinations (IFR clearance), the airport's name, and the words in taxiway names ("B12WEST").
-    extra: [...destinations, sim.config.airport.name, ...[...sim.airport.taxiwayNames].filter((t) => /[A-Z]{3,}/.test(t)).map((t) => t.replace(/[^A-Z]/g, ' '))],
+    extra: [...destinations, sim.config.airport.name, ...(sim.airspace?.fixNames.filter((f) => f.length > 3) ?? []), ...[...sim.airport.taxiwayNames].filter((t) => /[A-Z]{3,}/.test(t)).map((t) => t.replace(/[^A-Z]/g, ' '))],
   };
 }

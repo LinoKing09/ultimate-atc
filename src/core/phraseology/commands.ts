@@ -81,7 +81,21 @@ export type Command =
   /** Tower: "hold position, cancel take-off" / "stop immediately" (rolling). */
   | { type: 'cancelTakeoff' }
   /** Tower: "vacate via E" (the exit to take after landing). */
-  | { type: 'vacate'; exit: string; backtrack?: boolean };
+  | { type: 'vacate'; exit: string; backtrack?: boolean }
+  /** Radar: "turn left heading 270", "fly heading 270", "continue present heading" (degrees magnetic). */
+  | { type: 'heading'; heading?: number; turn?: 'left' | 'right'; present?: boolean }
+  /** Radar: "descend altitude 5000 feet", "climb flight level 140", "maintain 5000 feet". */
+  | { type: 'level'; altitude: Altitude; verb: 'climb' | 'descend' | 'maintain' }
+  /** Radar: "proceed direct LBU". */
+  | { type: 'direct'; fix: string }
+  /** Radar: "hold over LBU". */
+  | { type: 'holdAt'; fix: string }
+  /** Radar: "cleared ILS approach runway 25" (also RNP, localizer). */
+  | { type: 'approachClearance'; kind: 'ILS' | 'RNP' | 'LOC'; runway?: string }
+  /** Radar: "identified" / "radar contact" (answers the first call). */
+  | { type: 'identified' }
+  /** Radar: "report established (on the localizer)". */
+  | { type: 'reportEstablished' };
 
 /** Conditional clearance: "behind the A320 passing left to right, ...". */
 export interface Condition {

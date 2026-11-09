@@ -56,6 +56,9 @@ const SPELLED_ABBREVIATIONS: Record<string, string> = { QNH: 'Q-N-H', ILS: 'I-L-
 
 const SIDE: Record<string, string> = { L: 'left', R: 'right', C: 'centre' };
 
+/** Three-letter words in capitals that are said as words, not spelled. */
+const SAID_AS_WORD = new Set(['PAN', 'SID', 'ATC', 'GPS', 'RVR', 'DCL', 'LVP', 'VOR', 'RNP', 'ILS', 'QNH', 'CAT']);
+
 export function toSpoken(text: string): string {
   return text
     // Altitudes in thousands and hundreds (ICAO): "5000 feet" -> "five thousand feet", "4500 feet" -> "four thousand five hundred feet".
@@ -75,6 +78,8 @@ export function toSpoken(text: string): string {
       }
       if (/^(?=.*\d)[0-9A-Z]{1,5}$/.test(tok)) return spell(tok);
       if (/^[A-Z]$/.test(tok)) return PHONETIC[tok];
+      // Three-letter navaid identifiers ("direct LBU" -> "direct Lima Bravo Uniform").
+      if (/^[A-Z]{3}$/.test(tok) && !SAID_AS_WORD.has(tok)) return spell(tok);
       if (/^D[A-Z]{4}$/.test(tok) || /^N\d{1,5}[A-Z]{0,2}$/.test(tok)) return spell(tok);
       return tok;
     })

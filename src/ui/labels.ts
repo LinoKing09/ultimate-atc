@@ -47,6 +47,8 @@ function euroscopeStatus(ac: Aircraft): string {
     case 'takeoff':
     case 'climb':
       return 'DEPA';
+    case 'inbound':
+      return 'INB';
     case 'approach':
       return 'APP';
     case 'landing':
@@ -107,6 +109,10 @@ export function requestLabel(ac: Aircraft): string {
       return 'FREQ';
     case 'tow':
       return 'TOW';
+    case 'checkIn':
+      return 'C/I';
+    case 'vectors':
+      return 'HOLD';
     default:
       return '';
   }

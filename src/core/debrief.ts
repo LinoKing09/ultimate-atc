@@ -12,10 +12,15 @@ export const SCORE_TABLE: { key: keyof Stats; label: string; points: number }[] 
   { key: 'towsCompleted', label: 'Tows completed', points: 5 },
   { key: 'departuresToRadar', label: 'Departures handed to Radar', points: 10 },
   { key: 'arrivalsToGround', label: 'Arrivals handed to Ground', points: 10 },
+  { key: 'arrivalsToTower', label: 'Arrivals handed to Tower on final (Approach)', points: 10 },
+  { key: 'departuresToCenter', label: 'Departures handed to Center (Departure)', points: 10 },
   { key: 'readbackErrorsCaught', label: 'Wrong read-backs corrected', points: 5 },
   { key: 'bonus', label: 'Bonus (emergencies handled quickly)', points: 1 },
   { key: 'handoffsMissed', label: 'Departures that left without a frequency change', points: -5 },
   { key: 'separationLosses', label: 'Take-offs with too little spacing', points: -10 },
+  { key: 'radarSeparationLosses', label: 'Losses of radar separation (STCA: 3 NM / 1000 ft)', points: -25 },
+  { key: 'radarHandoffsMissed', label: 'Radar hand-offs the crews had to make themselves', points: -5 },
+  { key: 'mvaViolations', label: 'Aircraft vectored below the minimum vectoring altitude (MSAW)', points: -15 },
   { key: 'goAroundsInstructed', label: 'Go-arounds you instructed', points: -5 },
   { key: 'readbackErrorsMissed', label: 'Wrong read-backs not corrected', points: -10 },
   { key: 'slotsMissed', label: 'CTOT slots missed or violated', points: -10 },
@@ -77,6 +82,9 @@ export function debrief(sim: Simulation): Debrief {
   if (s.separationLosses > 0) tips.push('Wait for the departure spacing shown in the take-off menu: 2 minutes behind a heavy or a departure on the same SID, 1 minute on diverging SIDs.');
   if (s.goArounds > 0) tips.push('Clear arrivals to land in time: without a landing clearance at short final they go around.');
   if (s.handoffsMissed > 0) tips.push('Hand departures to Radar soon after take-off; they leave your frequency at 4000 ft.');
+  if (s.radarSeparationLosses > 0) tips.push('Keep 3 NM or 1000 ft between the aircraft on your radar: give one of them a level change early, or turn it away - the STCA alert (red) warns a minute ahead.');
+  if (s.radarHandoffsMissed > 0) tips.push('Hand arrivals to Tower by 6 NM final and departures to Center before they leave your airspace (about 30 NM).');
+  if (s.mvaViolations > 0) tips.push('Do not descend aircraft under vectors below the minimum vectoring altitude (4000 ft near Stuttgart, FL70 over the Black Forest) - only the approach clearance takes them lower.');
   if (s.slotsMissed > 0) tips.push('Watch the CTOT column: a departure with a slot must be airborne between CTOT -5 and +10 minutes.');
   if (s.curfewMissed > 0) tips.push('With night rules, get the jets out first in the last half hour before the curfew: a jet still on the ground at 2300 local goes back to its stand.');
   if (s.readbackErrorsMissed > 0) tips.push('Listen to the squawk in every clearance read-back and correct a wrong one ("negative, squawk 2312").');

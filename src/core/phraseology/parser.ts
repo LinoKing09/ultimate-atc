@@ -22,6 +22,8 @@ export interface ParserContext {
   selected?: string;
   /** SID designators of the airport (upper case), for IFR clearances. */
   sids?: string[];
+  /** Navaids and fixes of the terminal airspace (upper case), for "proceed direct" and holdings (radar). */
+  fixes?: string[];
 }
 
 const NUMBER_WORDS: Record<string, string> = {
@@ -94,6 +96,7 @@ const VOICE_FIXES: [string, string][] = [
 const VOICE_WORD_FIXES: Record<string, string> = {
   gulf: 'golf', eco: 'echo', charley: 'charlie', mic: 'mike', mik: 'mike', juliette: 'juliett', kilos: 'kilo',
   victa: 'victor', sierr: 'sierra', siera: 'sierra', romio: 'romeo', alfa: 'alpha', bravos: 'bravo',
+  decent: 'descend', descent: 'descend', decend: 'descend', heding: 'heading', identify: 'identified',
   taxis: 'taxi', texi: 'taxi', approve: 'approved', improved: 'approved', proved: 'approved',
   phasing: 'facing', pacing: 'facing', tails: 'tail', canceled: 'cancelled',
   pushbacks: 'pushback', clearer: 'clear', won: 'one', ate: 'eight',
@@ -127,7 +130,7 @@ const KEYWORDS = new Set([
   'standby', 'taxi', 'follow', 'behind', 'line', 'cleared', 'then', 'and', 'frequency', 'say',
   'along', 'cancel', 'number', 'expect', 'when', 'after', 'stop', 'able', 'advise', 'climb', 'squawk',
   'readback', 'ctot', 'slot', 'tow', 'proceed', 'return', 'wind', 'go', 'vacate', 'abort', 'reduce', 'increase', 'maintain', 'resume', 'speed', 'no',
-  'backtrack', 'enter', 'information', 'qnh', 'altimeter',
+  'backtrack', 'enter', 'information', 'qnh', 'altimeter', 'descend', 'heading', 'turn', 'fly', 'direct', 'identified',
 ]);
 
 /** Aircraft type words usable in conditional clearances ("behind the A320"). */
@@ -274,10 +277,32 @@ function matchSid(c: Cursor, sids: string[] | undefined, consume: boolean): stri
   return undefined;
 }
 
+/**
+ * Matches a fix of the terminal airspace at the cursor: typed ("lbu", "teksi") or spelled ("l b u" from "lima bravo
+ * uniform"). Consumes it if `consume`.
+ */
+function matchFix(c: Cursor, fixes: string[] | undefined, consume: boolean): string | undefined {
+  if (!fixes?.length) return undefined;
+  for (let n = Math.min(5, c.t.length - c.i); n >= 1; n--) {
+    const cand = c.t.slice(c.i, c.i + n).join('').toUpperCase();
+    const fix = fixes.find((f) => f === cand);
+    if (fix) {
+      if (consume) c.i += n;
+      return fix;
+    }
+  }
+  return undefined;
+}
+
 /** Reads an altitude: "5000 feet", "five thousand feet", "flight level 70", "altitude 5000". */
 function readAltitude(c: Cursor): Altitude | undefined {
   c.accept('initially', 'to', 'altitude', 'via');
   c.accept('to', 'altitude');
+  const fl = /^fl(\d{2,3})$/.exec(c.peek() ?? '');
+  if (fl) {
+    c.next();
+    return { fl: Number(fl[1]) };
+  }
   if (c.accept('flight', 'fl')) {
     c.accept('level');
     const fl = readNumber(c);
@@ -718,6 +743,99 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
 
   while (!c.done()) {
     const w = c.peek()!;
+
+    // ---------- Radar (Approach / Departure)
+    // "turn left heading 270", "turn right heading 090", "fly heading 270", "heading 270", "continue present heading".
+    if ((w === 'turn' && ['left', 'right'].includes(c.peek(1) ?? '') && (c.peek(2) === 'heading' || /^\d+$/.test(c.peek(2) ?? ''))) || ((w === 'fly' || w === 'heading') && (c.peek(w === 'fly' ? 1 : 0) === 'heading'))) {
+      const turn = w === 'turn' ? (c.peek(1) as 'left' | 'right') : undefined;
+      c.i += w === 'turn' ? 2 : w === 'fly' ? 1 : 0;
+      c.accept('heading');
+      const h = readNumber(c);
+      c.accept('degrees', 'degree');
+      if (h !== undefined && h >= 1 && h <= 360) result.commands.push({ type: 'heading', heading: h, ...(turn ? { turn } : {}) });
+      else result.unparsed.push('heading');
+      continue;
+    }
+    if ((w === 'continue' || w === 'maintain' || w === 'fly') && c.peek(1) === 'present' && c.peek(2) === 'heading') {
+      c.i += 3;
+      result.commands.push({ type: 'heading', present: true });
+      continue;
+    }
+    // "descend (to) altitude 5000 feet", "climb (to) flight level 140", "descend and maintain 4000 feet",
+    // "maintain 5000 feet" / "maintain flight level 80" (not "maintain 160 knots").
+    const maintainLevel = w === 'maintain' && (['flight', 'fl', 'altitude'].includes(c.peek(1) ?? '') || /^fl\d{2,3}$/.test(c.peek(1) ?? '') || (/^\d+$/.test(c.peek(1) ?? '') && ['feet', 'ft', 'thousand', 'hundred'].includes(c.peek(2) ?? '')));
+    if (w === 'descend' || (w === 'climb' && c.peek(1) !== 'via') || maintainLevel) {
+      const save = c.i;
+      c.next();
+      c.acceptSeq('and', 'maintain');
+      const altitude = readAltitude(c);
+      if (altitude) {
+        result.commands.push({ type: 'level', altitude, verb: w === 'maintain' ? 'maintain' : (w as 'climb' | 'descend') });
+        continue;
+      }
+      c.i = save;
+    }
+    // "proceed direct LBU", "direct (to) TEKSI", "fly direct STG".
+    if ((w === 'proceed' || w === 'fly') && c.peek(1) === 'direct') c.next();
+    if (c.peek() === 'direct') {
+      const save = c.i;
+      c.next();
+      c.accept('to');
+      const fix = matchFix(c, ctx.fixes, true);
+      if (fix) {
+        result.commands.push({ type: 'direct', fix });
+        continue;
+      }
+      c.i = save;
+      if (c.t[c.i - 1] === 'proceed' || c.t[c.i - 1] === 'fly') c.i--;
+    }
+    // "hold over LBU", "hold at LBU (as published)".
+    if (w === 'hold' && ['over', 'at'].includes(c.peek(1) ?? '')) {
+      const save = c.i;
+      c.i += 2;
+      const fix = matchFix(c, ctx.fixes, true);
+      if (fix) {
+        if (c.peek() === 'as' && c.peek(1) === 'published') c.i += 2;
+        result.commands.push({ type: 'holdAt', fix });
+        continue;
+      }
+      c.i = save;
+    }
+    // "cleared ILS approach runway 25", "cleared ILS 25", "cleared for the RNP approach runway 07", "cleared localizer
+    // approach runway 25".
+    const appAt = w === 'cleared' ? (c.peek(1) === 'for' ? (c.peek(2) === 'the' ? 3 : 2) : 1) : -1;
+    const appWord = appAt > 0 ? c.peek(appAt) : undefined;
+    if (appWord && ['ils', 'rnp', 'rnav', 'gnss', 'localizer', 'loc'].includes(appWord)) {
+      c.i += appAt + 1;
+      c.accept('z', 'y');
+      c.accept('approach');
+      let runway = pendingRunway;
+      c.accept('runway');
+      runway = readRunway(c) ?? runway;
+      const kind = appWord === 'ils' ? 'ILS' : appWord === 'localizer' || appWord === 'loc' ? 'LOC' : 'RNP';
+      result.commands.push({ type: 'approachClearance', kind, ...(runway ? { runway } : {}) });
+      continue;
+    }
+    if (w === 'identified' || (w === 'radar' && c.peek(1) === 'contact')) {
+      c.i += w === 'radar' ? 2 : 1;
+      result.commands.push({ type: 'identified' });
+      continue;
+    }
+    if (w === 'report' && c.peek(1) === 'established') {
+      c.i += 2;
+      while (!c.done() && ['on', 'the', 'localizer', 'loc', 'ils', 'final', 'approach', 'course', 'runway'].includes(c.peek()!)) {
+        if (c.next() === 'runway') readRunway(c);
+      }
+      result.commands.push({ type: 'reportEstablished' });
+      continue;
+    }
+    // "no (ATC) speed restriction(s)": the crew flies its own speeds again.
+    if (w === 'no' && (c.peek(1) === 'speed' || (c.peek(1) === 'atc' && c.peek(2) === 'speed'))) {
+      c.i += c.peek(1) === 'atc' ? 3 : 2;
+      c.accept('restrictions', 'restriction', 'limitations', 'limit');
+      result.commands.push({ type: 'speed', resume: true });
+      continue;
+    }
 
     // ---------- Tower
     // Wind information in a clearance ("wind 250 degrees 8 knots") is information only.
@@ -1330,7 +1448,7 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       result.commands.push(resume ? { type: 'speed', resume: true } : { type: 'speed', final: true });
       continue;
     }
-    if (((w === 'reduce' || w === 'increase') && c.peek(1) === 'speed') || (w === 'maintain' && /^\d+$/.test(c.peek(1) ?? '')) || (w === 'speed' && /^\d+$/.test(c.peek(1) ?? ''))) {
+    if (((w === 'reduce' || w === 'increase') && (c.peek(1) === 'speed' || (c.peek(1) === 'to' && /^\d+$/.test(c.peek(2) ?? '')) || /^\d+$/.test(c.peek(1) ?? ''))) || (w === 'maintain' && /^\d+$/.test(c.peek(1) ?? '')) || (w === 'speed' && /^\d+$/.test(c.peek(1) ?? ''))) {
       c.next();
       c.accept('speed');
       c.accept('to');
@@ -1373,5 +1491,5 @@ const FILLER = new Set([
   'roger', 'wilco', 'please', 'good', 'day', 'bye', 'goodbye', 'tschuess', 'servus', 'ciao', 'thanks',
   'thank', 'you', 'is', 'approved', 'the', 'and', 'then', 'now', 'correction', 'affirm', 'affirmative',
   'stuttgart', 'via', 'to', 'of', 'on', 'at', 'for', 'your', 'a', 'request', 'information', 'right', 'left',
-  'negative', 'correction', 'say', 'feet', 'break',
+  'negative', 'correction', 'say', 'feet', 'break', 'langen', 'radar', 'director', 'arrival',
 ]);

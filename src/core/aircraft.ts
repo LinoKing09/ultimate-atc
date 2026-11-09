@@ -5,6 +5,7 @@ import type { TaxiRoute } from './airport/routing';
 import { KT_TO_MS, headingVector, normHeading, type Vec2 } from './geo';
 import type { Path } from './path';
 import type { StripMarks } from './strips';
+import type { RadarState } from './radar';
 import type { Command, TaxiDestination } from './phraseology/commands';
 import { telephonyCallsign } from './phraseology/speech';
 
@@ -22,6 +23,7 @@ export type Phase =
   | 'takeoff'
   | 'climb'
   // arrivals
+  | 'inbound' // airborne under radar control (Approach you staff) before the final approach
   | 'approach'
   | 'landing'
   | 'vacating'
@@ -68,7 +70,9 @@ export type PilotRequest =
   | 'departure' // Tower: at the holding point, ready for departure
   | 'landing' // Tower: arrival on final, expects a landing clearance
   | 'vacated' // Tower: runway vacated (after landing or crossing), expects "contact ground"
-  | 'radar'; // Tower: departure airborne, expects "contact radar"
+  | 'radar' // Tower: departure airborne, expects "contact radar"
+  | 'checkIn' // Radar: first call on your frequency, expects "identified" or an instruction
+  | 'vectors'; // Radar: arrival at the end of its STAR (holding), expects vectors or an approach clearance
 
 export interface Aircraft {
   callsign: string;
@@ -288,6 +292,8 @@ export interface Aircraft {
    * flag, cleared-to, landing clearance) - see core/strips.ts. Never changed by the simulation itself.
    */
   strip?: StripMarks;
+  /** Approach / Departure you staff: what the crew was told on the radar frequency and flies (see core/radar.ts). */
+  radar?: RadarState;
 }
 
 export function createAircraft(init: {
@@ -307,7 +313,7 @@ export function createAircraft(init: {
     speed: 0,
     reverse: false,
     verticalSpeedFpm: 0,
-    onGround: init.phase !== 'approach',
+    onGround: init.phase !== 'approach' && init.phase !== 'inbound',
     path: null,
     s: 0,
     stops: [],

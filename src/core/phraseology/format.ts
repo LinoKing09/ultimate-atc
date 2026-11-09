@@ -128,11 +128,37 @@ export function formatCommand(c: Command): string {
       return 'hold position, cancel take-off';
     case 'vacate':
       return `${c.backtrack ? 'backtrack, ' : ''}vacate via ${c.exit}`;
+    case 'heading':
+      if (c.present) return 'continue present heading';
+      return `${c.turn ? `turn ${c.turn}` : 'fly'} heading ${formatHeading(c.heading ?? 0)}`;
+    case 'level':
+      return `${c.verb} ${'fl' in c.altitude ? '' : 'altitude '}${formatAltitude(c.altitude)}`;
+    case 'direct':
+      return `proceed direct ${c.fix}`;
+    case 'holdAt':
+      return `hold over ${c.fix}`;
+    case 'approachClearance':
+      return `cleared ${approachWord(c.kind)} approach${c.runway ? ` runway ${c.runway}` : ''}`;
+    case 'identified':
+      return 'identified';
+    case 'reportEstablished':
+      return 'report established';
   }
 }
 
 export function capitalize(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** A heading as said on the radio: three digits ("090", "360"). */
+export function formatHeading(h: number): string {
+  const r = Math.round(((h % 360) + 360) % 360) || 360;
+  return String(r).padStart(3, '0');
+}
+
+/** "ILS", "RNP", "localizer". */
+export function approachWord(kind: 'ILS' | 'RNP' | 'LOC'): string {
+  return kind === 'LOC' ? 'localizer' : kind;
 }
 
 /** "5000 feet" / "flight level 70". */

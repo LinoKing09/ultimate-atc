@@ -2,7 +2,7 @@
 
 # User guide
 
-This guide explains the controller client screen by screen. It covers the **Delivery**, **Ground** (since v0.6) and **Tower** (since v0.7) positions at **EDDS** - each alone or combined (since v0.8 also with Tower).
+This guide explains the controller client screen by screen. It covers the **Delivery**, **Ground** (since v0.6) and **Tower** (since v0.7) positions at **EDDS** - each alone or combined (since v0.8 also with Tower) - and the **Approach / Departure** prototype (radar, Stuttgart only).
 
 - [1. Connecting](#1-connecting)
 - [2. Screen layout](#2-screen-layout)
@@ -16,6 +16,7 @@ This guide explains the controller client screen by screen. It covers the **Deli
 - [10. Your job as Ground](#10-your-job-as-ground)
 - [11. Your job as Delivery](#11-your-job-as-delivery)
 - [12. Your job as Tower](#12-your-job-as-tower)
+- [12a. Your job as Approach / Departure (prototype)](#12a-your-job-as-approach--departure-prototype)
 - [13. Score](#13-score)
 - [14. Tips](#14-tips)
 
@@ -28,7 +29,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | Field             | Meaning                                                                                              |
 | ----------------- | ---------------------------------------------------------------------------------------------------- |
 | **Airport**       | Airport to control: Stuttgart (EDDS), Cologne/Bonn (EDDK), Nuremberg (EDDN), Leipzig/Halle (EDDP, two parallel runways), München (EDDM, two parallel runways), Bremen (EDDW), Memmingen (EDJA), Sylt (EDXW), San Diego (KSAN), Jackson Hole (KJAC), Phuket (VTSP), Wellington (NZWN), Quito (SEQM), La Paz (SLLP), St. Maarten (TNCM) or London Gatwick (EGKK). The field shows the airport with its country, FIR, runways and traffic bars; click it to open the **airport menu** to the right of the dialog (see below). |
-| **Position**      | Controller position: **Delivery**, **Ground** and **Tower** are available; Approach/Departure and Center are planned. Only the positions the airport has are offered (Nuremberg, Bremen and Memmingen: no Delivery, Ground gives the clearances; Sylt: Tower only). A selected position is coloured (Delivery dark blue, Ground green, Tower red). Click several to staff them together (**combined positions**, for example Delivery + Ground, Ground + Tower or all three, as one controller does at night): the label below the buttons changes from *Single Position* to a purple **Combined Position**, and the toolbar shows all your stations in their colours with `COMBINED`. Positions you don't staff are run by the simulator. |
+| **Position**      | Controller position: **Delivery**, **Ground**, **Tower** and - as a **prototype at Stuttgart** - **Approach / Departure** (the radar; the button is greyed out at airports without terminal airspace data); Center is planned. Only the positions the airport has are offered (Nuremberg, Bremen and Memmingen: no Delivery, Ground gives the clearances; Sylt: Tower only). A selected position is coloured (Delivery dark blue, Ground green, Tower red). Click several to staff them together (**combined positions**, for example Delivery + Ground, Ground + Tower or all three, as one controller does at night): the label below the buttons changes from *Single Position* to a purple **Combined Position**, and the toolbar shows all your stations in their colours with `COMBINED`. Positions you don't staff are run by the simulator. |
 | **Callsign**      | Shows the resulting station callsigns, frequencies and radio names, for example `EDDS_DEL 121.915 "Stuttgart Delivery" + EDDS_GND 118.605 "Stuttgart Ground"`. |
 | **Traffic**       | Slider in five steps: light, light to medium, medium, medium to heavy, heavy (see [simulation model](simulation.md#traffic-generation)). |
 | **Special events** | Slider: how often medical emergencies (arrivals and departures) and rejected take-offs happen - *never*, *very rare*, *rare* (default), *occasional*, *often*. See [simulation model](simulation.md#special-events). |
@@ -524,6 +525,7 @@ Right-click an aircraft symbol, its tag, or its list row to open the menu. Items
 | **F1**                                  | Help                                                           |
 | **F2**                                  | Settings                                                       |
 | **F3**                                  | Systems window                                                 |
+| **F4** / `RADAR` / `GROUND` (toolbar)   | Approach combined with a tower position: switch between the radar scope and the ground radar |
 | **Hold the key left of `1`** (`^` / `` ` ``), **Right Ctrl** or **Insert** | Push-to-talk (speech recognition)          |
 | Mouse wheel / pinch                     | Zoom                                                           |
 | Drag (left or right button)             | Pan; drag a tag to move it                                     |
@@ -608,6 +610,35 @@ Stuttgart Tower (118.805) owns runway 07/25. When you staff Tower, Ground and De
 
 The A-SMGCS runway monitoring (RMCA) warns when you give a take-off or landing clearance while the runway is occupied.
 
+## 12a. Your job as Approach / Departure (prototype)
+
+*Stuttgart only.* As **Langen Radar** (EDDS_APP 125.050, the southern departure sector 119.200 combined) you work the terminal area: arrivals from Center to the final, departures from Tower to Center. Tower, Ground and Delivery are run by the simulator unless you staff them too (then `RADAR` / `GROUND` in the toolbar or **F4** switches the scopes).
+
+**The radar scope** (EuroScope style, north up, about 64 NM across): range rings every 10 NM, a dashed circle for your airspace (30 NM, not the real TMA boundary), the runway and the extended centre line of the landing runway with a tick every mile (long every 5 NM, 18 NM long), the published holdings dashed, navaids (hexagon) and fixes (triangle) with their names. The picture updates once per radar sweep (**4 s**); every target has a history trail of its last 6 positions and a **one-minute speed vector**. Your aircraft (on your frequency) have a square symbol and white tags, the others a diamond and green tags; a crew waiting for your answer flashes yellow (`C/I` = first call not answered yet), an **STCA** conflict flashes red, an emergency is magenta. At the bottom left: a 10 NM scale and the bearing / distance of the mouse from the airport.
+
+**The tag** (EuroScope style), each item clickable:
+
+```
+EWG7AB C/I        callsign (click: aircraft menu), C/I or * = request
+128↓100           level (hundreds of feet), trend, cleared level (click: level menu)
+280 TEKSI I25     ground speed or assigned speed S220 (speed menu), heading H250 / next fix / HLD LBU (heading or direct menu), approach clearance I25 (approach menu)
+A320/M LTAI 7.4NM selected or hovered: type / wake, origin (departures: SID), distance on final
+```
+
+**Arrivals** (see [simulation](simulation.md#approach--departure-radar)):
+
+1. Center hands them over before their entry fix (LBU from the north, TEKSI east, REUTL south, BADSO west), descending to FL100 (TEKSI FL110): `Langen Radar, Eurowings 7AB, flight level 128, descending flight level 100, information R`. Answer: `Eurowings 7AB, Langen Radar, identified, descend altitude 5000 feet, QNH 1013`.
+2. Without vectors they fly the STAR to their IAF (LBU or STG) and hold there. Vector them onto a downwind and base (`turn left heading 070`), descend them (not below the MVA: 4000 ft, FL70 over the Black Forest), slow them down (`reduce speed 180 knots`) and space them: the SOP asks for **6 NM** at touchdown (12 NM in low visibility), wake turbulence more behind a heavy.
+3. Give an intercept heading of about 30° with the approach clearance: `turn right heading 220, cleared ILS approach runway 25` (the menu's *Approach* and *Heading* offer it). Intercept at or below the glide path (5000 ft at 11 NM for runway 25) - established too high, the crew asks for new vectors. `cleared ILS approach runway 25` without a heading: the crew flies to the final on its own (an intercept point 11 NM out).
+4. Hand them to Tower by 6 NM: `contact Stuttgart Tower 118.805` (+10). At 5 NM the crew asks for it; at 2.5 NM it changes over on its own (-5).
+5. Go-arounds come back to you climbing to 5000 ft on the runway heading - vector them around for another approach.
+
+**Departures**: they call after take-off (`Langen Radar, Eurowings 4AB, KUNOD2B departure, passing 2800 feet, climbing 5000 feet`) and fly direct to their SID exit fix. `identified, climb flight level 140`, keep them clear of the arrivals, then hand them to Center before 30 NM: `contact Langen Radar 131.300` (sector BAD) or `125.200` (sector DKB: DKB, GEBNO, OKIBA) - the menu offers the right one with its release level (+10; leaving your airspace on your frequency -5).
+
+**Alerts**: STCA (less than 3 NM and 1000 ft, or closing to it within a minute): -25 for a real loss of separation. MSAW (cleared and descending below the MVA): -15.
+
+The radar is a **prototype**: no wind aloft, SIDs and STARs as direct lines, no arrival / departure list for the radar yet. See [roadmap](roadmap.md#road-to-20).
+
 ## 13. Score
 
 | Event                                                       | Points |
@@ -621,6 +652,11 @@ The A-SMGCS runway monitoring (RMCA) warns when you give a take-off or landing c
 | Tower: departure left the control zone on your frequency    |     -5 |
 | Tower: take-off with too little departure spacing           |    -10 |
 | Tower: go-around you instructed                             |     -5 |
+| Approach: arrival handed to Tower on final                  |    +10 |
+| Departure: departure handed to Center                       |    +10 |
+| Approach / Departure: hand-off the crew had to make itself (Tower at 2.5 NM, Center at the airspace boundary) |     -5 |
+| Approach / Departure: loss of radar separation (STCA, 3 NM / 1000 ft) |    -25 |
+| Approach: aircraft cleared below the minimum vectoring altitude (MSAW) |    -15 |
 | Per minute Approach holds all arrivals / Ground holds all departures for you (`COORD`) | -2 |
 | Wrong readback caught and corrected                         |     +5 |
 | Wrong readback not caught                                   |    -10 |

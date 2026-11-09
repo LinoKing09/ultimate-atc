@@ -32,6 +32,8 @@ import { shownRequest, styledStatus } from './labels';
 import { vehicleTel, type Vehicle } from '../core/vehicles';
 import { PopupMenu, type MenuItem } from './menu';
 import { Scope, type TagItem } from './scope';
+import { RadarScope, type RadarTagItem } from './radarScope';
+import { onMyRadar, radarItems, radarTagItems, type RadarMenuContext } from './radarMenus';
 import { CommandInput } from './commandInput';
 import { loadCorrections, saveCorrections, saveSettings, type Settings } from './settings';
 import { ARRIVAL_REQUESTS, ARRIVAL_STATES, DEPARTURE_REQUESTS, DEPARTURE_STATES, REQUEST_HINTS, STATE_HINTS, TOW_REQUESTS, TOW_STATES, type StripField } from '../core/strips';
@@ -54,7 +56,7 @@ export interface RestoredSession {
 }
 
 /** The positions with a quick-action bar of their own (Approach and Radar to follow). */
-type QuickPosition = 'DEL' | 'GND' | 'TWR';
+type QuickPosition = 'DEL' | 'GND' | 'TWR' | 'APP';
 /** A button of a position's quick-action bar: its text and the menu item (by label) it stands for. */
 interface QuickSpec {
   text: string;
@@ -89,7 +91,20 @@ const MIC_ENABLED = true;
  * lists, the message window and the command line.
  */
 export class App {
-  private readonly scope: Scope;
+  /** The ground radar (Delivery, Ground, Tower) and the radar scope (Approach / Departure); one is shown. */
+  private groundScope?: Scope;
+  private radarScope?: RadarScope;
+  private groundCanvas!: HTMLCanvasElement;
+  private radarCanvas?: HTMLCanvasElement;
+  private radarView = false;
+  private viewBtn?: HTMLButtonElement;
+  /** The scope shown now. */
+  private get scope(): Scope | RadarScope {
+    return (this.radarView ? this.radarScope : this.groundScope) ?? this.groundScope ?? this.radarScope!;
+  }
+  private get scopes(): (Scope | RadarScope)[] {
+    return [this.groundScope, this.radarScope].filter((s): s is Scope | RadarScope => !!s);
+  }
   private readonly menu = new PopupMenu();
   private readonly lists: (TrafficList | VehicleList)[];
   private readonly messagesEl: HTMLElement;
@@ -207,6 +222,13 @@ export class App {
       saveSettings(this.settings);
       this.applySettings();
     });
+    // Approach / Departure combined with a tower position: switch between the radar and the ground radar.
+    const radarStaffed = !!sim.airspace && sim.loggedInStations.includes('APP');
+    const groundStaffed = sim.loggedInStations.some((t) => t !== 'APP');
+    if (radarStaffed && groundStaffed) {
+      const vb = (this.viewBtn = h('button', { text: 'RADAR', title: 'Switch between the radar scope (Approach / Departure) and the ground radar (F4)' }));
+      vb.addEventListener('click', () => this.toggleView());
+    }
     const sysBtn = (this.sysBtn = h('button', { text: 'SYSTEMS', title: 'ATC and airport systems: A-SMGCS, A-CDM, datalink, ILS (F3)' }));
     sysBtn.addEventListener('click', () => this.openSystems());
     const coordBtn = (this.coordBtn = h('button', { text: 'COORD', title: 'Coordination with Approach and Ground: stop arrivals or hold departures to make room' }));
@@ -261,6 +283,7 @@ export class App {
       this.micButton,
       routesBtn,
       rotBtn,
+      ...(this.viewBtn ? [this.viewBtn] : []),
       h('span.spacer'),
       briefBtn,
       sysBtn,
@@ -279,7 +302,8 @@ export class App {
     }
 
     // ---------------------------------------------------------------- scope + panels
-    const canvas = h('canvas.scope');
+    const canvas = (this.groundCanvas = h('canvas.scope'));
+    const radarCanvas = radarStaffed ? (this.radarCanvas = h('canvas.scope.radar')) : undefined;
     // Click a frequency in the toolbar: switch it off / on; "+": take over another position.
     this.fields.station.addEventListener('click', (e) => {
       if ((e.target as HTMLElement).closest('[data-add]')) {
@@ -298,7 +322,7 @@ export class App {
     // The look of some scope styles over the drawing (glow, scan lines, sweep, darker edges): above the scope, below
     // the lists, never in the way of the mouse.
     this.scopeFx = h('div.scope-fx', {}, h('div.sweep'));
-    this.main = h('div.main', {}, canvas, this.scopeFx);
+    this.main = h('div.main', {}, canvas, ...(radarCanvas ? [radarCanvas] : []), this.scopeFx);
     const listCb = {
       select: (cs: string) => this.select(cs),
       center: (cs: string) => {
@@ -387,12 +411,23 @@ export class App {
 
     root.replaceChildren(toolbar, this.main, comms);
 
-    this.scope = new Scope(canvas, sim, {
-      onSelect: (cs) => this.select(cs),
-      onContextMenu: (cs, x, y) => this.openMenu(cs, x, y),
-      onTagItem: (cs, item, x, y) => this.onTagItem(cs, item, x, y),
-    });
-    this.scope.setRotation(settings.runwayAligned);
+    if (groundStaffed) {
+      this.groundScope = new Scope(canvas, sim, {
+        onSelect: (cs) => this.select(cs),
+        onContextMenu: (cs, x, y) => this.openMenu(cs, x, y),
+        onTagItem: (cs, item, x, y) => this.onTagItem(cs, item, x, y),
+      });
+      this.groundScope.setRotation(settings.runwayAligned);
+    }
+    if (radarCanvas) {
+      this.radarScope = new RadarScope(radarCanvas, sim, {
+        onSelect: (cs) => this.select(cs),
+        onContextMenu: (cs, x, y) => this.openMenu(cs, x, y),
+        onTagItem: (cs, item, x, y) => this.onRadarTagItem(cs, item, x, y),
+      });
+    }
+    // Connected as Approach first: the radar scope.
+    this.setView(radarStaffed && (sim.config.position === 'APP' || !groundStaffed));
 
     // ---------------------------------------------------------------- voice
     this.voices.volume = settings.ttsVolume;
@@ -511,9 +546,9 @@ export class App {
         this.voiceIn.stop();
       }
     });
-    window.addEventListener('resize', () => this.scope.resize());
+    window.addEventListener('resize', () => this.scopes.forEach((s) => s.resize()));
     this.fitToViewport();
-    new ResizeObserver(() => this.scope.resize()).observe(this.main);
+    new ResizeObserver(() => this.scopes.forEach((s) => s.resize())).observe(this.main);
 
     this.setSpeed(1);
     const staffed = sim.config.airport.stations.filter((st) => sim.userControls(st.type)).map((st) => `${st.callsign} (${st.name}, ${st.frequency})`);
@@ -724,7 +759,7 @@ export class App {
     document.documentElement.style.setProperty('--ui-scale', String(s.uiScale));
     // Scope style: PHX (VATSIM Germany ground radar), classic, modern, phosphor or map; the lists follow with their
     // ground states.
-    this.scope.setStyle(s.scopeStyle);
+    for (const sc of this.scopes) sc.setStyle(s.scopeStyle);
     this.scopeFx.className = `scope-fx${this.scope.effect ? ` fx-${this.scope.effect}` : ''}`;
     this.main.classList.toggle('fx-phosphor', this.scope.effect === 'phosphor');
     // Interface theme: the colour tokens of src/style.css. The PHX list windows (light grey title bars) belong to the
@@ -733,12 +768,14 @@ export class App {
     document.body.classList.toggle('phx', (s.scopeStyle === 'phx-night' || s.scopeStyle === 'phx-day') && s.uiTheme === 'euroscope');
     document.body.classList.toggle('phx-tags', this.scope.isPhx);
     for (const l of this.lists) l.statusStyle = this.scope.statusStyle;
-    this.scope.touchMode = mobile;
-    this.scope.tagScale = s.tagScale * (mobile ? 1.25 : 1);
-    this.scope.compactTags = s.tagDetail !== 'full';
-    this.scope.showAllRoutes = s.showRoutes;
+    for (const sc of this.scopes) {
+      sc.touchMode = mobile;
+      sc.tagScale = s.tagScale * (mobile ? 1.25 : 1);
+      sc.compactTags = s.tagDetail !== 'full';
+      sc.showAllRoutes = s.showRoutes;
+    }
     this.routesBtn.classList.toggle('active', s.showRoutes);
-    if (s.runwayAligned !== this.scope.runwayAligned) this.scope.setRotation(s.runwayAligned);
+    if (this.groundScope && s.runwayAligned !== this.groundScope.runwayAligned) this.groundScope.setRotation(s.runwayAligned);
     this.rotBtn.classList.toggle('active', s.runwayAligned);
     if (this.voices.enabled !== (TTS_ENABLED && s.tts && this.voices.supported)) this.setTts(TTS_ENABLED && s.tts && this.voices.supported, true);
     this.voices.volume = s.ttsVolume;
@@ -751,7 +788,7 @@ export class App {
     const realistic = this.realistic;
     document.body.classList.toggle('realistic', realistic);
     for (const l of this.lists) l.manual = realistic;
-    this.scope.manualStrips = realistic;
+    for (const sc of this.scopes) sc.manualStrips = realistic;
     this.input.readOnly = realistic;
     if (realistic) this.clearInput();
     this.input.placeholder = realistic
@@ -769,7 +806,50 @@ export class App {
     this.appliedRealistic = realistic;
     this.quickbarKey = '';
     this.updateQuickbar();
-    requestAnimationFrame(() => this.scope.resize());
+    requestAnimationFrame(() => this.scopes.forEach((sc) => sc.resize()));
+  }
+
+  /** Shows the radar scope (true) or the ground radar. */
+  private setView(radar: boolean): void {
+    this.radarView = radar && !!this.radarScope;
+    this.groundCanvas.style.display = this.radarView || !this.groundScope ? 'none' : '';
+    if (this.radarCanvas) this.radarCanvas.style.display = this.radarView ? '' : 'none';
+    if (this.viewBtn) {
+      this.viewBtn.textContent = this.radarView ? 'GROUND' : 'RADAR';
+      this.viewBtn.classList.toggle('active', this.radarView);
+    }
+    // The ground lists belong to the ground radar.
+    for (const l of this.lists ?? []) l.el.style.display = this.radarView ? 'none' : '';
+    this.rotBtn.style.display = this.radarView ? 'none' : '';
+    this.routesBtn.style.display = this.radarView ? 'none' : '';
+    this.scope.selected = this.selected;
+    requestAnimationFrame(() => this.scopes.forEach((sc) => sc.resize()));
+  }
+
+  private toggleView(): void {
+    this.setView(!this.radarView);
+  }
+
+  /** Radar menus: their context (the phrases go through say(), like every menu). */
+  private get radarCtx(): RadarMenuContext {
+    return {
+      sim: this.sim,
+      say: (ac, phrase) => this.say(ac, phrase),
+      center: (ac) => this.scope.centerOn(ac.pos),
+      resetTag: () => undefined,
+    };
+  }
+
+  /** A click on an item of a radar tag (EuroScope): the menu of that item. */
+  private onRadarTagItem(cs: string, item: RadarTagItem, x: number, y: number): void {
+    const ac = this.sim.find(cs);
+    if (!ac) return;
+    if (this.realistic || !onMyRadar(this.sim, ac)) {
+      this.openMenu(cs, x, y);
+      return;
+    }
+    const m = radarTagItems(this.radarCtx, ac, item);
+    this.menu.open(m.title, m.items, x, y);
   }
 
   /**
@@ -798,6 +878,7 @@ export class App {
   /** An example instruction for the command line, for this airport, runway and position. */
   private exampleInstruction(): string {
     const sim = this.sim;
+    if (sim.config.position === 'APP' && sim.airspace) return `turn left heading 250, descend altitude 5000 feet, ${sim.pressurePhrase()}`;
     if (sim.userTower) return `line up and wait runway ${sim.runway}`;
     if (sim.userControls(sim.stationFor('ground'))) {
       const hp = sim.airport.runwayOps(sim.runway)?.departureEntries.find((e) => e.fullLength)?.holdingPoint;
@@ -897,6 +978,7 @@ export class App {
     const del = sim.stationFor('delivery');
     const gnd = sim.stationFor('ground');
     const twr = sim.stationFor('tower');
+    if (onMyRadar(sim, ac) || (!ac.onGround && this.radarView)) return 'APP';
     const freq = sim.isOnMyFrequency(ac) ? ac.frequency : sim.handoffTarget(ac);
     if (freq) {
       if (freq === del && del !== gnd) return 'DEL';
@@ -912,10 +994,21 @@ export class App {
   private aircraftQuickButtons(ac: Aircraft, pos: QuickPosition): QuickButton[] {
     const sim = this.sim;
     const mine = sim.isOnMyFrequency(ac);
-    const items = !mine ? [] : pos === 'DEL' ? this.deliveryItems(ac) : pos === 'TWR' ? this.towerItems(ac) : this.menuItems(ac);
+    const items = !mine ? [] : pos === 'DEL' ? this.deliveryItems(ac) : pos === 'TWR' ? this.towerItems(ac) : pos === 'APP' ? (onMyRadar(sim, ac) ? radarItems(this.radarCtx, ac) : []) : this.menuItems(ac);
     const ground = sim.airport.station(sim.stationFor('ground'));
     const specs: QuickSpec[] =
-      pos === 'DEL'
+      pos === 'APP'
+        ? [
+            { text: 'IDENT', re: /^Identified$/ },
+            { text: 'HDG', re: /^Heading$/ },
+            { text: 'ALT', re: /^(Climb|Descend \/ climb)$/ },
+            { text: 'SPD', re: /^Speed$/ },
+            { text: 'DCT', re: /^Proceed direct$/ },
+            { text: 'HOLD', re: /^Hold over$/ },
+            { text: 'APCH', re: /^Approach$/ },
+            { text: ac.category === 'arrival' ? 'TWR' : 'CTR', re: /^Contact / },
+          ]
+        : pos === 'DEL'
         ? [
             { text: 'CLR', re: /^(IFR clearance|IFR clearance by voice|Amend IFR clearance)$/ },
             { text: 'DCL', re: /^Send DCL/ },
@@ -1165,6 +1258,11 @@ export class App {
     if (e.key === 'F3') {
       e.preventDefault();
       this.openSystems();
+      return;
+    }
+    if (e.key === 'F4' && this.viewBtn) {
+      e.preventDefault();
+      this.toggleView();
       return;
     }
     if (e.key === 'Tab') {
@@ -1767,6 +1865,7 @@ export class App {
       items.push({ divider: true, label: '' }, center, resetTag);
       return items;
     }
+    if (onMyRadar(sim, ac)) return [...items, ...radarItems(this.radarCtx, ac)];
 
     if (ac.phase === 'parked' && ac.category === 'tow') {
       const to = ac.tow?.to ?? '';

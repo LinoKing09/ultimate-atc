@@ -301,6 +301,31 @@ A follow-me only drives onto the taxiways after your `proceed`; the aircraft wai
 
 A wrong runway is queried: `confirm runway 07, we are departing runway 25`. A departure with a CTOT that is not due yet still takes off when cleared (as a real crew would; slot compliance is the controller's job): the take-off counts as a slot violation. The take-off menu warns `CTOT: not before 1430!`.
 
+### Approach / Departure (radar)
+
+*Prototype, Stuttgart.* Only to aircraft on your radar frequency (Langen Radar). Headings are magnetic, three digits.
+
+| You say | Read-back / effect |
+| ------- | ------------------ |
+| `identified` / `radar contact` | Answers the first call (`C/I`); no read-back. Usually followed by an instruction in the same transmission: `DLH5AB, Langen Radar, identified, descend altitude 5000 feet, QNH 1013` |
+| `turn left heading 250` / `turn right heading 070` | `Left heading 250` - turns that way; the STAR, a direct-to or a holding are cancelled |
+| `fly heading 250` | `Heading 250` (shortest turn) |
+| `continue present heading` | `Continue present heading 274` |
+| `descend altitude 5000 feet[, QNH 1013]` / `descend flight level 80` / `descend to FL80` | `Descending 5000 feet, QNH 1013` |
+| `climb flight level 140` | `Climbing flight level 140` |
+| `maintain 5000 feet` / `maintain flight level 80` | `Maintaining ...` (not `maintain 160 knots`, which is a speed) |
+| `reduce speed 220 knots` / `increase speed 250 knots` / `speed 200` / `reduce 180 knots` | `Speed 220 knots`; below its minimum speed: `unable 150 knots, our minimum speed is 157 knots` |
+| `no speed restrictions` / `resume normal speed` | `No speed restrictions` - its own speeds again |
+| `maintain 160 knots until 4 miles` (on final) | As Tower: `160 knots until 4 miles` |
+| `proceed direct LBU` / `direct TEKSI` / `fly direct STG` | `Direct LBU`; also spoken letter by letter (`lima bravo uniform`) |
+| `hold over LBU [as published]` / `hold at LBU` | `Hold over LBU` - flies to the fix and holds there |
+| `cleared ILS approach runway 25` / `cleared ILS 25` / `cleared RNP approach runway 07` / `cleared localizer approach runway 25` | `Cleared ILS approach runway 25` - captures the localizer from its heading, or (without a heading) flies to the final on its own. Usually with an intercept heading: `turn left heading 280, cleared ILS approach runway 25` |
+| `report established [on the localizer]` | `Wilco` - reports `established localizer runway 25` |
+| `contact Stuttgart Tower 118.805` | Arrival to Tower: `Tower 118.805, goodbye` |
+| `contact Langen Radar 131.300` | Departure to its Center sector: `Langen Radar 131.300, goodbye` |
+
+The crew queries what it cannot fly: an altitude above the transition altitude (`confirm flight level 70`), a flight level below the transition level (`confirm altitude 4000 feet, the transition level is flight level 60`), `climb` to a lower level (`confirm descend, we are at flight level 100`), a level above a departure's cruising level, a fix it does not know (`unable, confirm fix ABCDE`), an approach the runway does not have or that is not available (`unable ILS, the ILS runway 25 is not available, we can accept the RNP approach`), level or direct-to instructions on final (`unable, we are established on final runway 25`). A heading on final breaks the approach off (back to vectors, at least at the MVA).
+
 ### Clearance delivery
 
 | You say | Effect |
@@ -440,6 +465,17 @@ Pilots on your frequency call on their own:
 
 If you don't answer, pilots **call again** after 60-90 seconds, up to five times. Reminders are shorter: `Stuttgart Ground, Lufthansa 5AB, stand 14, request pushback`. `standby` stops the reminders for two minutes, `roger` for four. A departure Tower has heard does not remind it while it sees other departures ahead of it in the sequence (or its slot is not due yet). Without A-CDM a slot flight adds its CTOT to the pushback request: `..., request pushback, CTOT 1045`. A crew taxiing to a holding point where a slot flight waits asks once for another one: `..., Turkish 480 is waiting for its slot at holding point A, request taxi to holding point B`.
 
+### Radar calls (Approach / Departure)
+
+| When | The crew says |
+| ---- | ------------- |
+| Handed over by Center | `Langen Radar, Eurowings 7AB, flight level 128, descending flight level 100, information R` |
+| After take-off | `Langen Radar, Eurowings 4AB, KUNOD2B departure, passing 2800 feet, climbing 5000 feet` |
+| End of the STAR, no clearance | `Langen Radar, Eurowings 7AB, entering the hold over LBU, flight level 100, request further instructions` |
+| Too high when established | `... too high for the approach, maintaining 5000 feet, heading 252, request vectors for a new approach` |
+| 5 NM final, still with you | `Langen Radar, Eurowings 7AB, 5 miles final runway 25, request frequency change` |
+| Go-around | `Langen Radar, Eurowings 7AB, going around, climbing 5000 feet, heading 252` |
+
 ## Spoken input
 
 Speech recognition (see the [user guide](user-guide.md#9-voice)) produces plain words, which are normalised before parsing:
@@ -517,5 +553,6 @@ At US airports (`phraseology: 'faa'` in the airport data, so far San Diego KSAN)
 - `follow` with real follow-the-leader behaviour.
 - Expected-start-up phrases with a time (`expect start-up at 1452`); use `expect start-up in 5 minutes`.
 - Clearance amendments in parts (`climb amended ...`) - give the full clearance again.
+- Radar (prototype): turns by degrees (`turn left by 20 degrees`), `expedite descent`, `when ready descend`, `cleared via <STAR>` / transitions, traffic information, `squawk ident`, the Director position.
 - Non-English phraseology (German "Rollkontrolle" phrases).
 - FAA: progressive taxi, `monitor` hand-offs without a call, and US runway designators in the flight strips and menus (they keep "09"; the toolbar, the ATIS and the pilots say "9").

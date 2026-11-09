@@ -25,7 +25,8 @@ const POSITIONS: { type: StationType; label: string; available: boolean }[] = [
   { type: 'DEL', label: 'Delivery', available: true },
   { type: 'GND', label: 'Ground', available: true },
   { type: 'TWR', label: 'Tower', available: true },
-  { type: 'APP', label: 'Approach / Departure', available: false },
+  // Prototype: at airports with terminal airspace data (Stuttgart).
+  { type: 'APP', label: 'Approach / Departure', available: true },
   { type: 'CTR', label: 'Radar / Center', available: false },
 ];
 
@@ -178,9 +179,18 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
       const ap = airport();
       // Only the positions this airport has (Memmingen: no Delivery; Sylt: Tower only).
       POSITIONS.forEach((p, i) => {
-        const has = p.available && ap.stations.some((st) => st.type === p.type);
+        const radarMissing = p.type === 'APP' && !ap.airspace;
+        const has = p.available && ap.stations.some((st) => st.type === p.type) && !radarMissing;
         posButtons[i].disabled = !has;
-        posButtons[i].title = !p.available ? 'Planned for a later version' : has ? 'Click to staff this position; select several for combined positions' : `${ap.name} has no ${p.label} position - it is covered by the next position up`;
+        posButtons[i].title = !p.available
+          ? 'Planned for a later version'
+          : has
+            ? p.type === 'APP'
+              ? 'Approach / Departure (prototype): the radar scope - vectors, levels, ILS clearances, hand-offs to Tower and Center'
+              : 'Click to staff this position; select several for combined positions'
+            : radarMissing
+              ? `Approach / Departure is a prototype: so far only at airports with terminal airspace data (Stuttgart)`
+              : `${ap.name} has no ${p.label} position - it is covered by the next position up`;
         if (!has) positions.delete(p.type);
       });
       if (!positions.size) positions.add(POSITIONS.find((p) => p.available && ap.stations.some((st) => st.type === p.type))?.type ?? 'TWR');
@@ -443,6 +453,20 @@ const REFERENCE: [string, string][] = [
   ['Aircraft menu: Resolve conflict with ...', 'Two aircraft face each other on a taxiway (A-SMGCS CATC alert: flashing red while both roll towards each other): turn one off via a junction, send it to another entry (departure) or a free stand nearby (arrival), or turn it around (a tug for an airliner, several minutes).'],
 ];
 
+/** Approach / Departure (radar, prototype). */
+const RADAR_REFERENCE: [string, string][] = [
+  ['identified [, descend altitude 5000 feet, QNH 1013]', 'Answers the first call of an arrival or departure (C/I in the tag).'],
+  ['turn left heading 250 / turn right heading 070 / fly heading 250', 'Vectors (degrees magnetic): the STAR, a direct-to or a holding are cancelled.'],
+  ['continue present heading', 'Keep the present heading (read back with it).'],
+  ['descend altitude 5000 feet, QNH 1013 / descend flight level 80 / climb flight level 140', 'Altitudes up to the transition altitude, flight levels from the transition level; the crew queries anything else.'],
+  ['reduce speed 180 knots / no speed restrictions', 'Speed control (on final also "maintain 160 knots until 4 miles").'],
+  ['proceed direct LBU / hold over LBU', 'Own navigation to a fix / a holding there.'],
+  ['turn right heading 220, cleared ILS approach runway 25', 'Intercept heading and approach clearance (also RNP, localizer). Without a heading the crew flies to the final on its own.'],
+  ['report established', 'The crew reports established on the localizer.'],
+  ['contact Stuttgart Tower 118.805', 'Arrival to Tower - by 6 NM final.'],
+  ['contact Langen Radar 131.300 / 125.200', 'Departure to its Center sector (BAD / DKB) before it leaves your airspace (30 NM).'],
+];
+
 /** FAA forms (US airports, San Diego). */
 const FAA_REFERENCE: [string, string][] = [
   ['runway 27, taxi via B', 'Taxi to the runway (the runway in front is the clearance limit); "runway 9 at B8, taxi via B" to an intersection.'],
@@ -480,6 +504,8 @@ const KEYS: [string, string][] = [
   ['Start (Connect dialog)', 'Empty airport: the session starts with only the parked aircraft. Take over: the simulator works the airport for 20 minutes first, so you take over traffic that is already taxiing, departing and on approach; the crews on your frequency call you again with their next request'],
   ['SAVE (toolbar)', 'Save the session (or download it as a file); continue it with "Saved sessions" or "Load file..." in the Connect dialog. Also kept automatically as the Autosave. ON 0:42:10 next to the clock is your time on position.'],
   ['DISCONNECT (toolbar)', 'Debriefing of the session (what earned and what cost points, answer times, incidents, advice), then continue or end the session'],
+  ['F4 / RADAR (toolbar)', 'Approach combined with a tower position: switch between the radar scope and the ground radar'],
+  ['Radar tag (Approach)', 'Line 1 callsign (aircraft menu); line 2 level, trend, cleared level (level menu); line 3 speed (speed menu), heading or next fix (heading / direct menu), approach clearance (approach menu). Square: yours, diamond: others, yellow flashing: waiting for you, red: STCA. The picture updates every 4 s (radar sweep), with a history trail and a one-minute speed vector.'],
   ['F3 / SYSTEMS (toolbar)', 'Systems window: status of A-SMGCS (surveillance, RMCA, CATC, routing), A-CDM, DCL and the ILS (localizer, glide path); switch them on or off. A runway without an ILS (Sylt 14) is always flown as an RNP approach'],
   ['MIC (hold) / ^ ` / Right Ctrl / Insert (hold)', 'Push-to-talk: speak the instruction, it is sent when you release. The own speech recogniser hears only radio words and works offline (the model loads at the first transmission); SETTINGS > Voice > Speech recognition'],
   ['... disregard [, new instruction]', 'Cancels what was said before it: alone nothing is sent and the command line is cleared, else only what follows is sent (spoken or typed)'],
@@ -524,6 +550,15 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
           h('table.ref', {}, ...TOWER_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
           h('h2', { text: 'Delivery' }),
           h('table.ref', {}, ...DELIVERY_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
+          ...(sim.airspace
+            ? [
+                h('h2', { text: 'Approach / Departure (radar, prototype)' }),
+                h('p', {
+                  text: 'Arrivals are handed over by Center at their entry fix and fly the STAR to the IAF (holding there without a clearance); vector them onto the final and hand them to Tower. Departures call after take-off; climb them and hand them to Center. Keep 3 NM or 1000 ft (STCA) and stay above the minimum vectoring altitude (MSAW).',
+                }),
+                h('table.ref', {}, ...RADAR_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
+              ]
+            : []),
           ...(sim.faa
             ? [
                 h('h2', { text: 'FAA phraseology (US)' }),

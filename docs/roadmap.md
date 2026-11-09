@@ -43,7 +43,7 @@ Version 2.0 is the next major version: from a tower simulator with many airports
 
 **Criteria for 2.0**
 
-1. **Approach / Departure playable**: a radar position (Approach, Departure or both combined) at least at Stuttgart - vectoring, altitude and speed instructions, ILS / RNP clearances, sequencing onto final with the real spacing, hand-offs to and from Tower and Center - with an AI for it when it is not staffed (as today). Top-down: one controller can work everything from Delivery to Approach.
+1. **Approach / Departure playable**: *(in progress: prototype at Stuttgart)* a radar position (Approach, Departure or both combined) at least at Stuttgart - vectoring, altitude and speed instructions, ILS / RNP clearances, sequencing onto final with the real spacing, hand-offs to and from Tower and Center - with an AI for it when it is not staffed (as today). Top-down: one controller can work everything from Delivery to Approach.
 2. **Large airports under heavy traffic**: Cologne/Bonn and Leipzig/Halle (parallel runways, cargo hubs) hold up under heavy traffic - no deadlocks, AI positions that keep the flow going.
 3. **The world map comes alive**: at least one airport on each continent of the airport menu (from the *Coming soon* list), each with the regional phraseology where it differs (FAA vs ICAO: "line up and wait", "taxi via", altitudes and runway designators). *(Done in 1.5: North America - San Diego KSAN with FAA phraseology, US METAR and ATIS; Asia - Phuket VTSP; Australia / Oceania - Wellington NZWN; South America - Quito SEQM: every continent has an airport.)*
 4. **Weather and visibility**: the surface wind changes with the METAR during a session *(done in 1.5)*; **low visibility procedures** (CAT II/III holding points, larger spacing, LVP in the ATIS) at every airport that publishes them. *(In progress: the procedures and the CAT II/III holding positions of every CAT II/III airport in the data done; stop bars open.)*
@@ -191,7 +191,7 @@ Wishes collected for the 1.x releases (from the [release report](release-1.0-rep
 
 ### Positions
 
-- planned - **Approach / Departure**: radar scope, vectoring, altitude and speed instructions, ILS clearances, handoffs
+- *in progress* - **Approach / Departure**: radar scope, vectoring, altitude and speed instructions, ILS clearances, handoffs - **prototype at Stuttgart** (unreleased): EuroScope-style radar scope, arrivals from Center at their entry fixes (STAR to the IAF, holdings), vectors / levels / speeds / direct-to, ILS / RNP / localizer clearances with localizer intercept, hand-offs to Tower and Center, departures climbing to their SID exit fix, STCA and MSAW, radar phraseology and menus; next: published STAR / SID tracks and transitions, arrival / departure lists for the radar, wind aloft, sequencing aids, a soak test with the radar, more airports
 - planned - **Radar / Center**: en-route sector, coordination, handoffs between sectors
 
 ### Airports

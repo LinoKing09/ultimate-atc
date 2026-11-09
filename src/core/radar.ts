@@ -341,9 +341,25 @@ function arrivalCheckIn(sim: Simulation, ac: Aircraft): void {
   const r = ac.radar!;
   if (r.checkedIn || ac.frequency !== 'APP' || sim.time < ac.standbyUntil) return;
   r.checkedIn = true;
+  sim.radarCall(ac, 'checkIn', checkInText(sim, ac));
+}
+
+/** Present level and the cleared one: "flight level 128, descending flight level 100" / "passing 3000 feet, climbing ...". */
+function levelReport(sim: Simulation, ac: Aircraft): string {
+  const r = ac.radar!;
   const now = Math.round(ac.altitudeFt / 100) * 100;
-  const level = Math.abs(now - r.clearedFt) < 200 ? levelText(r.clearedFt, r.clearedFl) : `${levelText(now, isFlightLevel(sim, now))}, descending ${levelText(r.clearedFt, r.clearedFl)}`;
-  sim.radarCall(ac, 'checkIn', `${sim.stationName('APP')}, ${sim.tel(ac)}, ${level}, information ${sim.atisLetterOf(ac)}`);
+  if (Math.abs(now - r.clearedFt) < 200) return levelText(r.clearedFt, r.clearedFl);
+  const verb = r.clearedFt > now ? 'climbing' : 'descending';
+  return `${ac.category === 'departure' ? 'passing ' : ''}${levelText(now, isFlightLevel(sim, now))}, ${verb} ${levelText(r.clearedFt, r.clearedFl)}`;
+}
+
+/** The first call on your radar frequency (also its reminder): arrivals with the ATIS letter, departures with the SID. */
+export function checkInText(sim: Simulation, ac: Aircraft): string {
+  const r = ac.radar!;
+  const station = sim.stationName('APP');
+  if (r.missedApproach) return `${station}, ${sim.tel(ac)}, missed approach, ${levelReport(sim, ac)}, heading ${headingText(r.heading ?? toMagnetic(sim, ac.heading))}`;
+  if (ac.category === 'departure') return `${station}, ${sim.tel(ac)}, ${ac.flightPlan.sid ? `${ac.flightPlan.sid} departure, ` : ''}${levelReport(sim, ac)}`;
+  return `${station}, ${sim.tel(ac)}, ${levelReport(sim, ac)}, information ${sim.atisLetterOf(ac)}`;
 }
 
 // ====================================================================== flying
@@ -644,8 +660,7 @@ function departureChecks(sim: Simulation, ac: Aircraft, active: boolean): void {
       sim.radarCall(ac, 'checkIn', `${sim.stationName('APP')}, ${sim.tel(ac)}, going around, climbing ${levelText(r.clearedFt, r.clearedFl)}, heading ${headingText(r.heading ?? toMagnetic(sim, ac.heading))}`);
       return;
     }
-    const sid = ac.flightPlan.sid;
-    sim.radarCall(ac, 'checkIn', `${sim.stationName('APP')}, ${sim.tel(ac)}, ${sid ? `${sid} departure, ` : ''}passing ${Math.round(ac.altitudeFt / 100) * 100} feet, climbing ${levelText(r.clearedFt, r.clearedFl)}`);
+    sim.radarCall(ac, 'checkIn', checkInText(sim, ac));
   }
   if (ac.phase === 'goAround' && ac.frequency !== 'APP') return;
   // Leaving your airspace still on your frequency: Center takes it over (a missed hand-off).
@@ -867,6 +882,8 @@ export function execRadar(sim: Simulation, ac: Aircraft, c: Command): RadarResul
       const runway = c.runway ?? (sim.isArrivalRunway(ac.runway) ? ac.runway : sim.arrivalRunways[0]);
       const end = runway ? sim.airport.runwayEnd(runway) : undefined;
       if (!end || !runway) return { unable: `unable, confirm runway` };
+      // The crew knows the runway in use from the ATIS.
+      if (!sim.isArrivalRunway(runway)) return { unable: `confirm runway ${runway}, the ATIS gives ${sim.arrivalRunways.length > 1 ? 'runways' : 'runway'} ${sim.arrivalRunways.join(' and ')} for landing` };
       const published = sim.config.airport.runways.flatMap((rw) => rw.ends).find((e) => e.name === runway)?.approaches ?? ['ILS'];
       const ok = c.kind === 'LOC' ? published.includes('LOC') || published.includes('ILS') : published.includes(c.kind);
       if (!ok) return { unable: `unable, there is no ${approachWordOf(c.kind)} approach runway ${runway}` };

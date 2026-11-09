@@ -27,6 +27,7 @@ The simulator shows a condensed version of this page as the **airport briefing**
 | De-icing pads DP1-DP4 (position, lead lines, wingspan limits), take-off run available (TORA) from every entry, the current Apron South | VATSIM Germany EuroScope package (`edgg-package`, 2026): its ground radar maps are generated from the AIP data (AIXM). Used as a reference only - positions were read off and converted into the simulator's frame; no files or map content are included |
 | Holding bays P1 / P2 | [OpenStreetMap](https://www.openstreetmap.org/) (the two unnamed links between N and S at the 25 end) |
 | Buildings | [OpenStreetMap](https://www.openstreetmap.org/) - © OpenStreetMap contributors, [ODbL 1.0](https://opendatacommons.org/licenses/odbl/): every building on the aerodrome (terminals 0-4, hangars, cargo, the tower ...), generated with `scripts/osm-import.mjs EDDS --buildings-only` into `edds.buildings.ts` (do not edit by hand) |
+| Terminal airspace (Approach / Departure, prototype) | Navaids LBU, TGO, SUL, KRH, DKB: [OurAirports](https://ourairports.com/) navaids (public domain). Fixes (BADSO, TEKSI, REUTL, ARSUT, STG, VATER, UNSER, the SID exit fixes ...): published positions (AIP Germany ENR 4.4 / AD 2 EDDS, as listed by opennav.com), facts only. Entries, IAFs (LBU, STG), minimum holding altitudes, departure release levels, Center sectors (BAD 131.300, DKB 125.200), the 6 NM spacing and the hand-off to Tower by 6 NM, the MVA over the Black Forest: VATSIM Germany SOP EDDS Arrival / Departure and knowledge base (2026). See [Terminal airspace](#terminal-airspace-approach--departure) for what is simplified |
 | SIDs | Designators from a public chart index (2026) and the VATSIM Germany vSID configuration; destination restrictions and the radar sectors from the VATSIM Germany Delivery SOP; exit fix positions from public waypoint lists |
 | Frequencies | VATSIM Germany station data (`datahub`, matching the AIP values used before); ATIS from the VATSIM Germany vATIS profile |
 | Magnetic variation | NOAA World Magnetic Model (October 2026) |
@@ -93,8 +94,27 @@ Sources: [VATSIM Germany EDDS SOPs](https://knowledgebase.vatsim-germany.org/boo
 | **EDDS_DEL** | **Stuttgart Delivery** | **121.915** | **You** (since v0.6), or AI: clearances are then issued before the aircraft calls Ground |
 | **EDDS_GND** | **Stuttgart Ground** | **118.605** | **You**, or AI Ground when you only staff Delivery |
 | EDDS_TWR    | Stuttgart Tower       | 118.805 (also 119.055) | AI Tower |
-| EDDS_APP    | Langen Radar          | 125.050 (sector Stuttgart); 119.200 for the southern departures (sector Reutlingen) | (not simulated) |
+| EDDS_APP    | Langen Radar          | 125.050 (sector Stuttgart); 119.200 for the southern departures (sector Reutlingen) | **You** (Approach / Departure, prototype: sectors Stuttgart and Reutlingen combined, both frequencies are yours), or the simulator's Approach (arrivals on final) |
+| (Center)    | Langen Radar          | 131.300 (sector BAD), 125.200 (sector DKB) | AI (departures are handed over to it) |
 | EDDS_ATIS   | Stuttgart Information | 126.130   | You (ATIS editor) |
+
+## Terminal airspace (Approach / Departure)
+
+The radar position is a **prototype**; the airspace is a simplified model of the Stuttgart terminal area (`airspace` in `edds.ts`):
+
+| Entry fix (from Center) | Origins (bearing from Stuttgart) | Hand-over level | STAR to IAF |
+| ----------------------- | -------------------------------- | --------------- | ----------- |
+| LBU   | north (300-045°)       | FL100 | LBU (the entry is the IAF) |
+| TEKSI | east (045-150°)        | FL110 | STG |
+| REUTL | south (150-215°)       | FL100 | STG |
+| BADSO | west (215-300°)        | FL100 | LBU |
+
+- **STARs** are flown as direct lines entry fix - IAF; the published RNAV transitions to final are replaced by an intercept point 11 NM before the threshold (and a gate when coming from the airport side). The STAR designators are not used on the radio.
+- **Holdings** over LBU (MHA 6000 ft), STG (7000), BADSO and TEKSI (5000), REUTL (6000) as in the SOP; the inbound courses are simplified (towards the airport) with right turns.
+- **Departures** fly runway heading to 1000 ft above the aerodrome, then direct to the SID exit fix, climbing to 5000 ft. Release levels: FL140 (sector BAD), DKB / GEBNO FL100 and OKIBA FL140 (sector DKB), KRH 8000 ft. In the SOP KRH goes to sector PFA and SUL to Switzerland - simplified to BAD.
+- **MVA**: 4000 ft, 5000 ft beyond 25 NM, FL70 over the Black Forest (230-290° beyond 20 NM; the SOP gives 6300 ft between Baden-Baden / Lahr and Stuttgart) - approximate, no published MVA chart used.
+- **Missed approach**: straight ahead to 5000 ft (simplified).
+- **Your airspace** is drawn as a 30 NM circle (not the real TMA boundary).
 
 ## Systems and procedures
 

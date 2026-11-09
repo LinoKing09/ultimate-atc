@@ -17,7 +17,7 @@ import { minutesToHhmm } from './time';
 import { lvpInForce } from './met';
 import { apronClosed, takeoffsSuspended } from './weather';
 import { holdShortS } from './holdShort';
-import { execRadar, radarActive } from './radar';
+import { checkInText, execRadar, radarActive } from './radar';
 import { deicingMinutesLeft, freePads, needsDeicing, onPad, padUser, startDeicing, updateDeicing } from './deicing';
 
 /**
@@ -1736,7 +1736,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       landing: `${stationName}, ${tel}, ${milesFinal(Math.max(1, Math.round(sim.distanceToThresholdNm(ac))))} runway ${ac.runway ?? sim.runway}`,
       vacated: `${stationName}, ${tel}, runway vacated, request taxi`,
       radar: `${stationName}, ${tel}, request frequency change`,
-      checkIn: `${stationName}, ${tel}, ${ac.radar ? `${Math.round(ac.altitudeFt / 100) * 100 >= sim.transitionLevel(sim.atis.qnh) * 100 ? `flight level ${Math.round(ac.altitudeFt / 100)}` : `${Math.round(ac.altitudeFt / 100) * 100} feet`}` : ''}`,
+      checkIn: ac.radar ? checkInText(sim, ac) : `${stationName}, ${tel}`,
       vectors: ac.radar?.hold ? `${stationName}, ${tel}, holding over ${ac.radar.hold.fix}, request further instructions` : `${stationName}, ${tel}, request vectors`,
     };
     // Datalink requests (DCL) are not repeated by voice.

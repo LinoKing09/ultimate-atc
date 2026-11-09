@@ -4,6 +4,8 @@ import { M_PER_NM, distance } from '../src/core/geo';
 import { parseTransmission } from '../src/core/phraseology/parser';
 import { finalCoordinates, toMagnetic } from '../src/core/radar';
 import { Simulation } from '../src/core/simulation';
+import { fingerprint, perform, restoreSession, saveSession } from '../src/core/session';
+import { AIRPORTS } from '../src/data/airports';
 import { EDDS } from '../src/data/airports/edds';
 import { aircraftType } from '../src/data/aircraftTypes';
 
@@ -155,4 +157,47 @@ describe('Approach / Departure position (radar)', () => {
     // Nobody stays forever in the air.
     expect(sim.aircraft.filter((a) => a.phase === 'inbound' && sim.time - a.spawnedAt > 2400).length).toBe(0);
   });
+});
+
+describe('radar read-backs', () => {
+  it('queries an approach to a runway not in use and an impossible climb', () => {
+    const sim = appSim(9);
+    const ac = inbound(sim, 'EDDH');
+    runUntil(sim, () => ac.request === 'checkIn', 60);
+    sim.transmit(`${ac.callsign} cleared ILS approach runway 07`);
+    runUntil(sim, () => /confirm runway 07/.test(last(sim, ac.callsign)), 20);
+    expect(last(sim, ac.callsign)).toMatch(/^Confirm runway 07, the ATIS gives runway 25 for landing/);
+    expect(ac.radar?.approach).toBeUndefined();
+    sim.transmit(`${ac.callsign} climb flight level 80`);
+    runUntil(sim, () => /onfirm climb/.test(last(sim, ac.callsign)), 20);
+    expect(ac.radar?.clearedFt).toBe(10000);
+    sim.transmit(`${ac.callsign} turn left heading 180`);
+    runUntil(sim, () => /Left heading 180/.test(last(sim, ac.callsign)), 20);
+    expect(ac.radar?.heading).toBe(180);
+    expect(ac.radar?.route).toEqual([]);
+  });
+});
+
+describe('radar sessions', () => {
+  it('a radar session replays exactly from its log', async () => {
+    const sim = appSim(13, true);
+    for (let t = 0; t < 1500; t++) {
+      sim.tick(1);
+      if (t % 7) continue;
+      for (const a of sim.aircraft) {
+        if (a.frequency !== 'APP' || !a.request || sim.frequency.hasQueued(a.callsign)) continue;
+        const text = a.category === 'arrival' ? `${a.callsign} identified, turn left heading 200, descend altitude 5000 feet, cleared ILS approach runway 25` : `${a.callsign} identified, climb flight level 140`;
+        perform(sim, { k: 'transmit', text });
+        break;
+      }
+    }
+    const saved = JSON.parse(JSON.stringify(saveSession(sim, 'radar', 0)));
+    const { sim: back, matches } = await restoreSession(saved, AIRPORTS);
+    expect(matches).toBe(true);
+    for (let t = 0; t < 120; t++) {
+      sim.tick(1);
+      back.tick(1);
+    }
+    expect(fingerprint(back)).toBe(fingerprint(sim));
+  }, 60000);
 });

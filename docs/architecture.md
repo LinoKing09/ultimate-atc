@@ -37,6 +37,7 @@ ultimate-atc/
 │   │   ├── aircraft.ts        # Aircraft state, flight plan, phases
 │   │   ├── movement.ts        # path following, speed control, see-and-avoid, collisions
 │   │   ├── pilot.ts           # AI pilots: executing instructions, read-backs, own calls
+│   │   ├── radar.ts           # Approach / Departure (radar, prototype): terminal airspace, flight model (vectors, levels, speeds, direct-to, holdings, localizer intercept), hand-offs, STCA / MSAW, the crews' radar read-backs
 │   │   ├── tower.ts           # AI Tower: approach, landing, line-up, take-off, incursions, CTOT windows - per runway in use (parallel runways)
 │   │   ├── delivery.ts        # Clearance Delivery: IFR clearances, squawks, readback errors, CTOTs, DCL, A-CDM sequencer
 │   │   ├── groundAI.ts        # AI Ground (when the user doesn't staff Ground)
@@ -74,6 +75,8 @@ ultimate-atc/
 │   │       └── *.layout.ts    # layouts generated from OpenStreetMap by scripts/osm-import.mjs
 │   └── ui/                    # browser client
 │       ├── app.ts             # wires sim <-> scope, lists, messages, command line, menus
+│       ├── radarScope.ts      # canvas radar scope of Approach / Departure (EuroScope style: fixes, centre lines, targets with history and speed vector, data tags, 4 s sweep)
+│       ├── radarMenus.ts      # radar menus: heading, level, speed, direct, holding, approach, hand-off
 │       ├── scope.ts           # canvas ground radar: chart, aircraft, tags, input, rotation (runway-aligned / north-up), styles (PHX night / day, Modern, Phosphor, Map, classic; effect layer .scope-fx)
 │       ├── lists.ts           # departure / arrival lists (clickable cells)
 │       ├── menu.ts            # popup menus
@@ -209,7 +212,7 @@ The groundwork is in place:
 
 The **Tower** position (v0.7) follows the same pattern: commands `lineUp`, `takeoff`, `land`, `continueApproach`, `goAround`, `cancelTakeoff`, `vacate`; `TowerAI` decides itself only when `Simulation.userTower` is false and otherwise only flies the aircraft; pilot calls on Tower frequency in `pilot.ts` (`towerCall`); UI in `ui/app.ts` (`towerItems`).
 
-Approach and Center positions need a radar scope with airspace data (sectors, fixes, procedures) and vectoring commands. The `Scope` class would get a second render mode, and `AirportData` would get procedure and airspace data, or a separate sector data format, comparable to EuroScope's `.sct` / `.ese` files.
+The **Approach / Departure** position (prototype, 1.9) adds a radar: `AirportData.airspace` (fixes, entries and IAFs, holdings, Center sectors, MVA - comparable to a small part of EuroScope's `.sct` / `.ese` files), `core/radar.ts` and a second scope (`ui/radarScope.ts`, the App switches between the two). Arrivals get a phase of their own before the final, `inbound`: `updateRadar` (after `TowerAI.update` in every step) flies them on vectors, own navigation (STAR, direct-to, holding) or the localizer, and hands them to the Tower's `approach` phase on the glide path - from there the Tower flies them as before. Departures and go-arounds keep their phases (`climb`, `goAround`); an `Aircraft.radar` state makes `TowerAI.climbOut` leave the flying to `radar.ts`. Without a staffed Approach nothing changes: the simulator's Approach puts the arrivals on final at 12 NM. Radar instructions are `Command`s like the others (`heading`, `level`, `direct`, `holdAt`, `approachClearance`, `identified`, `reportEstablished`; `speed` is shared with Tower) and are executed by `execRadar`. Center (en route) is still to come.
 
 ### Multiplayer (VATSIM-like shared sessions)
 

@@ -22,8 +22,12 @@ Terms used in the simulator and in this documentation. Real-world terms are expl
 | **Follow-me** | A car (yellow, "FOLLOW ME" sign) that leads an aircraft to its stand or along a route, for crews unfamiliar with the airport or in low visibility. "Follow the follow-me". |
 | **Head-on** | Two aircraft on the same taxiway in opposite directions (routes meeting at more than 135 degrees). Airliners cannot turn around on a taxiway, so it ends in a deadlock unless one turns off in time. |
 | **Holding point** | Runway holding position where departures wait before entering the runway (EDDS: A, B, C, D for runway 25; K, Y, I, H, W for runway 07). |
+| **IAF** | Initial approach fix: where a STAR ends and the approach begins (Stuttgart: LBU, STG). Without a clearance beyond it the arrival holds there. |
 | **ILS / LOC / GP** | Instrument landing system with localizer (lateral guidance) and glide path (vertical guidance). Without them: localizer-only or RNP approaches. |
+| **Intercept heading** | A heading given with the approach clearance that meets the final course at about 30 degrees, so the crew can capture the localizer ("turn right heading 220, cleared ILS approach runway 25"). |
 | **Incursion** | An aircraft entering the runway without a clearance, or while it is occupied - a serious incident (-50 points). |
+| **MSAW** | Minimum safe altitude warning: the radar alert for an aircraft under vectors below the minimum vectoring altitude (MVA). |
+| **MVA** | Minimum vectoring altitude: the lowest altitude Approach may vector to (Stuttgart about 4000 ft, FL70 over the Black Forest). |
 | **PDC** | Pre-departure clearance: the US datalink clearance (DCL elsewhere). |
 | **Proceed** | The instruction word for vehicles ("Follow-me 1, proceed to DCEEO via N, F"); aircraft get "taxi". |
 | **Radio discipline** | Only one station talks at a time; after an instruction the addressed station reads back before anyone else calls. |
@@ -32,6 +36,9 @@ Terms used in the simulator and in this documentation. Real-world terms are expl
 | **SID** | Standard instrument departure: the published departure route from the runway to the first fix (exit fix) of the flight plan. The simulator uses the real designators; each flight plan goes via the exit fix towards its destination. |
 | **Squawk** | The four-digit transponder code (octal digits 0-7) assigned in the IFR clearance. |
 | **Stand** | Aircraft parking position. |
+| **STAR** | Standard arrival route from the entry fix to the IAF. The simulator flies it as a direct line. |
+| **STCA** | Short-term conflict alert: the radar alert for two aircraft that are, or within a minute will be, closer than 3 NM and 1000 ft. |
+| **Transition level / altitude** | Below the transition altitude (Stuttgart 5000 ft) levels are altitudes on QNH, from the transition level (FL60 or FL70 by the QNH) flight levels. Levels in between are not assigned. |
 | **Tow** | Moving an aircraft without its own engines by a tug, e.g. from a contact stand to a remote stand. The tug driver talks to Ground: "request tow ... from stand 14 to stand 45" - "tow approved via ...". |
 | **TOBT** | Target off-block time: when the airline expects the aircraft to be ready (the simulator's ready time). |
 | **TSAT** | Target start-up approval time from the A-CDM pre-departure sequencer; start-up is approved at the TSAT. |

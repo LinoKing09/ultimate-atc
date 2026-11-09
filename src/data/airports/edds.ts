@@ -747,6 +747,17 @@ export const EDDS: AirportData = {
   // Flows and planning tips are simulator conventions, not published procedures.
   briefing: [
     {
+      title: 'Your job as Langen Radar (Approach / Departure, prototype)',
+      positions: ['APP'],
+      items: [
+        'You work the Stuttgart terminal area on 125.050 (the southern departure sector 119.200 is yours too). Center hands the arrivals over before their entry fix: LBU (north), TEKSI (east, FL110), REUTL (south), BADSO (west), descending to FL100. Without vectors they fly the STAR to their IAF (LBU or STG) and hold there.',
+        'Answer the first call: `identified, descend altitude 5000 feet, QNH 1013`. Vector them onto the final (`turn left heading 070`), slow them down (`reduce speed 180 knots`) and give an intercept heading with the approach clearance: `turn right heading 220, cleared ILS approach runway 25`. Spacing at touchdown at least 6 NM (12 NM in LVP), more behind a heavy.',
+        'Hand arrivals to Tower by 6 NM final: `contact Stuttgart Tower 118.805`. Go-arounds climb straight ahead to 5000 ft and come back to you.',
+        'Departures call after take-off and fly direct to their SID exit fix, climbing to 5000 ft. Climb them to their release level and hand them to Center before 30 NM: sector BAD `contact Langen Radar 131.300` (FL140; KRH 8000 ft), sector DKB `contact Langen Radar 125.200` for DKB, GEBNO (FL100) and OKIBA (FL140).',
+        'Minimum vectoring altitude 4000 ft (5000 ft beyond 25 NM), FL70 over the Black Forest to the south-west. Keep 3 NM or 1000 ft between all aircraft (STCA).',
+      ],
+    },
+    {
       title: 'Your job as Stuttgart Ground',
       positions: ['GND'],
       items: [

@@ -169,7 +169,36 @@ The data check requires a SID for every destination of the airport's traffic on 
 { callsign: 'EDDS_GND', type: 'GND', name: 'Stuttgart Ground', frequency: '118.605' }
 ```
 
-`type` is one of `DEL`, `GND`, `TWR`, `APP`, `DEP`, `CTR`, `ATIS`. A position can only be selected in the Connect dialog if the airport has a station of that type (and the position is implemented).
+`type` is one of `DEL`, `GND`, `TWR`, `APP`, `DEP`, `CTR`, `ATIS`. A position can only be selected in the Connect dialog if the airport has a station of that type (and the position is implemented). **Approach / Departure** (`APP`) needs the `airspace` data below as well.
+
+## Terminal airspace
+
+`airspace` (optional) is what the Approach / Departure position (radar, prototype) needs. Without it the airport has no radar position: the simulator's Approach keeps putting the arrivals on final. Stuttgart:
+
+```ts
+airspace: {
+  source: 'Navaids: OurAirports (public domain); fixes: AIP Germany (facts) ...',
+  fixes: [{ name: 'LBU', pos: { lat: 48.912998, lon: 9.34023 }, kind: 'vor' }, { name: 'TEKSI', pos: { ... }, kind: 'fix' }, ...],
+  entries: [{ fix: 'TEKSI', iaf: 'STG', levelFt: 11000, from: [45, 150] }, ...],
+  holdings: [{ fix: 'LBU', inboundCourse: 200, turn: 'right', minAltFt: 6000 }, ...],
+  centerSectors: [{ name: 'BAD', callsign: 'Langen Radar', frequency: '131.300', fixes: ['ETASA', ...], releaseFt: 14000 }, ...],
+  mvaFt: 4000,
+  mvaAreas: [{ from: [230, 290], beyondNm: 20, altFt: 7000 }],
+  missedApproachFt: 5000,
+  radiusNm: 30,
+  finalSpacingNm: 6,
+  towerHandoffNm: 6,
+}
+```
+
+- `fixes`: navaids (`vor`, `dme`, `ndb`) and fixes shown on the radar scope and usable in `proceed direct` and `hold over`. Navaid positions from OurAirports (public domain); fix positions are published facts (AIP ENR 4.4), digitised by hand - never copy a chart.
+- `entries`: where Center hands the arrivals over (the start of the STAR), the IAF the STAR ends at, the level the arrival is cleared to at the hand-over, and the bearings of the origins (degrees true from the airport, clockwise) that use the entry.
+- `holdings`: the holding over a fix: inbound course (degrees magnetic), turn direction, minimum holding altitude.
+- `centerSectors`: the Center sectors the departures go to, by SID exit fix (the first sector takes every fix not listed), with the release level.
+- `mvaFt` / `mvaAreas`: the minimum vectoring altitude (MSAW), higher in sectors beyond a distance.
+- `missedApproachFt`, `radiusNm` (departures are handed to Center by then), `finalSpacingNm`, `towerHandoffNm` (the latest hand-off to Tower).
+
+Mark every simplification in `dataNotice` / the source comment and in `docs/airports/<ICAO>.md`.
 
 ## Airport briefing
 

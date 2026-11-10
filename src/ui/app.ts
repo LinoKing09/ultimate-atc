@@ -27,7 +27,9 @@ import { minutesToHhmm } from '../core/time';
 import { windWords } from '../core/weather';
 import type { TutorialRunner } from '../core/tutorial';
 import { TutorialPanel } from './tutorialPanel';
-import { arrivalList, departureList, VehicleList, type ListItem, type TrafficList } from './lists';
+import { arrivalList, departureList, radarInboundList, radarOutboundList, VehicleList, type ListItem, type TrafficList } from './lists';
+import { realLabel } from './realLabels';
+import { offered } from '../core/radar';
 import { shownRequest, styledStatus } from './labels';
 import { vehicleTel, type Vehicle } from '../core/vehicles';
 import { PopupMenu, type MenuItem } from './menu';
@@ -98,6 +100,7 @@ export class App {
   private groundCanvas!: HTMLCanvasElement;
   private radarCanvas?: HTMLCanvasElement;
   private radarView = false;
+  private radarLists: TrafficList[] = [];
   private viewBtn?: HTMLButtonElement;
   /** The scope shown now. */
   private get scope(): Scope | RadarScope {
@@ -339,6 +342,11 @@ export class App {
     };
     this.lists = [departureList(listCb), arrivalList(listCb), new VehicleList(listCb)];
     for (const l of this.lists) this.main.append(l.el);
+    // The sector lists of the radar position (shown with the radar scope).
+    if (radarStaffed) {
+      this.radarLists = [radarInboundList(listCb), radarOutboundList(listCb)];
+      for (const l of this.radarLists) this.main.append(l.el);
+    }
 
     // Mobile mode: zoom buttons and a quick-action bar for the selected aircraft.
     const zoomBtn = (text: string, title: string, fn: () => void) => {
@@ -659,7 +667,7 @@ export class App {
       this.lastAutosave = now;
       this.autosave();
     }
-    for (const l of this.lists) l.update(sim, this.selected);
+    for (const l of [...this.lists, ...this.radarLists]) l.update(sim, this.selected);
     this.tutorialPanel?.update(this.selected);
     // Your frequencies (combined positions: several). Switched-off ones are run by the simulator.
     const logged = sim.config.airport.stations.filter((st) => sim.loggedInStations.includes(st.type));
@@ -798,6 +806,8 @@ export class App {
       sc.showAllRoutes = s.showRoutes;
     }
     this.routesBtn.classList.toggle('active', s.showRoutes);
+    // "Real" menu style: the short EuroScope forms for every menu (the radar menus build theirs themselves).
+    this.menu.transform = s.menuStyle === 'real' ? realLabel : undefined;
     if (this.groundScope && s.runwayAligned !== this.groundScope.runwayAligned) this.groundScope.setRotation(s.runwayAligned);
     this.rotBtn.classList.toggle('active', s.runwayAligned);
     if (this.voices.enabled !== (TTS_ENABLED && s.tts && this.voices.supported)) this.setTts(TTS_ENABLED && s.tts && this.voices.supported, true);
@@ -843,6 +853,7 @@ export class App {
     }
     // The ground lists belong to the ground radar.
     for (const l of this.lists ?? []) l.el.style.display = this.radarView ? 'none' : '';
+    for (const l of this.radarLists) l.el.style.display = this.radarView ? '' : 'none';
     this.rotBtn.style.display = this.radarView ? 'none' : '';
     this.routesBtn.style.display = this.radarView ? 'none' : '';
     this.scope.selected = this.selected;
@@ -870,6 +881,11 @@ export class App {
   private onRadarTagItem(cs: string, item: RadarTagItem, x: number, y: number): void {
     const ac = this.sim.find(cs);
     if (!ac) return;
+    // A track Center offers: a click on its tag assumes it (EuroScope: accept the transfer).
+    if (offered(ac)) {
+      this.assume(ac);
+      return;
+    }
     if (this.realistic || !onMyRadar(this.sim, ac)) {
       this.openMenu(cs, x, y);
       return;
@@ -1136,7 +1152,7 @@ export class App {
     this.scope.selected = cs;
     this.targetEl.textContent = this.targetText();
     this.updatePreview();
-    for (const l of this.lists) l.update(this.sim, cs);
+    for (const l of [...this.lists, ...this.radarLists]) l.update(this.sim, cs);
   }
 
   // ------------------------------------------------------------------ messages
@@ -1694,6 +1710,13 @@ export class App {
   }
 
   /** Changes the simulation (logged for saving, see session.ts); returns an error text if it was not possible. */
+  /** Assumes a track Center offers (radar). */
+  private assume(ac: Aircraft): void {
+    const err = this.act({ k: 'assume', callsign: ac.callsign });
+    if (err) this.toast(err);
+    else this.hint(`${ac.callsign} assumed - Center sends it to your frequency.`);
+  }
+
   private act(a: SessionAction): string | undefined {
     const r = perform(this.sim, a);
     return typeof r === 'string' ? r : undefined;
@@ -1871,6 +1894,9 @@ export class App {
       items.push({ label: 'Acknowledge CATC alert', hint: other.callsign, action: () => this.acknowledgeCatc(ac) }, { divider: true, label: '' });
     }
 
+    if (offered(ac) && sim.userControls('APP')) {
+      return [{ label: 'Accept hand-off', hint: 'from Center', action: () => this.assume(ac) }, { divider: true, label: '' }, center, resetTag];
+    }
     if (!sim.isOnMyFrequency(ac)) {
       items.push({ label: `On ${ac.frequency} frequency`, disabled: true });
       // Ask the (simulator-run) position for the aircraft now, e.g. a departure from Ground before the holding point.

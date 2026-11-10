@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Aircraft } from '../src/core/aircraft';
 import { M_PER_NM, distance } from '../src/core/geo';
 import { parseTransmission } from '../src/core/phraseology/parser';
-import { finalCoordinates, toMagnetic } from '../src/core/radar';
+import { assumeTrack, finalCoordinates, offered, tasFactor, toMagnetic, windAloft } from '../src/core/radar';
 import { Simulation } from '../src/core/simulation';
 import { fingerprint, perform, restoreSession, saveSession } from '../src/core/session';
 import { AIRPORTS } from '../src/data/airports';
@@ -19,9 +19,11 @@ function runUntil(sim: Simulation, cond: () => boolean, max = 1800): boolean {
 function last(sim: Simulation, cs: string): string {
   return sim.messages.filter((m) => m.kind === 'pilot' && m.from === cs).at(-1)?.text ?? '';
 }
-function inbound(sim: Simulation, origin = 'EDDH', callsign = 'EWG7AB'): Aircraft {
+function inbound(sim: Simulation, origin = 'EDDH', callsign = 'EWG7AB', assume = true): Aircraft {
   const ac = sim.traffic.spawnInbound({ airline: sim.traffic['pickAirline'](), type: aircraftType('A320'), origin })!;
   ac.callsign = callsign;
+  // Center offers the track: assumed at once (the tests of the offer do it themselves).
+  if (assume) assumeTrack(sim, ac);
   return ac;
 }
 
@@ -139,6 +141,7 @@ describe('Approach / Departure position (radar)', () => {
     for (let t = 0; t < 3600; t++) {
       sim.tick(1);
       if (t % 5) continue;
+      for (const a of sim.aircraft) if (offered(a)) assumeTrack(sim, a);
       for (const a of sim.aircraft) {
         if (a.frequency !== 'APP' || !a.request || sim.frequency.hasQueued(a.callsign)) continue;
         if (a.category === 'arrival' && a.phase === 'inbound') sim.transmit(`${a.callsign} identified, descend altitude 5000 feet, cleared ILS approach runway 25`);
@@ -184,6 +187,7 @@ describe('radar sessions', () => {
     for (let t = 0; t < 1500; t++) {
       sim.tick(1);
       if (t % 7) continue;
+      for (const a of sim.aircraft) if (offered(a)) perform(sim, { k: 'assume', callsign: a.callsign });
       for (const a of sim.aircraft) {
         if (a.frequency !== 'APP' || !a.request || sim.frequency.hasQueued(a.callsign)) continue;
         const text = a.category === 'arrival' ? `${a.callsign} identified, turn left heading 200, descend altitude 5000 feet, cleared ILS approach runway 25` : `${a.callsign} identified, climb flight level 140`;
@@ -253,5 +257,46 @@ describe('SIDs, STARs and RNAV transitions', () => {
     expect(ac.radar?.transition).toBe('LBU 25');
     expect(ac.radar?.route.slice(0, 2)).toContain('DS531');
     expect(runUntil(sim, () => ac.phase === 'approach', 2400)).toBe(true);
+  });
+});
+
+describe('EuroScope track hand-over, wind and speeds', () => {
+  it('Center offers an arrival; it calls only after you assume it (or after the offer times out)', { timeout: 120000 }, () => {
+    const sim = appSim(23);
+    const ac = inbound(sim, 'EDDH', 'EWG7AB', false);
+    expect(offered(ac)).toBe(true);
+    expect(ac.frequency).toBe('CTR');
+    for (let t = 0; t < 60; t++) sim.tick(1);
+    expect(ac.request).toBeNull();
+    expect(sim.transmit(`${ac.callsign} descend flight level 80`).hint).toMatch(/not on your frequency/);
+    expect(assumeTrack(sim, ac)).toBeUndefined();
+    expect(runUntil(sim, () => ac.request === 'checkIn', 30)).toBe(true);
+    expect(ac.frequency).toBe('APP');
+    // Not assumed: Center sends it over after the timeout, a missed hand-off.
+    const b = inbound(sim, 'LTAI', 'THY1AB', false);
+    expect(runUntil(sim, () => b.frequency === 'APP', 200)).toBe(true);
+    expect(sim.stats.radarHandoffsMissed).toBe(1);
+  });
+
+  it('true airspeed grows with altitude and the wind aloft moves the aircraft', { timeout: 120000 }, () => {
+    expect(tasFactor(10000)).toBeCloseTo(1.2);
+    const sim = appSim(29);
+    sim.observedWind = { direction: 270, speedKt: 20 };
+    const w = windAloft(sim, 10000);
+    expect(w.direction).toBe(300);
+    expect(w.speedKt).toBeGreaterThan(40);
+    const ac = inbound(sim, 'EDDH');
+    runUntil(sim, () => ac.request === 'checkIn', 60);
+    // Heading east at 250 kt IAS at FL100: about 300 kt true, and the tailwind component on top.
+    sim.transmit(`${ac.callsign} fly heading 090, reduce speed 250 knots`);
+    for (let t = 0; t < 240; t++) sim.tick(1);
+    expect(Math.round(ac.altitudeFt)).toBe(10000);
+    expect(ac.speed / 0.5144).toBeGreaterThan(320);
+    // It drifts: the track is right of the heading with the wind from the north-west.
+    expect(ac.radar!.track! - ac.heading).toBeGreaterThan(2);
+    // The crew asks for lower when kept at FL100 near the airport.
+    sim.transmit(`${ac.callsign} proceed direct STG`);
+    expect(runUntil(sim, () => ac.request === 'lower', 900)).toBe(true);
+    expect(last(sim, ac.callsign)).toMatch(/request descent$/);
   });
 });

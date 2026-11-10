@@ -1,6 +1,6 @@
 import type { Aircraft } from '../core/aircraft';
 import { KT_TO_MS, M_PER_NM, add, headingVector, length, scale, sub, type Vec2 } from '../core/geo';
-import { finalCoordinates, headingText, inConflict, toMagnetic } from '../core/radar';
+import { finalCoordinates, headingText, inConflict, offered, toMagnetic, windAloft } from '../core/radar';
 import type { Simulation } from '../core/simulation';
 import type { ScopeStyle } from './scope';
 
@@ -146,6 +146,8 @@ export class RadarScope {
   private pointers = new Map<number, { x: number; y: number }>();
   private pinchDist?: number;
   private longPress?: ReturnType<typeof setTimeout>;
+  /** Measuring tool: from a point or an aircraft (callsign) to the mouse, or to a pinned point. */
+  private measure?: { from: Vec2 | string; to?: Vec2 };
   /** Tag offsets (screen pixels) per callsign - the radar tags are placed independently of the ground scope. */
   private readonly offsets = new Map<string, Vec2>();
   /** Aircraft whose route stays drawn (menu "Show route"). */
@@ -356,6 +358,22 @@ export class RadarScope {
     c.addEventListener('pointerup', end);
     c.addEventListener('pointercancel', end);
     c.addEventListener('pointerleave', () => (this.mouse = undefined));
+    // Measuring tool (EuroScope: double click): from a point or an aircraft to the mouse; a second double click
+    // pins the end, a third one (or Escape) removes it.
+    c.addEventListener('dblclick', (e) => {
+      const r = c.getBoundingClientRect();
+      const sx = e.clientX - r.left;
+      const sy = e.clientY - r.top;
+      if (this.measure && !this.measure.to) {
+        this.measure.to = this.toWorld(sx, sy);
+        return;
+      }
+      const hit = this.hitTest(sx, sy);
+      this.measure = this.measure?.to && !hit ? undefined : { from: hit ? hit.callsign : this.toWorld(sx, sy) };
+    });
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') this.measure = undefined;
+    });
   }
 
   // ------------------------------------------------------------------ drawing
@@ -373,7 +391,44 @@ export class RadarScope {
     list.sort((a, b) => (a.callsign === this.selected ? 1 : 0) - (b.callsign === this.selected ? 1 : 0));
     for (const ac of list) this.drawTarget(ac, this.colorOf(ac, now));
     for (const ac of list) this.drawTag(ac, this.colorOf(ac, now));
+    this.drawMeasure();
     this.drawInfo();
+  }
+
+  /** Bearing (magnetic), distance and - from an aircraft - the flying time at its ground speed. */
+  private drawMeasure(): void {
+    const m = this.measure;
+    if (!m) return;
+    const ac = typeof m.from === 'string' ? this.sim.find(m.from) : undefined;
+    const from = typeof m.from === 'string' ? (this.shown.get(m.from)?.pos ?? ac?.pos) : m.from;
+    const to = m.to ?? (this.mouse ? this.toWorld(this.mouse.x, this.mouse.y) : undefined);
+    if (!from || !to) {
+      if (typeof m.from === 'string' && !ac) this.measure = undefined;
+      return;
+    }
+    const ctx = this.ctx;
+    const a = this.toScreen(from);
+    const b = this.toScreen(to);
+    const d = Math.hypot(to.x - from.x, to.y - from.y);
+    const brg = toMagnetic(this.sim, (Math.atan2(to.x - from.x, to.y - from.y) * 180) / Math.PI);
+    let text = `${headingText(brg)}\u00b0 ${(d / M_PER_NM).toFixed(1)}NM`;
+    if (ac && ac.speed > 1) {
+      const s = d / ac.speed;
+      text += ` ${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, '0')}`;
+    }
+    ctx.save();
+    ctx.strokeStyle = this.t.selected;
+    ctx.fillStyle = this.t.selected;
+    ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(a.x, a.y);
+    ctx.lineTo(b.x, b.y);
+    ctx.stroke();
+    ctx.font = `${Math.round(11 * this.tagScale)}px Consolas, Menlo, monospace`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    ctx.fillText(text, b.x + 8, b.y - 4);
+    ctx.restore();
   }
 
   /** Once per sweep: the targets jump to their new positions, the old ones become the history trail. */
@@ -388,7 +443,7 @@ export class RadarScope {
       seen.add(ac.callsign);
       const prev = this.shown.get(ac.callsign);
       const trail = prev ? [...prev.trail, prev.pos].slice(-HISTORY_DOTS) : [];
-      this.shown.set(ac.callsign, { pos: { ...ac.pos }, heading: ac.heading, trail });
+      this.shown.set(ac.callsign, { pos: { ...ac.pos }, heading: ac.radar?.track ?? ac.heading, trail });
     }
     for (const cs of [...this.shown.keys()]) if (!seen.has(cs)) this.shown.delete(cs);
   }
@@ -521,6 +576,8 @@ export class RadarScope {
     const blink = Math.floor(now / 500) % 2 === 0;
     if (inConflict(this.sim, ac.callsign)) return blink ? this.t.stca : this.t.assumed;
     if (ac.emergency) return this.t.emergency;
+    // Center offers the track (EuroScope: transfer to me): it flashes until you assume it.
+    if (offered(ac)) return blink ? this.t.incoming : this.t.other;
     const mine = this.sim.isOnMyFrequency(ac) && ac.frequency === 'APP';
     if (mine && ac.request && !ac.requestAck) return blink ? this.t.incoming : this.t.assumed;
     if (mine) return this.t.assumed;
@@ -636,10 +693,12 @@ export class RadarScope {
     const head: Part[] = [{ text: ac.callsign, item: 'callsign' }];
     if (ac.emergency) head.push({ text: ' PAN', color: this.t.emergency });
     if (mine && ac.request && !ac.requestAck) head.push({ text: ac.request === 'checkIn' ? ' C/I' : ' *' });
+    if (offered(ac)) head.push({ text: ' H/O' });
     lines.push(head);
     const alt = String(Math.round(ac.altitudeFt / 100)).padStart(3, '0');
     const trend = ac.verticalSpeedFpm > 300 ? '↑' : ac.verticalSpeedFpm < -300 ? '↓' : ' ';
-    const cfl = r ? String(Math.round(r.clearedFt / 100)).padStart(3, '0') : '';
+    // On the final approach the cleared level no longer applies: the approach clearance takes it down.
+    const cfl = ac.phase === 'approach' ? 'APP' : r ? String(Math.round(r.clearedFt / 100)).padStart(3, '0') : '';
     lines.push([{ text: `${alt}${trend}${cfl}`, item: 'level' }]);
     const gs = String(Math.round(ac.speed / KT_TO_MS)).padStart(3, '0');
     const third: Part[] = [{ text: r?.speedKt !== undefined ? `S${r.speedKt}` : gs, item: 'speed' }, { text: ' ' }];
@@ -726,6 +785,11 @@ export class RadarScope {
       const brg = toMagnetic(this.sim, (Math.atan2(w.x, w.y) * 180) / Math.PI);
       text += `   ${this.sim.config.airport.icao} ${headingText(brg)}° ${d.toFixed(1)} NM`;
     }
+    // Wind aloft at 5000 ft and FL100 (drift on headings).
+    const w5 = windAloft(this.sim, 5000);
+    const w10 = windAloft(this.sim, 10000);
+    const wt = (w: { direction: number; speedKt: number }) => `${headingText(toMagnetic(this.sim, w.direction))}/${Math.round(w.speedKt)}`;
+    text += `   WIND A50 ${wt(w5)}  FL100 ${wt(w10)}`;
     ctx.fillText(text, x + px + 6, y + 2);
   }
 

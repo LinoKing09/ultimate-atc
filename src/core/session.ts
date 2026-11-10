@@ -4,6 +4,7 @@
  * controller did (each action with the step it happened at), and restored by running the simulation again
  * from the start and repeating every action at its step - no aircraft, routes or radio queues are stored.
  */
+import { assumeTrack } from './radar';
 import type { AirportData } from './airport/types';
 import { acknowledgeCatc, catcAlert } from './conflicts';
 import { sendDcl } from './delivery';
@@ -25,6 +26,8 @@ export type SessionAction =
   | { k: 'askIntersections'; on: boolean }
   | { k: 'sendIntersections'; on: boolean }
   | { k: 'handoff'; callsign: string }
+  /** Radar: assume a track Center offers. */
+  | { k: 'assume'; callsign: string }
   | { k: 'dcl'; callsign: string; sid: string; squawk: string }
   | { k: 'catcAck'; callsign: string }
   /** Realistic control mode: a mark the controller entered in the lists by hand (see strips.ts). */
@@ -61,6 +64,10 @@ function apply(sim: Simulation, a: SessionAction): ActionResult {
       return sim.setAskIntersections(a.on);
     case 'sendIntersections':
       return sim.setSendIntersections(a.on);
+    case 'assume': {
+      const ac = sim.find(a.callsign);
+      return ac ? assumeTrack(sim, ac) : undefined;
+    }
     case 'handoff': {
       const ac = sim.find(a.callsign);
       return ac ? sim.requestHandoff(ac) : undefined;

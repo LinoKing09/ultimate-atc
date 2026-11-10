@@ -151,7 +151,7 @@ Every airport added in the future comes with its own briefing.
 | Interface size           | Size of the text and buttons (80-160 %)                                                    |
 | Tag size                 | Size of the aircraft data tags on the scope (80-200 %)                                     |
 | Data tags                | **Compact when zoomed out** (default): with the whole airport in view, tags show only the callsign - see [tags](#4-aircraft-tags-and-colours); **Always full** |
-| Aircraft menus           | **Simple** (default): menu entries are the full phrases; **Real**: short like EuroScope (`ALT` > `-FL080`). Radar (Approach / Departure) menus so far |
+| Aircraft menus           | **Simple** (default): menu entries are the full phrases; **Real**: short like EuroScope (`ALT` > `-FL080`, `LUAW 25`, `T/O 25`, `GND 118.605`) at every position |
 | Scope orientation        | Runway horizontal (like the chart) or north-up - the same as `ROT`                         |
 | Scope style              | **PHX night** (default), **PHX day**, **Modern**, **Phosphor**, **Map** or **Classic** - see [Scope styles](#scope-styles) |
 | Interface theme          | Colours of the toolbar, lists, menus and dialogs: **EuroScope** (default), **Glass**, **Midnight**, **Light**, **Amber console**, **Phosphor console** or **High contrast** - see [Interface themes](#interface-themes) |
@@ -619,9 +619,15 @@ The A-SMGCS runway monitoring (RMCA) warns when you give a take-off or landing c
 
 **The radar scope** (EuroScope style, north up, about 64 NM across): range rings every 10 NM, a dashed circle for your airspace (30 NM, not the real TMA boundary), the runway and the extended centre line of the landing runway with a tick every mile (long every 5 NM, 18 NM long), the published holdings dashed, navaids (hexagon) and fixes (triangle) with their names. The picture updates once per radar sweep (**4 s**); every target has a history trail of its last 6 positions and a **one-minute speed vector**. Your aircraft (on your frequency) have a square symbol and white tags, the others a diamond and green tags; a crew waiting for your answer flashes yellow (`C/I` = first call not answered yet), an **STCA** conflict flashes red, an emergency is magenta. At the bottom left: a 10 NM scale and the bearing / distance of the mouse from the airport.
 
+**Track states** (as in EuroScope): Center **offers** an arrival before it enters your airspace - its tag flashes with `H/O`. Click the tag (or *Accept hand-off* / `ASSUME` in its menu) to **assume** it; only then Center sends the crew to your frequency. Your tracks are white with a square symbol, the others green with a diamond.
+
+**Sector lists**: `INBOUND` (arrivals in the air: request or `H/O`, type, wake, origin, runway, level `AFL`, cleared level `CFL`, ground speed, assigned speed, heading or next fix, approach, distance to go, frequency) and `OUTBOUND` (departures: destination, SID, levels, requested level `RFL`, ground speed, heading or fix, the next sector with its frequency). Click a row to select the aircraft, double click to centre on it, right click for its menu; drag the title bar to move a list, `_` collapses it.
+
+**Measuring tool**: double click on the scope (or on an aircraft) and move the mouse: bearing (magnetic) and distance, from an aircraft also the flying time at its ground speed. A second double click pins the end point; a third one or **Esc** removes the line. The status line at the bottom shows the **wind aloft** at 5000 ft and FL100 - aircraft on a heading drift with it.
+
 **Routes** (EuroScope "show route"): the selected aircraft shows its route as white lines through every fix still ahead - SID, STAR, RNAV transition or direct-to - with the waypoint names (RNAV waypoints such as DS531 appear only there); dashed while it flies a heading. *Show route* / `ROUTE` in its menu keeps the route drawn when another aircraft is selected.
 
-**Menus** (*Settings -> Aircraft menus*): **Simple** - each entry is the phrase that is said (`Descend flight level 80`, `Turn left heading 250`); **Real** - short like EuroScope: `HDG` > `L` > `L250`, `ALT` > `-FL080` / `+FL140` / `-A5000` (+ climb, - descend, = maintain), `SPD` > `-200`, `DCT` > `LBU`, `TRANS` > `LBU25 ILS25`, `APP` > `ILS25`, `TWR 118.805`, `BAD 131.300`. Either way the full phrase goes on the radio.
+**Menus** (*Settings -> Aircraft menus*): **Simple** - each entry is the phrase that is said (`Descend flight level 80`, `Turn left heading 250`); **Real** - short like EuroScope, at every position (`PUSH`, `TAXI`, `LUAW 25`, `T/O 25`, `LAND 25`, `GND 118.605`); on the radar: `HDG` > `L` > `L250`, `ALT` > `-FL080` / `+FL140` / `-A5000` (+ climb, - descend, = maintain), `SPD` > `-200`, `DCT` > `LBU`, `TRANS` > `LBU25 ILS25`, `APP` > `ILS25`, `TWR 118.805`, `BAD 131.300`. Either way the full phrase goes on the radio.
 
 **The tag** (EuroScope style), each item clickable:
 
@@ -634,7 +640,7 @@ A320/M LTAI 7.4NM selected or hovered: type / wake, origin (departures: SID), di
 
 **Arrivals** (see [simulation](simulation.md#approach--departure-radar)):
 
-1. Center hands them over before their entry fix (LBU from the north, TEKSI east, REUTL south, BADSO west), descending to FL100 (TEKSI FL110): `Langen Radar, Eurowings 7AB, flight level 128, descending flight level 100, information R`. Answer: `Eurowings 7AB, Langen Radar, identified, descend altitude 5000 feet, QNH 1013`.
+1. Center offers them before their entry fix (tag flashing `H/O`): click the tag to assume. They then call (LBU from the north, TEKSI east, REUTL south, BADSO west), descending to FL100 (TEKSI FL110): `Langen Radar, Eurowings 7AB, flight level 128, descending flight level 100, information R`. Answer: `Eurowings 7AB, Langen Radar, identified, descend altitude 5000 feet, QNH 1013`.
 2. Without vectors they fly the STAR to their IAF (LBU or STG) and hold there. `cleared ILS approach runway 25` without a heading (or `via LBU 25 transition`) sends them along the RNAV transition: downwind, base and final - on the downwind you usually shorten it with vectors. Vector them onto a downwind and base (`turn left heading 070`), descend them (not below the MVA: 4000 ft, FL70 over the Black Forest), slow them down (`reduce speed 180 knots`) and space them: the SOP asks for **6 NM** at touchdown (12 NM in low visibility), wake turbulence more behind a heavy.
 3. Give an intercept heading of about 30° with the approach clearance: `turn right heading 220, cleared ILS approach runway 25` (the menu's *Approach* and *Heading* offer it). Intercept at or below the glide path (5000 ft at 11 NM for runway 25) - established too high, the crew asks for new vectors. `cleared ILS approach runway 25` without a heading: the crew flies to the final on its own (an intercept point 11 NM out).
 4. Hand them to Tower by 6 NM: `contact Stuttgart Tower 118.805` (+10). At 5 NM the crew asks for it; at 2.5 NM it changes over on its own (-5).
@@ -644,7 +650,7 @@ A320/M LTAI 7.4NM selected or hovered: type / wake, origin (departures: SID), di
 
 **Alerts**: STCA (less than 3 NM and 1000 ft, or closing to it within a minute): -25 for a real loss of separation. MSAW (cleared and descending below the MVA): -15.
 
-The radar is a **prototype**: no wind aloft, SIDs and STARs as direct lines, no arrival / departure list for the radar yet. See [roadmap](roadmap.md#road-to-20).
+The radar is a **prototype**: no wind on the final approach, no altitude or speed constraints on the procedures. See [roadmap](roadmap.md#road-to-20).
 
 ## 13. Score
 

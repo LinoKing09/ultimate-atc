@@ -113,6 +113,8 @@ export function requestLabel(ac: Aircraft): string {
       return 'C/I';
     case 'vectors':
       return 'HOLD';
+    case 'lower':
+      return 'DES';
     default:
       return '';
   }

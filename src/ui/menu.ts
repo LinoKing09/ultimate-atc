@@ -31,6 +31,9 @@ export class PopupMenu {
     if (e.key === 'Escape') this.close();
   };
 
+  /** Changes how the labels are shown (the "Real" menu style); the items themselves are not changed. */
+  transform?: (label: string) => string;
+
   get isOpen(): boolean {
     return this.stack.length > 0;
   }
@@ -73,7 +76,7 @@ export class PopupMenu {
       const hintText = typeof it.hint === 'function' ? it.hint() : it.hint;
       const hintEl = hintText !== undefined || typeof it.hint === 'function' ? h('span.hint', { text: hintText ?? '' }) : null;
       if (hintEl && typeof it.hint === 'function') this.live.push({ el: hintEl, fn: it.hint });
-      const row = h(`div.item${it.submenu ? '.sub' : ''}${it.disabled ? '.disabled' : ''}`, {}, it.label, hintEl);
+      const row = h(`div.item${it.submenu ? '.sub' : ''}${it.disabled ? '.disabled' : ''}`, {}, this.transform ? this.transform(it.label) : it.label, hintEl);
       const enter = () => {
         el.querySelectorAll('.item.open').forEach((n) => n.classList.remove('open'));
         it.onHover?.(true);

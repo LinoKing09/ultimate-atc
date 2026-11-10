@@ -72,7 +72,8 @@ export type PilotRequest =
   | 'vacated' // Tower: runway vacated (after landing or crossing), expects "contact ground"
   | 'radar' // Tower: departure airborne, expects "contact radar"
   | 'checkIn' // Radar: first call on your frequency, expects "identified" or an instruction
-  | 'vectors'; // Radar: arrival at the end of its STAR (holding), expects vectors or an approach clearance
+  | 'vectors'
+  | 'lower'; // Radar: arrival kept high near the airport asks for descent // Radar: arrival at the end of its STAR (holding), expects vectors or an approach clearance
 
 export interface Aircraft {
   callsign: string;

@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Realism pass for the radar (Approach / Departure)**:
+  - **True airspeed and wind aloft**: assigned speeds are indicated airspeeds, the true airspeed grows by 2 % per 1000 ft, and the wind aloft (derived from the surface wind: veering, stronger with height) moves the aircraft - on a heading they drift, on their own navigation and the localizer the crews correct for it. Tags and lists show the ground speed, the speed vector the track; the scope shows the wind at 5000 ft and FL100.
+  - **Track hand-over like EuroScope**: Center *offers* each arrival (tag flashing `H/O`) and sends the crew over only after you have assumed the track (click the tag, *Accept hand-off* / `ASSUME`); an offer ignored for 150 s comes anyway (-5).
+  - **Sector lists** `INBOUND` and `OUTBOUND` on the radar (levels, cleared levels, ground speed, heading or next fix, approach, distance to go, next sector).
+  - **Measuring tool**: double click on the scope or an aircraft for bearing, distance and flying time.
+  - Crews kept high near the airport ask: `request descent`.
+- **Real menu style at every position**: with *Settings -> Aircraft menus -> Real* the Delivery, Ground and Tower menus are short too (`PUSH`, `TAXI`, `LUAW 25`, `T/O 25`, `LAND 25`, `GND 118.605`).
+
 - **Performance window** (*Settings -> Performance -> Open performance window*, or **F6**): live statistics of the app over the last ~5 seconds - frame rate with a rating, frame time (average, 95 %, maximum), slow frames over 50 ms, how long the simulation and the drawing of the scope take per frame, the real simulation rate against the one set, aircraft, radio messages, scope canvas size, JS memory and processor cores. *Performance -> Overlay* shows a short line with the frame rate and frame times on the scope.
 
 - **SIDs, STARs and RNAV transitions (Approach / Departure, Stuttgart)**: departures fly the waypoints of their SID, arrivals their STAR (TEKSI via BABEG) and - with an approach clearance on their own navigation, or `via LBU 25 transition` - the RNAV transition to final (LBU, BADSO, REUTL, TEKSI for runways 25 and 07: downwind, base, final to UNSER / VATER). Routes after the AIP route descriptions and transition charts (2012 edition, the latest public one) with the published waypoint positions.

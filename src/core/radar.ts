@@ -118,6 +118,15 @@ export interface RadarState {
   msaw?: boolean;
   /** The crew asked for the frequency change to Tower on final. */
   askedTower?: boolean;
+  /** Track over the ground (degrees true) - with wind it differs from the heading. */
+  track?: number;
+  /**
+   * Center offers the track (EuroScope: transfer to me): the arrival is still on Center's frequency until you assume
+   * it; `acceptedAt` once you have.
+   */
+  offer?: { at: number; acceptedAt?: number };
+  /** The crew asked for lower (kept high near the airport). */
+  askedLower?: boolean;
   /** The RNAV transition to final the crew flies (its route is in `route`), e.g. "LBU 25". */
   transition?: string;
   /** Own navigation to the final: the gate before the intercept point is passed (or not needed). */
@@ -243,15 +252,82 @@ export function setupInbound(sim: Simulation, ac: Aircraft, origin: string): voi
   ac.altitudeFt = entry.levelFt + 2000 + Math.round(sim.variation(`${ac.callsign}:lvl`) * 2) * 1000;
   ac.onGround = false;
   ac.phase = 'inbound';
-  ac.frequency = 'APP';
+  // Still with Center: it offers you the track, and sends the crew over once you have assumed it.
+  ac.frequency = 'CTR';
   const ias = ac.altitudeFt > 10000 ? ARRIVAL_HIGH_KT : SPEED_LIMIT_FL100_KT;
-  ac.speed = ias * KT_TO_MS;
+  ac.speed = ias * tasFactor(ac.altitudeFt) * KT_TO_MS;
   ac.verticalSpeedFpm = -DESCENT_FPM;
   const route = [...new Set([entry.fix, ...(entry.via ?? []), entry.iaf])].filter((f) => as.fix(f));
-  ac.radar = { ...newState(ac, entry.levelFt, isFlightLevel(sim, entry.levelFt), route), holdAtEnd: entry.iaf };
+  ac.radar = { ...newState(ac, entry.levelFt, isFlightLevel(sim, entry.levelFt), route), holdAtEnd: entry.iaf, ias, offer: { at: sim.time } };
   ac.flightPlan.route = `${route.join(' ')} ${sim.config.airport.icao}`;
-  // The first call a few seconds after the hand-over from Center.
+}
+
+/** Center cancels an offer you do not answer after this long (s) and sends the arrival over anyway. */
+export const OFFER_TIMEOUT_S = 150;
+
+/**
+ * You assume a track Center offers (EuroScope: accept the transfer). Center then tells the crew to contact you; it
+ * calls 3-11 s later. Returns an error text if there is nothing to assume.
+ */
+export function assumeTrack(sim: Simulation, ac: Aircraft): string | undefined {
+  const o = ac.radar?.offer;
+  if (!o || o.acceptedAt !== undefined) return `${ac.callsign} is not offered to you.`;
+  o.acceptedAt = sim.time;
   ac.standbyUntil = sim.time + 3 + 8 * sim.variation(`${ac.callsign}:ci`);
+  return undefined;
+}
+
+/** True while Center offers the track and you have not assumed it. */
+export function offered(ac: Aircraft): boolean {
+  return !!ac.radar?.offer && ac.radar.offer.acceptedAt === undefined;
+}
+
+function updateOffer(sim: Simulation, ac: Aircraft): void {
+  const r = ac.radar!;
+  const o = r.offer;
+  if (!o) return;
+  if (o.acceptedAt === undefined && sim.time - o.at > OFFER_TIMEOUT_S) {
+    sim.stats.radarHandoffsMissed++;
+    sim.updateScore();
+    sim.system(`${sim.airspace!.sectors[0]?.callsign ?? 'Center'} (landline): ${ac.callsign} is entering your airspace and you have not assumed it - it is coming to your frequency now.`, 'warning', ac.callsign);
+    assumeTrack(sim, ac);
+  }
+  if (o.acceptedAt !== undefined && sim.time >= ac.standbyUntil) {
+    r.offer = undefined;
+    ac.frequency = 'APP';
+  }
+}
+
+// ====================================================================== wind and speeds
+
+/** True airspeed from indicated: about 2 % more per 1000 ft. */
+export function tasFactor(altitudeFt: number): number {
+  return 1 + 0.02 * Math.max(0, altitudeFt) / 1000;
+}
+
+/**
+ * Wind aloft from the surface wind (a simple boundary-layer model): it veers by up to 30 degrees in the first 3000 ft
+ * above the aerodrome and gets stronger with height (1.5 times the surface wind plus 2 kt per 1000 ft, at most
+ * 60 kt). Returns where it blows from (degrees true) and its speed (kt).
+ */
+export function windAloft(sim: Simulation, altitudeFt: number): { direction: number; speedKt: number } {
+  const sfc = sim.observedWind;
+  const agl = Math.max(0, altitudeFt - sim.airport.data.elevationFt);
+  const k = Math.min(1, agl / 3000);
+  return { direction: normHeading(sfc.direction + 30 * k), speedKt: Math.min(60, sfc.speedKt * (1 + 0.5 * k) + (2 * agl) / 1000) };
+}
+
+/** The wind as a velocity over the ground (m/s). */
+function windVector(sim: Simulation, altitudeFt: number): Vec2 {
+  const w = windAloft(sim, altitudeFt);
+  return scale(headingVector(w.direction + 180), w.speedKt * KT_TO_MS);
+}
+
+/** The heading to fly for a track over the ground (wind correction angle), degrees true. */
+function headingForTrack(track: number, tasMs: number, wind: Vec2): number {
+  const cross = dot(wind, headingVector(track + 90));
+  const wca = Math.asin(clamp(cross / Math.max(1, tasMs), -0.5, 0.5));
+  return normHeading(track - (wca * 180) / Math.PI);
 }
 
 // ====================================================================== the per-step update
@@ -274,7 +350,9 @@ export function updateRadar(sim: Simulation, dt: number): void {
         sim.tower.setupApproach(ac, Math.min(16, Math.max(9, sim.distanceToThresholdNm(ac))), sim.runwayFor(ac.assignedStand, ac.type, 'arrival', sim.bearingTo(ac.flightPlan.departure)));
         continue;
       }
+      updateOffer(sim, ac);
       arrivalCheckIn(sim, ac);
+      askLower(sim, ac);
       fly(sim, ac, dt);
       checkLocalizer(sim, ac);
     } else if (ac.phase === 'climb' || ac.phase === 'goAround') {
@@ -340,6 +418,20 @@ export function approachKind(sim: Simulation, runway: string): 'ILS' | 'RNP' | '
   return sim.approachTypeFor(runway) as 'ILS' | 'RNP' | 'LOC';
 }
 
+/** Level at the cleared level within this distance of the airport (NM) and above this altitude (ft): the crew asks for lower. */
+const ASK_LOWER_NM = 22;
+const ASK_LOWER_ABOVE_FT = 7000;
+
+/** Kept high close to the airport (and not holding): "request descent", once. */
+function askLower(sim: Simulation, ac: Aircraft): void {
+  const r = ac.radar!;
+  if (r.askedLower || !r.checkedIn || ac.frequency !== 'APP' || ac.request || r.hold || r.approach) return;
+  if (r.clearedFt <= ASK_LOWER_ABOVE_FT || Math.abs(ac.altitudeFt - r.clearedFt) > 100 || length(ac.pos) > ASK_LOWER_NM * M_PER_NM) return;
+  if (sim.frequency.hasQueued(ac.callsign)) return;
+  r.askedLower = true;
+  sim.radarCall(ac, 'lower', `${sim.tel(ac)}, request descent`);
+}
+
 /** The first call of an arrival Center has handed over: level, cleared level and the ATIS letter. */
 function arrivalCheckIn(sim: Simulation, ac: Aircraft): void {
   const r = ac.radar!;
@@ -386,7 +478,8 @@ function fly(sim: Simulation, ac: Aircraft, dt: number): void {
   // Speed.
   const target = targetIas(ac, r);
   r.ias = r.ias < target ? Math.min(target, r.ias + ACCEL_KT_S * dt) : Math.max(target, r.ias - DECEL_KT_S * dt);
-  ac.speed = r.ias * KT_TO_MS;
+  const tas = r.ias * tasFactor(ac.altitudeFt) * KT_TO_MS;
+  const wind = windVector(sim, ac.altitudeFt);
 
   // Vertical: towards the cleared level, slowing the rate in the last few hundred feet.
   const diff = r.clearedFt - ac.altitudeFt;
@@ -397,11 +490,17 @@ function fly(sim: Simulation, ac: Aircraft, dt: number): void {
   ac.altitudeFt += (ac.verticalSpeedFpm / 60) * dt;
   if (Math.abs(r.clearedFt - ac.altitudeFt) < 1) ac.altitudeFt = r.clearedFt;
 
-  // Lateral.
+  // Lateral: on own navigation, in the hold and on the localizer the crew corrects for the wind (it flies a track);
+  // on an assigned heading it drifts.
   const desired = desiredHeading(sim, ac, r);
-  if (desired !== undefined) turnTowards(ac, desired, r.locCaptured || r.heading === undefined ? undefined : r.turn, dt);
-  const v = headingVector(ac.heading);
-  ac.pos = { x: ac.pos.x + v.x * ac.speed * dt, y: ac.pos.y + v.y * ac.speed * dt };
+  if (desired !== undefined) {
+    const onHeading = r.heading !== undefined && !r.locCaptured;
+    turnTowards(ac, onHeading ? desired : headingForTrack(desired, tas, wind), r.locCaptured || r.heading === undefined ? undefined : r.turn, dt);
+  }
+  const v = add(scale(headingVector(ac.heading), tas), wind);
+  ac.speed = length(v);
+  r.track = headingOf(v);
+  ac.pos = { x: ac.pos.x + v.x * dt, y: ac.pos.y + v.y * dt };
 }
 
 function turnTowards(ac: Aircraft, desired: number, turn: 'left' | 'right' | undefined, dt: number): void {
@@ -537,7 +636,7 @@ function checkLocalizer(sim: Simulation, ac: Aircraft): void {
     r.locCaptured = false;
     return;
   }
-  const angle = headingDiff(end.heading, ac.heading);
+  const angle = headingDiff(end.heading, r.track ?? ac.heading);
   if (!r.locCaptured) {
     if (Math.abs(angle) > LOC_MAX_INTERCEPT) return;
     // Still on the STAR or a direct-to: the localizer is armed only outside 6 NM (crossing the final course near
@@ -611,7 +710,7 @@ function startFinal(sim: Simulation, ac: Aircraft, end: RunwayEnd, along: number
 /** The approach profile of the Tower (180 kt intercept, 160 kt to 4 NM) starting at the present speed if it is lower. */
 function profileFrom(sim: Simulation, ac: Aircraft): ApproachProfile {
   const p = sim.tower.profileOf(ac);
-  const ias = ac.speed / KT_TO_MS;
+  const ias = ac.radar?.ias ?? ac.speed / KT_TO_MS;
   return { ...p, interceptKt: Math.max(p.finalKt, Math.min(p.interceptKt, Math.round(ias))) };
 }
 
@@ -727,8 +826,8 @@ function updateRadarAlerts(sim: Simulation, active: boolean): void {
       // Close now, or closing to it within the look-ahead (straight lines).
       let conflict = d < RADAR_SEPARATION_NM - 0.05;
       if (!conflict && d < 8) {
-        const va = scale(headingVector(a.heading), a.speed);
-        const vb = scale(headingVector(b.heading), b.speed);
+        const va = scale(headingVector(a.radar?.track ?? a.heading), a.speed);
+        const vb = scale(headingVector(b.radar?.track ?? b.heading), b.speed);
         const rel = sub(b.pos, a.pos);
         const dv = sub(vb, va);
         const t = Math.min(STCA_LOOKAHEAD_S, Math.max(0, -dot(rel, dv) / Math.max(1e-6, dot(dv, dv))));
@@ -786,7 +885,7 @@ export interface RadarResult {
 
 /** Requests a radar instruction answers: the first call, the call from the hold, the question for Tower. */
 function answersRequest(ac: Aircraft): boolean {
-  return ac.request === 'checkIn' || ac.request === 'vectors' || ac.request === 'radar';
+  return ac.request === 'checkIn' || ac.request === 'vectors' || ac.request === 'radar' || ac.request === 'lower';
 }
 
 /**

@@ -1738,6 +1738,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
       vacated: `${stationName}, ${tel}, runway vacated, request taxi`,
       radar: `${stationName}, ${tel}, request frequency change`,
       checkIn: ac.radar ? checkInText(sim, ac) : `${stationName}, ${tel}`,
+      lower: `${stationName}, ${tel}, request descent`,
       vectors: ac.radar?.hold ? `${stationName}, ${tel}, holding over ${ac.radar.hold.fix}, request further instructions` : `${stationName}, ${tel}, request vectors`,
     };
     // Datalink requests (DCL) are not repeated by voice.

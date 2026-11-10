@@ -472,6 +472,7 @@ If you don't answer, pilots **call again** after 60-90 seconds, up to five times
 | ---- | ------------- |
 | Handed over by Center | `Langen Radar, Eurowings 7AB, flight level 128, descending flight level 100, information R` |
 | After take-off | `Langen Radar, Eurowings 4AB, KUNOD2B departure, passing 2800 feet, climbing 5000 feet` |
+| Kept at a high level near the airport | `Eurowings 7AB, request descent` |
 | End of the STAR, no clearance | `Langen Radar, Eurowings 7AB, entering the hold over LBU, flight level 100, request further instructions` |
 | Too high when established | `... too high for the approach, maintaining 5000 feet, heading 252, request vectors for a new approach` |
 | 5 NM final, still with you | `Langen Radar, Eurowings 7AB, 5 miles final runway 25, request frequency change` |

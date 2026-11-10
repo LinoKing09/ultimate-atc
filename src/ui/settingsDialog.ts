@@ -230,7 +230,7 @@ export function showSettings(
             ['simple', 'Simple (full phrases)'],
             ['real', 'Real (EuroScope, short)'],
           ], (v) => (settings.menuStyle = v)),
-          'Radar (Approach / Departure): Simple shows every entry as the phrase that is said ("Descend flight level 80"); Real is short like EuroScope ("ALT" > "-FL080", "HDG" > "L250") - the full phrase is only on the radio',
+          'Simple shows every entry as the phrase that is said ("Descend flight level 80", "Line up and wait runway 25"); Real is short like EuroScope ("ALT" > "-FL080", "HDG" > "L250", "LUAW 25", "T/O 25", "GND 118.605") - the full phrase is only on the radio',
         ],
         [
           'Scope orientation',

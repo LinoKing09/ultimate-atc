@@ -241,6 +241,72 @@ function csCell(ac: Aircraft): string {
   return ac.emergency ? `${ac.callsign} PAN` : ac.callsign;
 }
 
+/** "128" / "A50": level in hundreds of feet, altitudes marked. */
+function levelCell(ft: number, fl: boolean): string {
+  return `${fl ? '' : 'A'}${String(Math.round(ft / 100)).padStart(3, '0')}`;
+}
+
+/** What the crew flies laterally: assigned heading, holding, next fix or the localizer. */
+function navCell(a: Aircraft): string {
+  const r = a.radar;
+  if (!r) return a.phase === 'approach' ? `LOC${a.runway ?? ''}` : '';
+  if (r.heading !== undefined) return `H${String(Math.round(r.heading) || 360).padStart(3, '0')}`;
+  if (r.hold) return `HLD ${r.hold.fix}`;
+  if (a.phase === 'approach' || r.locCaptured) return `LOC${a.runway ?? ''}`;
+  return r.route[0] ?? '';
+}
+
+/** EuroScope sector lists of the radar position: the arrivals (inbound) with level, cleared level, speed and distance. */
+export function radarInboundList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList {
+  return new TrafficList(
+    'INBOUND',
+    [
+      { key: 'req', label: 'REQ', cls: 'req', get: (a, sim, v) => (a.radar?.offer && a.radar.offer.acceptedAt === undefined ? 'H/O' : reqCell(a, sim, v)) },
+      { key: 'cs', label: 'C/S', cls: 'cs', get: csCell },
+      { key: 'type', label: 'ATYP', get: (a) => a.type.icao },
+      { key: 'wtc', label: 'W', get: (a) => a.type.wake },
+      { key: 'adep', label: 'ADEP', get: (a) => a.flightPlan.departure },
+      { key: 'rwy', label: 'RWY', get: (a) => a.runway ?? a.flightPlan.runway ?? '' },
+      { key: 'afl', label: 'AFL', get: (a, sim) => levelCell(a.altitudeFt, a.altitudeFt >= sim.transitionLevel(sim.atis.qnh) * 100) },
+      { key: 'cfl', label: 'CFL', get: (a) => (a.phase === 'approach' ? 'APP' : a.radar ? levelCell(a.radar.clearedFt, a.radar.clearedFl) : '') },
+      { key: 'gs', label: 'GS', get: (a) => String(Math.round(a.speed / 0.514444)) },
+      { key: 'asp', label: 'ASP', get: (a) => (a.radar?.speedKt ? String(a.radar.speedKt) : '') },
+      { key: 'nav', label: 'HDG/FIX', get: navCell },
+      { key: 'app', label: 'APP', get: (a) => (a.radar?.approach ? `${a.radar.approach.kind}${a.radar.approach.runway}` : '') },
+      { key: 'dtg', label: 'DTG', get: (a, sim) => `${sim.distanceToThresholdNm(a).toFixed(0)}` },
+      { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
+    ],
+    (a) => a.category === 'arrival' && !a.onGround && a.phase !== 'gone',
+    cb,
+    { left: '8px', top: '8px' },
+  );
+}
+
+/** The departures in the air (outbound): SID, levels, speed and the Center sector they go to. */
+export function radarOutboundList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList {
+  return new TrafficList(
+    'OUTBOUND',
+    [
+      { key: 'req', label: 'REQ', cls: 'req', get: reqCell },
+      { key: 'cs', label: 'C/S', cls: 'cs', get: csCell },
+      { key: 'type', label: 'ATYP', get: (a) => a.type.icao },
+      { key: 'wtc', label: 'W', get: (a) => a.type.wake },
+      { key: 'ades', label: 'ADES', get: (a) => a.flightPlan.destination },
+      { key: 'sid', label: 'SID', get: (a) => a.flightPlan.sid ?? '' },
+      { key: 'afl', label: 'AFL', get: (a, sim) => levelCell(a.altitudeFt, a.altitudeFt >= sim.transitionLevel(sim.atis.qnh) * 100) },
+      { key: 'cfl', label: 'CFL', get: (a) => (a.radar ? levelCell(a.radar.clearedFt, a.radar.clearedFl) : '') },
+      { key: 'rfl', label: 'RFL', get: (a) => String(a.flightPlan.cruiseFl) },
+      { key: 'gs', label: 'GS', get: (a) => String(Math.round(a.speed / 0.514444)) },
+      { key: 'nav', label: 'HDG/FIX', get: navCell },
+      { key: 'sec', label: 'NEXT', get: (a) => (a.radar?.sector ? `${a.radar.sector.name} ${a.radar.sector.frequency}` : '') },
+      { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
+    ],
+    (a) => a.category === 'departure' && !a.onGround && a.phase !== 'gone',
+    cb,
+    { right: '8px', top: '8px' },
+  );
+}
+
 export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList {
   return new TrafficList(
     'DEPARTURES',

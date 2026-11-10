@@ -4,7 +4,7 @@
  * controller did (each action with the step it happened at), and restored by running the simulation again
  * from the start and repeating every action at its step - no aircraft, routes or radio queues are stored.
  */
-import { assumeTrack } from './radar';
+import { assumeTrack, initiateTransfer } from './radar';
 import type { AirportData } from './airport/types';
 import { acknowledgeCatc, catcAlert } from './conflicts';
 import { sendDcl } from './delivery';
@@ -26,6 +26,12 @@ export type SessionAction =
   | { k: 'askIntersections'; on: boolean }
   | { k: 'sendIntersections'; on: boolean }
   | { k: 'handoff'; callsign: string }
+  /** Push-to-talk pressed / released: nobody starts a transmission while it is held. */
+  | { k: 'ptt'; on: boolean }
+  /** Voice-only (realistic) mode on / off: the crews then make read-back errors on the radar that you have to catch. */
+  | { k: 'voiceOnly'; on: boolean }
+  /** Radar: start the hand-over of a track to Tower or Center (EuroScope: initiate transfer). */
+  | { k: 'transfer'; callsign: string }
   /** Radar: assume a track Center offers. */
   | { k: 'assume'; callsign: string }
   | { k: 'dcl'; callsign: string; sid: string; squawk: string }
@@ -64,6 +70,16 @@ function apply(sim: Simulation, a: SessionAction): ActionResult {
       return sim.setAskIntersections(a.on);
     case 'sendIntersections':
       return sim.setSendIntersections(a.on);
+    case 'ptt':
+      sim.frequency.setKeyed(sim.time, a.on);
+      return undefined;
+    case 'voiceOnly':
+      sim.voiceOnly = a.on;
+      return undefined;
+    case 'transfer': {
+      const ac = sim.find(a.callsign);
+      return ac ? initiateTransfer(sim, ac) : undefined;
+    }
     case 'assume': {
       const ac = sim.find(a.callsign);
       return ac ? assumeTrack(sim, ac) : undefined;

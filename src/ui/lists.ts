@@ -2,6 +2,7 @@ import type { Aircraft } from '../core/aircraft';
 import type { Simulation } from '../core/simulation';
 import { formatDuration, h } from './dom';
 import { hhmm } from '../core/delivery';
+import { assignedHeading, assignedLevel } from '../core/radar';
 import { clearedTo, shownRequest, statusCode, type StatusStyle } from './labels';
 import type { TagItem } from './scope';
 
@@ -250,7 +251,8 @@ function levelCell(ft: number, fl: boolean): string {
 function navCell(a: Aircraft): string {
   const r = a.radar;
   if (!r) return a.phase === 'approach' ? `LOC${a.runway ?? ''}` : '';
-  if (r.heading !== undefined) return `H${String(Math.round(r.heading) || 360).padStart(3, '0')}`;
+  const hdg = assignedHeading(r);
+  if (hdg !== undefined) return `H${String(Math.round(hdg) || 360).padStart(3, '0')}`;
   if (r.hold) return `HLD ${r.hold.fix}`;
   if (a.phase === 'approach' || r.locCaptured) return `LOC${a.runway ?? ''}`;
   return r.route[0] ?? '';
@@ -268,12 +270,13 @@ export function radarInboundList(cb: ConstructorParameters<typeof TrafficList>[3
       { key: 'adep', label: 'ADEP', get: (a) => a.flightPlan.departure },
       { key: 'rwy', label: 'RWY', get: (a) => a.runway ?? a.flightPlan.runway ?? '' },
       { key: 'afl', label: 'AFL', get: (a, sim) => levelCell(a.altitudeFt, a.altitudeFt >= sim.transitionLevel(sim.atis.qnh) * 100) },
-      { key: 'cfl', label: 'CFL', get: (a) => (a.phase === 'approach' ? 'APP' : a.radar ? levelCell(a.radar.clearedFt, a.radar.clearedFl) : '') },
+      { key: 'cfl', label: 'CFL', get: (a) => (a.phase === 'approach' ? 'APP' : a.radar ? levelCell(assignedLevel(a.radar), a.radar.clearedFl) : '') },
       { key: 'gs', label: 'GS', get: (a) => String(Math.round(a.speed / 0.514444)) },
       { key: 'asp', label: 'ASP', get: (a) => (a.radar?.speedKt ? String(a.radar.speedKt) : '') },
       { key: 'nav', label: 'HDG/FIX', get: navCell },
       { key: 'app', label: 'APP', get: (a) => (a.radar?.approach ? `${a.radar.approach.kind}${a.radar.approach.runway}` : '') },
       { key: 'dtg', label: 'DTG', get: (a, sim) => `${sim.distanceToThresholdNm(a).toFixed(0)}` },
+      { key: 'xfer', label: 'H/O', get: (a) => (a.radar?.transfer ? (a.radar.transfer.acceptedAt === undefined ? 'REQ' : 'ACC') : '') },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],
     (a) => a.category === 'arrival' && !a.onGround && a.phase !== 'gone',
@@ -294,11 +297,12 @@ export function radarOutboundList(cb: ConstructorParameters<typeof TrafficList>[
       { key: 'ades', label: 'ADES', get: (a) => a.flightPlan.destination },
       { key: 'sid', label: 'SID', get: (a) => a.flightPlan.sid ?? '' },
       { key: 'afl', label: 'AFL', get: (a, sim) => levelCell(a.altitudeFt, a.altitudeFt >= sim.transitionLevel(sim.atis.qnh) * 100) },
-      { key: 'cfl', label: 'CFL', get: (a) => (a.radar ? levelCell(a.radar.clearedFt, a.radar.clearedFl) : '') },
+      { key: 'cfl', label: 'CFL', get: (a) => (a.radar ? levelCell(assignedLevel(a.radar), a.radar.clearedFl) : '') },
       { key: 'rfl', label: 'RFL', get: (a) => String(a.flightPlan.cruiseFl) },
       { key: 'gs', label: 'GS', get: (a) => String(Math.round(a.speed / 0.514444)) },
       { key: 'nav', label: 'HDG/FIX', get: navCell },
       { key: 'sec', label: 'NEXT', get: (a) => (a.radar?.sector ? `${a.radar.sector.name} ${a.radar.sector.frequency}` : '') },
+      { key: 'xfer', label: 'H/O', get: (a) => (a.radar?.transfer ? (a.radar.transfer.acceptedAt === undefined ? 'REQ' : 'ACC') : '') },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],
     (a) => a.category === 'departure' && !a.onGround && a.phase !== 'gone',

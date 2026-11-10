@@ -125,6 +125,21 @@ export interface RadarState {
    * it; `acceptedAt` once you have.
    */
   offer?: { at: number; acceptedAt?: number };
+  /** The crew starts a turn / a level change only then (reaction time after the instruction). */
+  turnAt?: number;
+  levelAt?: number;
+  /** The level flown until `levelAt`. */
+  prevClearedFt?: number;
+  /**
+   * You started the hand-over of the track to Tower or Center (EuroScope: initiate transfer); `acceptedAt` once the
+   * next controller has accepted it - then you send the crew over ("contact ...").
+   */
+  transfer?: { to: 'TWR' | 'CTR'; at: number; acceptedAt?: number };
+  /**
+   * Voice-only mode: the crew read back (and flies) a wrong heading or level; `correct` is what you said. You have to
+   * catch it by repeating the instruction.
+   */
+  rbError?: { kind: 'heading' | 'level'; correct: number; said: number; at: number };
   /** The crew asked for lower (kept high near the airport). */
   askedLower?: boolean;
   /** The RNAV transition to final the crew flies (its route is in `route`), e.g. "LBU 25". */
@@ -262,6 +277,95 @@ export function setupInbound(sim: Simulation, ac: Aircraft, origin: string): voi
   ac.flightPlan.route = `${route.join(' ')} ${sim.config.airport.icao}`;
 }
 
+/** Reaction time of a crew before it starts a turn or a level change (s). */
+const REACTION_MIN_S = 3;
+const REACTION_SPREAD_S = 3;
+function reactionS(sim: Simulation, ac: Aircraft): number {
+  return REACTION_MIN_S + REACTION_SPREAD_S * sim.variation(`${ac.callsign}:react:${Math.floor(sim.time)}`);
+}
+
+/** Descending faster than this (ft/min) the deceleration is only this share of the normal one. */
+const DESCENT_SLOW_DECEL_FPM = 1000;
+const DESCENT_DECEL_FACTOR = 0.35;
+
+/** Voice-only mode: share of heading and level instructions that are read back wrong. */
+export const READBACK_SLIP_CHANCE = 0.05;
+/** A wrong read-back not corrected within this time (s) counts as missed. */
+export const READBACK_CATCH_S = 40;
+
+function readbackSlip(sim: Simulation, ac: Aircraft): boolean {
+  return sim.voiceOnly && !ac.radar!.rbError && sim.variation(`${ac.callsign}:rb:${Math.floor(sim.time)}`) < READBACK_SLIP_CHANCE;
+}
+
+/** The instruction repeated with the right value after a wrong read-back: caught. */
+function catchReadback(sim: Simulation, ac: Aircraft, kind: 'heading' | 'level', value: number): boolean {
+  const e = ac.radar!.rbError;
+  if (!e || e.kind !== kind) return false;
+  ac.radar!.rbError = undefined;
+  if (value !== e.correct) return false;
+  sim.stats.readbackErrorsCaught++;
+  sim.updateScore();
+  return true;
+}
+
+/** The next controller accepts a transfer you started after this long (s). */
+const TRANSFER_ACCEPT_MIN_S = 3;
+const TRANSFER_ACCEPT_SPREAD_S = 6;
+
+/**
+ * Starts the hand-over of one of your tracks (EuroScope: initiate transfer): an arrival to Tower once it is cleared
+ * for the approach, a departure to its Center sector. The next controller accepts after a few seconds; then you say
+ * "contact ...". Returns an error text if not possible.
+ */
+export function initiateTransfer(sim: Simulation, ac: Aircraft): string | undefined {
+  const r = ac.radar;
+  if (!r || ac.frequency !== 'APP' || !radarActive(sim) || ac.onGround) return `${ac.callsign} is not your track.`;
+  if (r.transfer) return undefined;
+  if (ac.category === 'arrival' && !r.approach && ac.phase !== 'approach') return `${ac.callsign}: Tower takes arrivals that are cleared for the approach.`;
+  r.transfer = { to: ac.category === 'arrival' ? 'TWR' : 'CTR', at: sim.time };
+  return undefined;
+}
+
+/** True if a hand-off of this track must be coordinated first (the next position is not yours). */
+export function transferNeeded(sim: Simulation, ac: Aircraft): boolean {
+  return ac.category === 'departure' || !sim.userControls(sim.stationFor('tower'));
+}
+
+/** "Contact ..." without an accepted transfer: the crew goes, but the next controller did not expect it. */
+export function checkTransfer(sim: Simulation, ac: Aircraft): void {
+  const r = ac.radar;
+  if (!r || !transferNeeded(sim, ac) || r.transfer?.acceptedAt !== undefined) return;
+  sim.stats.uncoordinatedTransfers++;
+  sim.updateScore();
+  sim.system(`${ac.callsign} sent to ${ac.category === 'arrival' ? 'Tower' : 'Center'} without a hand-over of the track - start the transfer first (tag or menu) and wait until it is accepted.`, 'warning', ac.callsign);
+}
+
+/** Transfers being accepted, wrong read-backs running out. */
+function updateCoordination(sim: Simulation): void {
+  for (const ac of sim.aircraft) {
+    const r = ac.radar;
+    if (!r) continue;
+    const t = r.transfer;
+    if (t && t.acceptedAt === undefined && sim.time - t.at >= TRANSFER_ACCEPT_MIN_S + TRANSFER_ACCEPT_SPREAD_S * sim.variation(`${ac.callsign}:xfer`)) t.acceptedAt = sim.time;
+    const e = r.rbError;
+    if (e && sim.time - e.at > READBACK_CATCH_S) {
+      r.rbError = undefined;
+      sim.stats.readbackErrorsMissed++;
+      sim.updateScore();
+      const what = e.kind === 'heading' ? `heading ${headingText(e.said)} instead of ${headingText(e.correct)}` : `${Math.round(e.said)} ft instead of ${Math.round(e.correct)} ft`;
+      sim.system(`${ac.callsign} read back ${what} and is flying it - listen to the read-backs and repeat the instruction when one is wrong.`, 'warning', ac.callsign);
+    }
+  }
+}
+
+/** What you assigned (the tag shows this, also while the crew flies a wrong read-back). */
+export function assignedHeading(r: RadarState): number | undefined {
+  return r.rbError?.kind === 'heading' ? r.rbError.correct : r.heading;
+}
+export function assignedLevel(r: RadarState): number {
+  return r.rbError?.kind === 'level' ? r.rbError.correct : r.clearedFt;
+}
+
 /** Center cancels an offer you do not answer after this long (s) and sends the arrival over anyway. */
 export const OFFER_TIMEOUT_S = 150;
 
@@ -366,6 +470,7 @@ export function updateRadar(sim: Simulation, dt: number): void {
       ac.phase = 'gone';
     }
   }
+  if (active) updateCoordination(sim);
   updateRadarAlerts(sim, active);
 }
 
@@ -477,12 +582,14 @@ function fly(sim: Simulation, ac: Aircraft, dt: number): void {
   const r = ac.radar!;
   // Speed.
   const target = targetIas(ac, r);
-  r.ias = r.ias < target ? Math.min(target, r.ias + ACCEL_KT_S * dt) : Math.max(target, r.ias - DECEL_KT_S * dt);
+  // "Go down or slow down": in a descent of more than 1000 ft/min the speed comes off at a third of the rate.
+  const decel = DECEL_KT_S * (ac.verticalSpeedFpm < -DESCENT_SLOW_DECEL_FPM ? DESCENT_DECEL_FACTOR : 1);
+  r.ias = r.ias < target ? Math.min(target, r.ias + ACCEL_KT_S * dt) : Math.max(target, r.ias - decel * dt);
   const tas = r.ias * tasFactor(ac.altitudeFt) * KT_TO_MS;
   const wind = windVector(sim, ac.altitudeFt);
 
   // Vertical: towards the cleared level, slowing the rate in the last few hundred feet.
-  const diff = r.clearedFt - ac.altitudeFt;
+  const diff = (sim.time < (r.levelAt ?? 0) && r.prevClearedFt !== undefined ? r.prevClearedFt : r.clearedFt) - ac.altitudeFt;
   const climbRate = ac.phase === 'goAround' ? GO_AROUND_FPM : Math.max(800, ac.type.climbFpm * (1 - Math.min(0.6, ac.altitudeFt / 40000)));
   const rate = diff > 0 ? climbRate : DESCENT_FPM;
   const fpm = Math.sign(diff) * Math.min(rate, Math.abs(diff) * 6);
@@ -492,7 +599,7 @@ function fly(sim: Simulation, ac: Aircraft, dt: number): void {
 
   // Lateral: on own navigation, in the hold and on the localizer the crew corrects for the wind (it flies a track);
   // on an assigned heading it drifts.
-  const desired = desiredHeading(sim, ac, r);
+  const desired = sim.time < (r.turnAt ?? 0) ? undefined : desiredHeading(sim, ac, r);
   if (desired !== undefined) {
     const onHeading = r.heading !== undefined && !r.locCaptured;
     turnTowards(ac, onHeading ? desired : headingForTrack(desired, tas, wind), r.locCaptured || r.heading === undefined ? undefined : r.turn, dt);
@@ -913,7 +1020,16 @@ export function execRadar(sim: Simulation, ac: Aircraft, c: Command): RadarResul
       const mag = c.present ? Math.round(toMagnetic(sim, ac.heading)) : c.heading!;
       // A vector off the final: the approach is broken off, the clearance stays for the next intercept.
       if (onFinal) breakOffFinal(sim, ac);
-      r.heading = normHeading(mag) || 360;
+      let flown = normHeading(mag) || 360;
+      // Voice-only mode: now and then the crew reads back (and flies) another heading.
+      const caught = catchReadback(sim, ac, 'heading', flown);
+      if (!c.present && !caught && readbackSlip(sim, ac)) {
+        const said = normHeading(flown + (sim.variation(`${ac.callsign}:rbh:${Math.floor(sim.time)}`) < 0.5 ? -20 : 30)) || 360;
+        r.rbError = { kind: 'heading', correct: flown, said, at: sim.time };
+        flown = said;
+      }
+      r.heading = flown;
+      r.turnAt = sim.time + reactionS(sim, ac);
       r.transition = undefined;
       r.turn = c.present ? undefined : c.turn;
       r.route = [];
@@ -922,7 +1038,7 @@ export function execRadar(sim: Simulation, ac: Aircraft, c: Command): RadarResul
       r.locCaptured = false;
       r.established = false;
       if (c.present) return { readback: `continue present heading ${headingText(mag)}`, answers };
-      return { readback: `${c.turn ? `${c.turn} ` : ''}heading ${headingText(mag)}`, answers };
+      return { readback: `${c.turn ? `${c.turn} ` : ''}heading ${headingText(flown)}`, answers };
     }
     case 'level': {
       const ft = 'fl' in c.altitude ? c.altitude.fl * 100 : c.altitude.feet;
@@ -937,10 +1053,22 @@ export function execRadar(sim: Simulation, ac: Aircraft, c: Command): RadarResul
       if (ac.category === 'departure' && ft > ac.flightPlan.cruiseFl * 100) return { unable: `unable, our requested cruising level is flight level ${ac.flightPlan.cruiseFl}` };
       const dir = ft > ac.altitudeFt + 50 ? 'climb' : ft < ac.altitudeFt - 50 ? 'descend' : 'maintain';
       if (c.verb !== 'maintain' && dir !== c.verb && dir !== 'maintain') return { unable: `confirm ${c.verb}, we are at ${levelText(Math.round(ac.altitudeFt / 100) * 100, isFlightLevel(sim, ac.altitudeFt))}` };
-      r.clearedFt = ft;
+      let flownFt = ft;
+      const caught = catchReadback(sim, ac, 'level', ft);
+      if (!caught && dir !== 'maintain' && readbackSlip(sim, ac)) {
+        // A level 1000 ft beyond the cleared one (the dangerous direction), staying a flight level or an altitude.
+        const said = ft + (dir === 'descend' ? -1000 : 1000);
+        if (said >= 3000 && (fl ? said >= tl : said <= ta)) {
+          r.rbError = { kind: 'level', correct: ft, said, at: sim.time };
+          flownFt = said;
+        }
+      }
+      r.prevClearedFt = r.clearedFt;
+      r.levelAt = sim.time + reactionS(sim, ac);
+      r.clearedFt = flownFt;
       r.clearedFl = fl;
       const verb = dir === 'climb' ? 'climbing' : dir === 'descend' ? 'descending' : 'maintaining';
-      return { readback: `${verb} ${levelText(ft, fl)}`, answers };
+      return { readback: `${verb} ${levelText(flownFt, fl)}`, answers };
     }
     case 'speed': {
       if (onFinal) return finalSpeed(sim, ac, c, answers);
@@ -963,6 +1091,7 @@ export function execRadar(sim: Simulation, ac: Aircraft, c: Command): RadarResul
       if (!sim.airspace!.fix(c.fix)) return { unable: `unable, confirm fix ${c.fix}` };
       if (onFinal) return { unable: `unable, we are established on final runway ${ac.runway}` };
       r.route = [c.fix];
+      r.turnAt = sim.time + reactionS(sim, ac);
       r.transition = undefined;
       r.heading = undefined;
       r.turn = undefined;
@@ -976,6 +1105,7 @@ export function execRadar(sim: Simulation, ac: Aircraft, c: Command): RadarResul
       if (!sim.airspace!.fix(c.fix)) return { unable: `unable, confirm fix ${c.fix}` };
       if (onFinal) return { unable: `unable, we are established on final runway ${ac.runway}` };
       r.route = [c.fix];
+      r.turnAt = sim.time + reactionS(sim, ac);
       r.transition = undefined;
       r.heading = undefined;
       r.turn = undefined;

@@ -478,6 +478,8 @@ If you don't answer, pilots **call again** after 60-90 seconds, up to five times
 | 5 NM final, still with you | `Langen Radar, Eurowings 7AB, 5 miles final runway 25, request frequency change` |
 | Go-around | `Langen Radar, Eurowings 7AB, going around, climbing 5000 feet, heading 252` |
 
+**Spoken radar phrases**: numbers digit by digit (`heading two seven zero`, `one eight zero knots`, `flight level eight zero`, `flight level one hundred`), `I L S` / `R N P` letter by letter; common mis-hearings are corrected (`turn write` -> right, `the send` -> descend, `heading to seven zero` -> 270, `nots` -> knots, `clear ILS` -> cleared ILS).
+
 ## Spoken input
 
 Speech recognition (see the [user guide](user-guide.md#9-voice)) produces plain words, which are normalised before parsing:

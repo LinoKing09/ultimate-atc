@@ -47,6 +47,8 @@ export const READBACK_WAIT_S = 5;
 export const CALL_GAP_AFTER_ATC_S = 2;
 /** Transmissions with at least this priority (read-backs, urgent reports such as "stopping") ignore these gaps. */
 const URGENT_PRIORITY = 5;
+/** Longest time push-to-talk blocks the frequency (seconds), in case its release gets lost. */
+export const PTT_MAX_S = 30;
 
 export class Frequency {
   private busyUntil = 0;
@@ -59,6 +61,23 @@ export class Frequency {
    */
   private reserved?: { callsign: string; until: number };
   private nextId = 1;
+  /** The controller holds the push-to-talk key (until then at the latest): no pilot starts a transmission. */
+  private keyedUntil = 0;
+
+  /**
+   * The controller presses (or releases) push-to-talk: while it is held nobody starts to transmit - a pilot who
+   * hears the frequency being used waits. At most PTT_MAX_S, in case a release gets lost.
+   */
+  setKeyed(now: number, on: boolean): void {
+    this.keyedUntil = on ? now + PTT_MAX_S : 0;
+    // After the release the pilots leave the same gap as after a transmission.
+    if (!on) this.callsFrom = Math.max(this.callsFrom, now + CALL_GAP_AFTER_ATC_S);
+  }
+
+  /** True while the controller holds push-to-talk. */
+  isKeyed(now: number): boolean {
+    return now < this.keyedUntil;
+  }
 
   constructor(
     readonly frequency: string,
@@ -168,7 +187,7 @@ export class Frequency {
       q.expiresAt = now + q.ttl;
       return true;
     });
-    if (this.isBusy(now)) return;
+    if (this.isBusy(now) || this.isKeyed(now)) return;
     const waitingFor = this.awaitingReplyFrom(now);
     if (!waitingFor) this.reserved = undefined;
     const ready = this.queue.filter((q) => q.notBefore <= now && (!waitingFor || q.callsign === waitingFor) && (q.priority >= URGENT_PRIORITY || now >= this.callsFrom));

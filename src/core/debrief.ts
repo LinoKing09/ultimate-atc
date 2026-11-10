@@ -20,6 +20,7 @@ export const SCORE_TABLE: { key: keyof Stats; label: string; points: number }[] 
   { key: 'separationLosses', label: 'Take-offs with too little spacing', points: -10 },
   { key: 'radarSeparationLosses', label: 'Losses of radar separation (STCA: 3 NM / 1000 ft)', points: -25 },
   { key: 'radarHandoffsMissed', label: 'Radar hand-offs the crews had to make themselves', points: -5 },
+  { key: 'uncoordinatedTransfers', label: 'Crews sent on without a hand-over of the track', points: -2 },
   { key: 'mvaViolations', label: 'Aircraft vectored below the minimum vectoring altitude (MSAW)', points: -15 },
   { key: 'goAroundsInstructed', label: 'Go-arounds you instructed', points: -5 },
   { key: 'readbackErrorsMissed', label: 'Wrong read-backs not corrected', points: -10 },

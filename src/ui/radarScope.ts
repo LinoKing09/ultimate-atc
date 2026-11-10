@@ -1,6 +1,6 @@
 import type { Aircraft } from '../core/aircraft';
 import { KT_TO_MS, M_PER_NM, add, headingVector, length, scale, sub, type Vec2 } from '../core/geo';
-import { finalCoordinates, headingText, inConflict, offered, toMagnetic, windAloft } from '../core/radar';
+import { assignedHeading, assignedLevel, finalCoordinates, headingText, inConflict, offered, toMagnetic, windAloft } from '../core/radar';
 import type { Simulation } from '../core/simulation';
 import type { ScopeStyle } from './scope';
 
@@ -150,6 +150,8 @@ export class RadarScope {
   private measure?: { from: Vec2 | string; to?: Vec2 };
   /** Tag offsets (screen pixels) per callsign - the radar tags are placed independently of the ground scope. */
   private readonly offsets = new Map<string, Vec2>();
+  /** The place each tag was put automatically (see autoOffset). */
+  private readonly autoSlot = new Map<string, number>();
   /** Aircraft whose route stays drawn (menu "Show route"). */
   private readonly routesShown = new Set<string>();
 
@@ -665,6 +667,32 @@ export class RadarScope {
     ctx.restore();
   }
 
+  /**
+   * Where a tag you have not moved goes: the first of six places around the target that covers no other tag and no
+   * other target - it keeps its place while that stays free, so the tags do not jump around.
+   */
+  private autoOffset(callsign: string, p: Vec2, w: number, h: number): Vec2 {
+    const slots: Vec2[] = [
+      { x: 18, y: -38 },
+      { x: 18, y: 14 },
+      { x: -w - 18, y: -38 },
+      { x: -w - 18, y: 14 },
+      { x: 18, y: -38 - h },
+      { x: -w - 18, y: -38 - h },
+    ];
+    const free = (o: Vec2) => {
+      const x = p.x + o.x;
+      const y = p.y + o.y;
+      if (this.tagRects.some((t) => t.callsign !== callsign && x < t.x + t.w + 2 && x + w + 2 > t.x && y < t.y + t.h + 2 && y + h + 2 > t.y)) return false;
+      return !this.symbolHits.some((s) => s.callsign !== callsign && s.x > x - 6 && s.x < x + w + 6 && s.y > y - 6 && s.y < y + h + 6);
+    };
+    const kept = this.autoSlot.get(callsign) ?? 0;
+    const order = [kept, ...slots.map((_, i) => i).filter((i) => i !== kept)];
+    const pick = order.find((i) => free(slots[i])) ?? kept;
+    this.autoSlot.set(callsign, pick);
+    return slots[pick];
+  }
+
   /** Shows (or hides) the route of an aircraft also when it is not selected. */
   toggleRoute(callsign: string): void {
     if (this.routesShown.has(callsign)) this.routesShown.delete(callsign);
@@ -685,43 +713,51 @@ export class RadarScope {
     const ctx = this.ctx;
     const s = this.shown.get(ac.callsign)!;
     const p = this.toScreen(s.pos);
-    const off = this.offsets.get(ac.callsign) ?? DEFAULT_OFFSET;
     const r = ac.radar;
     const mine = ac.frequency === 'APP' && this.sim.isOnMyFrequency(ac);
+    const detailed = ac.callsign === this.selected || this.hover?.callsign === ac.callsign;
+    // Tag families (EuroScope): the full tag for your tracks and those offered to you, a short one (callsign, level,
+    // speed) for the others, the detailed one with a fourth line for the selected or hovered track.
+    const concerned = mine || offered(ac) || detailed;
     type Part = { text: string; item?: RadarTagItem; color?: string };
     const lines: Part[][] = [];
     const head: Part[] = [{ text: ac.callsign, item: 'callsign' }];
     if (ac.emergency) head.push({ text: ' PAN', color: this.t.emergency });
     if (mine && ac.request && !ac.requestAck) head.push({ text: ac.request === 'checkIn' ? ' C/I' : ' *' });
     if (offered(ac)) head.push({ text: ' H/O' });
+    // Your transfer to the next controller: ">TWR" while it is offered, "TWR" (accepted) when you can send the crew over.
+    if (mine && r?.transfer) head.push({ text: r.transfer.acceptedAt === undefined ? ` >${r.transfer.to}` : ` ${r.transfer.to}`, color: r.transfer.acceptedAt === undefined ? this.t.incoming : this.t.other });
     lines.push(head);
     const alt = String(Math.round(ac.altitudeFt / 100)).padStart(3, '0');
     const trend = ac.verticalSpeedFpm > 300 ? '↑' : ac.verticalSpeedFpm < -300 ? '↓' : ' ';
     // On the final approach the cleared level no longer applies: the approach clearance takes it down.
-    const cfl = ac.phase === 'approach' ? 'APP' : r ? String(Math.round(r.clearedFt / 100)).padStart(3, '0') : '';
-    lines.push([{ text: `${alt}${trend}${cfl}`, item: 'level' }]);
+    const cfl = ac.phase === 'approach' ? 'APP' : r ? String(Math.round(assignedLevel(r) / 100)).padStart(3, '0') : '';
     const gs = String(Math.round(ac.speed / KT_TO_MS)).padStart(3, '0');
+    if (!concerned) lines.push([{ text: `${alt}${trend} ${gs}` }]);
+    else lines.push([{ text: `${alt}${trend}${cfl}`, item: 'level' }]);
     const third: Part[] = [{ text: r?.speedKt !== undefined ? `S${r.speedKt}` : gs, item: 'speed' }, { text: ' ' }];
-    if (r?.heading !== undefined) third.push({ text: `H${headingText(r.heading)}`, item: 'heading' });
+    const hdg = r ? assignedHeading(r) : undefined;
+    if (hdg !== undefined) third.push({ text: `H${headingText(hdg)}`, item: 'heading' });
     else if (r?.hold) third.push({ text: `HLD ${r.hold.fix}`, item: 'route' });
     else if (r?.route[0]) third.push({ text: r.route[0], item: 'route' });
     else if (ac.phase === 'approach' || r?.locCaptured) third.push({ text: `LOC${ac.runway ?? ''}`, item: 'heading' });
     // Own navigation (no assigned heading, no fix): nothing assigned.
     else third.push({ text: 'H---', item: 'heading' });
     if (r?.approach) third.push({ text: ` ${r.approach.kind === 'ILS' ? 'I' : r.approach.kind === 'LOC' ? 'L' : 'R'}${r.approach.runway}`, item: 'approach' });
-    lines.push(third);
-    // Selected or hovered: type and wake, destination / SID and the distance to the threshold on final.
-    if (ac.callsign === this.selected || this.hover?.callsign === ac.callsign) {
+    if (concerned) lines.push(third);
+    // Selected or hovered: type and wake, squawk, destination / SID and the distance to the threshold on final.
+    if (detailed) {
       const extra = ac.category === 'departure' ? (ac.flightPlan.sid ?? ac.flightPlan.destination) : ac.flightPlan.departure;
       const end = ac.runway ? this.sim.airport.runwayEnd(ac.runway) : undefined;
       const fin = end && ac.category === 'arrival' && (ac.phase === 'approach' || r?.locCaptured) ? ` ${(-finalCoordinates(end, ac.pos).along / M_PER_NM).toFixed(1)}NM` : '';
-      lines.push([{ text: `${ac.type.icao}/${ac.type.wake} ${extra}${fin}` }]);
+      lines.push([{ text: `${ac.type.icao}/${ac.type.wake} ${ac.flightPlan.squawk} ${extra}${fin}` }]);
     }
     const k = this.tagScale;
     ctx.font = `${Math.round(11 * k)}px Consolas, Menlo, monospace`;
     const lh = Math.round(12 * k);
     const w = Math.max(...lines.map((l) => ctx.measureText(l.map((x) => x.text).join('')).width)) + 4;
     const h = lines.length * lh + 2;
+    const off = this.offsets.get(ac.callsign) ?? this.autoOffset(ac.callsign, p, w, h);
     const tx = p.x + off.x;
     const ty = p.y + off.y;
     ctx.save();

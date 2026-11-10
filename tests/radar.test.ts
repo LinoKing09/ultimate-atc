@@ -300,3 +300,84 @@ describe('EuroScope track hand-over, wind and speeds', () => {
     expect(last(sim, ac.callsign)).toMatch(/request descent$/);
   });
 });
+
+describe('round 2: spoken radar phrases, transfers, reaction, read-back errors, push-to-talk', () => {
+  it('understands radar phrases as they are spoken', { timeout: 120000 }, () => {
+    const c = ctx(['EWG7AB']);
+    expect(parseTransmission('eurowings seven alpha bravo turn left heading two seven zero', c).commands).toEqual([{ type: 'heading', heading: 270, turn: 'left' }]);
+    expect(parseTransmission('EWG7AB fly heading to seven zero', c).commands).toEqual([{ type: 'heading', heading: 270 }]);
+    expect(parseTransmission('EWG7AB the send flight level eight zero', c).commands).toEqual([{ type: 'level', altitude: { fl: 80 }, verb: 'descend' }]);
+    expect(parseTransmission('EWG7AB descend to altitude five thousand feet q n h one zero one three', c).commands).toEqual([
+      { type: 'level', altitude: { feet: 5000 }, verb: 'descend' },
+      { type: 'qnh', qnh: 1013 },
+    ]);
+    expect(parseTransmission('EWG7AB climb flight level one hundred', c).commands).toEqual([{ type: 'level', altitude: { fl: 100 }, verb: 'climb' }]);
+    expect(parseTransmission('EWG7AB turn write heading zero niner zero clear i l s approach runway two five', c).commands).toEqual([
+      { type: 'heading', heading: 90, turn: 'right' },
+      { type: 'approachClearance', kind: 'ILS', runway: '25' },
+    ]);
+    expect(parseTransmission('EWG7AB reduce speed one eight zero nots', c).commands).toEqual([{ type: 'speed', kt: 180 }]);
+  });
+
+  it('the crew starts a turn only after its reaction time', { timeout: 120000 }, () => {
+    const sim = appSim(31);
+    const ac = inbound(sim);
+    runUntil(sim, () => ac.request === 'checkIn', 60);
+    const before = ac.heading;
+    sim.transmit(`${ac.callsign} turn left heading 090`);
+    sim.tick(2);
+    expect(ac.heading).toBeCloseTo(before, 0);
+    for (let t = 0; t < 12; t++) sim.tick(1);
+    expect(Math.abs(ac.heading - before)).toBeGreaterThan(5);
+  });
+
+  it('a transfer is accepted after a few seconds; contact without it is not coordinated', { timeout: 120000 }, () => {
+    const sim = appSim(5, true);
+    let dep: Aircraft | undefined;
+    expect(runUntil(sim, () => !!(dep = sim.aircraft.find((a) => a.category === 'departure' && a.frequency === 'APP' && a.request === 'checkIn')), 3600)).toBe(true);
+    const d = dep!;
+    expect(perform(sim, { k: 'transfer', callsign: d.callsign })).toBeUndefined();
+    expect(d.radar!.transfer?.acceptedAt).toBeUndefined();
+    for (let t = 0; t < 10; t++) sim.tick(1);
+    expect(d.radar!.transfer?.acceptedAt).toBeDefined();
+    sim.transmit(`${d.callsign} contact Langen Radar ${d.radar!.sector!.frequency}`);
+    expect(runUntil(sim, () => d.frequency === 'CTR', 30)).toBe(true);
+    expect(sim.stats.uncoordinatedTransfers).toBe(0);
+  });
+
+  it('read-back errors only in voice-only mode, caught by repeating the instruction', { timeout: 120000 }, () => {
+    const count = (voiceOnly: boolean) => {
+      const sim = appSim(37);
+      sim.voiceOnly = voiceOnly;
+      const ac = inbound(sim);
+      runUntil(sim, () => ac.request === 'checkIn', 60);
+      let wrong = 0;
+      for (let i = 0; i < 200; i++) {
+        sim.transmit(`${ac.callsign} fly heading 100`);
+        if (ac.radar!.rbError) {
+          wrong++;
+          expect(ac.radar!.heading).not.toBe(100);
+          sim.transmit(`${ac.callsign} fly heading 100`);
+          expect(ac.radar!.rbError).toBeUndefined();
+          expect(ac.radar!.heading).toBe(100);
+        }
+        for (let t = 0; t < 7; t++) sim.tick(1);
+      }
+      return { wrong, caught: sim.stats.readbackErrorsCaught };
+    };
+    expect(count(false).wrong).toBe(0);
+    const v = count(true);
+    expect(v.wrong).toBeGreaterThan(0);
+    expect(v.caught).toBe(v.wrong);
+  });
+
+  it('nobody starts a transmission while push-to-talk is held', { timeout: 120000 }, () => {
+    const sim = appSim(41);
+    const ac = inbound(sim);
+    perform(sim, { k: 'ptt', on: true });
+    for (let t = 0; t < 25; t++) sim.tick(1);
+    expect(sim.messages.filter((m) => m.kind === 'pilot').length).toBe(0);
+    perform(sim, { k: 'ptt', on: false });
+    expect(runUntil(sim, () => ac.request === 'checkIn', 20)).toBe(true);
+  });
+});

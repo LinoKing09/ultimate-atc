@@ -42,7 +42,9 @@ identified | radar contact | turn left heading | turn right heading | fly headin
 descend altitude | descend to altitude | descend flight level | climb flight level | climb altitude | maintain altitude
 maintain flight level | descend and maintain | proceed direct | direct | hold over | as published
 cleared ils approach runway | cleared rnp approach runway | cleared localizer approach runway | report established
-report established on the localizer | reduce speed | increase speed | speed | no speed restrictions | contact langen radar
+report established on the localizer | hand over | break break | turn left | turn right | flight level one hundred
+descend altitude five thousand feet q n h | cleared i l s approach runway | cleared r n p approach runway | via | transition
+reduce speed | increase speed | speed | no speed restrictions | contact langen radar
 `;
 
 /** Words that stand alone and may come anywhere (digits, letters, numbers, sides). */

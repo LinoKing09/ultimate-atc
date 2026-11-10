@@ -146,6 +146,8 @@ export interface Stats {
   /** Approach / Departure: losses of radar separation (STCA), hand-offs the crews had to make themselves, MSAW warnings. */
   radarSeparationLosses: number;
   radarHandoffsMissed: number;
+  /** Approach / Departure: crews sent to Tower or Center without an accepted transfer of the track. */
+  uncoordinatedTransfers: number;
   mvaViolations: number;
   /** Minutes Approach held all arrivals on your request. */
   arrivalStopMinutes: number;
@@ -312,6 +314,7 @@ export class Simulation {
     departuresToCenter: 0,
     radarSeparationLosses: 0,
     radarHandoffsMissed: 0,
+    uncoordinatedTransfers: 0,
     mvaViolations: 0,
     slotsMissed: 0,
     curfewMissed: 0,
@@ -339,6 +342,8 @@ export class Simulation {
   forceRejectedTakeoff = false;
   /** Squawk readback errors in voice clearances: at random (4 %), never, or for the next clearance only (tutorials). */
   readbackErrors: 'random' | 'off' | 'next' = 'random';
+  /** Voice-only (realistic) control mode: the crews make read-back errors on the radar frequency (see radar.ts). */
+  voiceOnly = false;
 
   private listeners: { [K in keyof Events]: Listener<Events[K]>[] } = {
     message: [],

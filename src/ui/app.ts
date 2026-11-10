@@ -101,6 +101,7 @@ export class App {
   private radarCanvas?: HTMLCanvasElement;
   private radarView = false;
   private radarLists: TrafficList[] = [];
+  private pttKeyed = false;
   private viewBtn?: HTMLButtonElement;
   /** The scope shown now. */
   private get scope(): Scope | RadarScope {
@@ -479,6 +480,12 @@ export class App {
     };
     // MIC shows what the recogniser does: waiting for the microphone (amber), recording (red), finishing (dimmed).
     const setPhase = (phase: 'waiting' | 'recording' | 'processing' | 'idle') => {
+      // While you hold push-to-talk (and until the recogniser has what you said) no pilot starts a transmission.
+      const keyed = phase !== 'idle';
+      if (keyed !== this.pttKeyed) {
+        this.pttKeyed = keyed;
+        this.act({ k: 'ptt', on: keyed });
+      }
       for (const b of [this.micButton, this.pttButton]) {
         b.classList.toggle('waiting', phase === 'waiting');
         b.classList.toggle('listening', phase === 'recording');
@@ -836,6 +843,8 @@ export class App {
           : 'Both: type, speak or use the menus; the lists fill in from the radio again.',
       );
     }
+    // Voice-only: the crews' read-back errors on the radar (to catch by ear) only then.
+    if (this.sim.voiceOnly !== realistic) this.act({ k: 'voiceOnly', on: realistic });
     this.appliedRealistic = realistic;
     this.quickbarKey = '';
     this.updateQuickbar();
@@ -869,6 +878,10 @@ export class App {
     return {
       sim: this.sim,
       real: this.settings.menuStyle === 'real',
+      transfer: (ac) => {
+        const err = this.act({ k: 'transfer', callsign: ac.callsign });
+        if (err) this.toast(err);
+      },
       toggleRoute: (ac) => this.radarScope?.toggleRoute(ac.callsign),
       routeShown: (ac) => !!this.radarScope?.routeShown(ac.callsign),
       say: (ac, phrase) => this.say(ac, phrase),
@@ -1049,6 +1062,7 @@ export class App {
             { text: 'HOLD', re: /^(Hold over|HOLD)$/ },
             { text: 'TRANS', re: /^(Transition|TRANS)$/ },
             { text: 'APCH', re: /^(Approach|APP)$/ },
+            { text: 'XFER', re: /^(Hand-over to .*transfer the track\)|XFER )/ },
             { text: ac.category === 'arrival' ? 'TWR' : 'CTR', re: /^(Contact |TWR |[A-Z]{3} \d)/ },
           ]
         : pos === 'DEL'

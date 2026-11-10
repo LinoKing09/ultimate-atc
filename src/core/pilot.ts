@@ -17,7 +17,7 @@ import { minutesToHhmm } from './time';
 import { lvpInForce } from './met';
 import { apronClosed, takeoffsSuspended } from './weather';
 import { holdShortS } from './holdShort';
-import { checkInText, execRadar, radarActive } from './radar';
+import { checkInText, checkTransfer, execRadar, radarActive } from './radar';
 import { deicingMinutesLeft, freePads, needsDeicing, onPad, padUser, startDeicing, updateDeicing } from './deicing';
 
 /**
@@ -1423,6 +1423,7 @@ function execHandoff(sim: Simulation, ac: Aircraft, stationType: StationType | u
       }
       // Approach: an arrival handed to Tower on final.
       if (fromRadar && ac.category === 'arrival' && type === tower) {
+        checkTransfer(sim, ac);
         sim.stats.arrivalsToTower++;
         sim.updateScore();
       }
@@ -1462,6 +1463,7 @@ function handoffToCenter(sim: Simulation, ac: Aircraft, frequency: string | unde
       ac.request = null;
       r.toCenter = true;
       sim.frequency.cancel(ac.callsign);
+      checkTransfer(sim, ac);
       sim.stats.departuresToCenter++;
       sim.updateScore();
       if (said !== sector.frequency) sim.system(`${ac.callsign} went to ${said}, but its exit fix belongs to sector ${sector.name} (${sector.frequency}) - Center took it over (landline).`, 'warning', ac.callsign);

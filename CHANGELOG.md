@@ -6,6 +6,14 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Radar, second realism round**:
+  - **Hand-over of tracks to Tower and Center like EuroScope**: start the transfer (*Hand-over to ...* / `XFER`), the next controller accepts after a few seconds (tag `>TWR`, then `TWR`), then `contact ...`; a crew sent on without it costs 2 points.
+  - **Tag families**: full tags for your tracks, short ones for the others, a detailed one (type / wake, squawk, origin or SID) for the selected or hovered track; tags place themselves so they do not overlap.
+  - **Pilot behaviour**: a reaction time of 3-6 s before turns and level changes; in a descent of more than 1000 ft/min the speed comes off only slowly ("go down or slow down").
+  - **Read-back errors on the radar - only in the voice-only (realistic) mode**: 5 % of the heading and level instructions are read back wrong and flown that way; repeat the instruction to correct it (+5), otherwise a missed read-back (-10).
+- **Push-to-talk blocks the frequency**: while you hold PTT / MIC no pilot starts a transmission.
+- **Speech recognition**: spoken numbers for speeds (`one eight zero knots`), `flight level one hundred`, `I L S` / `R N P` spelled, and more mis-hearings of radar phrases corrected (`turn write`, `the send`, `heading to seven zero`, `nots`, `clear ILS`); more radar phrases in the recogniser's grammar.
+
 - **Realism pass for the radar (Approach / Departure)**:
   - **True airspeed and wind aloft**: assigned speeds are indicated airspeeds, the true airspeed grows by 2 % per 1000 ft, and the wind aloft (derived from the surface wind: veering, stronger with height) moves the aircraft - on a heading they drift, on their own navigation and the localizer the crews correct for it. Tags and lists show the ground speed, the speed vector the track; the scope shows the wind at 5000 ft and FL100.
   - **Track hand-over like EuroScope**: Center *offers* each arrival (tag flashing `H/O`) and sends the crew over only after you have assumed the track (click the tag, *Accept hand-off* / `ASSUME`); an offer ignored for 150 s comes anyway (-5).

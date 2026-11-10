@@ -18,7 +18,7 @@ export interface VoskGrammar {
  * wrong): abbreviations letter by letter, names as they are pronounced on the radio.
  */
 const SPOKEN: Record<string, string> = {
-  qnh: 'q n h', ctot: 'see tot', atis: 'a tis', dme: 'd m e', hpa: 'h p a', sid: 'sid', xray: 'x ray', juliett: 'juliet',
+  ils: 'i l s', rnp: 'r n p', qnh: 'q n h', ctot: 'see tot', atis: 'a tis', dme: 'd m e', hpa: 'h p a', sid: 'sid', xray: 'x ray', juliett: 'juliet',
   readback: 'read back', followme: 'follow me', hectopascal: 'hector pascal', hectopascals: 'hector pascal', deicing: 'de icing',
   eurowings: 'euro wings', speedbird: 'speed bird', sunexpress: 'sun express', sunturk: 'sun turk', hansaline: 'hansa line',
   tuijet: 'tui jet', airfrans: 'air france', corendon: 'coren don', koreanair: 'korean air', royalair: 'royal air', iceair: 'ice air',

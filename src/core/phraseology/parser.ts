@@ -91,12 +91,42 @@ const VOICE_FIXES: [string, string][] = [
   ['whiz air', 'wizz air'],
   ['it arrow', 'itarrow'],
   ['frequency changed approved', 'frequency change approved'],
+  // Radar phrases as the recognisers hear them.
+  ['i l s', 'ils'],
+  ['eye l s', 'ils'],
+  ['i l as', 'ils'],
+  ['r n p', 'rnp'],
+  ['our n p', 'rnp'],
+  ['q n h', 'qnh'],
+  ['clear ils', 'cleared ils'],
+  ['clear for the ils', 'cleared ils'],
+  ['cleared for ils', 'cleared ils'],
+  ['clear rnp', 'cleared rnp'],
+  ['turn write', 'turn right'],
+  ['turn rite', 'turn right'],
+  ['turn lift', 'turn left'],
+  ['turn laughed', 'turn left'],
+  ['the send', 'descend'],
+  ['de send', 'descend'],
+  ['this end', 'descend'],
+  ['flight level one hundred', 'flight level 100'],
+  ['flight level two hundred', 'flight level 200'],
+  ['fly hitting', 'fly heading'],
+  ['present hitting', 'present heading'],
+  ['radar contacts', 'radar contact'],
+  ['proceed directs', 'proceed direct'],
+  ['proceed the wrecked', 'proceed direct'],
+  ['hold over the', 'hold over'],
+  ['report establish', 'report established'],
+  ['no speed restriction', 'no speed restrictions'],
 ];
 
 const VOICE_WORD_FIXES: Record<string, string> = {
   gulf: 'golf', eco: 'echo', charley: 'charlie', mic: 'mike', mik: 'mike', juliette: 'juliett', kilos: 'kilo',
   victa: 'victor', sierr: 'sierra', siera: 'sierra', romio: 'romeo', alfa: 'alpha', bravos: 'bravo',
-  decent: 'descend', descent: 'descend', decend: 'descend', heding: 'heading', identify: 'identified',
+  decent: 'descend', descent: 'descend', decend: 'descend', descending: 'descend', descended: 'descend', heding: 'heading', hitting: 'heading', headings: 'heading',
+  identify: 'identified', identifies: 'identified', climbed: 'climb', climbing: 'climb', nots: 'knots', notes: 'knots', nods: 'knots', altitudes: 'altitude',
+  levels: 'level', directs: 'direct', transitions: 'transition', establish: 'established', localiser: 'localizer',
   taxis: 'taxi', texi: 'taxi', approve: 'approved', improved: 'approved', proved: 'approved',
   phasing: 'facing', pacing: 'facing', tails: 'tail', canceled: 'cancelled',
   pushbacks: 'pushback', clearer: 'clear', won: 'one', ate: 'eight',
@@ -170,7 +200,10 @@ export function tokenize(input: string): string[] {
       continue;
     }
     const prevTok = out[out.length - 1];
-    const numberContext = prevTok !== undefined && ['runway', 'stand', 'number', 'gate', 'in'].includes(prevTok);
+    // "heading to seven zero", "flight level for zero": a number is expected, "to" / "for" are 2 / 4 - but only when
+    // digits follow ("descend to altitude ..." keeps its "to").
+    const digitNext = /^\d+$/.test(nextRaw) || !!NUMBER_WORDS[nextRaw] || TENS_WORDS[nextRaw] !== undefined;
+    const numberContext = prevTok !== undefined && (['runway', 'stand', 'number', 'gate', 'in'].includes(prevTok) || (['heading', 'level', 'squawk', 'speed'].includes(prevTok) && digitNext));
     if (TENS_WORDS[t] !== undefined) {
       // "twenty five" -> 25, "twenty" -> 20
       const unit = NUMBER_WORDS[raw[i + 1] ?? ''];
@@ -1472,7 +1505,8 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       c.next();
       c.accept('speed');
       c.accept('to');
-      const kt = Number(c.next());
+      // Typed ("180") or spoken digit by digit ("one eight zero").
+      const kt = readNumber(c) ?? NaN;
       c.accept('knots', 'knot');
       const sp: Extract<Command, { type: 'speed' }> = { type: 'speed', kt };
       if (c.accept('until')) {

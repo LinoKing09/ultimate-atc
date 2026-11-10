@@ -1,6 +1,6 @@
 import type { Aircraft } from '../core/aircraft';
 import { M_PER_NM, distance, headingDiff } from '../core/geo';
-import { headingText, isFlightLevel, toMagnetic } from '../core/radar';
+import { headingText, isFlightLevel, toMagnetic, transferNeeded } from '../core/radar';
 import type { Simulation } from '../core/simulation';
 import type { MenuItem } from './menu';
 import type { RadarTagItem } from './radarScope';
@@ -20,6 +20,8 @@ export interface RadarMenuContext {
   resetTag: (ac: Aircraft) => void;
   /** EuroScope-style short entries. */
   real: boolean;
+  /** Starts the hand-over of the track to Tower / Center (EuroScope: initiate transfer). */
+  transfer?: (ac: Aircraft) => void;
   /** Show / hide the route of the aircraft on the radar (and whether it is shown). */
   toggleRoute?: (ac: Aircraft) => void;
   routeShown?: (ac: Aircraft) => boolean;
@@ -228,6 +230,14 @@ export function radarItems(ctx: RadarMenuContext, ac: Aircraft): MenuItem[] {
       { label: real ? 'TRANS' : 'Transition', hint: r?.transition, submenu: () => transitionItems(ctx, ac) },
       { label: real ? 'APP' : 'Approach', hint: r?.approach ? `${r.approach.kind} ${r.approach.runway}` : undefined, submenu: () => approachItems(ctx, ac) },
     );
+  }
+  // Hand-over like EuroScope: first the track (the next controller accepts it), then the crew ("contact").
+  if (ctx.transfer && transferNeeded(ctx.sim, ac)) {
+    const t = r?.transfer;
+    const to = ac.category === 'arrival' ? 'Tower' : (r?.sector?.callsign ?? 'Center');
+    const short = ac.category === 'arrival' ? 'TWR' : (r?.sector?.name ?? 'CTR');
+    if (!t) items.push({ label: real ? `XFER ${short}` : `Hand-over to ${to} (transfer the track)`, action: () => ctx.transfer!(ac) });
+    else items.push({ label: real ? `XFER ${short}` : `Hand-over to ${to}`, hint: t.acceptedAt === undefined ? (real ? 'REQ' : 'waiting for acceptance') : real ? 'ACC' : 'accepted - send the crew over', disabled: true });
   }
   items.push(handoffItem(ctx, ac), { divider: true, label: '' });
   items.push(entry(ctx, ac, 'standby', real ? 'STBY' : 'standby'), entry(ctx, ac, 'say again', real ? 'SAY AGN' : 'say again'), { divider: true, label: '' });

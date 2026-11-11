@@ -4,6 +4,7 @@ import type { StationType } from '../src/core/airport/types';
 import { distance } from '../src/core/geo';
 import { defaultRunwayKey } from '../src/core/runways';
 import { Simulation } from '../src/core/simulation';
+import type { Density } from '../src/core/levels';
 import { AIRPORTS } from '../src/data/airports';
 import { createBot } from './bot';
 
@@ -19,6 +20,12 @@ const env = (globalThis as { process?: { env: Record<string, string | undefined>
 const RUN = !!env.SOAK || env.npm_lifecycle_event === 'soak';
 const SEEDS = Number(env.SOAK_SEEDS ?? 3);
 const ONLY = env.SOAK_AIRPORT?.toUpperCase();
+/** Traffic density (default medium); `SOAK_DENSITY=heavy` is the 2.0 test of the large airports. */
+const DENSITY = (env.SOAK_DENSITY ?? 'medium') as Density;
+/** Also Tower alone (the AI runs Ground): `SOAK_AI_GROUND=1`. */
+const AI_GROUND = !!env.SOAK_AI_GROUND;
+/** Session length (s), default one hour. */
+const LENGTH_S = Number(env.SOAK_HOURS ?? 1) * 3600;
 
 /** An aircraft on the ground that has not moved for this long (s), and is not parked or waiting at a holding point, is stuck. */
 export const STUCK_S = 1200;
@@ -46,11 +53,11 @@ describe.skipIf(!RUN)('soak', () => {
       const roles = airport.stations.map((s) => s.type).filter((r): r is StationType => r === 'DEL' || r === 'GND' || r === 'TWR');
       const runways = [...new Set(airport.runwayOps.map((o) => defaultRunwayKey(airport, o.runway)))];
       // Ground alone (the AI runs the rest) where the airport has Ground, and all positions together.
-      const setups: StationType[][] = [...(roles.includes('GND') ? [['GND' as StationType]] : []), roles];
+      const setups: StationType[][] = [...(roles.includes('GND') ? [['GND' as StationType]] : []), ...(AI_GROUND && roles.includes('TWR') && roles.includes('GND') ? [['TWR' as StationType]] : []), roles];
       for (const runway of runways) {
         for (const positions of setups) {
           for (let seed = 1; seed <= SEEDS; seed++) {
-            const sim = new Simulation({ airport, position: positions[0], positions, runway, density: 'medium', seed, events: true, scenario: { heavyLevel: seed % 3 === 0 ? 3 : 0 } });
+            const sim = new Simulation({ airport, position: positions[0], positions, runway, density: DENSITY, seed, events: true, scenario: { heavyLevel: seed % 3 === 0 ? 3 : 0 } });
             const bot = createBot(sim);
             let deadlockCalls = 0;
             sim.on('message', (m) => {
@@ -59,7 +66,7 @@ describe.skipIf(!RUN)('soak', () => {
             const moved = new Map<string, { x: number; y: number; t: number }>();
             const stuck = new Map<string, string>();
             const t0 = performance.now();
-            for (let t = 0; t < 3600; t++) {
+            for (let t = 0; t < LENGTH_S; t++) {
               sim.tick(1);
               bot();
               for (const ac of sim.aircraft) {

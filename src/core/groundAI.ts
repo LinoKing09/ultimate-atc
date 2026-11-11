@@ -253,7 +253,9 @@ const HANDOFF_SLOT_MARGIN_S = 120;
  */
 function readyForTower(sim: Simulation, ac: Aircraft): boolean {
   const dest = ac.routeDestination;
-  if (ac.phase !== 'taxi' || dest?.kind !== 'holdingPoint' || !ac.path) return false;
+  // Without a route of its own (e.g. vacated after a rejected take-off, its old route to the holding point
+  // still on record) it needs Ground's taxi instruction first.
+  if (ac.phase !== 'taxi' || dest?.kind !== 'holdingPoint' || !ac.path || !ac.route) return false;
   const from = HANDOFF_MIN_M + (HANDOFF_MAX_M - HANDOFF_MIN_M) * sim.variation(`${ac.callsign}:handoff`);
   if (ac.path.length - ac.s > from) return false;
   // Only on the last two taxiways of the route (EDDS runway 07: from L2 on, not yet on M).

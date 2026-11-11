@@ -1,5 +1,5 @@
 import { approachProfile, targetSpeedKt, timeOnFinalS } from './approach';
-import { M_PER_NM } from './geo';
+import { M_PER_NM, distance } from './geo';
 import { aircraftType, type AircraftType } from '../data/aircraftTypes';
 import { AIRLINES, type Airline } from '../data/airlines';
 import type { Stand } from './airport/airport';
@@ -15,6 +15,8 @@ import { LVP_ARRIVAL_SPACING_NM, LVP_DEPARTURE_GAP_NM, lvpInForce } from './met'
 import { ENTRY_INTERVAL_S, radarActive, setupInbound } from './radar';
 
 const SPAWN_DISTANCE_NM = 12;
+/** A new departure does not appear on a stand where a moving aircraft is closer than half the two wingspans plus this (m). */
+const APPEAR_CLEARANCE_M = 10;
 /** Largest wingspan of a code D stand (m): stands up to this size are used by all aircraft up to code D. */
 const NARROW_STAND_MAX_M = 52;
 /** Chance that a generated arrival declares a medical emergency (with special events on). */
@@ -322,7 +324,28 @@ export class TrafficGenerator {
     return s;
   }
 
-  private pickStand(type: AircraftType, airline: Airline, except?: Aircraft): Stand | undefined {
+  private pickStand(type: AircraftType, airline: Airline, except?: Aircraft, appearNow = false): Stand | undefined {
+    const any = this.standCandidates(type, airline, except).filter((s) => !appearNow || !this.movingNear(s, type));
+    if (!any.length) return undefined;
+    // Keep the wide-body stands (code E-F) and the alternative positions (e.g. 40D over 40) available:
+    // aircraft up to code D take any other stand up to code D, larger ones the smallest stand that fits.
+    const narrow = any.filter((s) => s.maxWingspanM <= NARROW_STAND_MAX_M && !this.sim.airport.alternativeStands.has(s.id.toUpperCase()));
+    if (type.wingspanM <= NARROW_STAND_MAX_M && narrow.length) return this.sim.rng.pick(narrow);
+    const minSpan = Math.min(...any.map((s) => s.maxWingspanM));
+    return this.sim.rng.pick(any.filter((s) => s.maxWingspanM === minSpan));
+  }
+
+  /**
+   * An aircraft moving on the ground (pushing back, starting up, taxiing) whose wings reach over the stand: a
+   * departure must not appear there now (a wide-body pushed back from the stand next to it sweeps over it).
+   */
+  private movingNear(s: Stand, type: AircraftType): boolean {
+    return this.sim.aircraft.some(
+      (o) => o.onGround && ['pushback', 'startup', 'taxi', 'vacating'].includes(o.phase) && distance(o.pos, s.pos) < (o.type.wingspanM + type.wingspanM) / 2 + APPEAR_CLEARANCE_M,
+    );
+  }
+
+  private standCandidates(type: AircraftType, airline: Airline, except?: Aircraft): Stand[] {
     const ga = airline.callsignStyle === 'reg';
     // Business jets prefer the GA stands, cargo airlines the cargo stands, airlines the airline stands; others
     // take cargo stands only when nothing else is free (cargo airlines the other way round).
@@ -331,14 +354,7 @@ export class TrafficGenerator {
     const preferred = this.sim.freeStands(type.wingspanM, (s) => use(s) === kind, except);
     const notCargo = () => this.sim.freeStands(type.wingspanM, (s) => use(s) !== 'cargo', except);
     const cargo = () => this.sim.freeStands(type.wingspanM, (s) => use(s) === 'cargo', except);
-    const any = preferred.length ? preferred : kind === 'cargo' ? notCargo() : notCargo().concat(cargo());
-    if (!any.length) return undefined;
-    // Keep the wide-body stands (code E-F) and the alternative positions (e.g. 40D over 40) available:
-    // aircraft up to code D take any other stand up to code D, larger ones the smallest stand that fits.
-    const narrow = any.filter((s) => s.maxWingspanM <= NARROW_STAND_MAX_M && !this.sim.airport.alternativeStands.has(s.id.toUpperCase()));
-    if (type.wingspanM <= NARROW_STAND_MAX_M && narrow.length) return this.sim.rng.pick(narrow);
-    const minSpan = Math.min(...any.map((s) => s.maxWingspanM));
-    return this.sim.rng.pick(any.filter((s) => s.maxWingspanM === minSpan));
+    return preferred.length ? preferred : kind === 'cargo' ? notCargo() : notCargo().concat(cargo());
   }
 
   // ------------------------------------------------------------------ spawning
@@ -359,7 +375,8 @@ export class TrafficGenerator {
     readyIn = planned;
     // Small airports: the last free stands are kept for arrivals.
     if (!opts.stand && this.standReserve && sim.freeStands(type.wingspanM).length <= this.standReserve) return undefined;
-    const stand = opts.stand ? sim.airport.stand(opts.stand) : this.pickStand(type, airline);
+    // A new departure appears on its stand: not where an aircraft moving close by would hit it.
+    const stand = opts.stand ? sim.airport.stand(opts.stand) : this.pickStand(type, airline, undefined, true);
     if (!stand) return undefined;
     const callsign = opts.callsign ?? this.makeCallsign(airline);
     const destination = sim.rng.pick(airline.destinations);

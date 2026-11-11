@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Fixed
+
+- **Köln/Bonn and Leipzig under heavy traffic** (soak test with heavy traffic and Tower alone, the AI running Ground): no collisions, no aircraft stuck for good any more.
+  - A new departure no longer appears on a stand while an aircraft moving close by sweeps over it (a B747-8 pushed back from the stand next to it hit it).
+  - The planned medical emergency of a departure happens 40 s into the taxi also while the simulator runs Ground: the AI Ground taxis it back to a stand (it used to wait until the aircraft reached your Tower frequency, deep in the queue to the runway, and blocked it).
+  - After a rejected take-off the AI Ground taxis the aircraft on (it handed it straight back to Tower because its old route to the holding point was still on record), and the crew reminds Tower that it has vacated like a landed aircraft.
+
 ## [1.9.0] - 2026-11-11
 
 ### Added

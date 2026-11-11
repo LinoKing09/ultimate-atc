@@ -798,7 +798,8 @@ function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: stri
     return true;
   }
   // Landed and vacated, still on Tower frequency (the first call may have been lost on a busy frequency).
-  if (ac.onGround && ac.phase === 'taxi' && ac.category === 'arrival' && !ac.route && ac.stoppedAt && now - ac.lastCallAt > 20) {
+  // (Also a departure after a rejected take-off - it waits for its instructions there too.)
+  if (ac.onGround && ac.phase === 'taxi' && (ac.category === 'arrival' || ac.rejectedTakeoff) && !ac.route && ac.stoppedAt && now - ac.lastCallAt > 20) {
     call(sim, ac, 'vacated', `${tel}, runway ${ac.runway ?? sim.runway} vacated via ${ac.exitName ?? ''}`);
     return true;
   }
@@ -1614,6 +1615,22 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
   towerResolveStuck(sim, ac);
   checkStandAhead(sim, ac);
   updateDeicing(sim, ac);
+  // The planned medical emergency happens 40 s into the taxi also while the simulator runs Ground: the crew tells
+  // Ground, which taxis it back (it used to wait until the crew reached your Tower frequency - deep in the queue to
+  // the runway, where there is no way back).
+  if (ac.plannedMedical && !sim.isOnMyFrequency(ac) && ac.phase === 'taxi' && ac.category === 'departure' && ac.taxiStartedAt !== undefined && now - ac.taxiStartedAt > 40) {
+    ac.plannedMedical = false;
+    ac.emergency = 'medical';
+    ac.emergencySince = now;
+    ac.returnToStand = true;
+    ac.assignedStand = sim.traffic.allocateStand(ac)?.id;
+    ac.request = null;
+    sim.system(`${sim.stationName(ac.frequency)}: ${ac.callsign} has declared a medical emergency while taxiing and returns to its stand.`, 'warning', ac.callsign);
+    if (ac.assignedStand && !aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand: ac.assignedStand }, via: [], holdShort: [], cross: [] })) {
+      aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand: ac.assignedStand }, via: [], holdShort: [], cross: [], turnAround: true });
+    }
+    return;
+  }
   if (!sim.isOnMyFrequency(ac)) return;
 
   // Special event: medical emergency while taxiing out.

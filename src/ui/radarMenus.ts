@@ -22,6 +22,8 @@ export interface RadarMenuContext {
   real: boolean;
   /** Starts the hand-over of the track to Tower / Center (EuroScope: initiate transfer). */
   transfer?: (ac: Aircraft) => void;
+  /** Starts the measuring tool at the aircraft. */
+  measure?: (ac: Aircraft) => void;
   /** Show / hide the route of the aircraft on the radar (and whether it is shown). */
   toggleRoute?: (ac: Aircraft) => void;
   routeShown?: (ac: Aircraft) => boolean;
@@ -241,6 +243,7 @@ export function radarItems(ctx: RadarMenuContext, ac: Aircraft): MenuItem[] {
   }
   items.push(handoffItem(ctx, ac), { divider: true, label: '' });
   items.push(entry(ctx, ac, 'standby', real ? 'STBY' : 'standby'), entry(ctx, ac, 'say again', real ? 'SAY AGN' : 'say again'), { divider: true, label: '' });
+  if (ctx.measure) items.push({ label: real ? 'MEAS' : 'Measure from here', hint: real ? undefined : 'bearing, distance, time', action: () => ctx.measure!(ac) });
   if (ctx.toggleRoute) {
     const shown = ctx.routeShown?.(ac);
     items.push({ label: real ? 'ROUTE' : shown ? 'Hide route' : 'Show route', hint: real && shown ? 'ON' : undefined, action: () => ctx.toggleRoute!(ac) });

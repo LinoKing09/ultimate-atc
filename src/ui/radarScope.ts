@@ -107,6 +107,8 @@ const PHOSPHOR: RadarTheme = {
   route: 'rgba(200, 255, 210, 0.9)',
 };
 
+/** Touch: a press this long (ms) on an empty place starts the measuring tool. */
+const LONG_PRESS_MS = 500;
 /** Radar sweep: the targets move on the screen once per sweep (s). */
 const SWEEP_S = 4;
 /** History trail: positions of the last sweeps. */
@@ -142,12 +144,15 @@ export class RadarScope {
   private lastSweep = -Infinity;
   private hover?: { callsign: string; item?: RadarTagItem };
   private mouse?: Vec2;
-  private drag?: { mode: 'pan' | 'tag'; callsign?: string; item?: RadarTagItem; lastX: number; lastY: number; moved: boolean; clientX: number; clientY: number; wasSelected: boolean };
+  private drag?: { mode: 'pan' | 'tag' | 'measure' | 'consumed'; callsign?: string; item?: RadarTagItem; lastX: number; lastY: number; moved: boolean; clientX: number; clientY: number; wasSelected: boolean };
   private pointers = new Map<number, { x: number; y: number }>();
   private pinchDist?: number;
   private longPress?: ReturnType<typeof setTimeout>;
-  /** Measuring tool: from a point or an aircraft (callsign) to the mouse, or to a pinned point. */
-  private measure?: { from: Vec2 | string; to?: Vec2 };
+  /**
+   * Measuring tool: from a point or an aircraft (callsign) to the mouse, or to a pinned point or aircraft.
+   * `awaitingTap`: on a touch screen, started from an aircraft's menu - the next tap sets the end.
+   */
+  private measure?: { from: Vec2 | string; to?: Vec2 | string; awaitingTap?: boolean };
   /** Tag offsets (screen pixels) per callsign - the radar tags are placed independently of the ground scope. */
   private readonly offsets = new Map<string, Vec2>();
   /** The place each tag was put automatically (see autoOffset). */
@@ -278,7 +283,11 @@ export class RadarScope {
       const sx = e.clientX - r.left;
       const sy = e.clientY - r.top;
       this.pointers.set(e.pointerId, { x: sx, y: sy });
-      c.setPointerCapture(e.pointerId);
+      try {
+        c.setPointerCapture(e.pointerId);
+      } catch {
+        /* the pointer is already gone */
+      }
       clearTimeout(this.longPress);
       if (this.pointers.size === 2) {
         const [a, b] = [...this.pointers.values()];
@@ -287,6 +296,13 @@ export class RadarScope {
         return;
       }
       const hit = this.hitTest(sx, sy);
+      // Touch: started from an aircraft's menu, the next tap sets the end point (or the aircraft tapped).
+      if (this.measure?.awaitingTap && e.pointerType !== 'mouse') {
+        this.measure = { from: this.measure.from, to: hit ? hit.callsign : this.toWorld(sx, sy) };
+        if (typeof this.measure.to === 'string' && this.measure.to === this.measure.from) this.measure = undefined;
+        this.drag = { mode: 'consumed', lastX: sx, lastY: sy, moved: false, clientX: e.clientX, clientY: e.clientY, wasSelected: false };
+        return;
+      }
       if (e.button === 2) {
         if (hit) {
           this.cb.onSelect(hit.callsign);
@@ -305,7 +321,20 @@ export class RadarScope {
             this.cb.onContextMenu(hit.callsign, e.clientX, e.clientY);
           }, 550);
         }
-      } else this.drag = { mode: 'pan', lastX: sx, lastY: sy, moved: false, clientX: e.clientX, clientY: e.clientY, wasSelected: false };
+      } else {
+        this.drag = { mode: 'pan', lastX: sx, lastY: sy, moved: false, clientX: e.clientX, clientY: e.clientY, wasSelected: false };
+        // Touch: a long press on an empty place starts the measuring tool there; the line follows the finger and
+        // stays where it is lifted.
+        if (e.pointerType !== 'mouse') {
+          this.longPress = setTimeout(() => {
+            if (!this.drag || this.drag.moved || this.pointers.size !== 1) return;
+            const p = this.toWorld(sx, sy);
+            this.measure = { from: p, to: p };
+            this.drag = { mode: 'measure', lastX: sx, lastY: sy, moved: false, clientX: e.clientX, clientY: e.clientY, wasSelected: false };
+            navigator.vibrate?.(15);
+          }, LONG_PRESS_MS);
+        }
+      }
     });
     c.addEventListener('pointermove', (e) => {
       const r = c.getBoundingClientRect();
@@ -327,6 +356,11 @@ export class RadarScope {
       }
       const d = this.drag;
       if (!d) return;
+      if (d.mode === 'measure') {
+        if (this.measure) this.measure.to = this.toWorld(sx, sy);
+        return;
+      }
+      if (d.mode === 'consumed') return;
       const dx = sx - d.lastX;
       const dy = sy - d.lastY;
       if (Math.abs(dx) + Math.abs(dy) > (this.touchMode ? 6 : 2)) {
@@ -350,7 +384,11 @@ export class RadarScope {
       }
       clearTimeout(this.longPress);
       const d = this.drag;
-      if (d && d.mode === 'pan' && !d.moved && e.button === 0) this.cb.onSelect(undefined);
+      // A tap on an empty place: deselects - and removes a measurement that is shown.
+      if (d && d.mode === 'pan' && !d.moved && e.button === 0) {
+        if (this.measure?.to && e.pointerType !== 'mouse') this.measure = undefined;
+        this.cb.onSelect(undefined);
+      }
       if (d && d.mode === 'tag' && !d.moved && d.callsign && (!this.touchMode || d.wasSelected)) {
         if (d.item) this.cb.onTagItem(d.callsign, d.item, d.clientX, d.clientY);
         else if (this.touchMode) this.cb.onContextMenu(d.callsign, d.clientX, d.clientY);
@@ -363,14 +401,16 @@ export class RadarScope {
     // Measuring tool (EuroScope: double click): from a point or an aircraft to the mouse; a second double click
     // pins the end, a third one (or Escape) removes it.
     c.addEventListener('dblclick', (e) => {
+      // Touch screens use the long press (a double tap there selects and opens the menu).
+      if (this.touchMode) return;
       const r = c.getBoundingClientRect();
       const sx = e.clientX - r.left;
       const sy = e.clientY - r.top;
+      const hit = this.hitTest(sx, sy);
       if (this.measure && !this.measure.to) {
-        this.measure.to = this.toWorld(sx, sy);
+        this.measure.to = hit ? hit.callsign : this.toWorld(sx, sy);
         return;
       }
-      const hit = this.hitTest(sx, sy);
       this.measure = this.measure?.to && !hit ? undefined : { from: hit ? hit.callsign : this.toWorld(sx, sy) };
     });
     window.addEventListener('keydown', (e) => {
@@ -403,11 +443,25 @@ export class RadarScope {
     if (!m) return;
     const ac = typeof m.from === 'string' ? this.sim.find(m.from) : undefined;
     const from = typeof m.from === 'string' ? (this.shown.get(m.from)?.pos ?? ac?.pos) : m.from;
-    const to = m.to ?? (this.mouse ? this.toWorld(this.mouse.x, this.mouse.y) : undefined);
-    if (!from || !to) {
-      if (typeof m.from === 'string' && !ac) this.measure = undefined;
+    // To an aircraft: its shown position (the distance between two targets, e.g. the spacing on final).
+    const toAc = typeof m.to === 'string' ? this.sim.find(m.to) : undefined;
+    const to = typeof m.to === 'string' ? (this.shown.get(m.to)?.pos ?? toAc?.pos) : (m.to ?? (this.mouse && !m.awaitingTap ? this.toWorld(this.mouse.x, this.mouse.y) : undefined));
+    if ((typeof m.from === 'string' && !ac) || (typeof m.to === 'string' && !toAc)) {
+      this.measure = undefined;
       return;
     }
+    if (from && m.awaitingTap) {
+      const p = this.toScreen(from);
+      this.ctx.save();
+      this.ctx.fillStyle = this.t.selected;
+      this.ctx.font = `${Math.round(11 * this.tagScale)}px Consolas, Menlo, monospace`;
+      this.ctx.textAlign = 'center';
+      this.ctx.textBaseline = 'top';
+      this.ctx.fillText('tap the end point', p.x, p.y + 14);
+      this.ctx.restore();
+      return;
+    }
+    if (!from || !to) return;
     const ctx = this.ctx;
     const a = this.toScreen(from);
     const b = this.toScreen(to);
@@ -697,6 +751,14 @@ export class RadarScope {
   toggleRoute(callsign: string): void {
     if (this.routesShown.has(callsign)) this.routesShown.delete(callsign);
     else this.routesShown.add(callsign);
+  }
+
+  /**
+   * Measuring from an aircraft (its menu): with a mouse the line follows the pointer until a double click; on a
+   * touch screen the next tap sets the end (a place or another aircraft).
+   */
+  measureFrom(callsign: string): void {
+    this.measure = { from: callsign, awaitingTap: this.touchMode };
   }
 
   /** Back to the default tag position. */

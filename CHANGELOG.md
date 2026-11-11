@@ -6,6 +6,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Measuring tool on touch screens** (iPad, phone): press and hold an empty place on the radar scope, slide to the end point and lift; from an aircraft *Measure from here* (`MEAS`) in its menu, then tap the end point or another aircraft. A tap on an empty place removes it. With the mouse a second double click on an aircraft now measures between the two targets (the line follows both).
+
 - **Radar, second realism round**:
   - **Hand-over of tracks to Tower and Center like EuroScope**: start the transfer (*Hand-over to ...* / `XFER`), the next controller accepts after a few seconds (tag `>TWR`, then `TWR`), then `contact ...`; a crew sent on without it costs 2 points.
   - **Tag families**: full tags for your tracks, short ones for the others, a detailed one (type / wake, squawk, origin or SID) for the selected or hovered track; tags place themselves so they do not overlap.

@@ -883,6 +883,7 @@ export class App {
         if (err) this.toast(err);
       },
       toggleRoute: (ac) => this.radarScope?.toggleRoute(ac.callsign),
+      measure: (ac) => this.radarScope?.measureFrom(ac.callsign),
       routeShown: (ac) => !!this.radarScope?.routeShown(ac.callsign),
       say: (ac, phrase) => this.say(ac, phrase),
       center: (ac) => this.scope.centerOn(ac.pos),

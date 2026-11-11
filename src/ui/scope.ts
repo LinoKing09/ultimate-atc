@@ -4,6 +4,7 @@ import type { Aircraft } from '../core/aircraft';
 import { catcAlert } from '../core/conflicts';
 import { KT_TO_MS, M_PER_NM, add, headingVector, scale, sub, type Vec2 } from '../core/geo';
 import { lvpInForce } from '../core/met';
+import { stopBarLit, stopBarsInOperation, stopBarsOf, type StopBar } from '../core/stopbars';
 import type { Simulation } from '../core/simulation';
 import { clearedTo, shownRequest, statusCode, type StatusStyle } from './labels';
 
@@ -331,6 +332,8 @@ export interface ScopeCallbacks {
   onContextMenu(callsign: string, clientX: number, clientY: number): void;
   /** Left click on a specific tag item. */
   onTagItem(callsign: string, item: TagItem, clientX: number, clientY: number): void;
+  /** LVP: a click on a stop bar - switch it on (`lit`) or off. */
+  onStopBar?(id: string, lit: boolean): void;
 }
 
 interface TagRect {
@@ -587,6 +590,12 @@ export class Scope {
       }
       const hit = this.hitTest(sx, sy);
       clearTimeout(this.longPress);
+      // A stop bar (LVP, you on Tower): a click switches it.
+      const bar = !hit && e.button === 0 ? this.stopBarAt(sx, sy) : undefined;
+      if (bar && this.cb.onStopBar) {
+        this.cb.onStopBar(bar.id, !stopBarLit(this.sim, bar));
+        return;
+      }
       if (this.touchMode && hit && e.button === 0) {
         // Long press opens the aircraft menu.
         this.longPress = setTimeout(() => {
@@ -636,7 +645,7 @@ export class Scope {
         // Hover feedback only for mouse and pen (a finger has no hover).
         const hover = this.hitTest(sx, sy);
         this.hover = hover ? { callsign: hover.callsign, item: hover.item } : undefined;
-        c.style.cursor = hover ? 'pointer' : this.drag?.mode === 'pan' ? 'grabbing' : 'crosshair';
+        c.style.cursor = hover || (!this.drag && this.cb.onStopBar && this.stopBarAt(sx, sy)) ? 'pointer' : this.drag?.mode === 'pan' ? 'grabbing' : 'crosshair';
       }
       if (!this.drag) return;
       const dx = sx - this.drag.lastX;
@@ -1051,6 +1060,7 @@ export class Scope {
       }
     }
     ctx.globalAlpha = 1;
+    this.drawStopBars(ctx, z);
 
     // Screen boxes of the stand and taxiway labels: building names keep clear of them.
     const taken: { x0: number; x1: number; y0: number; y1: number }[] = [];
@@ -1119,6 +1129,74 @@ export class Scope {
         ctx.fillText(text, p.x, p.y);
       }
     }
+  }
+
+  /** The across-taxiway unit vector of a stop bar (perpendicular to the taxiway at its node). */
+  private barAcross(bar: StopBar): Vec2 | undefined {
+    const node = bar.node;
+    const ref = node.edges.find((e) => e.kind === 'runwayStrip') ?? node.edges.find((e) => e.kind === 'taxiway' || e.kind === 'taxilane') ?? node.edges[0];
+    if (!ref) return undefined;
+    const verts = ref.from === node ? edgeVertices(ref) : edgeVertices(ref).reverse();
+    const d = sub(verts[1], node.pos);
+    const len = Math.hypot(d.x, d.y) || 1;
+    return { x: -d.y / len, y: d.x / len };
+  }
+
+  /**
+   * LVP stop bars: lit ones as a row of red lights across the taxiway, switched-off ones as green lead-on lights
+   * (a short green dash). Only while they are in operation.
+   */
+  private drawStopBars(ctx: CanvasRenderingContext2D, z: number): void {
+    if (!stopBarsInOperation(this.sim)) return;
+    for (const bar of stopBarsOf(this.sim.airport)) {
+      if (!this.sim.activeEndOn(bar.runway)) continue;
+      const n = this.barAcross(bar);
+      if (!n) continue;
+      const lit = stopBarLit(this.sim, bar);
+      const half = 14;
+      const a = this.toScreen(add(bar.node.pos, scale(n, half)));
+      const b = this.toScreen(sub(bar.node.pos, scale(n, half)));
+      ctx.save();
+      ctx.strokeStyle = lit ? '#ff2a2a' : '#2ee66b';
+      ctx.lineWidth = Math.max(3, 3.5 * z);
+      ctx.setLineDash(lit ? [] : [Math.max(2, 3 * z), Math.max(2, 3 * z)]);
+      ctx.shadowColor = lit ? 'rgba(255,40,40,0.8)' : 'rgba(46,230,107,0.6)';
+      ctx.shadowBlur = 6;
+      ctx.beginPath();
+      ctx.moveTo(a.x, a.y);
+      ctx.lineTo(b.x, b.y);
+      ctx.stroke();
+      // Single lights along the bar when zoomed in.
+      if (lit && z > 0.6) {
+        ctx.fillStyle = '#ffd0d0';
+        for (let i = 0; i <= 6; i++) {
+          const t = i / 6;
+          ctx.beginPath();
+          ctx.arc(a.x + (b.x - a.x) * t, a.y + (b.y - a.y) * t, Math.max(1, 1.2 * z), 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      ctx.restore();
+    }
+  }
+
+  /** The stop bar under a screen point (you on Tower, while they are in operation). */
+  private stopBarAt(sx: number, sy: number): StopBar | undefined {
+    if (!this.sim.userTower || !stopBarsInOperation(this.sim)) return undefined;
+    let best: { bar: StopBar; d: number } | undefined;
+    for (const bar of stopBarsOf(this.sim.airport)) {
+      if (!this.sim.activeEndOn(bar.runway)) continue;
+      const n = this.barAcross(bar);
+      if (!n) continue;
+      const a = this.toScreen(add(bar.node.pos, scale(n, 14)));
+      const b = this.toScreen(sub(bar.node.pos, scale(n, 14)));
+      const dx = b.x - a.x;
+      const dy = b.y - a.y;
+      const t = Math.max(0, Math.min(1, ((sx - a.x) * dx + (sy - a.y) * dy) / (dx * dx + dy * dy || 1)));
+      const d = Math.hypot(sx - (a.x + dx * t), sy - (a.y + dy * t));
+      if (d < (this.touchMode ? 16 : 8) && (!best || d < best.d)) best = { bar, d };
+    }
+    return best?.bar;
   }
 
   private labelBox(text: string, x: number, y: number, color: string): void {

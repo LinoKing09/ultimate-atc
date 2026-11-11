@@ -19,6 +19,7 @@ import { apronClosed, takeoffsSuspended } from './weather';
 import { holdShortS } from './holdShort';
 import { checkInText, checkTransfer, execRadar, radarActive } from './radar';
 import { deicingMinutesLeft, freePads, needsDeicing, onPad, padUser, startDeicing, updateDeicing } from './deicing';
+import { clearStopBarsFor } from './stopbars';
 
 /**
  * AI pilots: execute controller instructions, read them back, and make their
@@ -648,6 +649,7 @@ function execTower(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
         if (tora !== undefined && tora < requiredRunway(sim, ac)) return { unable: `unable, we require a backtrack for departure, ${Math.round(tora)} metres available from ${hpName}` };
       }
       ac.lineUpCleared = true;
+      clearStopBarsFor(sim, ac, sim.userControls(ac.frequency));
       ac.backtrackCleared = !!c.backtrack || (ac.phase === 'lineup' ? ac.backtrackCleared : false);
       ac.holdPosition = false;
       const rwy = ac.runway ?? sim.runway;
@@ -1342,6 +1344,7 @@ function execCross(sim: Simulation, ac: Aircraft, runway: string): ExecResult {
   if (!onRoute) return { unable: `confirm cross runway ${runway}, it is not on our route` };
   ac.clearedToCross.add(name);
   ac.crossClearedAt = sim.time;
+  clearStopBarsFor(sim, ac, sim.userControls(ac.frequency));
   ac.stops = ac.stops.filter((s) => !(s.kind === 'runway' && s.target === name));
   if (ac.stoppedAt?.kind === 'runway' && ac.stoppedAt.target === name) ac.stoppedAt = undefined;
   // Crossing on Tower frequency: the crew reports the runway vacated afterwards.

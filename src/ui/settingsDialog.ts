@@ -313,6 +313,17 @@ export function showSettings(
           }).el,
           'Medical emergencies and rejected take-offs: never, very rare ... often',
         ],
+        [
+          'Stop bars',
+          select(settings.stopBars, [
+            ['clearance', 'Switched by your clearances'],
+            ['manual', 'Switched by hand'],
+          ], (v) => {
+            settings.stopBars = v as typeof settings.stopBars;
+            changed();
+          }),
+          'Low visibility procedures: the red stop bars at the runway holding points. Your line-up and crossing clearances switch them off (as with an A-SMGCS), or you switch each one by hand with a click on it on the ground scope. Crews never pass a lit bar',
+        ],
       ),
       section(
         'Performance',

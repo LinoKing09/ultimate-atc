@@ -8,6 +8,7 @@ All notable changes to this project are documented in this file. The format is b
 
 - **More runways at Cologne/Bonn in the ATIS editor** (VATSIM Germany SOP): **31R + 24** - take-offs 31R, landings 24 on the crossing runway (the highest capacity), and **31R + 31L** - landings on 31L for light and medium aircraft (code C) next to the main runway, with dependent or staggered approaches. Both are optional combinations (also in the scenario builder); the default stays 13L/31R.
 - **Crossing runways**: take-offs and landings depend on each other at the intersection - a departure passes it before the next arrival to the other runway is at 1 NM final, else that arrival goes around. The AI Tower plans line-ups and take-offs for it; RMCA warns you.
+- **Stop bars in low visibility procedures**: red stop bars at the runway holding points (CAT II/III positions) of the runways in use at the airports with CAT II/III operations. Crews never pass a lit bar, even when cleared - they report `stop bar still lit`. Your line-up, take-off and crossing clearances switch the bar off (default), or switch each one by hand with a click on the ground scope (Settings: *Stop bars*); the AI Tower and Ground switch them with their clearances. A bar lights again once its aircraft is on the runway, or after 90 s.
 - Airport data: optional runway combinations with fixed role splits, allowed approach modes and a wingspan limit per runway; runways for landings only (never in use alone).
 
 ### Fixed

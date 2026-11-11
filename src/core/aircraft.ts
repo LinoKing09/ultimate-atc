@@ -207,6 +207,9 @@ export interface Aircraft {
   emergencySince?: number;
   /** Special situation: the take-off was rejected (aborted) on the runway. */
   rejectedTakeoff?: boolean;
+  /** Cleared onto or across a runway but held by a lit stop bar since (s); the bar it reported (stopbars.ts). */
+  stopBarSince?: number;
+  stopBarReported?: string;
   /**
    * Why the take-off was rejected (`text` as the crew says it after "due to"), and whether the crew must taxi back
    * to the stand (`toStand`) or can depart again; `atc`: stopped on Tower's "stop immediately". Given on the radio,

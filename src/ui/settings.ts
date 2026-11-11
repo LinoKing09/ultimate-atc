@@ -62,6 +62,8 @@ export interface Settings {
   menuStyle: 'simple' | 'real';
   /** A small line with the frame rate and frame times on the scope (performance overlay). */
   perfOverlay: boolean;
+  /** Stop bars (LVP): switched off by your line-up and crossing clearances, or only by hand (click on the bar). */
+  stopBars: 'clearance' | 'manual';
 }
 
 export type ControlMode = 'text' | 'both' | 'realistic';
@@ -106,6 +108,7 @@ const DEFAULTS: Settings = {
   controlMode: 'both',
   menuStyle: 'simple',
   perfOverlay: false,
+  stopBars: 'clearance',
 };
 
 /** Default device mode: touch screens without a fine pointer start in mobile mode. */

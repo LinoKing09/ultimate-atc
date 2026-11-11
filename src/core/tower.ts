@@ -13,6 +13,7 @@ import { departureAllowed } from './night';
 import { LVP_ARRIVAL_PROTECTION_S, lvpInForce } from './met';
 import { WEATHER_DECISION_NM, takeoffsSuspended, weatherGoAround } from './weather';
 import { radarActive } from './radar';
+import { clearStopBarsFor, litStopBarAhead } from './stopbars';
 
 /**
  * AI tower controller. Owns the runway: flies arrivals down the final
@@ -310,7 +311,8 @@ export class TowerAI {
         case 'holding':
           // Line-up (or take-off) clearance received: enter the runway once any condition ("behind ...") is met.
           // The crew does not enter the runway while another aircraft is lined up or still on the runway near its entry.
-          if (user && ac.lineUpCleared && !ac.giveWayTo && !ac.holdPosition && ac.frequency === this.sim.stationFor('tower') && !this.entryBlocked(ac)) {
+          // Nor past a lit stop bar (LVP): it waits until you switch it off.
+          if (user && ac.lineUpCleared && !ac.giveWayTo && !ac.holdPosition && ac.frequency === this.sim.stationFor('tower') && !this.entryBlocked(ac) && !litStopBarAhead(this.sim, ac, 6)) {
             const err = this.lineUp(ac);
             if (err) {
               ac.lineUpCleared = ac.takeoffCleared = false;
@@ -337,6 +339,7 @@ export class TowerAI {
           // Aircraft already with the tower that hold short of the runway on their route get a crossing.
           if (!user && ac.frequency === this.sim.stationFor('tower') && ac.stoppedAt?.kind === 'runway' && this.crossingFree(ac.stoppedAt.target)) {
             ac.clearedToCross.add(ac.stoppedAt.target);
+            clearStopBarsFor(this.sim, ac, false);
             ac.stoppedAt = undefined;
           }
           break;
@@ -935,7 +938,10 @@ export class TowerAI {
             (sim.time - a.requestSince > CROSSING_PRIORITY_S || sim.frequency.awaitingReplyFrom(sim.time) === a.callsign)) ||
           (a.onGround && a.clearedToCross.has(end.runway) && a.crossClearedAt !== undefined && sim.time - a.crossClearedAt < CROSSING_CLEARED_S && !this.isInRunwayArea(a.pos)),
       );
-      if (next && !crossingWaits && this.canLineUp(next)) this.lineUp(next);
+      if (next && !crossingWaits && this.canLineUp(next)) {
+        clearStopBarsFor(sim, next, false);
+        this.lineUp(next);
+      }
     }
   }
 

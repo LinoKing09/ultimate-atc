@@ -430,6 +430,8 @@ export class App {
         onSelect: (cs) => this.select(cs),
         onContextMenu: (cs, x, y) => this.openMenu(cs, x, y),
         onTagItem: (cs, item, x, y) => this.onTagItem(cs, item, x, y),
+        // LVP: a click on a stop bar switches it (Tower).
+        onStopBar: (id, lit) => this.act({ k: 'stopBar', id, lit }),
       });
       this.groundScope.setRotation(settings.runwayAligned);
     }
@@ -824,6 +826,8 @@ export class App {
     this.browserVoice.lang = s.voiceLang;
     if (s.density !== this.densitySetting) this.act({ k: 'density', density: (this.densitySetting = s.density) });
     if (s.eventLevel !== this.eventsSetting) this.act({ k: 'eventLevel', level: (this.eventsSetting = s.eventLevel) });
+    // Stop bars (LVP): switched by your clearances or by hand.
+    if (this.sim.stopBarsWithClearance !== (s.stopBars !== 'manual')) this.act({ k: 'stopBarsWithClearance', on: s.stopBars !== 'manual' });
     // Realistic control mode: instructions only by voice, the lists kept by hand.
     const realistic = this.realistic;
     document.body.classList.toggle('realistic', realistic);

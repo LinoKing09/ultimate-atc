@@ -4,6 +4,7 @@ import { KT_TO_MS, distance, dot, headingVector, sub, type Vec2 } from './geo';
 import { onStopReached } from './pilot';
 import { LVP_TAXI_SPEED_KT, lvpInForce } from './met';
 import type { Simulation } from './simulation';
+import { litStopBarAhead } from './stopbars';
 
 /** Phases in which an aircraft follows its path on the ground. */
 const PATH_PHASES = new Set(['pushback', 'taxi', 'vacating', 'landing', 'lineup']);
@@ -64,6 +65,12 @@ export function updateMovement(sim: Simulation, ac: Aircraft, dt: number): void 
   const toStop = stopS - ac.s;
   const brake = BRAKE * paceOf(ac);
   vTarget = Math.min(vTarget, Math.sqrt(2 * brake * Math.max(0, toStop - 0.2)));
+
+  // Low visibility procedures: never past a lit stop bar (even when cleared - the crew reports it).
+  if (ac.phase === 'taxi' || ac.phase === 'lineup') {
+    const bar = litStopBarAhead(sim, ac);
+    if (bar) vTarget = Math.min(vTarget, Math.sqrt(2 * brake * Math.max(0, bar.s - ac.s - 0.2)));
+  }
 
   // Opposite traffic ahead: stop short of the junction between us.
   if (ac.oppositeStop?.path === path) vTarget = Math.min(vTarget, Math.sqrt(2 * BRAKE * Math.max(0, ac.oppositeStop.s - ac.s - 0.2)));

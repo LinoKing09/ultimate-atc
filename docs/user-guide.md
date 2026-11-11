@@ -165,6 +165,7 @@ Every airport added in the future comes with its own briefing.
 | Performance              | **Overlay**: a small line on the scope with frames per second, frame time, simulation and drawing time. **Open performance window** (also **F6**): live statistics over the last ~5 s - frame rate with a rating (smooth / usable / slow), frame time (average, 95 %, maximum), slow frames (> 50 ms), simulation and drawing time per frame, the real simulation rate against the one set, aircraft and vehicles, radio messages, scope canvas size and pixel ratio, JS memory (Chromium browsers), processor cores. Measured only in your browser |
 | Traffic density          | Slider in five steps from light to heavy; applies to traffic generated from now on         |
 | Special events           | Slider: never, very rare, rare, occasional, often                                          |
+| Stop bars                | *Switched by your clearances* (default: line-up, take-off and crossing clearances switch the stop bar off) or *Switched by hand* (click on the bar on the ground scope) - low visibility procedures only |
 
 **Reset to defaults** restores everything except the airport and position.
 
@@ -261,6 +262,7 @@ Modern, Phosphor and Map draw aircraft and tags like PHX (radar returns, SSR sym
 | De-icing pads                          | Outlined squares (PHX: blue) with the pad name (`DP1` ... `DP4`), with thin lead lines from N to S |
 | Runway holding positions               | Thick amber bar across the taxiway, labelled with the holding point (`A`, `K`, `W` ...) |
 | CAT II/III holding position (fog)      | Full amber bar labelled `A3 CAT III` while low visibility procedures are in force: departures wait here; the normal holding point behind it is drawn faint |
+| Stop bar (fog)                         | Red line across the taxiway at the runway holding position while lit; green dashed while switched off for an aircraft. On Tower a click on it switches it ([stop bars](scenarios.md#fog-low-visibility-procedures)) |
 | Other holding position lines           | Thin, faint amber bar: the CAT II/III holding points (outside fog), those of a runway that is not used (Gatwick J2-J7, H2 / H3, G2 / G3, C3, A3, M3) and intermediate holding positions - labelled with their designator where the chart has one. Drawn only: you cannot taxi aircraft to them as holding points |
 | Stands                                 | Thin yellow lead-in line plus the stand number                                 |
 | Aprons                                 | Dark grey areas (classic: slightly lighter than the background); also paved taxiway areas and helipads |

@@ -31,6 +31,7 @@ import { utcOffsetMinutes } from './time';
 import { altimeterOf, atisDifferences, datisMet, initialMet, lvpConditions, metWords, temperatureWords, trendWords, updateMet, updateWind, type Metar, type MetState } from './met';
 import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
 import { allowedApproachModes, arrivalEnds, capitalize, defaultRunwayKey, departureEnds, inSector, roleOf, rolesAllowed, runwayEndsOf, runwaySetOf, runwayUseWords, runwayWords, sameRoles, usableAlone, usRunway, type ParallelUse } from './runways';
+import { updateStopBars } from './stopbars';
 
 export type { Density } from './levels';
 
@@ -344,6 +345,10 @@ export class Simulation {
   readbackErrors: 'random' | 'off' | 'next' = 'random';
   /** Voice-only (realistic) control mode: the crews make read-back errors on the radar frequency (see radar.ts). */
   voiceOnly = false;
+  /** Stop bars switched off (LVP), by bar node id: when, and for which aircraft (stopbars.ts). */
+  stopBarsOff = new Map<string, { at: number; callsign?: string }>();
+  /** Your line-up and crossing clearances switch the stop bars off (as with an A-SMGCS); off: you switch them by hand. */
+  stopBarsWithClearance = true;
 
   private listeners: { [K in keyof Events]: Listener<Events[K]>[] } = {
     message: [],
@@ -580,6 +585,7 @@ export class Simulation {
     updateNight(this);
     if (this.config.generateTraffic !== false) this.traffic.update();
     this.tower.update(dt);
+    updateStopBars(this);
     updateRadar(this, dt);
     this.updateFlow(dt);
     this.updateHandoffs();

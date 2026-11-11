@@ -14,6 +14,7 @@ import { HANDOVER_S, Simulation, type AtisChange, type SimConfig, type TransmitR
 import type { SystemId } from './systems';
 import type { StationType } from './airport/types';
 import type { Density } from './levels';
+import { setStopBar } from './stopbars';
 
 /** Everything the controller can do to the simulation (the UI only changes it through these). */
 export type SessionAction =
@@ -30,6 +31,10 @@ export type SessionAction =
   | { k: 'ptt'; on: boolean }
   /** Voice-only (realistic) mode on / off: the crews then make read-back errors on the radar that you have to catch. */
   | { k: 'voiceOnly'; on: boolean }
+  /** LVP: a stop bar (by its node id) switched on or off by hand. */
+  | { k: 'stopBar'; id: string; lit: boolean }
+  /** Whether your line-up and crossing clearances switch the stop bars off. */
+  | { k: 'stopBarsWithClearance'; on: boolean }
   /** Radar: start the hand-over of a track to Tower or Center (EuroScope: initiate transfer). */
   | { k: 'transfer'; callsign: string }
   /** Radar: assume a track Center offers. */
@@ -72,6 +77,12 @@ function apply(sim: Simulation, a: SessionAction): ActionResult {
       return sim.setSendIntersections(a.on);
     case 'ptt':
       sim.frequency.setKeyed(sim.time, a.on);
+      return undefined;
+    case 'stopBar':
+      setStopBar(sim, a.id, a.lit);
+      return undefined;
+    case 'stopBarsWithClearance':
+      sim.stopBarsWithClearance = a.on;
       return undefined;
     case 'voiceOnly':
       sim.voiceOnly = a.on;

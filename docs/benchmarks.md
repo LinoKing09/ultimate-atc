@@ -64,6 +64,7 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 1.7.3 (2026-11-02) | 10.8 | 6.5 | 0 | 0 | 0 | 9.8 | 5.8 s |
 | 1.7.4 (2026-11-03) | 10.8 | 6.5 | 0 | 0 | 0 | 9.8 | 3.4 s |
 | 1.8.0 (2026-11-04) | 10.8 | 6.5 | 0 | 0 | 0 | 9.8 | 5.2 s |
+| 1.9.0 (2026-11-11) | 10.8 | 6.5 | 0 | 0 | 0 | 9.8 | 4.4 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -111,6 +112,8 @@ The second part of 1.1.0 (Nuremberg, Memmingen, Sylt, runway backtracking; relea
 
 **1.7.4** (own speech recogniser, speech recognition back on, loading screen): the simulation is unchanged, the Ground and Tower results are identical to 1.7.3 (10.8 / 6.5 and 12.6 / 11.8 per hour, no collisions, incursions, go-arounds or separation losses; 3.4 s computing time per simulated hour on a less busy machine). The take-over start now runs in pieces for the loading screen with the same result (tested).
 
+**1.9.0** (Approach / Departure prototype at Stuttgart: radar scope, SIDs / STARs / transitions, wind aloft, track hand-overs; Real menu style, performance window, measuring tool): the Ground and Tower results are identical to 1.8.0 (10.8 / 6.5 and 12.6 / 11.8 per hour, no collisions, incursions, go-arounds or separation losses; 4.4 s computing time per simulated hour) - the radar flies aircraft only when you staff Approach, and the changes to the final approach (an arrival above the glide path catches up, an unstable approach goes around) do not touch arrivals that start on the glide path. The radar position itself is checked by its own tests (`tests/radar.test.ts`): an hour of heavy traffic with a scripted Approach controller, every arrival flying its STAR and transition onto the ILS, departures to Center, no collisions; a saved radar session replays exactly.
+
 **1.8.0** (speech recognition of radio phrases, learning from corrections, `disregard`, MIC and pilot voice fixes): the simulation is unchanged, the Ground and Tower results are identical to 1.7.4 (10.8 / 6.5 and 12.6 / 11.8 per hour, no collisions, incursions, go-arounds or separation losses; 5.2 s computing time per simulated hour). How well the speech recogniser understands: see [Speech recognition](#speech-recognition).
 
 ### Tower benchmark (since 0.7)
@@ -140,6 +143,7 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 | 1.7.3 (2026-11-02) | 12.6 | 11.8 | 0 | 0 | 0 | 0 | 0 |
 | 1.7.4 (2026-11-03) | 12.6 | 11.8 | 0 | 0 | 0 | 0 | 0 |
 | 1.8.0 (2026-11-04) | 12.6 | 11.8 | 0 | 0 | 0 | 0 | 0 |
+| 1.9.0 (2026-11-11) | 12.6 | 11.8 | 0 | 0 | 0 | 0 | 0 |
 
 Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
 
@@ -240,6 +244,9 @@ How many hours of traffic have been simulated while developing and testing the s
 | 1.8.0: release benchmark (Ground + Tower) | 40 h | measured: 1 full run of 2 x 20 h |
 | 1.8.0: test-suite runs | ~200 h | estimate: 5 runs of about 40 h |
 | **Total up to 1.8.0** | **~11830 h** | of which about 5400 h exactly measured |
+| 1.9.0: release benchmark (Ground + Tower) | 40 h | measured: 1 full run of 2 x 20 h |
+| 1.9.0: test-suite runs (with the radar tests) and radar diagnostic sessions | ~650 h | estimate: about 15 runs of about 42 h, plus about 20 h of radar diagnostics |
+| **Total up to 1.9.0** | **~12520 h** | of which about 5440 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 

@@ -4,6 +4,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [1.9.0] - 2026-11-11
+
 ### Added
 
 - **Measuring tool on touch screens** (iPad, phone): press and hold an empty place on the radar scope, slide to the end point and lift; from an aircraft *Measure from here* (`MEAS`) in its menu, then tap the end point or another aircraft. A tap on an empty place removes it. With the mouse a second double click on an aircraft now measures between the two targets (the line follows both).

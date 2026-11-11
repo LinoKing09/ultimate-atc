@@ -86,6 +86,15 @@ const ENTRY_BEHIND_M = 100;
 const RRSM_DISTANCE = 2400;
 /** Short final: from here on the arrival goes around if the runway is not clear. */
 const GO_AROUND_CHECK_NM = 0.5;
+/** Crossing runways: an aircraft has passed the intersection this far (m) beyond the other runway's centre line. */
+const CROSSING_PASSED_M = 100;
+/**
+ * Crossing runways: a departure must have passed the intersection before an arrival to the other runway reaches
+ * 1 NM final (VATSIM Germany Köln/Bonn SOP) - its arrival time counts this much earlier (s).
+ */
+const CROSSING_FINAL_S = 25;
+/** Crossing runways: the arrival to the other runway goes around if the intersection is not clear at this distance (NM). */
+const CROSSING_GO_AROUND_NM = 1;
 /** Without a landing clearance (you staff Tower) the crew goes around only just before the threshold (NM, about 280 m). */
 const NO_CLEARANCE_GO_AROUND_NM = 0.15;
 /** An arrival more than this far above the glide path (ft) at this distance (NM) is not stabilised and goes around. */
@@ -197,6 +206,43 @@ export class TowerAI {
     return !end || this.usedRunway(a) === end.runway;
   }
 
+  private crossingCache = new Map<string, number | null>();
+
+  /** Distance along `own` (m from its threshold) where the centre line of the runway of `other` crosses it; undefined if they do not cross. */
+  crossingAlong(own: RunwayEnd, other: RunwayEnd): number | undefined {
+    const key = `${own.name}>${other.name}`;
+    let x = this.crossingCache.get(key);
+    if (x === undefined) {
+      x = null;
+      if (own.runway !== other.runway) {
+        const u = headingVector(own.heading);
+        const v = headingVector(other.heading);
+        const den = u.x * v.y - u.y * v.x;
+        if (Math.abs(den) > 0.2) {
+          const d = sub(other.threshold, own.threshold);
+          const t = (d.x * v.y - d.y * v.x) / den;
+          const s = (d.x * u.y - d.y * u.x) / den;
+          if (t >= 0 && t <= own.length && s >= 0 && s <= other.length) x = t;
+        }
+      }
+      this.crossingCache.set(key, x);
+    }
+    return x ?? undefined;
+  }
+
+  /**
+   * Crossing runways: `a` takes off (cleared or rolling) or lands on a runway in use that crosses the runway of `end`,
+   * and has not passed the intersection yet.
+   */
+  crossingConflict(a: Aircraft, end: RunwayEnd): boolean {
+    const rolling = a.phase === 'takeoff' || (a.phase === 'lineup' && a.takeoffCleared);
+    if (!rolling && a.phase !== 'landing') return false;
+    const own = rolling ? this.departureEnd(a) : this.endFor(a.runway);
+    const x = this.crossingAlong(own, end);
+    if (x === undefined) return false;
+    return this.sim.airport.runwayCoordinates(own, a.pos).along < x + CROSSING_PASSED_M;
+  }
+
   /** Distance (NM) of the closest arrival still on final (to one runway, or any), Infinity if none. */
   nearestArrivalNm(end?: RunwayEnd): number {
     let best = Infinity;
@@ -207,12 +253,16 @@ export class TowerAI {
     return best;
   }
 
-  /** Seconds until the next arrival crosses its threshold (on one runway, or any; Infinity if none). */
-  nextArrivalEta(end?: RunwayEnd): number {
+  /**
+   * Seconds until the next arrival crosses its threshold (on one runway, or any; Infinity if none). With `crossing`
+   * also the arrivals to a runway in use that crosses this one - counted from 1 NM final (see CROSSING_FINAL_S).
+   */
+  nextArrivalEta(end?: RunwayEnd, crossing = false): number {
     let best = Infinity;
     for (const a of this.sim.aircraft) {
-      if (a.phase !== 'approach' || !this.sameRunway(a, end)) continue;
-      best = Math.min(best, this.timeToThreshold(a));
+      if (a.phase !== 'approach') continue;
+      if (this.sameRunway(a, end)) best = Math.min(best, this.timeToThreshold(a));
+      else if (crossing && end && this.crossingAlong(this.endFor(a.runway), end) !== undefined) best = Math.min(best, this.timeToThreshold(a) - CROSSING_FINAL_S);
     }
     return best;
   }
@@ -230,9 +280,10 @@ export class TowerAI {
 
   /** Number of departures waiting for a runway (one, or any): holding or about to reach a holding point. */
   departureDemand(end?: RunwayEnd): number {
-    return this.sim.aircraft.filter(
-      (a) => a.category === 'departure' && (a.phase === 'holding' || (a.phase === 'taxi' && a.routeDestination?.kind === 'holdingPoint')) && (!end || this.departureEnd(a).runway === end.runway),
-    ).length;
+    // Crossing runways: a departure from the other runway needs a gap on this one too (to cross it on the way and
+    // to pass the intersection on its take-off run - Köln/Bonn 31R + 24).
+    const uses = (a: Aircraft) => !end || this.departureEnd(a).runway === end.runway || this.crossingAlong(this.departureEnd(a), end) !== undefined;
+    return this.sim.aircraft.filter((a) => a.category === 'departure' && (a.phase === 'holding' || (a.phase === 'taxi' && a.routeDestination?.kind === 'holdingPoint')) && uses(a)).length;
   }
 
   /** Somebody on the runway (one, or any in use), or landing or taking off there. */
@@ -240,7 +291,8 @@ export class TowerAI {
     return (
       this.runwayOccupants(except, end).length > 0 ||
       // Lining up includes a backtrack that has not reached the runway yet.
-      this.sim.aircraft.some((a) => a !== except && (a.phase === 'takeoff' || a.phase === 'landing' || a.phase === 'lineup') && this.sameRunway(a, end))
+      this.sim.aircraft.some((a) => a !== except && (a.phase === 'takeoff' || a.phase === 'landing' || a.phase === 'lineup') && this.sameRunway(a, end)) ||
+      (!!end && this.sim.aircraft.some((a) => a !== except && this.crossingConflict(a, end)))
     );
   }
 
@@ -397,6 +449,14 @@ export class TowerAI {
         return;
       }
     }
+    // Crossing runway in use: the intersection must be clear by 1 NM final, else the crew goes around.
+    if (toThreshold < CROSSING_GO_AROUND_NM * M_PER_NM && toThreshold > 0) {
+      const crossing = this.sim.aircraft.find((o) => o !== ac && this.crossingConflict(o, end));
+      if (crossing) {
+        this.goAround(ac, crossing);
+        return;
+      }
+    }
     // Short final with the runway not clear: go around.
     if (toThreshold < GO_AROUND_CHECK_NM * M_PER_NM && toThreshold > 0) {
       const blocker = this.landingBlocker(ac, end);
@@ -422,7 +482,7 @@ export class TowerAI {
       }
       return o;
     }
-    return this.sim.aircraft.find((o) => o !== ac && o.phase === 'landing' && this.sameRunway(o, end));
+    return this.sim.aircraft.find((o) => o !== ac && ((o.phase === 'landing' && this.sameRunway(o, end)) || this.crossingConflict(o, end)));
   }
 
   /** The crew goes around on its own: runway occupied, or (you staff Tower) no landing clearance. */
@@ -516,7 +576,7 @@ export class TowerAI {
    */
   runwayBusyForDeparture(ac: Aircraft): boolean {
     const end = this.departureEnd(ac);
-    if (this.sim.aircraft.some((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing') && this.sameRunway(a, end))) return true;
+    if (this.sim.aircraft.some((a) => a !== ac && (((a.phase === 'takeoff' || a.phase === 'landing') && this.sameRunway(a, end)) || this.crossingConflict(a, end)))) return true;
     const start = this.departureStartAlong(ac);
     // Somebody lining up in front of it (e.g. at an intersection) - perhaps not on the runway yet, but its line-up point is.
     const along = (p: { x: number; y: number }) => this.sim.airport.runwayCoordinates(end, p).along;
@@ -909,16 +969,16 @@ export class TowerAI {
     const lead = lvp && ac.path && ac.stoppedAt?.nodeId ? Math.max(0, (ac.path.marker(ac.stoppedAt.nodeId)?.s ?? ac.s) - ac.s) / LINEUP_SPEED : 0;
     const lineupTime = 35 + this.backtrackTime(ac) + lead;
     const needed = lineupTime + Math.max(5, remainingSpacing, landingRemaining) + this.rollTime(ac) + 15 + (lvp ? LVP_ARRIVAL_PROTECTION_S : 0);
-    return this.nextArrivalEta(end) > needed;
+    return this.nextArrivalEta(end, true) > needed;
   }
 
   private canTakeOff(ac: Aircraft): boolean {
     const end = this.departureEnd(ac);
     // Previous departure airborne, preceding landing vacated, nobody crossing.
     if (this.runwayOccupants(ac, end).length > 0) return false;
-    if (this.sim.aircraft.some((a) => a !== ac && (a.phase === 'takeoff' || a.phase === 'landing') && this.sameRunway(a, end))) return false;
+    if (this.sim.aircraft.some((a) => a !== ac && (((a.phase === 'takeoff' || a.phase === 'landing') && this.sameRunway(a, end)) || this.crossingConflict(a, end)))) return false;
     if (this.spacingRemaining(ac) > 0) return false;
-    return this.nextArrivalEta(end) > this.rollTime(ac) + 8 + (lvpInForce(this.sim) ? LVP_ARRIVAL_PROTECTION_S : 0);
+    return this.nextArrivalEta(end, true) > this.rollTime(ac) + 8 + (lvpInForce(this.sim) ? LVP_ARRIVAL_PROTECTION_S : 0);
   }
 
   /** Lines a departure up from its holding point. Returns why not, if it cannot. */

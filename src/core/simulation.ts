@@ -30,7 +30,7 @@ import { deicingActive } from './deicing';
 import { utcOffsetMinutes } from './time';
 import { altimeterOf, atisDifferences, datisMet, initialMet, lvpConditions, metWords, temperatureWords, trendWords, updateMet, updateWind, type Metar, type MetState } from './met';
 import { startThunderstorm, updateWeather, windWords, type StormState, type Wind } from './weather';
-import { allowedApproachModes, arrivalEnds, capitalize, defaultRunwayKey, departureEnds, inSector, roleOf, runwayEndsOf, runwayUseWords, runwayWords, sameRoles, usRunway, type ParallelUse } from './runways';
+import { allowedApproachModes, arrivalEnds, capitalize, defaultRunwayKey, departureEnds, inSector, roleOf, rolesAllowed, runwayEndsOf, runwaySetOf, runwayUseWords, runwayWords, sameRoles, usableAlone, usRunway, type ParallelUse } from './runways';
 
 export type { Density } from './levels';
 
@@ -387,6 +387,7 @@ export class Simulation {
     };
     const runway = config.runway?.toUpperCase() ?? this.defaultRunwayKey(this.bestRunwayForWind(wind));
     for (const end of runwayEndsOf(runway)) if (!this.airport.runwayEnd(end)) throw new Error(`Unknown runway ${end}`);
+    if (runwayEndsOf(runway).length === 1 && !usableAlone(config.airport, runway)) throw new Error(`Runway ${runway} is for landings only, together with another runway`);
     this.config.runway = runway;
     this.config.parallelUse = this.checkedUse(runway, config.parallelUse);
     const letter = String.fromCharCode(65 + this.rng.int(0, 25));
@@ -767,7 +768,7 @@ export class Simulation {
   get parallelOps(): ParallelRunwayData | undefined {
     const ends = this.runways;
     if (ends.length < 2) return undefined;
-    return this.config.airport.parallelRunways?.find((p) => p.ends.length === ends.length && p.ends.every((e) => ends.includes(e)));
+    return runwaySetOf(this.config.airport, ends);
   }
 
   /** How the parallel runways in use share the traffic (undefined with one runway in use). */
@@ -803,11 +804,13 @@ export class Simulation {
     if (ends.length < 2) return undefined;
     const roles: ParallelUse['roles'] = {};
     for (const e of ends) if (use?.roles[e] && use.roles[e] !== 'mixed') roles[e] = use.roles[e];
-    const ok = arrivalEnds(ends, { roles, approaches: 'staggered' }).length > 0 && departureEnds(ends, { roles, approaches: 'staggered' }).length > 0;
-    const allowed = allowedApproachModes(this.airport, ends);
-    const preferred = this.parallelOpsOf(ends)?.approaches ?? 'staggered';
+    const set = this.parallelOpsOf(ends);
+    const ok = arrivalEnds(ends, { roles, approaches: 'staggered' }).length > 0 && departureEnds(ends, { roles, approaches: 'staggered' }).length > 0 && rolesAllowed(set, roles);
+    // Crossing runways: no parallel approaches (one runway takes the landings).
+    const allowed = set?.crossing ? ['staggered' as const] : allowedApproachModes(this.airport, ends).filter((m) => !set?.approachModes || set.approachModes.includes(m));
+    const preferred = set?.approaches ?? 'staggered';
     const approaches = use && allowed.includes(use.approaches) ? use.approaches : allowed.includes(preferred) ? preferred : (allowed[0] ?? 'staggered');
-    return { roles: ok ? roles : {}, approaches };
+    return { roles: ok ? roles : { ...(set?.roles?.[0] ?? {}) }, approaches };
   }
 
   /** The runway a departure taxis to: its assigned one if that is in use for departures, else the one of its stand. */
@@ -844,9 +847,12 @@ export class Simulation {
    * to the stand.
    */
   runwayFor(standId: string | undefined, type: AircraftType, role: 'departure' | 'arrival', bearing?: number): string {
-    const ends = role === 'departure' ? this.departureRunways : this.arrivalRunways;
-    if (ends.length === 1) return ends[0];
     const p = this.parallelOps;
+    const all = role === 'departure' ? this.departureRunways : this.arrivalRunways;
+    // A runway for smaller aircraft only (e.g. code C) is not for this one.
+    const fits = all.filter((e) => type.wingspanM <= (p?.maxWingspanM?.[e] ?? Infinity));
+    const ends = fits.length ? fits : all;
+    if (ends.length === 1) return ends[0];
     const onRunway = (runway: string | undefined) => ends.find((e) => this.airport.runwayEnd(e)?.runway === runway);
     if (p?.largeAircraft && type.wingspanM >= p.largeAircraft.minWingspanM) {
       const e = onRunway(p.largeAircraft.runway);
@@ -918,7 +924,7 @@ export class Simulation {
   }
 
   bestRunwayForWind(wind: { direction: number; speedKt: number }): string {
-    const ends = this.config.airport.runwayOps.map((o) => o.runway);
+    const ends = this.config.airport.runwayOps.map((o) => o.runway).filter((e) => usableAlone(this.config.airport, e));
     // Calm or light wind: keep the first (preferred) runway unless it has more than 3 kt tailwind.
     const pref = ends[0];
     if (this.windComponents(pref, wind).headwind >= -3) return pref;
@@ -933,6 +939,7 @@ export class Simulation {
     const a = this.atis;
     const key = (change.runway ?? a.runway).toUpperCase();
     for (const end of runwayEndsOf(key)) if (!this.airport.runwayEnd(end)) throw new Error(`Unknown runway ${end}`);
+    if (runwayEndsOf(key).length === 1 && !usableAlone(this.config.airport, key)) throw new Error(`Runway ${key} is for landings only, together with another runway`);
     const use = this.checkedUse(key, change.use ?? (key === a.runway ? this.config.parallelUse : undefined));
     const useChanged = !!use !== !!a.use || (!!use && (use.approaches !== a.use!.approaches || !sameRoles(use.roles, a.use!.roles, runwayEndsOf(key))));
     const runwayChanged = key !== a.runway || useChanged;
@@ -1026,6 +1033,11 @@ export class Simulation {
     if (p?.largeAircraft && large) {
       const m = p.largeAircraft.minWingspanM;
       out.push({ text: `A/C WITH WINGSPAN ${m}M OR MORE EXPECT RWY ${large}`, spoken: `aircraft with a wingspan of ${m} metres or more expect runway ${large}` });
+    }
+    // A runway for smaller aircraft only (Köln/Bonn 31L: code C).
+    const set = ends.length > 1 ? this.parallelOpsOf(ends) : undefined;
+    for (const [end, max] of Object.entries(set?.maxWingspanM ?? {})) {
+      if (ends.includes(end)) out.push({ text: `RWY ${end} ONLY FOR A/C WITH WINGSPAN UP TO ${max}M`, spoken: `runway ${end} only for aircraft with a wingspan up to ${max} metres` });
     }
     const closed = [...this.airport.closedTaxiways].sort();
     if (closed.length) out.push({ text: `TWY ${closed.join(' AND ')} CLSD`, spoken: `taxiway${closed.length > 1 ? 's' : ''} ${closed.join(' and ')} closed` });
@@ -1156,7 +1168,7 @@ export class Simulation {
 
   /** The parallel runway set of these runway ends. */
   private parallelOpsOf(ends: string[]): ParallelRunwayData | undefined {
-    return this.config.airport.parallelRunways?.find((p) => p.ends.length === ends.length && p.ends.every((e) => ends.includes(e)));
+    return runwaySetOf(this.config.airport, ends);
   }
 
   private changeRunway(key: string, use: ParallelUse | undefined): void {
@@ -1494,6 +1506,9 @@ export class Simulation {
       if (d < (span + wingspanM) / 2 + clearance) return { aircraft: occ, stand: other };
       // Fanned lead-in lines (one stand behind another): the way in passes the parked neighbour.
       if (projectOnSegment(occ.pos, stand.lane.pos, stand.pos).dist < Math.max(span, wingspanM) / 2 + clearance) return { aircraft: occ, stand: other };
+      // ... and the other way round: an aircraft here would stand on the way out of the occupied stand (Cologne/Bonn
+      // C02 on the lead-in line of C01).
+      if (projectOnSegment(stand.pos, other.lane.pos, other.pos).dist < Math.max(span, wingspanM) / 2 + clearance) return { aircraft: occ, stand: other };
     }
     return undefined;
   }

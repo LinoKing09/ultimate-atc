@@ -193,10 +193,26 @@ export interface AirspaceData {
 /** Separation between arrivals on adjacent final approaches to parallel runways. */
 export type ParallelApproachMode = 'independent' | 'dependent' | 'staggered';
 
-/** Parallel runways in one direction of operation, each used for take-offs and landings (mixed mode). */
+/**
+ * Runways used together in one direction of operation: parallel runways (each for take-offs and landings unless
+ * the ATIS says otherwise), or crossing runways (`crossing`, e.g. Köln/Bonn 31R for take-offs and 24 for landings).
+ */
 export interface ParallelRunwayData {
   /** Runway ends used together, e.g. ['26R', '26L']; the first is named first by the ATIS. */
   ends: string[];
+  /**
+   * Crossing runways: the ends are not parallel. Take-offs and landings depend on each other at the intersection
+   * (one aircraft has passed it before the next one on the other runway reaches it - an arrival is 1 NM out).
+   */
+  crossing?: boolean;
+  /** Only offered in the ATIS editor (and the scenario builder), not used by default for this direction. */
+  optional?: boolean;
+  /** The only ways the runways may share the traffic (each a role per runway end, ends not listed mixed). Default: any. */
+  roles?: Record<string, 'mixed' | 'arrivals' | 'departures'>[];
+  /** The approach modes allowed (e.g. no independent approaches, AIP); default: those the runway spacing allows. */
+  approachModes?: ParallelApproachMode[];
+  /** Largest wingspan (m) per runway end, e.g. a short runway for code C only; larger aircraft use the others. */
+  maxWingspanM?: Record<string, number>;
   /**
    * Arrivals on adjacent finals: 'independent' (no separation between the finals), 'dependent' (1.5 NM
    * diagonal radar separation) or 'staggered' (3 NM, the radar minimum).
@@ -431,7 +447,10 @@ export interface StationData {
 export interface RunwayOpsData {
   /** Runway end designator this applies to, e.g. "25". */
   runway: string;
-  /** Holding points usable for departures, most preferred (usually full length) first. */
+  /**
+   * Holding points usable for departures, most preferred (usually full length) first. Empty: the runway end is
+   * used for landings only (in a combination of runways, never alone).
+   */
   departureEntries: {
     holdingPoint: string;
     intersection: string;

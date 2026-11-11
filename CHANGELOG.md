@@ -4,8 +4,15 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+### Added
+
+- **More runways at Cologne/Bonn in the ATIS editor** (VATSIM Germany SOP): **31R + 24** - take-offs 31R, landings 24 on the crossing runway (the highest capacity), and **31R + 31L** - landings on 31L for light and medium aircraft (code C) next to the main runway, with dependent or staggered approaches. Both are optional combinations (also in the scenario builder); the default stays 13L/31R.
+- **Crossing runways**: take-offs and landings depend on each other at the intersection - a departure passes it before the next arrival to the other runway is at 1 NM final, else that arrival goes around. The AI Tower plans line-ups and take-offs for it; RMCA warns you.
+- Airport data: optional runway combinations with fixed role splits, allowed approach modes and a wingspan limit per runway; runways for landings only (never in use alone).
+
 ### Fixed
 
+- Stands whose lead-in lines pass a neighbour (Cologne/Bonn C01 past C02): no aircraft is put on the neighbour while the stand behind it is occupied any more - it blocked that stand's pushback for good.
 - **Köln/Bonn and Leipzig under heavy traffic** (soak test with heavy traffic and Tower alone, the AI running Ground): no collisions, no aircraft stuck for good any more.
   - A new departure no longer appears on a stand while an aircraft moving close by sweeps over it (a B747-8 pushed back from the stand next to it hit it).
   - The planned medical emergency of a departure happens 40 s into the taxi also while the simulator runs Ground: the AI Ground taxis it back to a stand (it used to wait until the aircraft reached your Tower frequency, deep in the queue to the runway, and blocked it).

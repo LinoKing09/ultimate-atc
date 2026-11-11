@@ -12,7 +12,8 @@ import { buildLayout, exitVia, layoutEdges } from './osmLayout';
  *
  * Three runways, renamed from 14/32 for the magnetic variation: 13L/31R (3815 m, the main runway), 13R/31L
  * (1863 m, code C) and 06/24 (2459 m, crossing both). The simulator uses 13L/31R for all take-offs and
- * landings, as on a normal VATSIM day; 13R/31L and 06/24 are drawn and crossed: departures 31R and arrivals
+ * landings by default, as on a normal VATSIM day; optional combinations (SOP): 31R take-offs + 24 landings, and
+ * 31R + 31L landings for code C. Take-offs from 24 / 31L are not simulated. Departures 31R and arrivals
  * vacating 13L at A2 / A1 cross runway 06/24 on A next to the reference point (hot spot 1).
  *
  * Simplifications: everything south-west of runway 13R/31L (taxiways P, C and Z1, the military ramps, the
@@ -290,6 +291,17 @@ const SIDS: Record<string, Sid[]> = {
   ],
 };
 
+/** Taxi flows with runway 31R in use: A outbound (south-east), E inbound (north-west) (VATSIM SOP; "east" = towards the 31R threshold). */
+const FLOWS_31: { taxiway: string; direction: 'east' | 'west' }[] = [
+  { taxiway: 'A', direction: 'east' },
+  { taxiway: 'E', direction: 'west' },
+  // Parallel taxiing on the guide lines between Terminal 2 and A7: blue outbound, orange inbound.
+  { taxiway: 'N BLUE', direction: 'east' },
+  { taxiway: 'M BLUE', direction: 'east' },
+  { taxiway: 'N ORANGE', direction: 'west' },
+  { taxiway: 'M ORANGE', direction: 'west' },
+];
+
 export const EDDK: AirportData = {
   icao: 'EDDK',
   name: 'Cologne/Bonn',
@@ -310,7 +322,7 @@ export const EDDK: AirportData = {
   // Every SID climbs to 5000 ft (VATSIM SOP, AIP SID charts).
   initialClimbFt: 5000,
   dataNotice:
-    'Layout from OpenStreetMap (© OpenStreetMap contributors, ODbL); runway data, declared distances, stand positions, taxiway widths and limits from the DFS AIP (facts only), stand sizes after the VATSIM Germany stand data. Runways 13R/31L and 06/24, the military and maintenance areas and apron V drawn but not used. Procedures after the VATSIM Germany SOP. Not for real-world navigation.',
+    'Layout from OpenStreetMap (© OpenStreetMap contributors, ODbL); runway data, declared distances, stand positions, taxiway widths and limits from the DFS AIP (facts only), stand sizes after the VATSIM Germany stand data. Runways 24 and 31L for landings only (optional runway combinations); the military and maintenance areas and apron V drawn but not used. Procedures after the VATSIM Germany SOP. Not for real-world navigation.',
   runways: [
     {
       name: '13L/31R',
@@ -381,15 +393,7 @@ export const EDDK: AirportData = {
       // A3 is the first rapid exit; vacated aircraft continue on E (VATSIM SOP).
       exits: [exitVia(built, 'A3', 'HP.321773634', { rapid: true }), exitVia(built, 'A4', 'HP.7735120839'), exitVia(built, 'A5', 'HP.7736951276'), exitVia(built, 'A7', 'HP.2399124700')],
       // A outbound (south-east), E inbound (north-west) (VATSIM SOP; "east" = towards the 31R threshold).
-      flows: [
-        { taxiway: 'A', direction: 'east' },
-        { taxiway: 'E', direction: 'west' },
-        // Parallel taxiing on the guide lines between Terminal 2 and A7: blue outbound, orange inbound.
-        { taxiway: 'N BLUE', direction: 'east' },
-        { taxiway: 'M BLUE', direction: 'east' },
-        { taxiway: 'N ORANGE', direction: 'west' },
-        { taxiway: 'M ORANGE', direction: 'west' },
-      ],
+      flows: FLOWS_31,
     },
     {
       runway: '13L',
@@ -411,6 +415,38 @@ export const EDDK: AirportData = {
         { taxiway: 'N ORANGE', direction: 'west' },
         { taxiway: 'M ORANGE', direction: 'west' },
       ],
+    },
+    {
+      runway: '24',
+      departureEntries: [],
+      // The taxi flows of 31R, the departure runway.
+      flows: FLOWS_31,
+      // Not via A (AN): the departures to 31R come the other way there.
+      exits: [exitVia(built, 'E', 'HP.7736951272'), exitVia(built, 'T', 'HP.7736951108')],
+    },
+    {
+      runway: '31L',
+      departureEntries: [],
+      flows: FLOWS_31,
+      exits: [exitVia(built, 'T2', 'HP.7737265205'), exitVia(built, 'B', 'HP.1611111802')],
+    },
+  ],
+  // Runway 24 and 31L for landings only, in the two combinations below (VATSIM Germany Köln/Bonn SOP). The exits
+  // are the holding points of the crossings on the north side, in order from the threshold.
+  // 24: E, and T (the last one before the 06 end) - not A, where the departures come the other way; 31L: T2 and B at
+  // the 13R end.
+  parallelRunways: [
+    // Crossing runways, the highest capacity: take-offs 31R, landings 24 (code E, up to the B747-8). A departure
+    // passes the intersection before the next arrival is at 1 NM final.
+    { ends: ['31R', '24'], crossing: true, optional: true, approaches: 'staggered', roles: [{ '31R': 'departures', '24': 'arrivals' }] },
+    // Peak hours: light and medium aircraft (code C) land on 31L; no independent parallel approaches (AIP).
+    {
+      ends: ['31R', '31L'],
+      optional: true,
+      approaches: 'dependent',
+      approachModes: ['dependent', 'staggered'],
+      roles: [{ '31L': 'arrivals' }],
+      maxWingspanM: { '31L': 36 },
     },
   ],
   sids: Object.entries(SIDS).flatMap(([runway, list]) =>
@@ -445,7 +481,8 @@ export const EDDK: AirportData = {
     {
       title: 'Cologne/Bonn in short',
       items: [
-        'Three runways: **13L/31R** (3815 m) for all take-offs and landings in the simulator, **13R/31L** (1863 m, code C, between the aprons and the military area) and **06/24** (2459 m) crossing both - drawn, not used. Runway **31R** is preferred (up to 5 kt tailwind). The runways were renamed from 14/32 for the magnetic variation.',
+        'Three runways: **13L/31R** (3815 m) for all take-offs and landings by default, **13R/31L** (1863 m, code C, between the aprons and the military area) and **06/24** (2459 m) crossing both. Runway **31R** is preferred (up to 5 kt tailwind). The runways were renamed from 14/32 for the magnetic variation.',
+        'Optional in the ATIS editor: **31R + 24** - take-offs 31R, landings 24 (crossing runways, the highest capacity; a departure must pass the intersection before the next arrival to 24 is at 1 NM final, else it goes around); arrivals 24 vacate at **E** or **T**. **31R + 31L** - landings on 31L for code C (up to 36 m), vacating at **T2** or **B**; dependent or staggered approaches only.',
         'All civil aprons lie between the two parallel runways, north of 06/24: A, B and C at Terminal 1, D at Terminal 2, E and F (cargo hub: UPS, FedEx, DHL) along taxiway A, W (cargo feeders) along T. **A** is the parallel taxiway, **E** a second one between A and the runway.',
         '**Departures 31R** taxi south on A and **cross runway 06/24** next to the reference point (holding points AN / AS - hot spot 1: explicit crossing clearance, `cross runway 24`), then line up at **A** (3815 m) or **A1** (3586 m); intersections A2 (2562 m) and A3 (1781 m). **Departures 13L** line up at **A7** (3815 m) or A5 (3587 m), A4 (2743 m), A3 (2121 m).',
         'Arrivals 31R vacate at **A3** (rapid exit), A4, A5 or A7 and continue north on E (A is outbound, E inbound). Arrivals 13L vacate at **A2** (rapid exit), A1 or A at the end and taxi north on A - across runway 06/24.',

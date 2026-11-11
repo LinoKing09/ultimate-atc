@@ -90,7 +90,7 @@ export function validateAirport(data: AirportData): string[] {
   // ---------------------------------------------------------------- runway operations
   for (const ops of data.runwayOps) {
     if (!airport.runwayEnd(ops.runway)) add(`runway operations for unknown runway ${ops.runway}`);
-    if (!ops.departureEntries.some((e) => e.fullLength)) add(`runway ${ops.runway} has no full-length departure entry`);
+    if (ops.departureEntries.length && !ops.departureEntries.some((e) => e.fullLength)) add(`runway ${ops.runway} has no full-length departure entry`);
     for (const e of ops.departureEntries) {
       if (!airport.holdingPoint(e.holdingPoint)) add(`runway ${ops.runway}: unknown holding point ${e.holdingPoint}`);
     }
@@ -106,7 +106,7 @@ export function validateAirport(data: AirportData): string[] {
     const wingspanM = Math.min(pad.maxWingspanM, 65);
     const fromStand = [...airport.stands.values()].some((s) => !isRouteError(findRoute(airport, { node: s.node, heading: s.pushback ? (s.heading + 180) % 360 : s.heading }, pad.node, [], { wingspanM: Math.min(wingspanM, s.maxWingspanM) })));
     if (!fromStand) add(`de-icing pad ${pad.name} cannot be reached from any stand`);
-    for (const ops of data.runwayOps) {
+    for (const ops of data.runwayOps.filter((o) => o.departureEntries.length)) {
       const ok = ops.departureEntries.some((e) => {
         const hp = airport.holdingPoint(e.holdingPoint);
         return !!hp && e.fullLength && !isRouteError(findRoute(airport, { node: pad.node }, hp, [], { wingspanM }));
@@ -122,7 +122,15 @@ export function validateAirport(data: AirportData): string[] {
     for (const [i, e] of ends.entries()) if (!e || !airport.runwayOps(e.name)) add(`parallel runways ${p.ends.join('+')}: no runway operations for ${p.ends[i]}`);
     const runways = ends.filter((e) => !!e).map((e) => e!.runway);
     if (new Set(runways).size !== runways.length) add(`parallel runways ${p.ends.join('+')}: two ends of the same runway`);
-    if (ends.every((e) => !!e) && ends.some((e) => Math.abs(((e!.heading - ends[0]!.heading + 540) % 360) - 180) > 10)) add(`parallel runways ${p.ends.join('+')}: not the same direction`);
+    if (!p.crossing && ends.every((e) => !!e) && ends.some((e) => Math.abs(((e!.heading - ends[0]!.heading + 540) % 360) - 180) > 10)) add(`parallel runways ${p.ends.join('+')}: not the same direction`);
+    if (p.crossing && ends.every((e) => !!e) && ends.every((e) => Math.abs(((e!.heading - ends[0]!.heading + 540) % 360) - 180) <= 10)) add(`crossing runways ${p.ends.join('+')}: they are parallel`);
+    // Every role split takes landings and take-offs somewhere, on runway ends that can take them.
+    for (const r of p.roles ?? []) {
+      const dep = p.ends.filter((e) => r[e] !== 'arrivals');
+      if (!dep.length || !p.ends.some((e) => r[e] !== 'departures')) add(`runways ${p.ends.join('+')}: a role split without landings or take-offs`);
+      for (const e of dep) if (!airport.runwayOps(e)?.departureEntries.length) add(`runways ${p.ends.join('+')}: take-offs from ${e}, which has no departure entries`);
+    }
+    if (!p.roles) for (const e of p.ends) if (!airport.runwayOps(e)?.departureEntries.length) add(`runways ${p.ends.join('+')}: ${e} has no departure entries - give the role splits`);
     for (const [apron, runway] of Object.entries(p.aprons ?? {})) {
       if (!aprons.has(apron)) add(`parallel runways ${p.ends.join('+')}: unknown apron ${apron}`);
       if (!runways.includes(runway)) add(`parallel runways ${p.ends.join('+')}: apron ${apron} on ${runway}, not one of these runways`);
@@ -198,7 +206,7 @@ export function reachabilityProblems(airport: Airport, allStands = false): strin
   const data = airport.data;
   for (const s of airport.stands.values()) {
     const wingspanM = Math.min(s.maxWingspanM, 65);
-    for (const ops of data.runwayOps) {
+    for (const ops of data.runwayOps.filter((o) => o.departureEntries.length)) {
       const reachable = ops.departureEntries
         .filter((e) => e.fullLength)
         .some((e) => {
@@ -219,8 +227,10 @@ export function reachabilityProblems(airport: Airport, allStands = false): strin
       if (!ok) problems.push(`exit ${exits[i].name} of runway ${ops.runway} does not lead to any stand`);
     }
     if (!allStands) continue;
+    // A runway for smaller aircraft only (e.g. code C) is checked with aircraft of that size.
+    const runwayMax = Math.min(...(data.parallelRunways ?? []).map((p) => p.maxWingspanM?.[ops.runway] ?? Infinity));
     for (const s of airport.stands.values()) {
-      if (!ends.some((end) => !isRouteError(findRoute(airport, { node: end }, s.node, [], { wingspanM: Math.min(s.maxWingspanM, 65) })))) {
+      if (!ends.some((end) => !isRouteError(findRoute(airport, { node: end }, s.node, [], { wingspanM: Math.min(s.maxWingspanM, 65, runwayMax) })))) {
         problems.push(`stand ${s.id} cannot be reached from an exit of runway ${ops.runway}`);
       }
     }

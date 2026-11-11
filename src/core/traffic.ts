@@ -247,7 +247,9 @@ export class TrafficGenerator {
     const p = sim.parallelOps;
     // Aircraft bound to a runway by their size (e.g. the B747-8) wait for a gap there.
     const fixed = !!p?.largeAircraft && pending.type.wingspanM >= p.largeAircraft.minWingspanM;
-    const order = fixed ? [preferred] : [preferred, ...arrivals.filter((r) => r !== preferred)];
+    // Nor onto a runway too small for it (Cologne/Bonn 31L: code C).
+    const fits = (r: string) => pending.type.wingspanM <= (p?.maxWingspanM?.[r] ?? Infinity);
+    const order = fixed ? [preferred] : [preferred, ...arrivals.filter((r) => r !== preferred && fits(r))];
     return order.find((r) => this.arrivalGapAvailable(pending.type, r));
   }
 

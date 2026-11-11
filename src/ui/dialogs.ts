@@ -2,7 +2,7 @@ import { perform, type SavedSession } from '../core/session';
 import { APP_VERSION } from '../version';
 import { deleteSession, downloadSession, formatDuration, listSessions, loadStats, readSessionFile } from './sessionStore';
 import type { AirportData, StationType } from '../core/airport/types';
-import { allowedApproachModes, roleOf, runwayEndsOf, sameRoles, usRunway, type ParallelUse } from '../core/runways';
+import { allowedApproachModes, roleOf, rolesAllowed, runwayEndsOf, runwaySetOf, sameRoles, usableAlone, usRunway, type ParallelUse } from '../core/runways';
 import { segmented, stepper } from './pickers';
 import type { ParallelApproachMode } from '../core/airport/types';
 import { altimeterOf, formatMetar, qnhFromAltimeter } from '../core/met';
@@ -491,7 +491,7 @@ const KEYS: [string, string][] = [
   ['Right click', 'Aircraft menu (pushback, taxi, handoff, ...)'],
   ['Double click on list row', 'Centre the scope on the aircraft'],
   ['Click a tag item', 'Callsign: flight plan + telephony; cleared-to: taxi menu; status: aircraft menu'],
-  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (the runways as a list: tick the runways in use and what each is used for - landings, take-offs -, with parallel runways the approach mode; wind and gusts, QNH, information letter; TRANSFER copies wind and QNH from the METAR). The wind changes with the weather: a new METAR every 30 minutes, the ATIS letter turns red when it no longer matches, and a tailwind above 5 kt brings a runway change hint. "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
+  ['Click ATIS / RWY / wind in the toolbar', 'Edit the ATIS (the runways as a list: tick the runways in use and what each is used for - landings, take-offs -, with parallel runways the approach mode; optional runway combinations such as Cologne/Bonn 31R take-offs + 24 landings (crossing runways) or 31L landings for code C; a runway for landings only is never in use alone; wind and gusts, QNH, information letter; TRANSFER copies wind and QNH from the METAR). The wind changes with the weather: a new METAR every 30 minutes, the ATIS letter turns red when it no longer matches, and a tailwind above 5 kt brings a runway change hint. "TS" after the wind: thunderstorm - no pushbacks or take-offs while it is overhead, windshear go-arounds (no penalty)'],
   ['2215L after the UTC time', 'Local time, shown with night flying restrictions: jets must be airborne by 2300 local, landings until 2330 (delayed flights until 2400)'],
   ['Space (command line empty)', 'Pause / resume'],
   ['Home', 'Reset the scope view'],
@@ -648,6 +648,24 @@ export function showAtisEditor(sim: Simulation): void {
   const ap = sim.config.airport;
   const allEnds = ap.runwayOps.map((o) => o.runway);
   const sets = (ap.parallelRunways ?? []).map((p) => p.ends);
+  /** The runway combination of the ends in use (with its allowed role splits, wingspan limits ...). */
+  const setInUse = () => (inUse.length > 1 ? runwaySetOf(ap, inUse) : undefined);
+  /** Roles of the ends in use as the core wants them (ends not listed mixed). */
+  const rolesNow = (): ParallelUse['roles'] => {
+    const r: ParallelUse['roles'] = {};
+    for (const e of inUse) {
+      const x = roles.get(e)!;
+      if (!x.ldg) r[e] = 'departures';
+      else if (!x.to) r[e] = 'arrivals';
+    }
+    return r;
+  };
+  /** Combinations with fixed role splits (e.g. 31R take-offs, 24 landings): the first split when it is put in use. */
+  const applyFirstRoles = () => {
+    const first = setInUse()?.roles?.[0];
+    if (!first) return;
+    for (const e of inUse) roles.set(e, { ldg: first[e] !== 'departures', to: first[e] !== 'arrivals' });
+  };
   let inUse = runwayEndsOf(a.runway);
   /** Landings / take-offs per runway end in use. */
   const roles = new Map<string, { ldg: boolean; to: boolean }>();
@@ -663,13 +681,7 @@ export function showAtisEditor(sim: Simulation): void {
   const apprRow = h('div.atis-form', {}, h('label', { text: 'Approaches' }), h('div.span3', {}, appr.el));
   const useOf = (): ParallelUse | undefined => {
     if (inUse.length < 2) return undefined;
-    const r: ParallelUse['roles'] = {};
-    for (const e of inUse) {
-      const x = roles.get(e)!;
-      if (!x.ldg) r[e] = 'departures';
-      else if (!x.to) r[e] = 'arrivals';
-    }
-    return sim.checkedUse(keyOf(), { roles: r, approaches: appr.get() });
+    return sim.checkedUse(keyOf(), { roles: rolesNow(), approaches: appr.get() });
   };
   const rwyTable = h('table.rwy-table');
   const box = (checked: boolean, disabled: boolean, title: string, onToggle: (on: boolean) => boolean) => {
@@ -685,13 +697,25 @@ export function showAtisEditor(sim: Simulation): void {
   const toggleInUse = (e: string, on: boolean): boolean => {
     if (on) {
       const candidate = [...inUse, e];
-      inUse = sets.some((st) => candidate.every((x) => st.includes(x))) ? candidate : [e];
+      // Another combination with a runway in use (Cologne/Bonn: from 31R + 24 to 31R + 31L).
+      const other = sets.find((st) => st.includes(e) && inUse.some((x) => st.includes(x)));
+      if (sets.some((st) => candidate.every((x) => st.includes(x)))) inUse = candidate;
+      else if (other) inUse = other.filter((x) => x === e || inUse.includes(x));
+      // A runway for landings only is never the only one in use.
+      else if (usableAlone(ap, e)) inUse = [e];
+      else return false;
       for (const x of [...roles.keys()]) if (!inUse.includes(x)) roles.delete(x);
       roles.set(e, { ldg: true, to: true });
+      applyFirstRoles();
+      // The approach mode published for the combination (Cologne/Bonn 31R + 31L: dependent).
+      const mode = sim.checkedUse(keyOf(), undefined)?.approaches;
+      if (mode) appr.set(mode);
       return true;
     }
     if (inUse.length < 2) return false;
-    inUse = inUse.filter((x) => x !== e);
+    const rest = inUse.filter((x) => x !== e);
+    if (rest.length === 1 && !usableAlone(ap, rest[0])) return false;
+    inUse = rest;
     roles.delete(e);
     // One runway left: it takes landings and take-offs.
     if (inUse.length === 1) roles.set(inUse[0], { ldg: true, to: true });
@@ -703,11 +727,19 @@ export function showAtisEditor(sim: Simulation): void {
     if (!next.ldg && !next.to) return false;
     const all = inUse.map((y) => (y === e ? next : roles.get(y)!));
     if (!all.some((y) => y.ldg) || !all.some((y) => y.to)) return false;
+    // Take-offs only where the runway has departure entries, and only the role splits the combination allows.
+    if (next.to && !usableAlone(ap, e)) return false;
+    const old = roles.get(e)!;
     roles.set(e, next);
+    if (!rolesAllowed(setInUse(), rolesNow())) {
+      roles.set(e, old);
+      return false;
+    }
     return true;
   };
   const renderRunways = (wind: { direction: number; speedKt: number }) => {
-    const single = inUse.length < 2;
+    // One runway, or a combination with one fixed role split: the landing / take-off boxes are fixed.
+    const single = inUse.length < 2 || (setInUse()?.roles?.length ?? 2) < 2;
     rwyTable.replaceChildren(
       h('tr', {}, ...['Runway', 'In use', 'Landings', 'Take-offs', 'Wind', 'Approach', 'TORA'].map((t) => h('th', { text: t }))),
       ...allEnds.map((e) => {
@@ -722,7 +754,7 @@ export function showAtisEditor(sim: Simulation): void {
           'tr',
           {},
           h('td.rwy', { text: sim.faa ? usRunway(e) : e }),
-          h('td', {}, box(used, false, used ? 'In use - untick to take it out of use' : 'Put in use (with its parallel runway, or instead of the runway in use)', (on) => toggleInUse(e, on))),
+          h('td', {}, box(used, false, used ? 'In use - untick to take it out of use' : usableAlone(ap, e) ? 'Put in use (with its parallel or crossing runway, or instead of the runway in use)' : 'For landings only: put it in use together with its runway combination', (on) => toggleInUse(e, on))),
           h('td', {}, used ? box(!!x?.ldg, single, 'Landings on this runway', (on) => toggleRole(e, 'ldg', on)) : ''),
           h('td', {}, used ? box(!!x?.to, single, 'Take-offs from this runway', (on) => toggleRole(e, 'to', on)) : ''),
           windCell,
@@ -734,7 +766,8 @@ export function showAtisEditor(sim: Simulation): void {
       }),
     );
     // The approach mode only matters with more than one runway for landings; modes the spacing allows.
-    const allowed = allowedApproachModes(sim.airport, inUse);
+    const set = setInUse();
+    const allowed = allowedApproachModes(sim.airport, inUse).filter((m) => !set?.approachModes || set.approachModes.includes(m));
     appr.setOptions(APPROACHES.map((o) => ({ ...o, disabled: !allowed.includes(o.value), title: allowed.includes(o.value) ? o.title : `${o.title} - these runways are too close` })));
     const ldg = inUse.filter((e) => roles.get(e)?.ldg).length;
     apprRow.hidden = ldg < 2;

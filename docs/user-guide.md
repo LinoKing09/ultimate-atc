@@ -116,8 +116,8 @@ Below the fields, **every runway** of the airport is a row:
 
 | Column      | Meaning |
 | ----------- | ------- |
-| In use      | Tick to put the runway in use. With its parallel runway (Leipzig/Halle 26R and 26L) both stay in use; any other runway replaces the one in use. Untick one of two to use the other alone |
-| Landings / Take-offs | For runways in use: what the runway is used for. One runway alone takes both. With two: both ticked on both = mixed operation; landings on one, take-offs on the other = segregated; one mixed, the other take-offs only = semi-mixed - see [parallel runways](simulation.md#parallel-runways). At least one runway stays for landings and one for take-offs (a box that would break that springs back) |
+| In use      | Tick to put the runway in use. With its parallel runway (Leipzig/Halle 26R and 26L) or a runway of an optional combination (Cologne/Bonn 31R + 24, 31R + 31L) both stay in use; any other runway replaces the one in use. Untick one of two to use the other alone. A runway for landings only (Cologne/Bonn 24, 31L) cannot be in use alone - its box springs back |
+| Landings / Take-offs | For runways in use: what the runway is used for. One runway alone takes both. With two: both ticked on both = mixed operation; landings on one, take-offs on the other = segregated; one mixed, the other take-offs only = semi-mixed - see [parallel runways](simulation.md#parallel-runways). At least one runway stays for landings and one for take-offs (a box that would break that springs back). Combinations with one fixed split (Cologne/Bonn 31R take-offs + 24 landings, 31L landings only) set the boxes themselves - see [runway combinations](simulation.md#runway-combinations-and-crossing-runways) |
 | Wind        | Head- or tailwind and crosswind for that runway with the wind in the form (`head 9 / x 4`); red above 5 kt tailwind |
 | Approach    | The approach flown to it with the navigation aids that are on (`ILS`, `LOC`, `RNP`) |
 | TORA        | Take-off run available from the runway end |

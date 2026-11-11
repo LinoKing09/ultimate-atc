@@ -79,3 +79,69 @@ describe('Cologne/Bonn (EDDK) apron U', () => {
     expect(isRouteError(r) ? r.error : r.taxiways).toEqual(expect.arrayContaining(['B', 'P']));
   });
 });
+
+describe('Cologne/Bonn (EDDK) runway combinations (VATSIM Germany SOP)', () => {
+  const sim = (runway: string, position: 'GND' | 'TWR' = 'TWR') => new Simulation({ airport: EDDK, position, runway, density: 'light', seed: 1, generateTraffic: false, events: false });
+
+  it('offers 31R + 24 (take-offs 31R, landings 24) and 31R + 31L (code C landings on 31L), never 24 or 31L alone', () => {
+    const s = sim('31R+24');
+    expect(s.departureRunways).toEqual(['31R']);
+    expect(s.arrivalRunways).toEqual(['24']);
+    expect(s.atisText(s.atis)).toContain('arrival runway 24, departure runway 31R');
+    // Other role splits are not allowed: back to the published one.
+    expect(s.checkedUse('31R+24', { roles: {}, approaches: 'staggered' })?.roles).toEqual({ '31R': 'departures', '24': 'arrivals' });
+    const p = sim('31R+31L');
+    expect(p.arrivalRunways).toEqual(['31R', '31L']);
+    expect(p.departureRunways).toEqual(['31R']);
+    expect(p.parallelUse?.approaches).toBe('dependent');
+    expect(p.checkedUse('31R+31L', { roles: { '31L': 'arrivals' }, approaches: 'independent' })?.approaches).not.toBe('independent');
+    expect(p.atisDatis(p.atis).join(' ')).toContain('RWY 31L ONLY FOR A/C WITH WINGSPAN UP TO 36M');
+    const a320 = p.traffic.spawnArrival(8, { type: 'A320' })!;
+    const b748 = p.traffic.spawnArrival(8, { type: 'B748' })!;
+    expect(p.runwayFor(a320.assignedStand, a320.type, 'arrival')).toMatch(/31[LR]/);
+    expect(p.runwayFor(b748.assignedStand, b748.type, 'arrival')).toBe('31R');
+    expect(() => sim('24')).toThrow(/landings only/);
+    expect(() => s.updateAtis({ runway: '31L' })).toThrow(/landings only/);
+    // The default stays 13L/31R alone.
+    expect(sim('31R').runways).toEqual(['31R']);
+  });
+
+  it('a take-off on 31R must pass runway 24 before the next arrival to 24 is at 1 NM, else that one goes around', () => {
+    const s = sim('31R+24');
+    const t = s.tower;
+    const r31 = t.endFor('31R');
+    const r24 = t.endFor('24');
+    const x = t.crossingAlong(r31, r24)!;
+    // The intersection is about 1.5 km from threshold 31R (between A2 and A3).
+    expect(x).toBeGreaterThan(1200);
+    expect(x).toBeLessThan(2000);
+    const dep = s.traffic.spawnDeparture(0, { type: 'A320', callsign: 'EWG1' })!;
+    Object.assign(dep, { phase: 'takeoff', runway: '31R', onGround: true, pos: { ...r31.threshold }, speed: 0 });
+    expect(t.crossingConflict(dep, r24)).toBe(true);
+    expect(t.runwayBusy(undefined, r24)).toBe(true);
+    const arr = s.traffic.spawnArrival(1.2, { type: 'A320', callsign: 'EWG2', runway: '24' })!;
+    arr.landingCleared = true;
+    // Arrivals to 24 count for the take-off on 31R from 1 NM final.
+    expect(t.nextArrivalEta(r31, true)).toBeLessThan(t.nextArrivalEta(r31));
+    for (let i = 0; i < 20 && arr.phase === 'approach'; i++) {
+      s.tick(1);
+      dep.pos = { ...r31.threshold };
+    }
+    expect(arr.phase).not.toBe('approach');
+    expect(arr.phase).not.toBe('landing');
+    // Once the departure is past the intersection, runway 24 is free of it.
+    const beyond = { x: r31.threshold.x + Math.sin((r31.heading * Math.PI) / 180) * (x + 200), y: r31.threshold.y + Math.cos((r31.heading * Math.PI) / 180) * (x + 200) };
+    dep.pos = beyond;
+    expect(t.crossingConflict(dep, r24)).toBe(false);
+  });
+
+  it('runs an hour of traffic on each combination (scripted Ground, AI Tower) without collisions or incursions', () => {
+    for (const runway of ['31R+24', '31R+31L']) {
+      const s = runHour(runway);
+      expect(s.stats.collisions, runway).toBe(0);
+      expect(s.stats.incursions, runway).toBe(0);
+      expect(s.stats.departuresAirborne, runway).toBeGreaterThan(5);
+      expect(s.stats.arrivalsParked, runway).toBeGreaterThan(4);
+    }
+  }, 180000);
+});

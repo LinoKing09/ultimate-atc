@@ -72,7 +72,7 @@ export function createBot(sim: Simulation): () => void {
         // A backtrack needs the whole runway (and more time before the next arrival).
         const backtrack = /backtrack/.test(ac.lastTransmission ?? '');
         const free = backtrack ? !sim.tower.runwayBusy(ac, sim.tower.departureEnd(ac)) : !sim.tower.runwayBusyForDeparture(ac);
-        if (!clearedNow.has(rwy) && t - (crossed.get(rwy) ?? -999) > 90 && free && sim.tower.spacingRemaining(ac) <= 0 && sim.tower.nextArrivalEta(sim.tower.departureEnd(ac)) > (backtrack ? 180 : 90)) {
+        if (!clearedNow.has(rwy) && t - (crossed.get(rwy) ?? -999) > 90 && free && sim.tower.spacingRemaining(ac) <= 0 && sim.tower.nextArrivalEta(sim.tower.departureEnd(ac), true) > (backtrack ? 180 : 90)) {
           sim.transmit(`${cs} ${backtrack ? 'backtrack ' : ''}runway ${ac.runway}, cleared for take-off`);
           clearedNow.add(rwy);
           continue;

@@ -14,7 +14,10 @@ describe('taxi route proposals', () => {
       const position = ap.stations.some((s) => s.type === 'GND') ? 'GND' : 'TWR';
       // Both directions of operation: the parallel runways, or both ends of the main runway.
       const main = ap.runways.find((r) => r.ends.some((e) => e.name === ap.runwayOps[0].runway))!;
-      const runways = ap.parallelRunways?.length ? ap.parallelRunways.map((p) => p.ends.join('+')) : main.ends.map((e) => e.name).filter((e) => ap.runwayOps.some((o) => o.runway === e));
+      // Plus the optional runway combinations (Köln/Bonn 31R + 24, 31R + 31L).
+      const sets = ap.parallelRunways ?? [];
+      const base = sets.some((p) => !p.optional) ? sets.filter((p) => !p.optional).map((p) => p.ends.join('+')) : main.ends.map((e) => e.name).filter((e) => ap.runwayOps.some((o) => o.runway === e));
+      const runways = [...base, ...sets.filter((p) => p.optional).map((p) => p.ends.join('+'))];
       const refused: string[] = [];
       let accepted = 0;
       for (const runway of runways) {

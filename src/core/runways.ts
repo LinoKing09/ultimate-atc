@@ -1,5 +1,5 @@
 import type { Airport } from './airport/airport';
-import type { AirportData, ParallelApproachMode } from './airport/types';
+import type { AirportData, ParallelApproachMode, ParallelRunwayData } from './airport/types';
 
 // Runway keys ("26R+26L": parallel runways in use together) and runway designators in words.
 
@@ -30,13 +30,29 @@ export function capitalize(s: string): string {
  */
 export function runwayChoices(airport: AirportData): { key: string; label: string }[] {
   const sets = (airport.parallelRunways ?? []).map((p) => ({ key: p.ends.join('+'), label: `Runways ${p.ends.join(' + ')}` }));
-  return [...sets, ...airport.runwayOps.map((o) => ({ key: o.runway, label: `Runway ${o.runway}` }))];
+  return [...sets, ...airport.runwayOps.filter((o) => usableAlone(airport, o.runway)).map((o) => ({ key: o.runway, label: `Runway ${o.runway}` }))];
+}
+
+/** A runway end that can be the only one in use: it has departure entries (not one for landings only). */
+export function usableAlone(airport: AirportData, end: string): boolean {
+  return !!airport.runwayOps.find((o) => o.runway === end.toUpperCase())?.departureEntries.length;
 }
 
 /** The runway key an airport uses by default for a runway end: its parallel runways where it has them. */
 export function defaultRunwayKey(airport: AirportData, end: string): string {
-  const set = airport.parallelRunways?.find((p) => p.ends.includes(end));
+  const set = airport.parallelRunways?.find((p) => !p.optional && p.ends.includes(end));
   return set ? set.ends.join('+') : end;
+}
+
+/** The runway combinations of an airport (sets of runway ends used together, optional ones included). */
+export function runwaySetOf(airport: AirportData, ends: string[]): ParallelRunwayData | undefined {
+  return airport.parallelRunways?.find((p) => p.ends.length === ends.length && p.ends.every((e) => ends.includes(e)));
+}
+
+/** True if these roles (ends not listed mixed) are one of the role splits the runway set allows (any without a list). */
+export function rolesAllowed(set: ParallelRunwayData | undefined, roles: Record<string, RunwayRole>): boolean {
+  if (!set?.roles) return true;
+  return set.roles.some((r) => sameRoles(r, roles, set.ends));
 }
 
 /** What a runway end in use is used for: take-offs and landings (mixed), or only one of them. */

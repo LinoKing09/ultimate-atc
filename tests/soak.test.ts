@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Aircraft } from '../src/core/aircraft';
 import type { StationType } from '../src/core/airport/types';
 import { distance } from '../src/core/geo';
-import { defaultRunwayKey } from '../src/core/runways';
+import { defaultRunwayKey, usableAlone } from '../src/core/runways';
 import { Simulation } from '../src/core/simulation';
 import type { Density } from '../src/core/levels';
 import { AIRPORTS } from '../src/data/airports';
@@ -51,7 +51,13 @@ describe.skipIf(!RUN)('soak', () => {
       const fails: string[] = [];
       const sum = { dep: 0, arr: 0, coll: 0, inc: 0, ga: 0, deadlock: 0, ms: 0, n: 0 };
       const roles = airport.stations.map((s) => s.type).filter((r): r is StationType => r === 'DEL' || r === 'GND' || r === 'TWR');
-      const runways = [...new Set(airport.runwayOps.map((o) => defaultRunwayKey(airport, o.runway)))];
+      // Every direction of operation, and the optional runway combinations (Köln/Bonn 31R + 24, 31R + 31L).
+      const runways = [
+        ...new Set([
+          ...airport.runwayOps.filter((o) => usableAlone(airport, o.runway)).map((o) => defaultRunwayKey(airport, o.runway)),
+          ...(airport.parallelRunways ?? []).filter((p) => p.optional).map((p) => p.ends.join('+')),
+        ]),
+      ];
       // Ground alone (the AI runs the rest) where the airport has Ground, and all positions together.
       const setups: StationType[][] = [...(roles.includes('GND') ? [['GND' as StationType]] : []), ...(AI_GROUND && roles.includes('TWR') && roles.includes('GND') ? [['TWR' as StationType]] : []), roles];
       for (const runway of runways) {

@@ -1,9 +1,12 @@
+import { aircraftType } from '../data/aircraftTypes';
 import { AIRLINES } from '../data/airlines';
 import { destinationName } from '../data/destinations';
 import type { Aircraft } from './aircraft';
 import type { AirportData, StationType } from './airport/types';
 import { allocateSquawk, departureFrequency, initialClimb, suggestedSid } from './delivery';
+import { M_PER_NM } from './geo';
 import { formatSidClimb } from './phraseology/format';
+import { finalCoordinates, offered } from './radar';
 import type { SimConfig, Simulation } from './simulation';
 import { windWords } from './weather';
 
@@ -18,7 +21,7 @@ import { windWords } from './weather';
  * lesson by sending them, so they stay correct when the simulation changes.
  */
 
-export type TutorialId = 'delivery' | 'ground' | 'tower';
+export type TutorialId = 'delivery' | 'ground' | 'tower' | 'approach';
 
 export interface TutorialContext {
   sim: Simulation;
@@ -34,6 +37,16 @@ export interface TutorialStep {
   focus?: string;
   /** Example instruction for the command line, if the step is done by radio. */
   example?: (sim: Simulation) => string | undefined;
+  /**
+   * Not yet the moment for the example (radar: the turn onto base comes at the right distance): what to wait for.
+   * Undefined when it is time. The panel shows it above the example.
+   */
+  wait?: (sim: Simulation) => string | undefined;
+  /**
+   * A step done with the scope instead of the radio (radar: assume a track Center offers, start the hand-over of a
+   * track). The text says how; tests perform it as the session action of the same name.
+   */
+  action?: 'assume' | 'transfer';
   /** Called once when the step starts (e.g. new traffic). */
   enter?: (sim: Simulation) => void;
   /** The step is complete. Without it the step waits for "Next". */
@@ -450,7 +463,202 @@ const TOWER: Tutorial = {
   ],
 };
 
-export const TUTORIALS: Tutorial[] = [DELIVERY, GROUND, TOWER];
+// ---------------------------------------------------------------------- Approach / Departure (radar)
+
+/** An arrival handed over by Center: offered at its entry fix (from the north LBU, from the south-east TEKSI). */
+function inbound(sim: Simulation, callsign: string, origin: string): void {
+  if (sim.find(callsign)) return;
+  const a = sim.traffic.spawnInbound({ airline: airline(callsign.slice(0, 3))!, type: aircraftType('A320'), origin });
+  if (!a) return;
+  a.callsign = callsign;
+  a.plannedMedical = false;
+}
+
+/** Position relative to the final of runway 25 in NM: `along` < 0 before the threshold, `cross` > 0 north of it. */
+function onFinal25(sim: Simulation, a: Aircraft): { along: number; cross: number } {
+  const f = finalCoordinates(sim.airport.runwayEnd(TUTORIAL_RUNWAY)!, a.pos);
+  return { along: f.along / M_PER_NM, cross: f.cross / M_PER_NM };
+}
+
+/** Release level of a departure's Center sector (feet), e.g. 14000 = FL140. */
+const releaseFt = (a: Aircraft | undefined) => a?.radar?.sector?.releaseFt ?? 10000;
+
+const APPROACH: Tutorial = {
+  id: 'approach',
+  title: 'Approach',
+  summary: 'Radar: assume a track, identify, vectors to the ILS, hand-off to Tower; a departure to Center; an RNAV transition.',
+  position: 'APP',
+  steps: [
+    {
+      title: 'Welcome to Langen Radar',
+      text:
+        'You are Stuttgart Approach / Departure, callsign Langen Radar (125.050), on a radar scope: north is up, the line east of the field is the final of runway 25 with a tick every mile. Center hands you the arrivals, you bring them onto the ILS and pass them to Tower. Tower passes you the departures, you climb them and pass them to Center.',
+    },
+    {
+      title: 'Center offers a track',
+      text:
+        'EWG7TK from Hamburg is coming in over LBU, north of the field. Center offers it to you: its tag flashes with H/O. Click the tag (or its menu: "Accept hand-off" / `ASSUME`) - only then does Center send the crew to your frequency.',
+      focus: 'EWG7TK',
+      enter: (sim) => {
+        inbound(sim, 'EWG7TK', 'EDDH');
+        // The departure of the later steps starts meanwhile (the simulator works Delivery, Ground and Tower).
+        departure(sim, 'DLH5AB', '14', 20);
+      },
+      action: 'assume',
+      done: ({ sim }) => {
+        const a = ac(sim, 'EWG7TK');
+        return !a || !offered(a);
+      },
+    },
+    {
+      title: 'Identify and descend',
+      text: (sim) =>
+        `It calls with its level and the ATIS letter. Answer with \`identified\` and a descent: 5000 feet is below the transition level, so give the QNH (${sim.atis.qnh}). ${MENU_HINT}`,
+      focus: 'EWG7TK',
+      example: (sim) => `EWG7TK identified, descend altitude 5000 feet, QNH ${sim.atis.qnh}`,
+      done: ({ sim }) => {
+        const r = ac(sim, 'EWG7TK')?.radar;
+        return !r || (!!r.identified && r.clearedFt <= 5000);
+      },
+    },
+    {
+      title: 'Downwind',
+      text:
+        'Runway 25 lands towards the west, so arrivals from the north fly a downwind to the east, parallel to the final, and slow down. A heading takes it off its STAR: from now on it flies only your vectors.',
+      focus: 'EWG7TK',
+      example: () => 'EWG7TK turn left heading 070, reduce speed 220 knots',
+      done: ({ sim }) => {
+        const r = ac(sim, 'EWG7TK')?.radar;
+        return !r || r.heading === 70 || !!r.approach;
+      },
+    },
+    {
+      title: 'Base',
+      text: `About 16 NM east of the threshold (count the ticks on the centre line) turn it south onto base and slow it to 180 knots. ${FASTER}`,
+      focus: 'EWG7TK',
+      wait: (sim) => {
+        const a = ac(sim, 'EWG7TK');
+        if (!a) return undefined;
+        const d = -onFinal25(sim, a).along;
+        return d < 16 ? `Wait: EWG7TK is ${Math.max(0, Math.round(d))} NM east of the threshold - turn at 16 NM.` : undefined;
+      },
+      example: () => 'EWG7TK turn right heading 160, reduce speed 180 knots',
+      done: ({ sim }) => {
+        const r = ac(sim, 'EWG7TK')?.radar;
+        return !r || r.heading === 160 || !!r.approach;
+      },
+    },
+    {
+      title: 'Intercept and clear for the ILS',
+      text:
+        'About 3 NM before the centre line: an intercept heading 30 degrees to the final (220 for runway 25) together with the approach clearance. The crew turns onto the localizer by itself and follows the glide path down from 5000 feet - intercept at 12 NM or more.',
+      focus: 'EWG7TK',
+      wait: (sim) => {
+        const a = ac(sim, 'EWG7TK');
+        if (!a) return undefined;
+        const c = onFinal25(sim, a).cross;
+        return c > 3.5 ? `Wait: EWG7TK is ${Math.round(c)} NM north of the centre line - turn at 3 NM.` : undefined;
+      },
+      example: () => 'EWG7TK turn right heading 220, cleared ILS approach runway 25',
+      done: ({ sim }) => {
+        const a = ac(sim, 'EWG7TK');
+        return !a || !!a.radar?.approach || a.frequency !== 'APP';
+      },
+    },
+    {
+      title: 'Hand-over to Tower',
+      text:
+        'Cleared for the approach, the arrival belongs to Tower next. Start the hand-over of the track like in EuroScope: tag or aircraft menu, "Hand-over to Tower" (`XFER`). Tower accepts after a few seconds (tag `>TWR`, then `TWR`).',
+      focus: 'EWG7TK',
+      action: 'transfer',
+      done: ({ sim }) => {
+        const a = ac(sim, 'EWG7TK');
+        return !a || a.radar?.transfer?.acceptedAt !== undefined || a.frequency !== 'APP';
+      },
+    },
+    {
+      title: 'Contact Tower',
+      text: 'Accepted. Once the crew is established on the localizer (the tag shows it on the centre line), send it to Tower - Tower gives it the landing clearance.',
+      focus: 'EWG7TK',
+      wait: (sim) => {
+        const a = ac(sim, 'EWG7TK');
+        return a && !a.radar?.established && a.phase !== 'approach' ? 'Wait until EWG7TK is established on the localizer.' : undefined;
+      },
+      example: (sim) => `EWG7TK contact Stuttgart Tower ${freq(sim, 'TWR')}`,
+      done: ({ sim }) => {
+        const a = ac(sim, 'EWG7TK');
+        return !a || a.frequency !== 'APP';
+      },
+    },
+    {
+      title: 'A departure calls',
+      text: (sim) =>
+        `DLH5AB takes off on runway 25 and calls you climbing 5000 feet on its SID. Identify it and climb it to the release level of its Center sector (${releaseFt(ac(sim, 'DLH5AB')) / 100 >= 100 ? 'FL' + releaseFt(ac(sim, 'DLH5AB')) / 100 : releaseFt(ac(sim, 'DLH5AB')) + ' ft'} for its exit fix). ${FASTER}`,
+      focus: 'DLH5AB',
+      example: (sim) => {
+        const ft = releaseFt(ac(sim, 'DLH5AB'));
+        return `DLH5AB identified, climb ${ft >= sim.transitionLevel(sim.atis.qnh) * 100 ? `flight level ${ft / 100}` : `altitude ${ft} feet`}`;
+      },
+      done: ({ sim }) => {
+        const a = ac(sim, 'DLH5AB');
+        return !a || (!!a.radar?.identified && a.radar.clearedFt === releaseFt(a)) || a.frequency === 'CTR';
+      },
+    },
+    {
+      title: 'Hand-over to Center',
+      text: 'It flies its SID towards the exit fix. Before it leaves your airspace, start the hand-over of the track to Center (tag or menu, `XFER`).',
+      focus: 'DLH5AB',
+      action: 'transfer',
+      wait: (sim) => {
+        const a = ac(sim, 'DLH5AB');
+        return a && a.altitudeFt < 8000 ? 'Wait until it passes 8000 feet - it is still close to the field.' : undefined;
+      },
+      done: ({ sim }) => {
+        const a = ac(sim, 'DLH5AB');
+        return !a || a.radar?.transfer?.acceptedAt !== undefined || a.frequency === 'CTR';
+      },
+    },
+    {
+      title: 'Contact Center',
+      text: 'Center accepted: send it on. Each sector has its own frequency - the tag and the OUTBOUND list show the next one.',
+      focus: 'DLH5AB',
+      example: (sim) => `DLH5AB contact Langen Radar ${ac(sim, 'DLH5AB')?.radar?.sector?.frequency ?? ''}`.trim(),
+      done: ({ sim }) => {
+        const a = ac(sim, 'DLH5AB');
+        return !a || a.frequency === 'CTR' || !!a.radar?.toCenter;
+      },
+    },
+    {
+      title: 'The quick way: a transition',
+      text:
+        'CFG1753 from Antalya comes in over TEKSI, east of the field. Assume its track as before. With little traffic you do not need vectors: an approach clearance on the STAR lets the crew fly the published RNAV transition (downwind, base, final) by itself.',
+      focus: 'CFG1753',
+      enter: (sim) => inbound(sim, 'CFG1753', 'LTAI'),
+      action: 'assume',
+      done: ({ sim }) => {
+        const a = ac(sim, 'CFG1753');
+        return !a || !offered(a);
+      },
+    },
+    {
+      title: 'Cleared via the transition',
+      text: 'Identify it, descend it and clear it for the ILS: it flies the TEKSI 25 transition to the final on its own. Show its route with "Show route" (`ROUTE`).',
+      focus: 'CFG1753',
+      example: () => 'CFG1753 identified, descend altitude 5000 feet, cleared ILS approach runway 25',
+      done: ({ sim }) => {
+        const a = ac(sim, 'CFG1753');
+        return !a || !!a.radar?.approach;
+      },
+    },
+    {
+      title: 'Well done',
+      text:
+        'Hand CFG1753 to Tower once it is on final. Keep 6 NM between arrivals on final (SOP), use speeds to fine-tune the sequence, `hold over LBU` when it gets busy, `proceed direct STG` to shorten. STCA (red tags) warns of conflicts, MSAW of an aircraft below the minimum vectoring altitude. Practise with live traffic, or end with DISCONNECT.',
+    },
+  ],
+};
+
+export const TUTORIALS: Tutorial[] = [DELIVERY, GROUND, TOWER, APPROACH];
 
 export function tutorialById(id: string | undefined): Tutorial | undefined {
   return TUTORIALS.find((t) => t.id === id);

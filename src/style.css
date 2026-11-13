@@ -1766,6 +1766,16 @@ button.ptt {
   padding: 4px 6px;
   margin-bottom: 8px;
 }
+.tutorial .twait {
+  color: var(--text-dim);
+  font-style: italic;
+  margin-bottom: 4px;
+}
+.tutorial .twait.now {
+  color: var(--ok);
+  font-style: normal;
+  font-weight: bold;
+}
 .tutorial .tactions {
   display: flex;
   gap: 8px;

@@ -10,7 +10,7 @@ The whole player documentation is also available as a printable book: **[Handboo
 | ---- | -------- |
 | [Getting started](getting-started.md) | Play online, browsers, installation, building |
 | [User guide](user-guide.md) | Screen layout, scope, lists, tags, menus, keyboard, voice, scoring, debriefing |
-| [Tutorials](tutorials.md) | Guided first sessions for Delivery, Ground and Tower |
+| [Tutorials](tutorials.md) | Guided first sessions for Delivery, Ground, Tower and Approach (radar) |
 | [Phraseology](phraseology.md) | Every instruction the simulator understands, read-backs and pilot calls |
 | [Scenarios](scenarios.md) | Seeds, scenario codes, the scenario builder and presets |
 | [Glossary](glossary.md) | Terms used in the simulator (TSAT, CTOT, deadlock, ...) |

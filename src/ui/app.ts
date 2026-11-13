@@ -12,7 +12,7 @@ import { applyCorrections, isCorrection, learnCorrection, learntCorrections, typ
 import { radioPhrases, sessionPhraseContext } from '../core/phraseology/radioPhrases';
 import { recognitionPhrases, sessionVocabulary, snapToVocabulary, vocabularyScore, voiceVocabulary } from '../core/phraseology/vocabulary';
 import { catcAlert, headOnPartner, resolveOptions, routeHeadOn } from '../core/conflicts';
-import { allocateSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, offBlockDue, sidsForDestination, suggestedSid } from '../core/delivery';
+import { allocateSquawk, clearanceSquawk, CTOT_EARLY_S, departureFrequency, hhmm, initialClimb, offBlockDue, sidsForDestination, suggestedSid, type FlightPlanChange } from '../core/delivery';
 import { formatClearanceClimb, formatDepartureRoute } from '../core/phraseology/format';
 import { previewTaxi } from '../core/pilot';
 import type { SystemId } from '../core/systems';
@@ -911,6 +911,7 @@ export class App {
       center: (ac) => this.scope.centerOn(ac.pos),
       resetTag: (ac) => this.radarScope?.resetTag(ac.callsign),
       note: (ac) => this.editNote(ac),
+      flightPlan: (ac) => this.showFlightPlan(ac),
     };
   }
 
@@ -1200,9 +1201,12 @@ export class App {
   // ------------------------------------------------------------------ messages
 
   private addMessage(m: RadioMessage): void {
-    const from = m.kind === 'atc' ? this.sim.station.callsign : m.from === 'SYSTEM' ? '***' : m.from;
+    // Realistic (voice-only) mode: a pilot's transmission without the sender - you know who called only from what was
+    // said, as on a real frequency (and a click on it does not select anybody).
+    const hidden = m.kind === 'pilot' && this.realistic;
+    const from = m.kind === 'atc' ? this.sim.station.callsign : m.from === 'SYSTEM' ? '***' : hidden ? '' : m.from;
     const row = h(`div.msg.${m.kind}`, {}, h('span.time', { text: formatTime(new Date(this.sim.startEpochMs + m.time * 1000)) }), h('span.from', { text: from }), m.text);
-    if (m.callsign) {
+    if (m.callsign && !hidden) {
       row.dataset.callsign = m.callsign;
       row.addEventListener('click', () => this.select(m.callsign));
     }
@@ -1573,6 +1577,8 @@ export class App {
     const fp = ac.flightPlan;
     const info = (label: string, hint: string): MenuItem => ({ label, hint, disabled: true });
     const items: MenuItem[] = [
+      { label: 'Open flight plan (FPL)', hint: 'view and edit', action: () => this.showFlightPlan(ac) },
+      { divider: true, label: '' },
       info('Telephony', this.sim.tel(ac).toUpperCase()),
       info('Type', `${ac.type.icao} (${ac.type.name}), wake ${ac.type.wake}`),
       info('Route', `${fp.departure} - ${fp.destination}`),
@@ -1599,14 +1605,111 @@ export class App {
     const ac = this.sim.find(cs);
     if (!ac) return;
     const items = this.realistic ? this.stripItems(ac) : this.menuItems(ac);
-    // Every aircraft menu: your annotation (the radar menu has its own entry).
-    if (!items.some((i) => i.label === 'Annotation' || i.label === 'NOTE')) {
+    // Every aircraft menu: the flight plan window and your annotation (the radar menu has its own entries).
+    const extra: MenuItem[] = [];
+    if (!items.some((i) => /^(Flight plan \(FPL\)|FPL)$/.test(i.label))) extra.push({ label: 'Flight plan (FPL)', hint: 'view and edit', action: () => this.showFlightPlan(ac) });
+    if (!items.some((i) => i.label === 'Annotation' || i.label === 'NOTE')) extra.push({ label: 'Annotation', hint: ac.strip?.note, action: () => this.editNote(ac) });
+    if (extra.length) {
       const i = items.findIndex((x) => x.label === 'Centre view' || x.label === 'CENTER');
-      const note: MenuItem = { label: 'Annotation', hint: ac.strip?.note, action: () => this.editNote(ac) };
-      if (i >= 0) items.splice(i, 0, note);
-      else items.push({ divider: true, label: '' }, note);
+      if (i >= 0) items.splice(i, 0, ...extra);
+      else items.push({ divider: true, label: '' }, ...extra);
     }
     this.menu.open(`${ac.callsign}  ${ac.type.icao}  ${ac.category === 'departure' ? `> ${ac.flightPlan.destination}` : `< ${ac.flightPlan.departure}`}`, items, x, y);
+  }
+
+  /**
+   * The flight plan window (EuroScope FPL): what the airline filed - rules, type, aerodromes, times, RFL, route,
+   * alternate, remarks - which you can amend, and what you assign for the clearance: SID (and with it the runway),
+   * initial climb and squawk. Assigned values are not said: your next clearance (menu or DCL) uses them, and the crew
+   * acts only on what you say. Changes go through perform() (session action `flightPlan`).
+   */
+  private showFlightPlan(ac: Aircraft): void {
+    const sim = this.sim;
+    const fp = ac.flightPlan;
+    const dep = ac.category === 'departure';
+    const ro = (label: string, value: string) => h('div.fpl-row', {}, h('label', { text: label }), h('span.ro', { text: value || '-' }));
+    const field = (label: string, el: HTMLElement, note?: string) => h('div.fpl-row', {}, h('label', { text: label }), el, ...(note ? [h('span.dim', { text: note })] : []));
+    const rfl = h('input', { type: 'number', min: '30', max: '510', step: '10', value: String(fp.cruiseFl) });
+    const route = h('textarea', { rows: '2', spellcheck: 'false' });
+    route.value = fp.route;
+    const altn = h('input', { type: 'text', maxLength: 4, value: fp.alternate ?? '', placeholder: 'ICAO' });
+    const rmk = h('input', { type: 'text', maxLength: 120, value: fp.remarks ?? '', placeholder: 'e.g. RMK/TCAS' });
+    // Assigned for the clearance (departures).
+    const sids = sim.config.airport.sids.filter((s) => sim.isDepartureRunway(s.runway));
+    const filedFits = suggestedSid(sim, ac);
+    const sidSel = h('select');
+    sidSel.append(h('option', { value: '', text: `- (${filedFits ? `flight plan: ${filedFits}` : 'none'})` }));
+    for (const s of sids) sidSel.append(h('option', { value: s.name, text: `${s.name}  RWY ${s.runway}  ${s.fix || 'vectors'}` }));
+    sidSel.value = fp.assignedSid ?? '';
+    const defClimb = initialClimb(sim);
+    const climb = h('input', { type: 'number', min: '2000', max: '25000', step: '1000', value: fp.assignedClimbFt ? String(fp.assignedClimbFt) : '', placeholder: 'fl' in defClimb ? String(defClimb.fl * 100) : String(defClimb.feet) });
+    const sq = h('input', { type: 'text', maxLength: 4, value: fp.assignedSquawk ?? '', placeholder: fp.squawk || '----', inputMode: 'numeric' });
+    const nextSq = h('button', { type: 'button', text: 'NEXT', title: 'Assign the next free code' });
+    nextSq.addEventListener('click', () => (sq.value = allocateSquawk(sim)));
+    const error = h('div.fpl-error');
+    const times = [
+      ac.readyAt !== undefined ? `TOBT ${hhmm(sim, ac.readyAt)}` : '',
+      ac.tsat !== undefined && sim.systemOn('acdm') ? `TSAT ${hhmm(sim, ac.tsat)}` : '',
+      ac.ctot !== undefined ? `CTOT ${hhmm(sim, ac.ctot)}` : '',
+    ].filter(Boolean).join('  ');
+    const cleared = ac.clearance ? `${ac.clearance.sid ?? '-'}  ${ac.clearance.climb ?? ''}  squawk ${ac.clearance.squawk ?? '-'}` : 'not cleared';
+    const save = h('button.primary', { type: 'submit', text: 'Save' });
+    const cancel = h('button', { type: 'button', text: 'Cancel' });
+    const form = h(
+      'form.dialog.fpl-dialog',
+      {},
+      h('div.dtitle', {}, h('span', { text: `FPL ${ac.callsign}` }), h('span.dim', { text: sim.tel(ac).toUpperCase() })),
+      h(
+        'div.dbody',
+        {},
+        h('div.fpl-sect', { text: 'Filed' }),
+        ro('Rules / type', `I  ${ac.type.icao}/${ac.type.wake}  ${ac.type.name}`),
+        ro('From / to', `${fp.departure} - ${fp.destination}`),
+        ...(dep && times ? [ro('Times', times)] : []),
+        field('RFL', rfl, 'flight level'),
+        field('Route', route),
+        field('Alternate', altn),
+        field('Remarks', rmk),
+        ...(dep
+          ? [
+              h('div.fpl-sect', { text: 'Assigned (your next clearance)' }),
+              field('SID', sidSel, 'with its runway'),
+              field('Initial climb', climb, 'ft - empty: the SID\'s'),
+              field('Squawk', h('div.fpl-inline', {}, sq, nextSq)),
+              h('div.fpl-sect', { text: 'Now' }),
+              ro('Cleared', cleared),
+              ro('Transponder', fp.squawk || '-'),
+            ]
+          : [h('div.fpl-sect', { text: 'Now' }), ro('Transponder', fp.squawk || '-')]),
+        ro('Stand / frequency', `${ac.stand ?? ac.assignedStand ?? '-'}  /  ${ac.frequency}`),
+        h('div.hint', { text: 'Assigned values are not said: the clearance menu and the DCL use them; the crew acts only on what you say.' }),
+        error,
+      ),
+      h('div.actions', {}, cancel, save),
+    );
+    const overlay = h('div.overlay', {}, form);
+    const close = () => overlay.remove();
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      const change: FlightPlanChange = {
+        cruiseFl: Math.round(Number(rfl.value)),
+        route: route.value,
+        alternate: altn.value,
+        remarks: rmk.value,
+        ...(dep ? { assignedSid: sidSel.value, assignedClimbFt: climb.value ? Math.round(Number(climb.value)) : null, assignedSquawk: sq.value.trim() } : {}),
+      };
+      const err = this.act({ k: 'flightPlan', callsign: ac.callsign, change });
+      if (err) error.textContent = err;
+      else close();
+    });
+    cancel.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => e.target === overlay && close());
+    form.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') close();
+    });
+    document.body.append(overlay);
+    (dep ? sidSel : rfl).focus();
   }
 
   /**
@@ -2261,11 +2364,13 @@ export class App {
   /** The SIDs for a clearance (the suggested one first) and their hints. */
   private clearanceSids(ac: Aircraft): { sids: { name: string; fix: string }[]; hint: (name: string, fix: string) => string } {
     const sim = this.sim;
-    const suggested = suggestedSid(sim, ac);
+    // The SID you assigned in the flight plan window first, else the one that fits the flight plan.
+    const assigned = ac.flightPlan.assignedSid;
+    const suggested = assigned ?? suggestedSid(sim, ac);
     const sids = sim.config.airport.sids
       .filter((sd) => sim.isDepartureRunway(sd.runway))
       .sort((a, b) => (a.name === suggested ? -1 : b.name === suggested ? 1 : a.name.localeCompare(b.name)));
-    return { sids, hint: (name, fix) => (name === suggested ? `${fix || 'radar vectors'} - flight plan` : fix || 'radar vectors') };
+    return { sids, hint: (name, fix) => (name === suggested ? `${fix || 'radar vectors'} - ${assigned ? 'assigned' : 'flight plan'}` : fix || 'radar vectors') };
   }
 
   /**
@@ -2275,7 +2380,7 @@ export class App {
   private dclItem(ac: Aircraft): MenuItem | undefined {
     const sim = this.sim;
     if (!sim.isOnMyFrequency(ac) || !ac.dcl || !sim.systemOn('dcl') || ac.cleared) return undefined;
-    const squawk = ac.clearance?.squawk || allocateSquawk(sim);
+    const squawk = clearanceSquawk(sim, ac);
     const { sids, hint } = this.clearanceSids(ac);
     return {
       label: 'Send DCL (datalink)',
@@ -2425,7 +2530,7 @@ export class App {
     const sim = this.sim;
     const items: MenuItem[] = [];
     // Keep the code of an earlier clearance; otherwise the next free code.
-    const squawk = ac.clearance?.squawk || allocateSquawk(sim);
+    const squawk = clearanceSquawk(sim, ac);
     const { sids, hint: sidHint } = this.clearanceSids(ac);
     const dest = destinationName(ac.flightPlan.destination);
     const ctot = ac.ctot !== undefined ? `, CTOT ${hhmm(sim, ac.ctot)}` : '';
@@ -2439,9 +2544,10 @@ export class App {
         sids.map((sd) => ({
           label: sd.name,
           hint: sidHint(sd.name, sd.fix),
-          action: () => this.say(ac, `cleared to ${dest}, ${formatDepartureRoute(sd.name)}, ${formatClearanceClimb(sd.name, initialClimb(sim))}, squawk ${squawk}${ctot}`),
+          action: () => this.say(ac, `cleared to ${dest}, ${formatDepartureRoute(sd.name)}, ${formatClearanceClimb(sd.name, initialClimb(sim, ac))}, squawk ${squawk}${ctot}`),
         })),
     });
+    items.push({ label: 'Flight plan (FPL)', hint: 'view and edit', action: () => this.showFlightPlan(ac) });
     items.push({ label: 'Readback correct', disabled: !ac.cleared || !!ac.readbackConfirmed, action: () => this.say(ac, 'readback correct') });
     const assigned = ac.clearance?.squawk;
     items.push({
@@ -2449,7 +2555,11 @@ export class App {
       disabled: !assigned,
       submenu: () => [
         { label: `Negative, squawk ${assigned}`, action: () => this.say(ac, `negative, squawk ${assigned}`) },
-        { label: 'New code', hint: allocateSquawk(sim), action: () => this.say(ac, `squawk ${allocateSquawk(sim)}`) },
+        (() => {
+          // The code you assigned in the flight plan window, else the next free one.
+          const next = ac.flightPlan.assignedSquawk && ac.flightPlan.assignedSquawk !== ac.flightPlan.squawk ? ac.flightPlan.assignedSquawk : allocateSquawk(sim);
+          return { label: 'New code', hint: next, action: () => this.say(ac, `squawk ${next}`) };
+        })(),
       ],
     });
     const tsat = sim.systemOn('acdm') && ac.tsat !== undefined ? ac.tsat : undefined;

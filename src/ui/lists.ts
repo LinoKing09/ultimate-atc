@@ -335,8 +335,8 @@ export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]):
       { key: 'wtc', label: 'W', get: (a) => a.type.wake },
       { key: 'ades', label: 'ADES', get: (a) => a.flightPlan.destination },
       { key: 'rwy', label: 'RWY', get: (a) => a.flightPlan.runway ?? '' },
-      { key: 'sid', label: 'SID', item: 'sid', get: (a) => a.flightPlan.sid ?? '' },
-      { key: 'sq', label: 'ASSR', item: 'squawk', get: (a) => a.flightPlan.squawk },
+      { key: 'sid', label: 'SID', item: 'sid', get: (a) => a.flightPlan.assignedSid ?? a.flightPlan.sid ?? '' },
+      { key: 'sq', label: 'ASSR', item: 'squawk', get: (a) => a.flightPlan.assignedSquawk ?? a.flightPlan.squawk },
       // Clearance flag (EuroScope "C"): the IFR clearance has been given.
       { key: 'clr', label: 'C', cls: 'flag', item: 'clearance', get: (a, _sim, v) => ((v.manual ? a.strip?.cleared : a.cleared) ? '\u2713' : '') },
       // Earliest intersection the crew accepts (COORD: Ground asks every departure).

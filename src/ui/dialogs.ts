@@ -493,6 +493,7 @@ const KEYS: [string, string][] = [
   ['Right click', 'Aircraft menu (pushback, taxi, handoff, ...)'],
   ['Double click on list row', 'Centre the scope on the aircraft'],
   ['Click a tag item', 'Callsign: flight plan + telephony; cleared-to: taxi menu; status: aircraft menu'],
+  ['Flight plan (FPL) in the aircraft menu', 'The flight plan window: filed data (type, aerodromes, TOBT / TSAT, RFL, route, alternate, remarks - amend RFL, route, alternate, remarks) and what you assign for the clearance: SID, initial climb, squawk (NEXT: the next free code). The clearance menu and the DCL use the assigned values; the crew acts only on what you say'],
   ['Annotation (aircraft menu, or the RMK column)', 'A short note of yours for the aircraft (at most 40 characters, e.g. EXP RWY 07): shown in its tag and in the RMK column of the lists; a click on it edits it. Only a note - the crew does not hear it'],
   ['Menu instruction while a crew reads back', 'The frequency is busy: the instruction waits (note "Frequency busy") and goes out by itself as soon as the read-back has come. Typed instructions wait for SEND to unlock, or start with "break break"'],
   ['Click a red stop bar (fog, Tower)', 'Low visibility procedures: the stop bars at the runway holding points are lit red; crews never pass a lit bar. Your line-up, take-off and crossing clearances switch it off (Settings: Stop bars), or click on the bar to switch it off or on by hand (green dashed: off). It lights again once the aircraft is on the runway, or after 90 s'],

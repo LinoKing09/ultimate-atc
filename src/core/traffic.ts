@@ -483,7 +483,8 @@ export class TrafficGenerator {
     if (forced || (opts.medical ?? (sim.eventFactor > 0 && sim.rng.chance(ARRIVAL_MEDICAL_CHANCE * sim.eventFactor)))) {
       ac.emergency = 'medical';
       ac.emergencySince = sim.time;
-      sim.system(`Approach: ${callsign} has declared PAN PAN (medical emergency) and will land with priority.`, 'warning', callsign);
+      // Voice only: the crew declares it on its first call to you (PAN PAN), nothing else tells you.
+      if (!sim.voiceOnly) sim.system(`Approach: ${callsign} has declared PAN PAN (medical emergency) and will land with priority.`, 'warning', callsign);
     }
     sim.tower.setupApproach(ac, distanceNm, runway);
     ac.taxiPace = 0.85 + 0.3 * sim.variation(`${ac.callsign}:pace`);

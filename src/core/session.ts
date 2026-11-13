@@ -8,7 +8,7 @@ import { APP_VERSION } from '../version';
 import { assumeTrack, initiateTransfer } from './radar';
 import type { AirportData } from './airport/types';
 import { acknowledgeCatc, catcAlert } from './conflicts';
-import { sendDcl } from './delivery';
+import { amendFlightPlan, sendDcl, type FlightPlanChange } from './delivery';
 import { setStripMark, type StripField } from './strips';
 import type { ScenarioSetup } from './scenario';
 import { HANDOVER_S, Simulation, type AtisChange, type SimConfig, type TransmitResult } from './simulation';
@@ -41,6 +41,8 @@ export type SessionAction =
   /** Radar: assume a track Center offers. */
   | { k: 'assume'; callsign: string }
   | { k: 'dcl'; callsign: string; sid: string; squawk: string }
+  /** The flight plan window: filed items amended, values assigned for the clearance. */
+  | { k: 'flightPlan'; callsign: string; change: FlightPlanChange }
   | { k: 'catcAck'; callsign: string }
   /** Realistic control mode: a mark the controller entered in the lists by hand (see strips.ts). */
   | { k: 'strip'; callsign: string; field: StripField; value?: string | boolean }
@@ -99,6 +101,10 @@ function apply(sim: Simulation, a: SessionAction): ActionResult {
     case 'handoff': {
       const ac = sim.find(a.callsign);
       return ac ? sim.requestHandoff(ac) : undefined;
+    }
+    case 'flightPlan': {
+      const ac = sim.find(a.callsign);
+      return ac ? amendFlightPlan(sim, ac, a.change) : `${a.callsign} is not in the picture any more.`;
     }
     case 'dcl': {
       const ac = sim.find(a.callsign);

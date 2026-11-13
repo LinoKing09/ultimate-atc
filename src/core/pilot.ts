@@ -782,7 +782,9 @@ function towerCall(sim: Simulation, ac: Aircraft, stationName: string, tel: stri
     const nm = sim.distanceToThresholdNm(ac);
     if (!ac.towerContact) {
       ac.towerContact = true;
-      call(sim, ac, 'landing', `${stationName}, ${tel}, ${sim.approachName(ac.runway)}`);
+      // A medical emergency on board: the crew declares it (PAN PAN three times, ICAO Annex 10 Vol II 5.3.3).
+      if (ac.emergency === 'medical') call(sim, ac, 'landing', `PAN PAN, PAN PAN, PAN PAN, ${stationName}, ${tel}, medical emergency on board, ${sim.approachName(ac.runway)}, request priority landing, ambulance required`);
+      else call(sim, ac, 'landing', `${stationName}, ${tel}, ${sim.approachName(ac.runway)}`);
       return true;
     }
     if (nm < 2 && !ac.shortFinalCall) {

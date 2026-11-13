@@ -47,14 +47,75 @@ export function initialClimbFt(sim: Simulation): number {
 }
 
 /** The initial climb as said in a clearance: an altitude up to the transition altitude, else a flight level. */
-export function initialClimb(sim: Simulation): Altitude {
-  const ft = initialClimbFt(sim);
+export function initialClimb(sim: Simulation, ac?: Aircraft): Altitude {
+  const ft = ac?.flightPlan.assignedClimbFt ?? initialClimbFt(sim);
   return ft > sim.config.airport.transitionAltitudeFt ? { fl: Math.round(ft / 100) } : { feet: ft };
+}
+
+/** The squawk a clearance gives: the one you assigned in the flight plan, an earlier clearance's, else the next free code. */
+export function clearanceSquawk(sim: Simulation, ac: Aircraft): string {
+  return ac.flightPlan.assignedSquawk || ac.clearance?.squawk || allocateSquawk(sim);
+}
+
+/** Changes of the flight plan window (EuroScope FPL): filed items amended, and what you assign for the clearance. */
+export interface FlightPlanChange {
+  cruiseFl?: number;
+  route?: string;
+  alternate?: string;
+  remarks?: string;
+  /** '' clears an assignment. */
+  assignedSid?: string;
+  assignedClimbFt?: number | null;
+  assignedSquawk?: string;
+}
+
+/** Highest and lowest initial climb you can assign (ft). */
+const ASSIGN_CLIMB_MIN_FT = 2000;
+const ASSIGN_CLIMB_MAX_FT = 25000;
+
+/** Amends a flight plan (session action `flightPlan`). Returns an error text if a value is not valid; then nothing changes. */
+export function amendFlightPlan(sim: Simulation, ac: Aircraft, c: FlightPlanChange): string | undefined {
+  const fp = ac.flightPlan;
+  if (c.cruiseFl !== undefined && !(Number.isInteger(c.cruiseFl) && c.cruiseFl >= 30 && c.cruiseFl <= 510)) return `RFL ${c.cruiseFl}: a flight level 30-510`;
+  if (c.route !== undefined && !c.route.trim()) return 'The route must not be empty';
+  if (c.alternate && !/^[A-Z]{4}$/.test(c.alternate.toUpperCase())) return `Alternate ${c.alternate}: an ICAO code (4 letters)`;
+  let sid: SidData | undefined;
+  if (c.assignedSid) {
+    sid = sim.config.airport.sids.find((s) => s.name === c.assignedSid!.toUpperCase());
+    if (!sid) return `Unknown SID ${c.assignedSid}`;
+    if (ac.category === 'departure' && !sim.isDepartureRunway(sid.runway)) return `${sid.name} is a SID of runway ${sid.runway}, not in use for departures`;
+  }
+  if (c.assignedClimbFt != null && !(c.assignedClimbFt >= ASSIGN_CLIMB_MIN_FT && c.assignedClimbFt <= ASSIGN_CLIMB_MAX_FT && c.assignedClimbFt % 100 === 0)) {
+    return `Initial climb ${c.assignedClimbFt} ft: ${ASSIGN_CLIMB_MIN_FT}-${ASSIGN_CLIMB_MAX_FT} ft in hundreds`;
+  }
+  if (c.assignedSquawk) {
+    if (!isValidSquawk(c.assignedSquawk)) return `Squawk ${c.assignedSquawk}: four digits 0-7, not an emergency or conspicuity code`;
+    const other = sim.aircraft.find((a) => a !== ac && (a.flightPlan.squawk === c.assignedSquawk || a.flightPlan.assignedSquawk === c.assignedSquawk));
+    if (other) return `Squawk ${c.assignedSquawk} is used by ${other.callsign}`;
+  }
+  if (c.cruiseFl !== undefined) fp.cruiseFl = c.cruiseFl;
+  if (c.route !== undefined) fp.route = c.route.trim().toUpperCase().replace(/\s+/g, ' ').slice(0, 200);
+  if (c.alternate !== undefined) fp.alternate = c.alternate.trim().toUpperCase() || undefined;
+  if (c.remarks !== undefined) fp.remarks = c.remarks.trim().toUpperCase().slice(0, 120) || undefined;
+  if (c.assignedSid !== undefined) fp.assignedSid = sid?.name;
+  if (c.assignedClimbFt !== undefined) fp.assignedClimbFt = c.assignedClimbFt ?? undefined;
+  if (c.assignedSquawk !== undefined) fp.assignedSquawk = c.assignedSquawk || undefined;
+  return undefined;
+}
+
+/** A clearance was given: the assignments it carried are no longer pending. */
+function clearAssigned(ac: Aircraft): void {
+  ac.flightPlan.assignedSid = ac.flightPlan.assignedClimbFt = ac.flightPlan.assignedSquawk = undefined;
+}
+
+/** Feet of a cleared altitude or flight level. */
+function feetOf(a: Altitude): number {
+  return 'fl' in a ? a.fl * 100 : a.feet;
 }
 
 /** Next free squawk code (not used by any aircraft in the session). */
 export function allocateSquawk(sim: Simulation): string {
-  const used = new Set(sim.aircraft.map((a) => a.flightPlan.squawk));
+  const used = new Set(sim.aircraft.flatMap((a) => [a.flightPlan.squawk, a.flightPlan.assignedSquawk ?? '']));
   for (const start of SQUAWK_BLOCKS) {
     for (let k = 0; k < 0o77; k++) {
       const code = (start + k).toString(8).padStart(4, '0');
@@ -199,6 +260,8 @@ export function execClearance(sim: Simulation, ac: Aircraft, c: Extract<Command,
 
   const squawk = c.squawk!;
   ac.clearance = { sid: sid!.name, climb: formatAltitude(c.climb!), squawk };
+  fp.clearedClimbFt = feetOf(c.climb!);
+  clearAssigned(ac);
   fp.sid = sid!.name;
   assignSidRunway(ac, sid!.runway);
   fp.squawk = squawk;
@@ -269,7 +332,10 @@ export function sendDcl(sim: Simulation, ac: Aircraft, sidName: string, squawk: 
   const sid = sim.config.airport.sids.find((s) => s.name === sidName);
   if (!sid) return `Unknown SID ${sidName}`;
   if (!isValidSquawk(squawk)) return `Invalid squawk ${squawk}`;
-  ac.clearance = { sid: sid.name, climb: formatAltitude(initialClimb(sim)), squawk };
+  const climb = initialClimb(sim, ac);
+  ac.clearance = { sid: sid.name, climb: formatAltitude(climb), squawk };
+  ac.flightPlan.clearedClimbFt = feetOf(climb);
+  clearAssigned(ac);
   ac.flightPlan.sid = sid.name;
   assignSidRunway(ac, sid.runway);
   ac.flightPlan.squawk = squawk;
@@ -278,7 +344,7 @@ export function sendDcl(sim: Simulation, ac: Aircraft, sidName: string, squawk: 
     sim.recordAnswer(ac);
     ac.request = null;
   }
-  const text = `DCL to ${ac.callsign}: cleared to ${destinationName(ac.flightPlan.destination)}, ${formatDepartureRoute(sid.name)}, ${formatClearanceClimb(sid.name, initialClimb(sim))}, squawk ${squawk}${ac.ctot ? `, CTOT ${hhmm(sim, ac.ctot)}` : ''} - WILCO.`;
+  const text = `DCL to ${ac.callsign}: cleared to ${destinationName(ac.flightPlan.destination)}, ${formatDepartureRoute(sid.name)}, ${formatClearanceClimb(sid.name, climb)}, squawk ${squawk}${ac.ctot ? `, CTOT ${hhmm(sim, ac.ctot)}` : ''} - WILCO.`;
   sim.system(
     // US: pre-departure clearance (PDC), in FAA wording.
     sim.faa ? faaStyle(text).replace(/^DCL/, 'PDC') : text,
@@ -338,9 +404,16 @@ export function updateDeliveryAI(sim: Simulation): void {
   for (const ac of sim.aircraft) {
     if (ac.frequency !== delivery) continue;
     if (!ac.cleared) {
-      ac.flightPlan.squawk ||= allocateSquawk(sim);
-      ac.flightPlan.sid = suggestedSid(sim, ac) ?? ac.flightPlan.sid;
-      ac.clearance = { sid: ac.flightPlan.sid, climb: formatAltitude(initialClimb(sim)), squawk: ac.flightPlan.squawk };
+      // The AI Delivery uses what you assigned in the flight plan, if anything.
+      const fp = ac.flightPlan;
+      fp.squawk ||= fp.assignedSquawk || allocateSquawk(sim);
+      const assigned = sim.config.airport.sids.find((s) => s.name === fp.assignedSid && sim.isDepartureRunway(s.runway));
+      if (assigned) assignSidRunway(ac, assigned.runway);
+      fp.sid = assigned?.name ?? suggestedSid(sim, ac) ?? fp.sid;
+      const climb = initialClimb(sim, ac);
+      ac.clearance = { sid: fp.sid, climb: formatAltitude(climb), squawk: fp.squawk };
+      fp.clearedClimbFt = feetOf(climb);
+      clearAssigned(ac);
       ac.cleared = true;
     }
     ac.frequency = sim.stationFor('ground');

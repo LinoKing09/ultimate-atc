@@ -528,14 +528,18 @@ export class Simulation {
     this.pushMessage({ id: this.nextSystemId++, time: this.time, kind, from: 'SYSTEM', text, spoken: '', callsign });
   }
 
-  incident(type: IncidentType, text: string, callsigns: string[]): void {
+  /**
+   * An incident: counted (score, debriefing) and announced - unless `quiet` (voice-only mode: the crew reports it on
+   * your frequency, e.g. "going around", and nothing else tells you).
+   */
+  incident(type: IncidentType, text: string, callsigns: string[], quiet = false): void {
     const inc: Incident = { time: this.time, type, text, callsigns };
     this.incidents.push(inc);
     if (type === 'collision') this.stats.collisions++;
     if (type === 'incursion') this.stats.incursions++;
     if (type === 'goAround') this.stats.goArounds++;
     this.updateScore();
-    this.system(text, 'warning', callsigns[0]);
+    if (!quiet) this.system(text, 'warning', callsigns[0]);
     this.emit('incident', inc);
   }
 
@@ -1227,6 +1231,11 @@ export class Simulation {
     if (!callsign) return undefined;
     const c = callsign.toUpperCase();
     return this.aircraft.find((a) => a.callsign === c);
+  }
+
+  /** Voice-only mode: the crew reports this event on your frequency itself - no system message about it. */
+  heardOnly(ac: Aircraft): boolean {
+    return this.voiceOnly && this.isOnMyFrequency(ac);
   }
 
   /** True if the aircraft talks to one of the user's positions. */

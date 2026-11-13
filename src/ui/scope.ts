@@ -1418,7 +1418,7 @@ export class Scope {
       const heading = v.prevHeading + turn * f;
       // A driver waiting for your answer flashes like an aircraft with a request.
       const label = labels ? `${v.name}${v.request ? ' *' : ''}${v.holding ? ' HOLD' : ''}` : undefined;
-      this.drawVehicle(pos, heading, 4.6, 1.9, v.request && blink ? this.t.request : this.t.followMe, label);
+      this.drawVehicle(pos, heading, 4.6, 1.9, v.request && blink && !this.manualStrips ? this.t.request : this.t.followMe, label);
       const p = this.toScreen(pos);
       this.symbolHits.push({ callsign: v.callsign, x: p.x, y: p.y, r: 12 });
       if (v.callsign === this.selected) {

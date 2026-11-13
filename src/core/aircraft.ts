@@ -39,7 +39,20 @@ export interface FlightPlan {
   sid?: string;
   runway?: string;
   cruiseFl: number;
+  /** The code the transponder shows (set by the crew when they read it back; empty before the clearance). */
   squawk: string;
+  /** Filed: alternate aerodrome (ICAO) and remarks (field 18), amended by the controller in the flight plan window. */
+  alternate?: string;
+  remarks?: string;
+  /**
+   * Assigned by you in the flight plan window, not yet said (EuroScope: the ASSR / SID / CFL of the strip): your next
+   * clearance uses them. The crew acts only on what you say - the transponder keeps its code until then.
+   */
+  assignedSid?: string;
+  assignedClimbFt?: number;
+  assignedSquawk?: string;
+  /** The initial climb of the clearance the crew read back (ft) - the departure climbs to it after take-off. */
+  clearedClimbFt?: number;
 }
 
 /** Points along the current path where the aircraft has to stop. */

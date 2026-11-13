@@ -735,6 +735,10 @@ body.realistic .cmdline .clear,
 body.realistic .quickbar {
   display: none;
 }
+/* Voice only: no command line at all - it would show whom the microphone and the selection point at. */
+body.realistic .cmdline {
+  display: none;
+}
 body.realistic .cmdline .cmd {
   cursor: default;
 }
@@ -2137,4 +2141,45 @@ td.rmk {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ------------------------------------------------------------------ flight plan window (FPL) */
+.dialog.fpl-dialog {
+  width: min(560px, calc(100vw - 32px));
+}
+.fpl-dialog .fpl-sect {
+  margin: 10px 0 4px;
+  color: var(--text-dim);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  border-bottom: 1px solid var(--border, rgba(255, 255, 255, 0.15));
+}
+.fpl-dialog .fpl-row {
+  display: grid;
+  grid-template-columns: 9.5em 1fr auto;
+  gap: 4px 8px;
+  align-items: center;
+  margin: 3px 0;
+}
+.fpl-dialog .fpl-row input,
+.fpl-dialog .fpl-row select,
+.fpl-dialog .fpl-row textarea {
+  font: inherit;
+  min-width: 0;
+  box-sizing: border-box;
+  width: 100%;
+  text-transform: uppercase;
+}
+.fpl-dialog .fpl-inline {
+  display: flex;
+  gap: 6px;
+}
+.fpl-dialog .ro {
+  font-family: Consolas, Menlo, monospace;
+}
+.fpl-dialog .fpl-error {
+  color: var(--danger, #ff6060);
+  min-height: 1.2em;
+  margin-top: 6px;
 }

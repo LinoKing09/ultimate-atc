@@ -637,7 +637,8 @@ export class RadarScope {
     // Center offers the track (EuroScope: transfer to me): it flashes until you assume it.
     if (offered(ac)) return blink ? this.t.incoming : this.t.other;
     const mine = this.sim.isOnMyFrequency(ac) && ac.frequency === 'APP';
-    if (mine && ac.request && !ac.requestAck) return blink ? this.t.incoming : this.t.assumed;
+    // Realistic (voice-only) mode: nothing on the scope tells who called - you hear it.
+    if (mine && ac.request && !ac.requestAck && !this.manualStrips) return blink ? this.t.incoming : this.t.assumed;
     if (mine) return this.t.assumed;
     return this.t.other;
   }
@@ -797,7 +798,7 @@ export class RadarScope {
     const lines: Part[][] = [];
     const head: Part[] = [{ text: ac.callsign, item: 'callsign' }];
     if (ac.emergency) head.push({ text: ' PAN', color: this.t.emergency });
-    if (mine && ac.request && !ac.requestAck) head.push({ text: ac.request === 'checkIn' ? ' C/I' : ' *' });
+    if (mine && ac.request && !ac.requestAck && !this.manualStrips) head.push({ text: ac.request === 'checkIn' ? ' C/I' : ' *' });
     if (offered(ac)) head.push({ text: ' H/O' });
     // Your transfer to the next controller: ">TWR" while it is offered, "TWR" (accepted) when you can send the crew over.
     if (mine && r?.transfer) head.push({ text: r.transfer.acceptedAt === undefined ? ` >${r.transfer.to}` : ` ${r.transfer.to}`, color: r.transfer.acceptedAt === undefined ? this.t.incoming : this.t.other });

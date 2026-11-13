@@ -72,6 +72,7 @@ const RULES: [RegExp, string | ((m: RegExpExecArray) => string)][] = [
   [/^Other runways$/, 'OTHER RWY'],
   [/^Centre view$/, 'CENTER'],
   [/^Annotation$/, 'NOTE'],
+  [/^(Open flight plan|Flight plan) \(FPL\)$/, 'FPL'],
   [/^Reset tag position$/, 'RST TAG'],
   [/^Accept hand-off$/, 'ASSUME'],
 ];

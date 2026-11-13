@@ -20,6 +20,8 @@ export interface RadarMenuContext {
   resetTag: (ac: Aircraft) => void;
   /** Edits the annotation of the aircraft (scratchpad). */
   note?: (ac: Aircraft) => void;
+  /** Opens the flight plan window. */
+  flightPlan?: (ac: Aircraft) => void;
   /** EuroScope-style short entries. */
   real: boolean;
   /** Starts the hand-over of the track to Tower / Center (EuroScope: initiate transfer). */
@@ -250,6 +252,7 @@ export function radarItems(ctx: RadarMenuContext, ac: Aircraft): MenuItem[] {
     const shown = ctx.routeShown?.(ac);
     items.push({ label: real ? 'ROUTE' : shown ? 'Hide route' : 'Show route', hint: real && shown ? 'ON' : undefined, action: () => ctx.toggleRoute!(ac) });
   }
+  if (ctx.flightPlan) items.push({ label: real ? 'FPL' : 'Flight plan (FPL)', action: () => ctx.flightPlan!(ac) });
   if (ctx.note) items.push({ label: real ? 'NOTE' : 'Annotation', hint: ac.strip?.note, action: () => ctx.note!(ac) });
   items.push({ label: real ? 'CENTER' : 'Centre view', action: () => ctx.center(ac) }, { label: real ? 'RST TAG' : 'Reset tag position', action: () => ctx.resetTag(ac) });
   return items;

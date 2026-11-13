@@ -485,7 +485,8 @@ function adoptAirborne(sim: Simulation, ac: Aircraft): void {
   const as = sim.airspace!;
   if (ac.category === 'departure' && ac.phase === 'climb') {
     const sid = sim.config.airport.sids.find((s) => s.name === ac.flightPlan.sid);
-    const climb = sim.config.airport.initialClimbFt ?? 5000;
+    // The initial climb of its clearance (the SID's, or what you gave), else the airport's.
+    const climb = ac.flightPlan.clearedClimbFt ?? sim.config.airport.initialClimbFt ?? 5000;
     // The SID's waypoints (or direct to its exit fix).
     const sidRoute = (sid?.route ?? (sid?.fix ? [sid.fix] : [])).filter((f) => as.fix(f));
     ac.radar = newState(ac, climb, isFlightLevel(sim, climb), sidRoute);

@@ -493,8 +493,9 @@ export class TowerAI {
     ac.phase = 'goAround';
     ac.verticalSpeedFpm = 2000;
     ac.landingCleared = false;
-    if (culprit) this.sim.incident('goAround', `${ac.callsign} went around - runway occupied by ${culprit.callsign}.`, [ac.callsign, culprit.callsign]);
-    else this.sim.incident('goAround', `${ac.callsign} went around - no landing clearance.`, [ac.callsign]);
+    const quiet = this.sim.heardOnly(ac);
+    if (culprit) this.sim.incident('goAround', `${ac.callsign} went around - runway occupied by ${culprit.callsign}.`, [ac.callsign, culprit.callsign], quiet);
+    else this.sim.incident('goAround', `${ac.callsign} went around - no landing clearance.`, [ac.callsign], quiet);
     if (this.sim.isOnMyFrequency(ac)) call(this.sim, ac, 'radar', `${this.sim.tel(ac)}, going around${culprit ? '' : ', no landing clearance received'}`);
     ac.assignedStand = undefined;
   }
@@ -508,7 +509,7 @@ export class TowerAI {
     ac.assignedStand = undefined;
     sim.stats.weatherGoArounds++;
     const why = reason === 'windshear' ? 'windshear' : `tailwind out of limits on runway ${ac.runway ?? this.end.name}`;
-    sim.system(`${ac.callsign} went around - ${why} (weather, no penalty).`, 'warning', ac.callsign);
+    if (!sim.heardOnly(ac)) sim.system(`${ac.callsign} went around - ${why} (weather, no penalty).`, 'warning', ac.callsign);
     if (sim.isOnMyFrequency(ac)) call(sim, ac, 'radar', `${sim.tel(ac)}, going around, ${reason === 'windshear' ? 'windshear' : 'tailwind out of limits'}`);
   }
 
@@ -518,7 +519,7 @@ export class TowerAI {
     ac.verticalSpeedFpm = 2000;
     ac.landingCleared = false;
     ac.assignedStand = undefined;
-    this.sim.incident('goAround', `${ac.callsign} went around - unstable approach, too high on final.`, [ac.callsign]);
+    this.sim.incident('goAround', `${ac.callsign} went around - unstable approach, too high on final.`, [ac.callsign], this.sim.heardOnly(ac));
     if (this.sim.isOnMyFrequency(ac)) call(this.sim, ac, 'radar', `${this.sim.tel(ac)}, going around, unstable approach`);
   }
 
@@ -1224,7 +1225,8 @@ export class TowerAI {
     ac.rejectedTakeoff = true;
     const reason = (ac.rejectReason = sim.rng.pick(REJECT_REASONS));
     sim.stats.rejectedTakeoffs++;
-    sim.system(`Tower: ${ac.callsign} rejected the take-off on runway ${this.departureEnd(ac).name} (${reason.text}) - runway blocked until vacated.`, 'warning', ac.callsign);
+    // Voice only: you hear "stopping" - nothing else tells you.
+    if (!sim.heardOnly(ac)) sim.system(`Tower: ${ac.callsign} rejected the take-off on runway ${this.departureEnd(ac).name} (${reason.text}) - runway blocked until vacated.`, 'warning', ac.callsign);
     this.planRollout(ac, this.departureEnd(ac), REJECT_DECEL, false, false, true);
     // On your frequency the crew says "stopping" at once (ICAO), the reason follows once it has vacated the runway
     // (or when asked: "say reason").

@@ -23,6 +23,8 @@ export class TutorialPanel {
   private shown = -1;
   /** The example of the current step (it can change, e.g. once a stand is known). */
   private exampleEl?: HTMLElement;
+  /** "Wait: ..." while it is not yet time for the example (radar: the turn onto base). */
+  private waitEl?: HTMLElement;
 
   constructor(
     private readonly runner: TutorialRunner,
@@ -41,9 +43,13 @@ export class TutorialPanel {
   update(selected: string | undefined): void {
     if (!this.el.isConnected) return;
     if (this.runner.update(selected) || this.shown !== this.runner.index) this.render();
-    else if (this.exampleEl) {
-      const text = this.runner.step?.example?.(this.runner.sim) ?? '';
-      if (this.exampleEl.textContent !== text) this.exampleEl.textContent = text;
+    else {
+      const step = this.runner.step;
+      if (this.exampleEl) {
+        const text = step?.example?.(this.runner.sim) ?? '';
+        if (this.exampleEl.textContent !== text) this.exampleEl.textContent = text;
+      }
+      if (this.waitEl) this.showWait(step?.wait?.(this.runner.sim));
     }
   }
 
@@ -59,6 +65,7 @@ export class TutorialPanel {
     );
     const step = r.step;
     this.exampleEl = undefined;
+    this.waitEl = undefined;
     // Finished (or skipped): the panel disappears.
     if (!step) {
       this.el.remove();
@@ -94,6 +101,10 @@ export class TutorialPanel {
       });
     }
     const parts: HTMLElement[] = [h('div.tstep', { text: step.title }), h('p', {}, ...rich(r.text()))];
+    if (step.wait) {
+      parts.push((this.waitEl = h('div.twait')));
+      this.showWait(step.wait(r.sim));
+    }
     if (step.example) parts.push(h('div.texample', {}, (this.exampleEl = h('code', { text: example ?? '' }))));
     parts.push(h('div.tactions', {}, ...buttons));
     this.body.replaceChildren(...parts);
@@ -102,6 +113,14 @@ export class TutorialPanel {
     this.el.classList.remove('collapsed', 'flash');
     void this.el.offsetWidth;
     this.el.classList.add('flash');
+  }
+
+  /** The wait note, or "Now!" once it is time for the example. */
+  private showWait(text: string | undefined): void {
+    const el = this.waitEl!;
+    const t = text ?? 'Now!';
+    if (el.textContent !== t) el.textContent = t;
+    el.classList.toggle('now', !text);
   }
 
   /** Ends the tutorial and removes the panel. */

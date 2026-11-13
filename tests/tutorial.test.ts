@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 import { sendDcl, suggestedSid, allocateSquawk } from '../src/core/delivery';
+import { perform } from '../src/core/session';
 import { Simulation } from '../src/core/simulation';
+import { offered } from '../src/core/radar';
 import { TUTORIALS, TutorialRunner, tutorialConfig } from '../src/core/tutorial';
 import { EDDS } from '../src/data/airports/edds';
 
@@ -16,7 +18,7 @@ function play(id: string): { runner: TutorialRunner; sim: Simulation; log: strin
   const log: string[] = [];
   let stepStart = 0;
   let lastSent = -Infinity;
-  for (let s = 0; s < 45 * 60 && !runner.finished; s++) {
+  for (let s = 0; s < 75 * 60 && !runner.finished; s++) {
     if (runner.update(runner.step?.focus)) {
       stepStart = sim.time;
       log.push(`${Math.round(sim.time)}s ${runner.step?.title ?? 'END'}`);
@@ -32,7 +34,14 @@ function play(id: string): { runner: TutorialRunner; sim: Simulation; log: strin
     if (step.title.startsWith('Datalink') && focus?.request === 'clearance') {
       expect(sendDcl(sim, focus, suggestedSid(sim, focus)!, allocateSquawk(sim))).toBeUndefined();
     }
-    const example = step.example?.(sim);
+    // Steps done on the scope (radar): assume the track, start the hand-over - once it is time.
+    if (step.action && focus && !step.wait?.(sim) && sim.time - lastSent > 10) {
+      if (step.action === 'assume' ? offered(focus) : !focus.radar?.transfer) {
+        expect(perform(sim, { k: step.action, callsign: focus.callsign }), `${step.action} ${focus.callsign}`).toBeUndefined();
+        lastSent = sim.time;
+      }
+    }
+    const example = step.wait?.(sim) ? undefined : step.example?.(sim);
     // The student answers a pilot who is waiting; a step without a call (e.g. correcting a readback) after a while.
     const calling = !!focus?.request;
     if (example && (calling || sim.time - stepStart > 60) && sim.time - lastSent > 20 && !sim.frequency.isBusy(sim.time)) {
@@ -96,4 +105,19 @@ describe('tutorials', () => {
     for (let s = 0; s < 600; s++) sim.tick(1);
     expect(sim.aircraft.length).toBeGreaterThan(0);
   });
+});
+
+describe('Approach tutorial', () => {
+  it('vectors the arrival onto the ILS, the departure goes to Center - no penalties', () => {
+    const { sim } = play('approach');
+    const s = sim.stats;
+    expect(s.arrivalsToTower).toBe(1);
+    expect(s.departuresToCenter).toBe(1);
+    expect(s.radarHandoffsMissed).toBe(0);
+    expect(s.uncoordinatedTransfers).toBe(0);
+    expect(s.radarSeparationLosses).toBe(0);
+    expect(sim.find('EWG7TK')?.onGround).toBe(true);
+    // The RNAV transition of the last arrival.
+    expect(sim.find('CFG1753')?.radar?.transition).toBe('TEKSI 25');
+  }, 60000);
 });

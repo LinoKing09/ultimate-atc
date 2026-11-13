@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Sequencing aid on the radar**: every arrival on the final shows the distance to the arrival ahead under its target - amber below the SOP spacing (Stuttgart 6 NM), red below the minimum (3 NM or the wake turbulence minimum). The INBOUND list has the place in the landing sequence of the runway (`SEQ`) and that spacing (`SPC`, `!` below the minimum).
+- **Soak test with the radar staffed**: `npm run soak` also runs Approach alone and every position from Delivery to Approach at the airports with a terminal airspace (Stuttgart), with a scripted radar controller (`tests/radarBot.ts`: assume, identify, clear for the approach via the transition, slow down a follower too close, transfer and hand-off to Tower and Center). It fails on an arrival that has not landed after 45 minutes, too.
+
 - **Approach tutorial** (Connect dialog: *Tutorial -> Approach*): a guided first session as Langen Radar at Stuttgart - assume a track Center offers, `identified` and a descent with the QNH, vectors for a downwind, base and intercept with the ILS clearance, the hand-over of the track to Tower, a departure climbed to its release level and handed to Center, and an arrival cleared via the RNAV transition. Steps with a right moment (the turn onto base at 16 NM, the intercept 3 NM before the centre line) show in the panel what to wait for, then *Now!*. Played automatically by the tutorial test like the other lessons.
 
 - **More runways at Cologne/Bonn in the ATIS editor** (VATSIM Germany SOP): **31R + 24** - take-offs 31R, landings 24 on the crossing runway (the highest capacity), and **31R + 31L** - landings on 31L for light and medium aircraft (code C) next to the main runway, with dependent or staggered approaches. Both are optional combinations (also in the scenario builder); the default stays 13L/31R.
@@ -17,8 +20,13 @@ All notable changes to this project are documented in this file. The format is b
 
 - **Saved sessions say clearly when they come back differently.** A session is rebuilt by replaying it from its start, so one saved by an earlier version of the simulator can differ (e.g. an aircraft at another altitude). The check of the rebuilt traffic now also covers altitudes, headings, cleared levels and frequencies; a session that differs gets a clear note (message window and scope) naming the version that saved it, and the list of saved sessions marks sessions of another version.
 
+- **Heavy traffic is heavier**: *heavy* now means 26 departures and 22 arrivals per hour (was 22 / 18), *medium to heavy* 20 / 17 (was 18 / 15), and both start **busy** with an empty airport: 70 % of an hour's departures on the stands with ready times in the first 15 minutes (first calls 45 s apart), and 2 or 3 arrivals already on final, 7 NM apart (fewer at small airports, wider where the airport needs more spacing) - instead of building up over half an hour.
+- **Gate holding by the AI Ground**: with 6 departures to a runway already pushing back, taxiing or waiting, the next one stays on its stand - under heavy traffic the queue no longer fills the taxiways until they lock up.
+- **Pilot voices (TTS) are on by default** (tested on the iPad); your stored choice is kept.
+
 ### Fixed
 
+- A crew stopped for opposite traffic that got an instruction just as its way cleared no longer stays silent: the read-back was dropped together with its waiting "blocked" call, and the frequency was free for others while the controller waited for it.
 - Menus (e.g. **DCT** on the radar) seemed not to react: an instruction picked while another crew was still reading back was dropped, with only a line in the message window. It now waits (note *Frequency busy* on the scope) and goes out by itself as soon as the frequency is free.
 
 - Radar: selecting an aircraft no longer starts the hand-over of its track by itself (the quick-action bar ran the `XFER` entry while it built its buttons) - for arrivals not yet cleared for the approach that showed the red note *Tower takes arrivals that are cleared for the approach* every time, for departures it offered the track to Center unasked.

@@ -1,4 +1,4 @@
-import type { ApproachProfile } from './approach';
+import { wakeSpacingNm, type ApproachProfile } from './approach';
 import type { Aircraft } from './aircraft';
 import type { AirspaceData, ArrivalEntryData, CenterSectorData, FixData, HoldingData } from './airport/types';
 import type { RunwayEnd } from './airport/airport';
@@ -986,6 +986,78 @@ function updateRadarAlerts(sim: Simulation, active: boolean): void {
       }
     } else if (ac.altitudeFt >= mva) r.msaw = false;
   }
+}
+
+// ====================================================================== sequencing aid
+
+/** Radar minimum between two arrivals on the same final (NM), unless the wake turbulence minimum is larger. */
+export const FINAL_MIN_SPACING_NM = 3;
+
+/** One arrival in the landing sequence of its runway (INBOUND list, scope). */
+export interface SequenceEntry {
+  /** Place in the sequence of its runway: 1 lands next. */
+  number: number;
+  /** Straight distance to the threshold (NM). */
+  dtgNm: number;
+  /** On the final (localizer captured or on the approach): the spacing to the one ahead counts. */
+  onFinal: boolean;
+  /** The arrival ahead in the sequence and the distance to it (NM) - for aircraft on the final only. */
+  ahead?: string;
+  spacingNm?: number;
+  /** Minimum behind the one ahead: radar minimum or wake turbulence minimum (NM). */
+  minimumNm: number;
+  /** Spacing the SOP asks for on final (NM), e.g. 6 at Stuttgart. */
+  targetNm: number;
+  /** Closer than the minimum (red) / than the SOP spacing (amber). */
+  belowMinimum: boolean;
+  belowTarget: boolean;
+}
+
+/**
+ * Sequencing aid of the radar: the airborne arrivals of each runway in the order of their distance to the
+ * threshold, and for those on the final the spacing to the arrival ahead against the minimum (radar or wake) and the
+ * SOP spacing. Recomputed on demand (the lists and the scope call it once per frame).
+ */
+export function arrivalSequence(sim: Simulation): Map<string, SequenceEntry> {
+  const cached = sequenceCache.get(sim);
+  if (cached && cached.t === sim.time) return cached.seq;
+  const seq = computeSequence(sim);
+  sequenceCache.set(sim, { t: sim.time, seq });
+  return seq;
+}
+
+const sequenceCache = new WeakMap<Simulation, { t: number; seq: Map<string, SequenceEntry> }>();
+
+function computeSequence(sim: Simulation): Map<string, SequenceEntry> {
+  const out = new Map<string, SequenceEntry>();
+  const target = sim.airspace?.data.finalSpacingNm ?? FINAL_MIN_SPACING_NM;
+  const byRunway = new Map<string, Aircraft[]>();
+  for (const a of sim.aircraft) {
+    if (a.category !== 'arrival' || a.onGround || (a.phase !== 'inbound' && a.phase !== 'approach')) continue;
+    const rwy = a.runway ?? sim.runway;
+    const list = byRunway.get(rwy) ?? [];
+    list.push(a);
+    byRunway.set(rwy, list);
+  }
+  for (const list of byRunway.values()) {
+    const dtg = new Map(list.map((a) => [a, sim.distanceToThresholdNm(a)]));
+    list.sort((a, b) => dtg.get(a)! - dtg.get(b)!);
+    let lastOnFinal: Aircraft | undefined;
+    list.forEach((a, i) => {
+      const onFinal = a.phase === 'approach' || !!a.radar?.locCaptured;
+      const e: SequenceEntry = { number: i + 1, dtgNm: dtg.get(a)!, onFinal, minimumNm: FINAL_MIN_SPACING_NM, targetNm: target, belowMinimum: false, belowTarget: false };
+      if (onFinal && lastOnFinal) {
+        e.ahead = lastOnFinal.callsign;
+        e.spacingNm = distance(a.pos, lastOnFinal.pos) / M_PER_NM;
+        e.minimumNm = Math.max(FINAL_MIN_SPACING_NM, wakeSpacingNm(lastOnFinal.type.wake, a.type.wake));
+        e.belowMinimum = e.spacingNm < e.minimumNm;
+        e.belowTarget = e.spacingNm < Math.max(e.minimumNm, target);
+      }
+      if (onFinal) lastOnFinal = a;
+      out.set(a.callsign, e);
+    });
+  }
+  return out;
 }
 
 /** Distance (NM) between two aircraft along the final, for the spacing readout of the scope; undefined if not both on it. */

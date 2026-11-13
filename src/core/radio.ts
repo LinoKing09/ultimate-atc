@@ -47,6 +47,8 @@ export const READBACK_WAIT_S = 5;
 export const CALL_GAP_AFTER_ATC_S = 2;
 /** Transmissions with at least this priority (read-backs, urgent reports such as "stopping") ignore these gaps. */
 const URGENT_PRIORITY = 5;
+/** Priority of read-backs. */
+export const READBACK_PRIORITY = 10;
 /** Longest time push-to-talk blocks the frequency (seconds), in case its release gets lost. */
 export const PTT_MAX_S = 30;
 
@@ -170,6 +172,11 @@ export class Frequency {
   /** Removes queued (not yet spoken) transmissions of a pilot, e.g. after a frequency change. */
   cancel(callsign: string): void {
     this.queue = this.queue.filter((q) => q.callsign !== callsign);
+  }
+
+  /** Removes the queued calls of a pilot (requests, reports) but keeps a read-back it is about to give. */
+  cancelCalls(callsign: string): void {
+    this.queue = this.queue.filter((q) => q.callsign !== callsign || q.priority >= READBACK_PRIORITY);
   }
 
   /** Like `cancel`, and releases a reservation for that station (it left the frequency). */

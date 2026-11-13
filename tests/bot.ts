@@ -170,6 +170,8 @@ export function createBot(sim: Simulation): () => void {
           // A tow that could not find its way after the pushback: to its stand again.
           else if (ac.category === 'tow' && ac.tow) say(`${cs} taxi to stand ${ac.tow.to}`);
           break;
+        // Stopped at a runway it has to cross: a "blocked, request instructions" there asks for the crossing too.
+        case 'blocked':
         case 'crossing':
           if (ac.stoppedAt?.kind === 'runway' && sim.tower.crossingFree(ac.stoppedAt.target)) {
             const target = ac.stoppedAt.target;

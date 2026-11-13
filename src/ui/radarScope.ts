@@ -1,6 +1,6 @@
 import type { Aircraft } from '../core/aircraft';
-import { KT_TO_MS, M_PER_NM, add, headingVector, length, scale, sub, type Vec2 } from '../core/geo';
-import { assignedHeading, assignedLevel, finalCoordinates, headingText, inConflict, offered, toMagnetic, windAloft } from '../core/radar';
+import { KT_TO_MS, M_PER_NM, add, headingVector, scale, type Vec2 } from '../core/geo';
+import { arrivalSequence, assignedHeading, assignedLevel, finalCoordinates, headingText, inConflict, offered, toMagnetic, windAloft } from '../core/radar';
 import type { Simulation } from '../core/simulation';
 import type { ScopeStyle } from './scope';
 
@@ -678,6 +678,16 @@ export class RadarScope {
       ctx.stroke();
     }
     if (ac.callsign === this.selected || this.routesShown.has(ac.callsign)) this.drawRoute(ac, p);
+    // Sequencing aid: on the final, the spacing to the arrival ahead under the target (amber below the SOP spacing,
+    // red below the minimum).
+    const seq = arrivalSequence(this.sim).get(ac.callsign);
+    if (seq?.spacingNm !== undefined) {
+      ctx.font = '10px Consolas, Menlo, monospace';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'top';
+      ctx.fillStyle = seq.belowMinimum ? this.t.stca : seq.belowTarget ? this.t.incoming : this.t.text;
+      ctx.fillText(`${seq.spacingNm.toFixed(1)}`, p.x, p.y + 8);
+    }
     this.symbolHits.push({ callsign: ac.callsign, x: p.x, y: p.y });
   }
 
@@ -889,23 +899,6 @@ export class RadarScope {
     const wt = (w: { direction: number; speedKt: number }) => `${headingText(toMagnetic(this.sim, w.direction))}/${Math.round(w.speedKt)}`;
     text += `   WIND A50 ${wt(w5)}  FL100 ${wt(w10)}`;
     ctx.fillText(text, x + px + 6, y + 2);
-  }
-
-  /** The aircraft ahead on the same final and the distance to it (NM), for the menu hint. */
-  spacingAhead(ac: Aircraft): { callsign: string; nm: number } | undefined {
-    const end = ac.runway ? this.sim.airport.runwayEnd(ac.runway) : undefined;
-    if (!end) return undefined;
-    const mine = -finalCoordinates(end, ac.pos).along;
-    let best: { callsign: string; nm: number } | undefined;
-    for (const o of this.sim.aircraft) {
-      if (o === ac || o.runway !== ac.runway || o.onGround || o.category !== 'arrival') continue;
-      const d = -finalCoordinates(end, o.pos).along;
-      if (d < mine && d > 0) {
-        const nm = length(sub(o.pos, ac.pos)) / M_PER_NM;
-        if (!best || nm < best.nm) best = { callsign: o.callsign, nm };
-      }
-    }
-    return best;
   }
 }
 

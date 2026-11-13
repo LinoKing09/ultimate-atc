@@ -1,4 +1,15 @@
 /**
+ * Wake turbulence distance minima on final (NM) for leader/follower
+ * categories; 3 NM radar minimum otherwise.
+ */
+export function wakeSpacingNm(leader: string, follower: string): number {
+  if (leader === 'J') return follower === 'J' ? 4 : follower === 'H' ? 6 : follower === 'M' ? 7 : 8;
+  if (leader === 'H') return follower === 'H' ? 4 : follower === 'M' ? 5 : 6;
+  if (leader === 'M' && follower === 'L') return 5;
+  return 3;
+}
+
+/**
  * Speed profile on final approach.
  *
  * Arrivals do not fly the whole final at their final approach speed (Vapp). As Approach usually

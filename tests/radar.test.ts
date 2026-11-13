@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { Aircraft } from '../src/core/aircraft';
 import { M_PER_NM, distance } from '../src/core/geo';
 import { parseTransmission } from '../src/core/phraseology/parser';
-import { assumeTrack, finalCoordinates, offered, tasFactor, toMagnetic, windAloft } from '../src/core/radar';
+import { arrivalSequence, assumeTrack, finalCoordinates, offered, tasFactor, toMagnetic, windAloft } from '../src/core/radar';
 import { Simulation } from '../src/core/simulation';
 import { fingerprint, perform, restoreSession, saveSession } from '../src/core/session';
 import { AIRPORTS } from '../src/data/airports';
@@ -401,5 +401,29 @@ describe('taking over the radar (hand-over start)', () => {
       }
     }
     expect(checked).toBeGreaterThan(0);
+  });
+});
+
+describe('sequencing aid', () => {
+  it('numbers the arrivals by distance to the threshold and flags a follower too close on the final', { timeout: 120000 }, () => {
+    const sim = appSim(41);
+    const a = inbound(sim, 'EDDH', 'EWG1AA');
+    const b = inbound(sim, 'LTAI', 'EWG2BB');
+    runUntil(sim, () => a.request === 'checkIn' && b.request === 'checkIn', 60);
+    for (const ac of [a, b]) sim.transmit(`${ac.callsign} identified, descend altitude 5000 feet, cleared ILS approach runway 25`);
+    // Both fly their transition onto the final; the first one there leads.
+    expect(runUntil(sim, () => a.phase === 'approach' && b.phase === 'approach', 2400)).toBe(true);
+    const seq = arrivalSequence(sim);
+    const lead = seq.get(a.callsign)!.number === 1 ? a : b;
+    const follow = lead === a ? b : a;
+    expect(seq.get(lead.callsign)!.spacingNm).toBeUndefined();
+    const e = seq.get(follow.callsign)!;
+    expect(e.number).toBe(2);
+    expect(e.ahead).toBe(lead.callsign);
+    expect(e.spacingNm).toBeCloseTo(distance(a.pos, b.pos) / M_PER_NM, 5);
+    expect(e.minimumNm).toBe(3);
+    expect(e.targetNm).toBe(6);
+    expect(e.belowMinimum).toBe(e.spacingNm! < 3);
+    expect(e.belowTarget).toBe(e.spacingNm! < 6);
   });
 });

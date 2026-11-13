@@ -10,8 +10,8 @@ export const DENSITIES: { value: Density; label: string; departures: number; arr
   { value: 'light', label: 'Light', departures: 8, arrivals: 7 },
   { value: 'light-medium', label: 'Light to medium', departures: 11, arrivals: 10 },
   { value: 'medium', label: 'Medium', departures: 14, arrivals: 12 },
-  { value: 'medium-heavy', label: 'Medium to heavy', departures: 18, arrivals: 15 },
-  { value: 'heavy', label: 'Heavy', departures: 22, arrivals: 18 },
+  { value: 'medium-heavy', label: 'Medium to heavy', departures: 20, arrivals: 17 },
+  { value: 'heavy', label: 'Heavy', departures: 26, arrivals: 22 },
 ];
 
 export type TrafficMix = 'departures' | 'more-departures' | 'balanced' | 'more-arrivals' | 'arrivals';

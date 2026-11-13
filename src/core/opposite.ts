@@ -180,7 +180,8 @@ export function updateOppositeTraffic(sim: Simulation): void {
       // (One standing in our way without a route waits anyway.)
       const otherWaits = st.standing || (other!.oppositeStop?.other === ac.callsign && other!.oppositeStop.path === other!.path);
       // The other one got its way out while our call was still waiting for a gap on the frequency: drop it.
-      if (st.called && !otherWaits && ac.request !== 'blocked') sim.frequency.cancel(ac.callsign);
+      // (Only the call: a read-back of the instruction that got it moving again is kept.)
+      if (st.called && !otherWaits && ac.request !== 'blocked') sim.frequency.cancelCalls(ac.callsign);
       if (!st.called && otherWaits && ac.speed < 0.1 && st.s - ac.s < 3) {
         st.called = true;
         if (sim.isOnMyFrequency(ac)) {

@@ -485,3 +485,21 @@ describe('ATIS', () => {
     expect(sim.atisText()).toMatch(/Transition level (60|70)\./);
   });
 });
+
+describe('traffic density', () => {
+  it('heavy starts busy: more departures on the stands, ready sooner, and three arrivals already on final', () => {
+    const medium = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 5, events: false });
+    const heavy = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'heavy', seed: 5, events: false });
+    const deps = (s: Simulation) => s.aircraft.filter((a) => a.category === 'departure');
+    const arrs = (s: Simulation) => s.aircraft.filter((a) => a.category === 'arrival');
+    expect(deps(heavy).length).toBeGreaterThanOrEqual(Math.round(26 * 0.7) - 2);
+    expect(deps(heavy).length).toBeGreaterThan(deps(medium).length);
+    // Ready within the first 15 minutes (the first calls 45 s apart can push the last ones a little later).
+    expect(Math.max(...deps(heavy).map((a) => a.readyAt))).toBeLessThan(20 * 60);
+    expect(arrs(medium).length).toBe(1);
+    const d = arrs(heavy).map((a) => heavy.distanceToThresholdNm(a)).sort((x, y) => x - y);
+    expect(d.length).toBe(3);
+    expect(d[1] - d[0]).toBeCloseTo(7, 0);
+    expect(d[2] - d[1]).toBeCloseTo(7, 0);
+  });
+});

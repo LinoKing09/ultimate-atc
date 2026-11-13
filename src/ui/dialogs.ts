@@ -119,7 +119,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     let start = settings.start;
     const startButtons = (
       [
-        ['empty', 'Empty airport', 'Departures on their stands, the first arrivals on approach - the traffic builds up'],
+        ['empty', 'Empty airport', 'Departures on their stands, the first arrivals on approach - the traffic builds up (from Medium to heavy on it is busy from the start)'],
         ['handover', 'Take over', `Take over from the controller before you: the simulator works the airport for ${HANDOVER_S / 60} minutes first, so aircraft are already taxiing, holding, landing and pushing back`],
       ] as const
     ).map(([value, text, title]) => {
@@ -515,7 +515,8 @@ const KEYS: [string, string][] = [
   ['Flashing tag with H/O (radar)', 'Center offers the arrival: click the tag (or Accept hand-off / ASSUME in its menu) to assume it - then the crew calls you'],
   ['Double click on the radar scope', 'Measuring tool: bearing, distance and (from an aircraft) flying time to the mouse; double click again pins it (on an aircraft: follows both), a third one or Esc removes it'],
   ['Touch: press and hold an empty place on the radar', 'Measuring tool: slide to the end point and lift; from an aircraft: Measure from here (MEAS) in its menu, then tap the end point or another aircraft; a tap on an empty place removes it'],
-  ['INBOUND / OUTBOUND lists (radar)', 'Sector lists like in EuroScope: levels (AFL / CFL), ground speed, heading or next fix, approach, distance to go, next sector'],
+  ['INBOUND / OUTBOUND lists (radar)', 'Sector lists like in EuroScope: levels (AFL / CFL), ground speed, heading or next fix, approach, distance to go, landing sequence SEQ and spacing to the arrival ahead SPC (! below the minimum), next sector'],
+  ['Number under an arrival on final (radar)', 'Spacing to the arrival ahead (NM): amber below the SOP spacing, red below the minimum (3 NM or wake turbulence)'],
   ['Select an aircraft (radar)', 'Its route is drawn in white through every fix ahead (SID, STAR, transition); Show route / ROUTE in its menu keeps it drawn'],
   ['Settings > Aircraft menus', 'Simple: entries are the full phrases; Real: short like EuroScope (ALT > -FL080, HDG > L > L250)'],
   ['F6 / SETTINGS > Performance', 'Performance window: frame rate, frame times, slow frames, simulation and drawing time, real simulation rate, canvas size, memory; an overlay line on the scope can be switched on there'],

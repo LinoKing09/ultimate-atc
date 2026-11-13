@@ -1,5 +1,5 @@
 import { STABILISED_NM, finalReductionNm } from './approach';
-import { READBACK_WAIT_S } from './radio';
+import { READBACK_PRIORITY, READBACK_WAIT_S } from './radio';
 import { otherEnd, type TaxiNode } from './airport/airport';
 import { findRoute, isRouteError, type RouteStart, type TaxiRoute } from './airport/routing';
 import type { Compass, StationType } from './airport/types';
@@ -103,7 +103,7 @@ function readback(sim: Simulation, ac: Aircraft, text: string, after?: () => voi
   sim.frequency.expectReply(ac.callsign, Math.max(sim.time, sim.frequency.freeAt) + READBACK_WAIT_S);
   sim.frequency.pilotTransmit(sim.time, ac.callsign, text, {
     delay: sim.rng.range(0.8, 2.2),
-    priority: 10,
+    priority: READBACK_PRIORITY,
     ttl: 60,
     onTransmit: () => {
       ac.lastTransmission = text;

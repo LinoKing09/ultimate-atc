@@ -145,6 +145,7 @@ function departure(sim: Simulation, ac: Aircraft): void {
   // Slot flights wait on the stand (TSAT, or CTOT - taxi time), not at the holding point.
   if (ac.phase === 'parked' && sim.time >= offBlockDue(sim, ac) && ac.cleared) {
     if (busyNearby(sim, ac, 250) || pushInWay(sim, ac)) return; // the simplest pushback sequencing: wait for passing traffic
+    if (gateHold(sim, ac)) return; // enough departures on the way to its runway: stay on the stand
     if (needsDeicing(sim, ac) && !freePads(sim, ac).length) return; // all de-icing pads busy: stay on the stand
     if (headOnAhead(sim, ac)) return; // an arrival comes the other way on the taxiways out (single-lane taxiways)
     const stand = sim.airport.stand(ac.stand ?? '');
@@ -182,6 +183,26 @@ function departure(sim: Simulation, ac: Aircraft): void {
       if (stand) aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] });
     } else aiInstruct(sim, ac, { type: 'taxi', destination: outbound(sim, ac), via: [], holdShort: [], cross: [] });
   }
+}
+
+/**
+ * Gate holding: the AI Ground pushes a departure back only while fewer than this many departures to the same runway
+ * are pushing back, taxiing to it or waiting at its holding points - more would only fill the taxiways (A-CDM keeps
+ * them on the stand).
+ */
+const GATE_HOLD_QUEUE = 6;
+
+function gateHold(sim: Simulation, ac: Aircraft): boolean {
+  const rwy = sim.departureRunwayOf(ac);
+  const queue = sim.aircraft.filter(
+    (o) =>
+      o !== ac &&
+      o.category === 'departure' &&
+      o.onGround &&
+      (o.phase === 'pushback' || o.phase === 'startup' || o.phase === 'holding' || o.phase === 'lineup' || (o.phase === 'taxi' && !o.returnToStand && o.routeDestination?.kind !== 'stand')) &&
+      sim.departureRunwayOf(o) === rwy,
+  ).length;
+  return queue >= GATE_HOLD_QUEUE;
 }
 
 /** The AI Ground releases a de-iced aircraft from its pad only while fewer departures than this taxi to the runway. */

@@ -2,7 +2,7 @@ import type { Aircraft } from '../core/aircraft';
 import type { Simulation } from '../core/simulation';
 import { formatDuration, h } from './dom';
 import { hhmm } from '../core/delivery';
-import { assignedHeading, assignedLevel } from '../core/radar';
+import { arrivalSequence, assignedHeading, assignedLevel, type SequenceEntry } from '../core/radar';
 import { clearedTo, shownRequest, statusCode, type StatusStyle } from './labels';
 import type { TagItem } from './scope';
 
@@ -258,6 +258,12 @@ function navCell(a: Aircraft): string {
   return r.route[0] ?? '';
 }
 
+/** "5.8" to the arrival ahead on the final, "2.7!" below the minimum; empty off the final. */
+function spacingCell(e: SequenceEntry | undefined): string {
+  if (e?.spacingNm === undefined) return '';
+  return `${e.spacingNm.toFixed(1)}${e.belowMinimum ? '!' : ''}`;
+}
+
 /** EuroScope sector lists of the radar position: the arrivals (inbound) with level, cleared level, speed and distance. */
 export function radarInboundList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList {
   return new TrafficList(
@@ -276,6 +282,9 @@ export function radarInboundList(cb: ConstructorParameters<typeof TrafficList>[3
       { key: 'nav', label: 'HDG/FIX', get: navCell },
       { key: 'app', label: 'APP', get: (a) => (a.radar?.approach ? `${a.radar.approach.kind}${a.radar.approach.runway}` : '') },
       { key: 'dtg', label: 'DTG', get: (a, sim) => `${sim.distanceToThresholdNm(a).toFixed(0)}` },
+      // Sequencing aid: place in the landing sequence of the runway, spacing to the arrival ahead on the final (! below the minimum).
+      { key: 'seq', label: 'SEQ', get: (a, sim) => String(arrivalSequence(sim).get(a.callsign)?.number ?? '') },
+      { key: 'spc', label: 'SPC', get: (a, sim) => spacingCell(arrivalSequence(sim).get(a.callsign)) },
       { key: 'xfer', label: 'H/O', get: (a) => (a.radar?.transfer ? (a.radar.transfer.acceptedAt === undefined ? 'REQ' : 'ACC') : '') },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],

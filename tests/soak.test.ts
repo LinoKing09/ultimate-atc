@@ -7,6 +7,7 @@ import { Simulation } from '../src/core/simulation';
 import type { Density } from '../src/core/levels';
 import { AIRPORTS } from '../src/data/airports';
 import { createBot } from './bot';
+import { createRadarBot } from './radarBot';
 
 /**
  * Soak test (the 2.0 criterion "no dead ends at any airport"): every airport, every runway direction (parallel
@@ -29,6 +30,8 @@ const LENGTH_S = Number(env.SOAK_HOURS ?? 1) * 3600;
 
 /** An aircraft on the ground that has not moved for this long (s), and is not parked or waiting at a holding point, is stuck. */
 export const STUCK_S = 1200;
+/** An arrival under the radar that has not landed this long after it appeared (s) is stuck in the air. */
+const AIRBORNE_STUCK_S = 2700;
 
 /** Why an aircraft does not move: for the report. */
 function whyStuck(ac: Aircraft, since: number): string {
@@ -60,11 +63,18 @@ describe.skipIf(!RUN)('soak', () => {
       ];
       // Ground alone (the AI runs the rest) where the airport has Ground, and all positions together.
       const setups: StationType[][] = [...(roles.includes('GND') ? [['GND' as StationType]] : []), ...(AI_GROUND && roles.includes('TWR') && roles.includes('GND') ? [['TWR' as StationType]] : []), roles];
+      // Airports with a terminal airspace: Approach alone, and every position from Delivery to Approach (top-down).
+      if (airport.airspace && airport.stations.some((st) => st.type === 'APP')) setups.push(['APP'], [...roles, 'APP']);
       for (const runway of runways) {
         for (const positions of setups) {
           for (let seed = 1; seed <= SEEDS; seed++) {
             const sim = new Simulation({ airport, position: positions[0], positions, runway, density: DENSITY, seed, events: true, scenario: { heavyLevel: seed % 3 === 0 ? 3 : 0 } });
-            const bot = createBot(sim);
+            const groundBot = createBot(sim);
+            const radarBot = positions.includes('APP') ? createRadarBot(sim) : undefined;
+            const bot = () => {
+              groundBot();
+              radarBot?.();
+            };
             let deadlockCalls = 0;
             sim.on('message', (m) => {
               if (/opposite traffic|blocked by/.test(m.text)) deadlockCalls++;
@@ -76,6 +86,10 @@ describe.skipIf(!RUN)('soak', () => {
               sim.tick(1);
               bot();
               for (const ac of sim.aircraft) {
+                // In the air under the radar: an arrival that has not landed after 45 minutes is stuck too (in a hold for good).
+                if (!ac.onGround && ac.radar && ac.category === 'arrival' && sim.time - ac.spawnedAt > AIRBORNE_STUCK_S && !stuck.has(ac.callsign)) {
+                  stuck.set(ac.callsign, `${ac.callsign} (arrival, ${ac.phase}, ${ac.frequency}) airborne for ${Math.round((sim.time - ac.spawnedAt) / 60)} min`);
+                }
                 if (!ac.onGround || ac.phase === 'arrived' || ac.phase === 'gone') continue;
                 const m = moved.get(ac.callsign);
                 if (!m || distance(m, ac.pos) > 3 || ac.phase === 'parked' || ac.phase === 'holding') moved.set(ac.callsign, { x: ac.pos.x, y: ac.pos.y, t: sim.time });
@@ -85,7 +99,7 @@ describe.skipIf(!RUN)('soak', () => {
             const ms = performance.now() - t0;
             const s = sim.stats;
             const label = `${airport.icao} ${runway.padEnd(7)} ${positions.join('+').padEnd(11)} seed ${seed}`;
-            rows.push(`${label}: airborne ${String(s.departuresAirborne).padStart(2)}, parked ${String(s.arrivalsParked).padStart(2)}, collisions ${s.collisions}, incursions ${s.incursions}, go-arounds ${s.goArounds}, deadlock calls ${deadlockCalls}, stuck ${stuck.size}, ${(ms / 1000).toFixed(1)} s`);
+            rows.push(`${label}: airborne ${String(s.departuresAirborne).padStart(2)}, parked ${String(s.arrivalsParked).padStart(2)}, collisions ${s.collisions}, incursions ${s.incursions}, go-arounds ${s.goArounds}, deadlock calls ${deadlockCalls}${positions.includes('APP') ? `, to Tower ${s.arrivalsToTower}, to Center ${s.departuresToCenter}, separation losses ${s.radarSeparationLosses}` : ''}, stuck ${stuck.size}, ${(ms / 1000).toFixed(1)} s`);
             Object.assign(sum, { dep: sum.dep + s.departuresAirborne, arr: sum.arr + s.arrivalsParked, coll: sum.coll + s.collisions, inc: sum.inc + s.incursions, ga: sum.ga + s.goArounds, deadlock: sum.deadlock + deadlockCalls, ms: sum.ms + ms, n: sum.n + 1 });
             if (s.collisions) fails.push(`${label}: ${s.collisions} collision(s)`);
             for (const st of stuck.values()) fails.push(`${label}: stuck ${st}`);

@@ -89,7 +89,7 @@ const DEFAULTS: Settings = {
   density: 'medium',
   eventLevel: DEFAULT_EVENT_LEVEL,
   start: 'empty',
-  tts: false,
+  tts: true,
   radioNoise: true,
   ttsVolume: 1,
   voiceAutoSend: true,

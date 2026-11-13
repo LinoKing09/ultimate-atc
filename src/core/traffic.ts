@@ -1,4 +1,4 @@
-import { approachProfile, targetSpeedKt, timeOnFinalS } from './approach';
+import { approachProfile, targetSpeedKt, timeOnFinalS, wakeSpacingNm } from './approach';
 import { M_PER_NM, distance } from './geo';
 import { aircraftType, type AircraftType } from '../data/aircraftTypes';
 import { AIRLINES, type Airline } from '../data/airlines';
@@ -15,6 +15,13 @@ import { LVP_ARRIVAL_SPACING_NM, LVP_DEPARTURE_GAP_NM, lvpInForce } from './met'
 import { ENTRY_INTERVAL_S, radarActive, setupInbound } from './radar';
 
 const SPAWN_DISTANCE_NM = 12;
+/** From this density step on ("medium to heavy", 3) a session with an empty airport starts busy. */
+const BUSY_START_DENSITY = 3;
+/** Busy start: departures on the stands (share of the hourly rate), their ready times spread over this long (s). */
+const BUSY_START_DEPARTURES = 0.7;
+const BUSY_START_SPREAD_S = 15 * 60;
+/** Busy start: the arrivals already on final, this far apart (NM). */
+const BUSY_START_ARRIVAL_GAP_NM = 7;
 /** A new departure does not appear on a stand where a moving aircraft is closer than half the two wingspans plus this (m). */
 const APPEAR_CLEARANCE_M = 10;
 /** Largest wingspan of a code D stand (m): stands up to this size are used by all aircraft up to code D. */
@@ -24,16 +31,6 @@ const ARRIVAL_MEDICAL_CHANCE = 0.02;
 /** Chance that a departure declares a medical emergency while taxiing (with special events on). */
 const DEPARTURE_MEDICAL_CHANCE = 0.01;
 
-/**
- * Wake turbulence distance minima on final (NM) for leader/follower
- * categories; 3 NM radar minimum otherwise.
- */
-function wakeSpacingNm(leader: string, follower: string): number {
-  if (leader === 'J') return follower === 'J' ? 4 : follower === 'H' ? 6 : follower === 'M' ? 7 : 8;
-  if (leader === 'H') return follower === 'H' ? 4 : follower === 'M' ? 5 : 6;
-  if (leader === 'M' && follower === 'L') return 5;
-  return 3;
-}
 
 /**
  * Generates traffic: departures that appear on free stands and call for
@@ -82,21 +79,33 @@ export class TrafficGenerator {
     const sim = this.sim;
     const r = this.rates;
     // Departures already at their stands, ready times spread over the first ~25 minutes. The square root
-    // makes them denser towards the end, so the workload builds up instead of starting with a rush.
-    const count = Math.round(r.departures * 0.55);
+    // makes them denser towards the end, so the workload builds up instead of starting with a rush. From "medium to
+    // heavy" on the session starts busy: more departures, spread evenly over the first 15 minutes.
+    const busy = densityIndex(sim.config.density) >= BUSY_START_DENSITY;
+    const count = Math.round(r.departures * (busy ? BUSY_START_DEPARTURES : 0.55));
     const initial: Aircraft[] = [];
     for (let i = 0; i < count; i++) {
-      const readyIn = i === 0 ? sim.rng.range(5, 20) : 30 + Math.sqrt(sim.rng.next()) * (25 * 60 - 30);
+      const readyIn = i === 0 ? sim.rng.range(5, 20) : busy ? 30 + sim.rng.next() * (BUSY_START_SPREAD_S - 30) : 30 + Math.sqrt(sim.rng.next()) * (25 * 60 - 30);
       const ac = this.spawnDeparture(readyIn);
       if (ac) initial.push(ac);
     }
-    staggerInitialCalls(sim, initial);
+    staggerInitialCalls(sim, initial, busy ? BUSY_START_CALL_SPACING_S : INITIAL_CALL_SPACING_S);
     // A couple of arrivals already inbound (none in the landing curfew).
     const firstArrival = sim.rng.range(4, 6);
     if (landingStatus(sim, sim.time + 120) === 'open') {
       // You work Approach: the first arrival is handed over by Center at its entry fix, not already on final.
       if (radarActive(sim)) this.spawnInbound();
-      else this.spawnArrival(firstArrival);
+      else {
+        this.spawnArrival(firstArrival);
+        // A busy start: more arrivals already in the sequence on final - 2 or 3, one per 8 arrivals an hour at most
+        // (small airports none), 7 NM apart or the airport's required spacing if larger.
+        const more = busy ? Math.min(densityIndex(sim.config.density) - 2, Math.floor(r.arrivals / 8)) : 0;
+        const gap = Math.max(BUSY_START_ARRIVAL_GAP_NM, this.requiredArrivalSpacingNm('M'));
+        for (let i = 1; i <= more; i++) {
+          if (this.standReserve && sim.freeStands(0).length <= this.standReserve) break;
+          this.spawnArrival(firstArrival + i * gap);
+        }
+      }
     }
     this.nextArrivalAt = sim.time + sim.rng.range(60, 180);
     this.nextDepartureAt = sim.time + sim.rng.exponential(3600 / r.departures);
@@ -485,6 +494,8 @@ export class TrafficGenerator {
 
 /** Minimum time between the first calls of the initial departures at session start (seconds). */
 const INITIAL_CALL_SPACING_S = 90;
+/** ... in a busy start (medium to heavy, heavy): the calls come twice as often. */
+const BUSY_START_CALL_SPACING_S = 45;
 /** Diagonal radar separation between arrivals on adjacent finals to parallel runways (NM): dependent / staggered. */
 export const DEPENDENT_DIAGONAL_NM = 1.5;
 export const STAGGERED_DIAGONAL_NM = 3;
@@ -502,7 +513,7 @@ const CLEARANCE_TO_READY_S = 4 * 60;
  * first calls are staggered: at least 90 s apart, in the order of their ready
  * times; ready times move back where needed.
  */
-function staggerInitialCalls(sim: Simulation, initial: Aircraft[]): void {
+function staggerInitialCalls(sim: Simulation, initial: Aircraft[], spacing: number): void {
   const delivery = sim.stationFor('delivery');
   const onDelivery = !!sim.airport.station(delivery) && sim.userControls(delivery);
   let next = sim.time + INITIAL_FIRST_CALL_S;
@@ -510,10 +521,10 @@ function staggerInitialCalls(sim: Simulation, initial: Aircraft[]): void {
     if (onDelivery) {
       ac.clearanceAt = Math.max(ac.readyAt - CLEARANCE_LEAD_S, next);
       ac.readyAt = Math.max(ac.readyAt, ac.clearanceAt + CLEARANCE_TO_READY_S);
-      next = ac.clearanceAt + INITIAL_CALL_SPACING_S;
+      next = ac.clearanceAt + spacing;
     } else {
       ac.readyAt = Math.max(ac.readyAt, next);
-      next = ac.readyAt + INITIAL_CALL_SPACING_S;
+      next = ac.readyAt + spacing;
     }
   }
 }

@@ -191,11 +191,15 @@ describe('radio discipline', () => {
     });
     for (let t = 0; t < 1800; t++) {
       sim.tick(1);
+      // One transmission at a time, like a controller: a second one in the same second would take over the
+      // frequency the first read-back is waiting for.
+      let sent = false;
       for (const ac of sim.aircraft) {
-        if (!ac.request || sim.time - ac.lastCallAt < 3 || sim.time - ac.lastCallAt > 4) continue;
+        if (sent || !ac.request || sim.time - ac.lastCallAt < 3 || sim.time - ac.lastCallAt > 4) continue;
         const say = (text: string) => {
           const r = sim.transmit(`${ac.callsign} ${text}`);
           if (r.ok) expecting = { callsign: ac.callsign, until: sim.time + 12 };
+          sent = true;
         };
         if (ac.request === 'pushback') say('push and start approved');
         else if (ac.request === 'taxi') say('taxi to runway 25');

@@ -4,6 +4,7 @@
  * controller did (each action with the step it happened at), and restored by running the simulation again
  * from the start and repeating every action at its step - no aircraft, routes or radio queues are stored.
  */
+import { APP_VERSION } from '../version';
 import { assumeTrack, initiateTransfer } from './radar';
 import type { AirportData } from './airport/types';
 import { acknowledgeCatc, catcAlert } from './conflicts';
@@ -157,11 +158,25 @@ export interface SavedSession {
   summary: { utc: string; score: number; positions: string };
   /** Checks the restored session against the saved one. */
   fingerprint: string;
+  /** A finer check (since 1.9.1): also altitudes, cleared levels, headings and frequencies. */
+  detail?: string;
+  /** Version of the app that saved it (since 1.9.1) - a session is rebuilt by replaying it, so another version may fly it differently. */
+  appVersion?: string;
 }
 
 /** A short check value of the state that matters: time, score, the aircraft and their phases. */
 export function fingerprint(sim: Simulation): string {
   const text = `${sim.steps}|${sim.stats.score}|${sim.aircraft.map((a) => `${a.callsign}:${a.phase}:${Math.round(a.pos.x)}:${Math.round(a.pos.y)}`).join(',')}`;
+  let h = 2166136261;
+  for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(16);
+}
+
+/** The finer check value: what the coarse one leaves out (altitudes, the radar clearances, frequencies). */
+export function detailFingerprint(sim: Simulation): string {
+  const text = sim.aircraft
+    .map((a) => `${a.callsign}:${a.frequency}:${Math.round(a.altitudeFt / 10)}:${Math.round(a.heading)}:${a.radar?.clearedFt ?? ''}:${a.radar?.heading ?? ''}:${a.radar?.speedKt ?? ''}:${a.request ?? ''}`)
+    .join(',');
   let h = 2166136261;
   for (let i = 0; i < text.length; i++) h = Math.imul(h ^ text.charCodeAt(i), 16777619);
   return (h >>> 0).toString(16);
@@ -196,6 +211,8 @@ export function saveSession(sim: Simulation, name: string, controlSeconds: numbe
     controlSeconds: Math.round(controlSeconds),
     summary: { utc: `${String(utc.getUTCHours()).padStart(2, '0')}:${String(utc.getUTCMinutes()).padStart(2, '0')}`, score: sim.stats.score, positions },
     fingerprint: fingerprint(sim),
+    detail: detailFingerprint(sim),
+    appVersion: APP_VERSION,
   };
 }
 
@@ -227,5 +244,5 @@ export async function restoreSession(
     perform(sim, action);
   }
   await runTo(saved.steps);
-  return { sim, matches: fingerprint(sim) === saved.fingerprint };
+  return { sim, matches: fingerprint(sim) === saved.fingerprint && (saved.detail === undefined || detailFingerprint(sim) === saved.detail) };
 }

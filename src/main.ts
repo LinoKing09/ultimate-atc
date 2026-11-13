@@ -43,7 +43,7 @@ async function start(): Promise<void> {
       await loading.step('Drawing the aerodrome chart ...');
       settings.airport = saved.airport;
       saveSettings(settings);
-      const app = new App(document.getElementById('app')!, sim, settings, undefined, { name: saved.name, controlSeconds: saved.controlSeconds, matches });
+      const app = new App(document.getElementById('app')!, sim, settings, undefined, { name: saved.name, controlSeconds: saved.controlSeconds, matches, appVersion: saved.appVersion });
       loading.close();
       (window as unknown as { atc: unknown }).atc = { sim, app };
     } catch (e) {

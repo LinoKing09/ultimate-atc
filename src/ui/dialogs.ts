@@ -369,6 +369,8 @@ function showSavedSessions(onLoad: (s: SavedSession) => string | undefined, onCh
                 {},
                 h('b', { text: s.name }),
                 h('span.dim', { text: `${s.summary.positions} - ${s.summary.utc}Z - score ${s.summary.score} - on position ${formatDuration(s.controlSeconds, true)} - saved ${saved.toLocaleDateString()} ${saved.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` }),
+                // Rebuilt by replaying it: a session of another version may come back differently.
+                ...(s.appVersion !== APP_VERSION ? [h('span.warn', { text: `Saved by ${s.appVersion ? `version ${s.appVersion}` : 'an earlier version'} - this is ${APP_VERSION}: the traffic may differ when restored`, title: 'A saved session holds its start and your actions; it is rebuilt by replaying them. After an update of the simulation the replay can run differently.' })] : []),
               ),
               load,
               dl,

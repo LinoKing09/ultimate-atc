@@ -11,6 +11,10 @@ All notable changes to this project are documented in this file. The format is b
 - **Stop bars in low visibility procedures**: red stop bars at the runway holding points (CAT II/III positions) of the runways in use at the airports with CAT II/III operations. Crews never pass a lit bar, even when cleared - they report `stop bar still lit`. Your line-up, take-off and crossing clearances switch the bar off (default), or switch each one by hand with a click on the ground scope (Settings: *Stop bars*); the AI Tower and Ground switch them with their clearances. A bar lights again once its aircraft is on the runway, or after 90 s.
 - Airport data: optional runway combinations with fixed role splits, allowed approach modes and a wingspan limit per runway; runways for landings only (never in use alone).
 
+### Changed
+
+- **Saved sessions say clearly when they come back differently.** A session is rebuilt by replaying it from its start, so one saved by an earlier version of the simulator can differ (e.g. an aircraft at another altitude). The check of the rebuilt traffic now also covers altitudes, headings, cleared levels and frequencies; a session that differs gets a clear note (message window and scope) naming the version that saved it, and the list of saved sessions marks sessions of another version.
+
 ### Fixed
 
 - Radar: selecting an aircraft no longer starts the hand-over of its track by itself (the quick-action bar ran the `XFER` entry while it built its buttons) - for arrivals not yet cleared for the approach that showed the red note *Tower takes arrivals that are cleared for the approach* every time, for departures it offered the track to Center unasked.

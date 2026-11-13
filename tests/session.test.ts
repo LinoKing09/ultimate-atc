@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fingerprint, perform, restoreSession, saveSession } from '../src/core/session';
+import { detailFingerprint, fingerprint, perform, restoreSession, saveSession } from '../src/core/session';
 import { Simulation } from '../src/core/simulation';
 import { AIRPORTS } from '../src/data/airports';
 import { EDDS } from '../src/data/airports/edds';
@@ -52,4 +52,19 @@ describe('saved sessions', () => {
     expect(matches).toBe(true);
     expect(back.utc().getTime()).toBe(sim.utc().getTime());
   });
+
+  it('notices a session that comes back differently (saved by another version): also when only altitudes differ', async () => {
+    const sim = new Simulation({ airport: EDDS, position: 'APP', positions: ['APP'], runway: '25', density: 'medium', seed: 5, events: false, start: 'handover' });
+    for (let t = 0; t < 60; t++) sim.tick(1);
+    const saved = saveSession(sim, 'x', 0);
+    expect(saved.appVersion).toMatch(/^\d+\.\d+\.\d+$/);
+    expect((await restoreSession(saved, AIRPORTS)).matches).toBe(true);
+    // The same picture on the ground, another altitude in the air: only the finer check sees it.
+    const airborne = sim.aircraft.find((a) => !a.onGround) ?? sim.aircraft[0];
+    airborne.altitudeFt += 500;
+    expect(saved.detail).not.toBe(detailFingerprint(sim));
+    expect((await restoreSession({ ...saved, detail: detailFingerprint(sim) }, AIRPORTS)).matches).toBe(false);
+    // Sessions saved before the finer check existed still load.
+    expect((await restoreSession({ ...saved, detail: undefined, appVersion: undefined }, AIRPORTS)).matches).toBe(true);
+  }, 60000);
 });

@@ -56,6 +56,8 @@ export interface RestoredSession {
   controlSeconds: number;
   /** False if the rebuilt traffic differs from the saved one. */
   matches: boolean;
+  /** Version of the app that saved the session (undefined: before 1.9.1). */
+  appVersion?: string;
 }
 
 /** The positions with a quick-action bar of their own (Approach and Radar to follow). */
@@ -579,7 +581,13 @@ export class App {
     if (restored) {
       this.hint(`Session "${restored.name}" restored - ${formatDuration(this.controlSeconds, true)} on position so far. Paused: press Space (or >) to continue.`);
       this.togglePause();
-      if (!restored.matches) this.hint('The restored traffic differs slightly from the saved session (it was saved by an earlier version of the simulation).');
+      // A session is rebuilt by replaying it from its start: another version of the simulation may fly it differently.
+      if (!restored.matches) {
+        const by = restored.appVersion && restored.appVersion !== APP_VERSION ? `version ${restored.appVersion}` : 'an earlier build';
+        const text = `This session was saved by ${by} of the simulator. It is rebuilt by replaying it from its start, and the simulation has changed since: positions, altitudes or clearances may differ from what you saved. Check the traffic before you continue.`;
+        this.hint(text);
+        this.toast(text, 15000);
+      }
     }
     // Reloading or closing the page ends the session without the debriefing: the browser asks first.
     // The session is kept as the autosave, and the time on position is counted.
@@ -1202,10 +1210,10 @@ export class App {
     if (atBottom) el.scrollTop = el.scrollHeight;
   }
 
-  private toast(text: string): void {
+  private toast(text: string, ms = 5000): void {
     const t = h('div.toast', { text });
     this.main.append(t);
-    setTimeout(() => t.remove(), 5000);
+    setTimeout(() => t.remove(), ms);
   }
 
   // ------------------------------------------------------------------ command line

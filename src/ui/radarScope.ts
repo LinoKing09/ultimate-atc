@@ -13,7 +13,7 @@ import type { ScopeStyle } from './scope';
  */
 
 /** Clickable items of a radar tag. */
-export type RadarTagItem = 'callsign' | 'level' | 'heading' | 'speed' | 'route' | 'approach';
+export type RadarTagItem = 'callsign' | 'level' | 'heading' | 'speed' | 'route' | 'approach' | 'note';
 
 export interface RadarScopeCallbacks {
   onSelect(callsign: string | undefined): void;
@@ -168,6 +168,8 @@ export class RadarScope {
   showAllRoutes = true;
   compactTags = true;
   manualStrips = false;
+  /** Realistic (voice-only) mode: no route lines of the aircraft (the selected one's neither). */
+  hideRoutes = false;
   statusStyle: 'phx' | 'euroscope' = 'euroscope';
   readonly isPhx = false;
   readonly effect: 'phosphor' | 'vignette' | undefined = undefined;
@@ -677,7 +679,7 @@ export class RadarScope {
       ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
       ctx.stroke();
     }
-    if (ac.callsign === this.selected || this.routesShown.has(ac.callsign)) this.drawRoute(ac, p);
+    if (!this.hideRoutes && (ac.callsign === this.selected || this.routesShown.has(ac.callsign))) this.drawRoute(ac, p);
     // Sequencing aid: on the final, the spacing to the arrival ahead under the target (amber below the SOP spacing,
     // red below the minimum).
     const seq = arrivalSequence(this.sim).get(ac.callsign);
@@ -824,6 +826,8 @@ export class RadarScope {
       const fin = end && ac.category === 'arrival' && (ac.phase === 'approach' || r?.locCaptured) ? ` ${(-finalCoordinates(end, ac.pos).along / M_PER_NM).toFixed(1)}NM` : '';
       lines.push([{ text: `${ac.type.icao}/${ac.type.wake} ${ac.flightPlan.squawk} ${extra}${fin}` }]);
     }
+    // Your annotation (EuroScope: scratchpad).
+    if (ac.strip?.note) lines.push([{ text: ac.strip.note, item: 'note', color: this.t.incoming }]);
     const k = this.tagScale;
     ctx.font = `${Math.round(11 * k)}px Consolas, Menlo, monospace`;
     const lh = Math.round(12 * k);

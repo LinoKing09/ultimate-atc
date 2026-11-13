@@ -96,7 +96,7 @@ export function showSettings(
           value: 'realistic',
           label: 'Realistic (Beta)',
           disabled: !!voice.realisticBlocked && settings.controlMode !== 'realistic',
-          title: voice.realisticBlocked ?? 'Only by voice; you keep the lists by hand',
+          title: voice.realisticBlocked ?? 'Only by voice; you keep the lists by hand; no routes on the scopes',
         },
       ],
       settings.controlMode,

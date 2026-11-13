@@ -325,7 +325,7 @@ const COMPACT_TAG_ZOOM = 0.6;
 /** Distance between repeated designators along long taxiways (metres). */
 const LABEL_REPEAT_SPACING = 600;
 
-export type TagItem = 'callsign' | 'type' | 'target' | 'status' | 'sid';
+export type TagItem = 'callsign' | 'type' | 'target' | 'status' | 'sid' | 'note';
 
 export interface ScopeCallbacks {
   onSelect(callsign: string | undefined): void;
@@ -382,6 +382,8 @@ export class Scope {
    * (core/strips.ts), not what the radio did.
    */
   manualStrips = false;
+  /** Realistic (voice-only) mode: no routes of the aircraft on the scope - you keep them in your head, as in reality. */
+  hideRoutes = false;
   /** Colours (see `setStyle`). */
   private t: ScopeTheme = PHX_NIGHT;
   /** Ground state names in the tags. */
@@ -1268,6 +1270,7 @@ export class Scope {
   }
 
   private drawRoutes(): void {
+    if (this.hideRoutes) return;
     const ctx = this.ctx;
     for (const ac of this.sim.aircraft) {
       if (!ac.path || !ac.onGround || ac.phase === 'takeoff') continue;
@@ -1495,6 +1498,8 @@ export class Scope {
         lines.push(dep ? [{ text: ac.flightPlan.sid ?? ac.flightPlan.destination, item: 'sid' }] : [{ text: `${this.sim.approachTypeFor(ac.runway ?? this.sim.runway)} ${ac.runway ?? ''}`.trim() }]);
       }
     }
+    // Your annotation (scratchpad): always, also on a compact tag.
+    if (ac.strip?.note) lines.push([{ text: ac.strip.note, item: 'note', color: this.t.request }]);
     const k = this.tagScale;
     ctx.font = `${Math.round(11 * k)}px Consolas, Menlo, monospace`;
     const lh = Math.round(12 * k);

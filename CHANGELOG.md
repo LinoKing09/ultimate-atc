@@ -8,6 +8,8 @@ All notable changes to this project are documented in this file. The format is b
 
 - **Sequencing aid on the radar**: every arrival on the final shows the distance to the arrival ahead under its target - amber below the SOP spacing (Stuttgart 6 NM), red below the minimum (3 NM or the wake turbulence minimum). The INBOUND list has the place in the landing sequence of the runway (`SEQ`) and that spacing (`SPC`, `!` below the minimum).
 - **Soak test with the radar staffed**: `npm run soak` also runs Approach alone and every position from Delivery to Approach at the airports with a terminal airspace (Stuttgart), with a scripted radar controller (`tests/radarBot.ts`: assume, identify, clear for the approach via the transition, slow down a follower too close, transfer and hand-off to Tower and Center). It fails on an arrival that has not landed after 45 minutes, too.
+- **Annotations (scratchpad) for every aircraft**: *Annotation* (`NOTE`) in every aircraft menu, or a click on the `RMK` column of the lists, opens a small text field - at most 40 characters, e.g. `EXP RWY 07, WAIT GAP`. The note appears in the aircraft's tag (ground radar and radar) and in the `RMK` column; a click on it edits it, *Clear* removes it. Only a note: the crew does not hear it. A saved session keeps it.
+- **Right click without the browser menu**: the browser's context menu no longer opens anywhere in the simulator (text fields keep it for copy and paste).
 
 - **Approach tutorial** (Connect dialog: *Tutorial -> Approach*): a guided first session as Langen Radar at Stuttgart - assume a track Center offers, `identified` and a descent with the QNH, vectors for a downwind, base and intercept with the ILS clearance, the hand-over of the track to Tower, a departure climbed to its release level and handed to Center, and an arrival cleared via the RNAV transition. Steps with a right moment (the turn onto base at 16 NM, the intercept 3 NM before the centre line) show in the panel what to wait for, then *Now!*. Played automatically by the tutorial test like the other lessons.
 
@@ -17,6 +19,8 @@ All notable changes to this project are documented in this file. The format is b
 - Airport data: optional runway combinations with fixed role splits, allowed approach modes and a wingspan limit per runway; runways for landings only (never in use alone).
 
 ### Changed
+
+- **Realistic mode (voice only): no routes of the aircraft** on the ground radar and the radar - neither the cleared taxi routes nor the route lines of SIDs, STARs and direct-tos, not even for the selected aircraft; the `ROUTES` button and *Show route* are hidden.
 
 - **Saved sessions say clearly when they come back differently.** A session is rebuilt by replaying it from its start, so one saved by an earlier version of the simulator can differ (e.g. an aircraft at another altitude). The check of the rebuilt traffic now also covers altitudes, headings, cleared levels and frequencies; a session that differs gets a clear note (message window and scope) naming the version that saved it, and the list of saved sessions marks sessions of another version.
 

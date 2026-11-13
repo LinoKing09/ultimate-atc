@@ -7,7 +7,7 @@ import { clearedTo, shownRequest, statusCode, type StatusStyle } from './labels'
 import type { TagItem } from './scope';
 
 /** Cell functions of the lists: the tag items plus the squawk and the clearance flag. */
-export type ListItem = TagItem | 'squawk' | 'clearance' | 'request' | 'landing';
+export type ListItem = TagItem | 'squawk' | 'clearance' | 'request' | 'landing' | 'note';
 
 /** How the lists show the ground states: their names, and whether the lists are kept by hand (realistic mode). */
 export interface ListView {
@@ -286,6 +286,7 @@ export function radarInboundList(cb: ConstructorParameters<typeof TrafficList>[3
       { key: 'seq', label: 'SEQ', get: (a, sim) => String(arrivalSequence(sim).get(a.callsign)?.number ?? '') },
       { key: 'spc', label: 'SPC', get: (a, sim) => spacingCell(arrivalSequence(sim).get(a.callsign)) },
       { key: 'xfer', label: 'H/O', get: (a) => (a.radar?.transfer ? (a.radar.transfer.acceptedAt === undefined ? 'REQ' : 'ACC') : '') },
+      { key: 'rmk', label: 'RMK', cls: 'rmk', item: 'note', get: (a) => a.strip?.note ?? '' },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],
     (a) => a.category === 'arrival' && !a.onGround && a.phase !== 'gone',
@@ -312,6 +313,7 @@ export function radarOutboundList(cb: ConstructorParameters<typeof TrafficList>[
       { key: 'nav', label: 'HDG/FIX', get: navCell },
       { key: 'sec', label: 'NEXT', get: (a) => (a.radar?.sector ? `${a.radar.sector.name} ${a.radar.sector.frequency}` : '') },
       { key: 'xfer', label: 'H/O', get: (a) => (a.radar?.transfer ? (a.radar.transfer.acceptedAt === undefined ? 'REQ' : 'ACC') : '') },
+      { key: 'rmk', label: 'RMK', cls: 'rmk', item: 'note', get: (a) => a.strip?.note ?? '' },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],
     (a) => a.category === 'departure' && !a.onGround && a.phase !== 'gone',
@@ -341,6 +343,7 @@ export function departureList(cb: ConstructorParameters<typeof TrafficList>[3]):
       { key: 'int', label: 'INT', get: (a) => a.earliestIntersection ?? '' },
       { key: 'taxi', label: 'TAXI', item: 'target', get: (a, _sim, v) => clearedTo(a, v.manual) },
       { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, v) => statusCode(a, v.style, v.manual) },
+      { key: 'rmk', label: 'RMK', cls: 'rmk', item: 'note', get: (a) => a.strip?.note ?? '' },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],
     (a) => a.category === 'departure' && a.phase !== 'climb' && a.phase !== 'gone',
@@ -435,6 +438,7 @@ function towList(cb: ConstructorParameters<typeof TrafficList>[3]): TrafficList 
       { key: 'from', label: 'FROM', get: (a) => a.tow?.from ?? '' },
       { key: 'to', label: 'TO', get: (a) => a.tow?.to ?? '' },
       { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, v) => statusCode(a, v.style, v.manual) },
+      { key: 'rmk', label: 'RMK', cls: 'rmk', item: 'note', get: (a) => a.strip?.note ?? '' },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],
     (a) => a.category === 'tow' && a.phase !== 'gone' && a.phase !== 'arrived',
@@ -472,6 +476,7 @@ export function arrivalList(cb: ConstructorParameters<typeof TrafficList>[3]): T
       },
       { key: 'std', label: 'STND', item: 'target', get: (a, _sim, v) => (a.phase === 'arrived' ? a.stand ?? '' : clearedTo(a, v.manual) || (a.assignedStand ? `(${a.assignedStand})` : '')) },
       { key: 'sts', label: 'STS', item: 'status', get: (a, _sim, v) => statusCode(a, v.style, v.manual) },
+      { key: 'rmk', label: 'RMK', cls: 'rmk', item: 'note', get: (a) => a.strip?.note ?? '' },
       { key: 'freq', label: 'FRQ', get: (a) => a.frequency },
     ],
     (a) => a.category === 'arrival' && a.phase !== 'gone' && a.phase !== 'goAround',

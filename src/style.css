@@ -2115,3 +2115,26 @@ button.dd.open {
 .perfrating.poor {
   background: rgba(220, 60, 60, 0.3);
 }
+
+/* ------------------------------------------------------------------ annotation (scratchpad) */
+.dialog.note-dialog {
+  width: min(420px, calc(100vw - 32px));
+}
+.dialog.note-dialog input {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  text-transform: uppercase;
+  padding: 6px 8px;
+}
+.dialog.note-dialog .hint {
+  margin-top: 6px;
+  opacity: 0.7;
+  font-size: 0.9em;
+}
+td.rmk {
+  max-width: 14ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

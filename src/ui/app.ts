@@ -1,3 +1,4 @@
+import { NOTE_MAX_CHARS } from '../core/strips';
 import { altimeterOf, lvpInForce } from '../core/met';
 import { APP_VERSION } from '../version';
 import { otherEnd, type Airport, type TaxiNode } from '../core/airport/airport';
@@ -841,7 +842,12 @@ export class App {
     const realistic = this.realistic;
     document.body.classList.toggle('realistic', realistic);
     for (const l of this.lists) l.manual = realistic;
-    for (const sc of this.scopes) sc.manualStrips = realistic;
+    for (const sc of this.scopes) {
+      sc.manualStrips = realistic;
+      // Realistic mode: no routes of the aircraft on the scopes (and no ROUTES button, no "Show route" in the menu).
+      sc.hideRoutes = realistic;
+    }
+    this.routesBtn.style.display = this.radarView || realistic ? 'none' : '';
     this.input.readOnly = realistic;
     if (realistic) this.clearInput();
     this.input.placeholder = realistic
@@ -877,7 +883,7 @@ export class App {
     for (const l of this.lists ?? []) l.el.style.display = this.radarView ? 'none' : '';
     for (const l of this.radarLists) l.el.style.display = this.radarView ? '' : 'none';
     this.rotBtn.style.display = this.radarView ? 'none' : '';
-    this.routesBtn.style.display = this.radarView ? 'none' : '';
+    this.routesBtn.style.display = this.radarView || this.realistic ? 'none' : '';
     this.scope.selected = this.selected;
     requestAnimationFrame(() => this.scopes.forEach((sc) => sc.resize()));
   }
@@ -898,12 +904,13 @@ export class App {
         const err = this.act({ k: 'transfer', callsign: ac.callsign });
         if (err) this.toast(err);
       },
-      toggleRoute: (ac) => this.radarScope?.toggleRoute(ac.callsign),
+      toggleRoute: this.realistic ? undefined : (ac) => this.radarScope?.toggleRoute(ac.callsign),
       measure: (ac) => this.radarScope?.measureFrom(ac.callsign),
       routeShown: (ac) => !!this.radarScope?.routeShown(ac.callsign),
       say: (ac, phrase) => this.say(ac, phrase),
       center: (ac) => this.scope.centerOn(ac.pos),
       resetTag: (ac) => this.radarScope?.resetTag(ac.callsign),
+      note: (ac) => this.editNote(ac),
     };
   }
 
@@ -911,6 +918,10 @@ export class App {
   private onRadarTagItem(cs: string, item: RadarTagItem, x: number, y: number): void {
     const ac = this.sim.find(cs);
     if (!ac) return;
+    if (item === 'note') {
+      this.editNote(ac);
+      return;
+    }
     // A track Center offers: a click on its tag assumes it (EuroScope: accept the transfer).
     if (offered(ac)) {
       this.assume(ac);
@@ -1509,6 +1520,10 @@ export class App {
       if (this.sim.findVehicle(cs)) this.openMenu(cs, x, y);
       return;
     }
+    if (item === 'note') {
+      this.editNote(ac);
+      return;
+    }
     if (this.realistic) {
       this.onStripCell(ac, item, x, y);
       return;
@@ -1527,6 +1542,10 @@ export class App {
   private onTagItem(cs: string, item: TagItem, x: number, y: number): void {
     const ac = this.sim.find(cs);
     if (!ac) return;
+    if (item === 'note') {
+      this.editNote(ac);
+      return;
+    }
     if (this.realistic) {
       this.onStripCell(ac, item, x, y);
       return;
@@ -1579,7 +1598,53 @@ export class App {
     }
     const ac = this.sim.find(cs);
     if (!ac) return;
-    this.menu.open(`${ac.callsign}  ${ac.type.icao}  ${ac.category === 'departure' ? `> ${ac.flightPlan.destination}` : `< ${ac.flightPlan.departure}`}`, this.realistic ? this.stripItems(ac) : this.menuItems(ac), x, y);
+    const items = this.realistic ? this.stripItems(ac) : this.menuItems(ac);
+    // Every aircraft menu: your annotation (the radar menu has its own entry).
+    if (!items.some((i) => i.label === 'Annotation' || i.label === 'NOTE')) {
+      const i = items.findIndex((x) => x.label === 'Centre view' || x.label === 'CENTER');
+      const note: MenuItem = { label: 'Annotation', hint: ac.strip?.note, action: () => this.editNote(ac) };
+      if (i >= 0) items.splice(i, 0, note);
+      else items.push({ divider: true, label: '' }, note);
+    }
+    this.menu.open(`${ac.callsign}  ${ac.type.icao}  ${ac.category === 'departure' ? `> ${ac.flightPlan.destination}` : `< ${ac.flightPlan.departure}`}`, items, x, y);
+  }
+
+  /**
+   * Your annotation of an aircraft (EuroScope: scratchpad): a short free text shown in its tag and in the lists (RMK).
+   * Only a note - it never changes what the aircraft does; a saved session keeps it.
+   */
+  private editNote(ac: Aircraft): void {
+    const input = h('input', { type: 'text', maxLength: NOTE_MAX_CHARS, value: ac.strip?.note ?? '', placeholder: 'e.g. EXP RWY 07, WAIT GAP, PAN' });
+    const save = h('button.primary', { type: 'submit', text: 'Save' });
+    const clear = h('button', { type: 'button', text: 'Clear' });
+    const cancel = h('button', { type: 'button', text: 'Cancel' });
+    const form = h(
+      'form.dialog.note-dialog',
+      {},
+      h('div.dtitle', {}, h('span', { text: `Annotation ${ac.callsign}` }), h('span.dim', { text: `${ac.type.icao}  ${ac.category === 'departure' ? `> ${ac.flightPlan.destination}` : `< ${ac.flightPlan.departure}`}` })),
+      h('div.dbody', {}, input, h('div.hint', { text: `Shown in the tag and in the lists (RMK); at most ${NOTE_MAX_CHARS} characters. Only a note - the aircraft does not hear it.` })),
+      h('div.actions', {}, clear, cancel, save),
+    );
+    const overlay = h('div.overlay', {}, form);
+    const close = () => overlay.remove();
+    const setNote = (text: string) => {
+      this.act({ k: 'strip', callsign: ac.callsign, field: 'note', value: text.toUpperCase() });
+      close();
+    };
+    form.addEventListener('submit', (e) => {
+      e.preventDefault();
+      setNote(input.value);
+    });
+    clear.addEventListener('click', () => setNote(''));
+    cancel.addEventListener('click', close);
+    overlay.addEventListener('click', (e) => e.target === overlay && close());
+    form.addEventListener('keydown', (e) => {
+      e.stopPropagation();
+      if (e.key === 'Escape') close();
+    });
+    document.body.append(overlay);
+    input.focus();
+    input.select();
   }
 
   /** Broadcasts to all stations on your frequencies (no read-back). */

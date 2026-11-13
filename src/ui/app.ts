@@ -841,7 +841,12 @@ export class App {
     const realistic = this.realistic;
     document.body.classList.toggle('realistic', realistic);
     for (const l of this.lists) l.manual = realistic;
-    for (const sc of this.scopes) sc.manualStrips = realistic;
+    for (const sc of this.scopes) {
+      sc.manualStrips = realistic;
+      // Realistic mode: no routes of the aircraft on the scopes (and no ROUTES button, no "Show route" in the menu).
+      sc.hideRoutes = realistic;
+    }
+    this.routesBtn.style.display = this.radarView || realistic ? 'none' : '';
     this.input.readOnly = realistic;
     if (realistic) this.clearInput();
     this.input.placeholder = realistic
@@ -877,7 +882,7 @@ export class App {
     for (const l of this.lists ?? []) l.el.style.display = this.radarView ? 'none' : '';
     for (const l of this.radarLists) l.el.style.display = this.radarView ? '' : 'none';
     this.rotBtn.style.display = this.radarView ? 'none' : '';
-    this.routesBtn.style.display = this.radarView ? 'none' : '';
+    this.routesBtn.style.display = this.radarView || this.realistic ? 'none' : '';
     this.scope.selected = this.selected;
     requestAnimationFrame(() => this.scopes.forEach((sc) => sc.resize()));
   }
@@ -898,7 +903,7 @@ export class App {
         const err = this.act({ k: 'transfer', callsign: ac.callsign });
         if (err) this.toast(err);
       },
-      toggleRoute: (ac) => this.radarScope?.toggleRoute(ac.callsign),
+      toggleRoute: this.realistic ? undefined : (ac) => this.radarScope?.toggleRoute(ac.callsign),
       measure: (ac) => this.radarScope?.measureFrom(ac.callsign),
       routeShown: (ac) => !!this.radarScope?.routeShown(ac.callsign),
       say: (ac, phrase) => this.say(ac, phrase),

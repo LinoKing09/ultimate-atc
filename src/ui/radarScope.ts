@@ -168,6 +168,8 @@ export class RadarScope {
   showAllRoutes = true;
   compactTags = true;
   manualStrips = false;
+  /** Realistic (voice-only) mode: no route lines of the aircraft (the selected one's neither). */
+  hideRoutes = false;
   statusStyle: 'phx' | 'euroscope' = 'euroscope';
   readonly isPhx = false;
   readonly effect: 'phosphor' | 'vignette' | undefined = undefined;
@@ -677,7 +679,7 @@ export class RadarScope {
       ctx.arc(p.x, p.y, 10, 0, Math.PI * 2);
       ctx.stroke();
     }
-    if (ac.callsign === this.selected || this.routesShown.has(ac.callsign)) this.drawRoute(ac, p);
+    if (!this.hideRoutes && (ac.callsign === this.selected || this.routesShown.has(ac.callsign))) this.drawRoute(ac, p);
     this.symbolHits.push({ callsign: ac.callsign, x: p.x, y: p.y });
   }
 

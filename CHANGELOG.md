@@ -15,6 +15,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Changed
 
+- **Realistic mode (voice only): no routes of the aircraft** on the ground radar and the radar - neither the cleared taxi routes nor the route lines of SIDs, STARs and direct-tos, not even for the selected aircraft; the `ROUTES` button and *Show route* are hidden.
+
 - **Saved sessions say clearly when they come back differently.** A session is rebuilt by replaying it from its start, so one saved by an earlier version of the simulator can differ (e.g. an aircraft at another altitude). The check of the rebuilt traffic now also covers altitudes, headings, cleared levels and frequencies; a session that differs gets a clear note (message window and scope) naming the version that saved it, and the list of saved sessions marks sessions of another version.
 
 ### Fixed

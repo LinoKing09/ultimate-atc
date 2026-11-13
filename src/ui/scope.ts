@@ -382,6 +382,8 @@ export class Scope {
    * (core/strips.ts), not what the radio did.
    */
   manualStrips = false;
+  /** Realistic (voice-only) mode: no routes of the aircraft on the scope - you keep them in your head, as in reality. */
+  hideRoutes = false;
   /** Colours (see `setStyle`). */
   private t: ScopeTheme = PHX_NIGHT;
   /** Ground state names in the tags. */
@@ -1268,6 +1270,7 @@ export class Scope {
   }
 
   private drawRoutes(): void {
+    if (this.hideRoutes) return;
     const ctx = this.ctx;
     for (const ac of this.sim.aircraft) {
       if (!ac.path || !ac.onGround || ac.phase === 'takeoff') continue;

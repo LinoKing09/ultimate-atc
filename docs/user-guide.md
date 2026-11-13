@@ -222,6 +222,7 @@ Mobile mode is made for touch screens, above all the **iPad** (a phone screen is
 
 - **Instructions only by voice**: hold **PTT** (it shows **WAIT** while the microphone opens and **TX** while it records) (the large button right of the message window, where SEND was), `MIC`, or a push-to-talk key (`^` / `` ` ``, Right Ctrl, Insert) and speak; the transmission is sent when you release (always, whatever *Send voice automatically* says). The command line only shows what the microphone hears - nothing can be typed. `SEND`, `ROGER`, `SAY AGAIN`, `ALL STN` and the mobile quick-action bar are gone: say `roger`, `say again`, `all stations ...` instead. If the frequency waits for a read-back, the transmission is dropped - say it again, or start with `break break`.
 - **The menus give no instructions.** What is not said on the radio stays: **Send DCL (datalink)** - the PDC on Delivery -, *Request hand-off*, *Acknowledge CATC alert*, the flight plan, *Centre view*, *Reset tag position*. Follow-me cars too get their instructions only by voice.
+- **Annotations** work as in the other modes (see [annotations](#annotations)).
 - **No routes on the scopes**: the cleared taxi routes on the ground radar, the route lines (SID, STAR, direct-to) on the radar and the route previews are not drawn - not even for the selected aircraft; `ROUTES` and *Show route* / `ROUTE` are gone. You keep the routes in your head, as on a real position.
 - **You keep the lists by hand**, like a strip board or the EuroScope lists. Nothing is filled in from the radio: the lists, tags and Tab show only what you entered. Click (tap) a cell, or right-click the aircraft for its strip menu:
 
@@ -312,6 +313,10 @@ Like in EuroScope, **the tag items are clickable**. Hovered items are highlighte
 Airborne aircraft (arrivals on final, departures after take-off) show callsign, type and wake category, altitude in hundreds of feet and speed (`A034 140`), and the approach and runway (`ILS 25`) or the SID, plus a speed vector line (30 seconds ahead). On the ground the speed vector shows only above 40 kt - on the take-off and landing roll, never while taxiing.
 
 **Compact tags when zoomed out**: below a zoom of 0.6 pixels per metre (about the whole airport in view, the typical Tower picture) every tag shows only the **callsign**, with `*` for a pending request and `PAN` for an emergency, like the minimal (untagged) label of EuroScope. The **selected** aircraft - tap it on a tablet - and the one under the mouse get the full tag; zoom in and all tags are full again. *Settings -> Data tags -> Always full* switches this off. To keep the apron readable, parked aircraft with no pending request only get a tag when you zoom in or select them. **Drag a tag** with the mouse to move it; *Reset tag position* in the aircraft menu puts it back.
+
+### Annotations
+
+Every aircraft can carry a short note of yours (EuroScope: scratchpad), in every control mode: *Annotation* (`NOTE` with *Real* menus) in its menu, or a click on the `RMK` column of the lists, opens a text field - at most **40 characters**, shown in capitals, e.g. `EXP RWY 07`, `WAIT GAP`, `VIA L, N`. Enter or *Save* keeps it, *Clear* removes it. The note appears as an extra line in the aircraft's tag on the ground radar and the radar (a click on it edits it) and in the `RMK` column. It is only a note: the crew does not hear it and nothing changes. A saved session keeps it.
 
 ### Extended centrelines
 
@@ -471,7 +476,7 @@ taxi to stand 14 via N R          <- goes to the selected aircraft
 
 ## 7. Aircraft menu
 
-Right-click an aircraft symbol, its tag, or its list row to open the menu. Items are disabled when they don't make sense in the current state.
+Right-click an aircraft symbol, its tag, or its list row to open the menu (the browser's own context menu never opens in the simulator, except in text fields). Items are disabled when they don't make sense in the current state. Every aircraft menu has *Annotation* (see [annotations](#annotations)).
 
 | Item                          | Sends                                              | Available when                                |
 | ----------------------------- | -------------------------------------------------- | --------------------------------------------- |

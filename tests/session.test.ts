@@ -67,4 +67,17 @@ describe('saved sessions', () => {
     // Sessions saved before the finer check existed still load.
     expect((await restoreSession({ ...saved, detail: undefined, appVersion: undefined }, AIRPORTS)).matches).toBe(true);
   }, 60000);
+
+  it('keeps your annotations (scratchpad) in a saved session; they never change the traffic', async () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'light', seed: 4, events: false, start: 'handover' });
+    const ac = sim.aircraft[0];
+    perform(sim, { k: 'strip', callsign: ac.callsign, field: 'note', value: '  exp rwy 07, wait gap  ' });
+    expect(ac.strip?.note).toBe('exp rwy 07, wait gap');
+    perform(sim, { k: 'strip', callsign: ac.callsign, field: 'note', value: 'X'.repeat(80) });
+    expect(ac.strip?.note).toHaveLength(40);
+    for (let t = 0; t < 30; t++) sim.tick(1);
+    const { sim: back, matches } = await restoreSession(JSON.parse(JSON.stringify(saveSession(sim, 'x', 0))), AIRPORTS);
+    expect(matches).toBe(true);
+    expect(back.find(ac.callsign)?.strip?.note).toBe('X'.repeat(40));
+  }, 60000);
 });

@@ -10,6 +10,14 @@ import { showLogin } from './ui/dialogs';
 import { showLoading } from './ui/loading';
 import { loadSettings, saveSettings } from './ui/settings';
 
+// A right click is the simulator's (aircraft menus, like EuroScope): never the browser's menu - except in text
+// fields, where it offers copy and paste.
+document.addEventListener('contextmenu', (e) => {
+  const t = e.target as HTMLElement | null;
+  if (t?.closest('input, textarea, [contenteditable="true"]')) return;
+  e.preventDefault();
+});
+
 async function start(): Promise<void> {
   const settings = loadSettings();
   // The interface theme already colours the Connect dialog.

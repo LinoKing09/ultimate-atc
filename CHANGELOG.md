@@ -6,6 +6,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
+- **Annotations (scratchpad) for every aircraft**: *Annotation* (`NOTE`) in every aircraft menu, or a click on the `RMK` column of the lists, opens a small text field - at most 40 characters, e.g. `EXP RWY 07, WAIT GAP`. The note appears in the aircraft's tag (ground radar and radar) and in the `RMK` column; a click on it edits it, *Clear* removes it. Only a note: the crew does not hear it. A saved session keeps it.
+- **Right click without the browser menu**: the browser's context menu no longer opens anywhere in the simulator (text fields keep it for copy and paste).
+
 - **Approach tutorial** (Connect dialog: *Tutorial -> Approach*): a guided first session as Langen Radar at Stuttgart - assume a track Center offers, `identified` and a descent with the QNH, vectors for a downwind, base and intercept with the ILS clearance, the hand-over of the track to Tower, a departure climbed to its release level and handed to Center, and an arrival cleared via the RNAV transition. Steps with a right moment (the turn onto base at 16 NM, the intercept 3 NM before the centre line) show in the panel what to wait for, then *Now!*. Played automatically by the tutorial test like the other lessons.
 
 - **More runways at Cologne/Bonn in the ATIS editor** (VATSIM Germany SOP): **31R + 24** - take-offs 31R, landings 24 on the crossing runway (the highest capacity), and **31R + 31L** - landings on 31L for light and medium aircraft (code C) next to the main runway, with dependent or staggered approaches. Both are optional combinations (also in the scenario builder); the default stays 13L/31R.

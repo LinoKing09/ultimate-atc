@@ -13,7 +13,7 @@ import type { ScopeStyle } from './scope';
  */
 
 /** Clickable items of a radar tag. */
-export type RadarTagItem = 'callsign' | 'level' | 'heading' | 'speed' | 'route' | 'approach';
+export type RadarTagItem = 'callsign' | 'level' | 'heading' | 'speed' | 'route' | 'approach' | 'note';
 
 export interface RadarScopeCallbacks {
   onSelect(callsign: string | undefined): void;
@@ -816,6 +816,8 @@ export class RadarScope {
       const fin = end && ac.category === 'arrival' && (ac.phase === 'approach' || r?.locCaptured) ? ` ${(-finalCoordinates(end, ac.pos).along / M_PER_NM).toFixed(1)}NM` : '';
       lines.push([{ text: `${ac.type.icao}/${ac.type.wake} ${ac.flightPlan.squawk} ${extra}${fin}` }]);
     }
+    // Your annotation (EuroScope: scratchpad).
+    if (ac.strip?.note) lines.push([{ text: ac.strip.note, item: 'note', color: this.t.incoming }]);
     const k = this.tagScale;
     ctx.font = `${Math.round(11 * k)}px Consolas, Menlo, monospace`;
     const lh = Math.round(12 * k);

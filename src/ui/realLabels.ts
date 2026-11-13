@@ -71,6 +71,7 @@ const RULES: [RegExp, string | ((m: RegExpExecArray) => string)][] = [
   [/^Proceed to (.+)$/, (m) => `PROC ${m[1]}`],
   [/^Other runways$/, 'OTHER RWY'],
   [/^Centre view$/, 'CENTER'],
+  [/^Annotation$/, 'NOTE'],
   [/^Reset tag position$/, 'RST TAG'],
   [/^Accept hand-off$/, 'ASSUME'],
 ];

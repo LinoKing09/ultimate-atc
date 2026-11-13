@@ -21,9 +21,14 @@ export interface StripMarks {
   target?: string;
   /** Cleared to land (the LND column). */
   landing?: boolean;
+  /** Free-text annotation of the controller (any mode; EuroScope: scratchpad), at most NOTE_MAX_CHARS. */
+  note?: string;
 }
 
-export type StripField = 'status' | 'request' | 'cleared' | 'target' | 'landing';
+/** Longest annotation (characters). */
+export const NOTE_MAX_CHARS = 40;
+
+export type StripField = 'status' | 'request' | 'cleared' | 'target' | 'landing' | 'note';
 
 /** Ground states the controller can enter, in the order of a flight (EuroScope codes). */
 export const DEPARTURE_STATES = ['CLRD', 'ST-UP', 'PUSH', 'TAXI', 'H/P', 'L/U', 'T/O', 'DEPA'];
@@ -80,6 +85,9 @@ export function setStripMark(sim: Simulation, ac: Aircraft, field: StripField, v
     case 'status':
     case 'target':
       strip[field] = typeof value === 'string' && value ? value : undefined;
+      break;
+    case 'note':
+      strip.note = typeof value === 'string' && value.trim() ? value.trim().slice(0, NOTE_MAX_CHARS) : undefined;
       break;
   }
 }

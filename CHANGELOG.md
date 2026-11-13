@@ -13,6 +13,9 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- Radar: selecting an aircraft no longer starts the hand-over of its track by itself (the quick-action bar ran the `XFER` entry while it built its buttons) - for arrivals not yet cleared for the approach that showed the red note *Tower takes arrivals that are cleared for the approach* every time, for departures it offered the track to Center unasked.
+- Radar, take-over start: a departure already above the initial climb (e.g. at 8000 ft) no longer descends back to 5000 ft - the controller before you has cleared it to the release level of its sector and identified it.
+
 - Stands whose lead-in lines pass a neighbour (Cologne/Bonn C01 past C02): no aircraft is put on the neighbour while the stand behind it is occupied any more - it blocked that stand's pushback for good.
 - **Köln/Bonn and Leipzig under heavy traffic** (soak test with heavy traffic and Tower alone, the AI running Ground): no collisions, no aircraft stuck for good any more.
   - A new departure no longer appears on a stand while an aircraft moving close by sweeps over it (a B747-8 pushed back from the stand next to it hit it).

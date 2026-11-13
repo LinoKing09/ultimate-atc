@@ -381,3 +381,25 @@ describe('round 2: spoken radar phrases, transfers, reaction, read-back errors, 
     expect(runUntil(sim, () => ac.request === 'checkIn', 20)).toBe(true);
   });
 });
+
+describe('taking over the radar (hand-over start)', () => {
+  it('a departure already above the initial climb keeps climbing to its release level and does not call in again', { timeout: 120000 }, () => {
+    let checked = 0;
+    for (let seed = 1; seed <= 12 && checked < 2; seed++) {
+      const sim = new Simulation({ airport: EDDS, position: 'APP', positions: ['APP'], runway: '25', density: 'heavy', seed, events: false, start: 'handover' });
+      const high = sim.aircraft.filter((a) => a.category === 'departure' && a.phase === 'climb' && a.altitudeFt > 5500);
+      if (!high.length) continue;
+      const before = new Map(high.map((a) => [a.callsign, a.altitudeFt]));
+      for (let t = 0; t < 60; t++) sim.tick(1);
+      for (const a of high) {
+        if (!a.radar || a.frequency !== 'APP') continue;
+        checked++;
+        expect(a.altitudeFt, `${a.callsign} seed ${seed}`).toBeGreaterThanOrEqual(before.get(a.callsign)!);
+        expect(a.radar.clearedFt).toBeGreaterThanOrEqual(a.radar.sector?.releaseFt ?? 0);
+        expect(a.radar.identified).toBe(true);
+        expect(a.request).not.toBe('checkIn');
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+});

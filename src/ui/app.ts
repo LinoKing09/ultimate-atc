@@ -883,6 +883,9 @@ export class App {
       sim: this.sim,
       real: this.settings.menuStyle === 'real',
       transfer: (ac) => {
+        // Not while the quick-action bar only asks what a menu entry would say (phraseOf): that started the
+        // transfer - or showed its error - for every aircraft you selected.
+        if (this.capture) return;
         const err = this.act({ k: 'transfer', callsign: ac.callsign });
         if (err) this.toast(err);
       },

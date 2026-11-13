@@ -308,6 +308,9 @@ function catchReadback(sim: Simulation, ac: Aircraft, kind: 'heading' | 'level',
   return true;
 }
 
+/** A departure taken over more than this (ft) above the initial climb was cleared higher by the controller before you. */
+const ADOPT_ABOVE_FT = 300;
+
 /** The next controller accepts a transfer you started after this long (s). */
 const TRANSFER_ACCEPT_MIN_S = 3;
 const TRANSFER_ACCEPT_SPREAD_S = 6;
@@ -488,6 +491,18 @@ function adoptAirborne(sim: Simulation, ac: Aircraft): void {
     ac.radar = newState(ac, climb, isFlightLevel(sim, climb), sidRoute);
     ac.radar.sector = as.sectorFor(sid?.fix);
     ac.radar.ias = Math.max(ac.radar.ias, ac.type.vrKt + 20);
+    // Already above the initial climb when you take over (a hand-over start): the controller before you has
+    // identified it and cleared it on to the release level of its sector - it does not descend again; and it is
+    // past the first waypoints of its SID.
+    if (ac.altitudeFt > climb + ADOPT_ABOVE_FT) {
+      const r = ac.radar;
+      const cleared = Math.max((r.sector?.releaseFt ?? 0), Math.ceil(ac.altitudeFt / 1000) * 1000);
+      r.clearedFt = cleared;
+      r.clearedFl = isFlightLevel(sim, cleared);
+      r.identified = r.checkedIn = true;
+      const out = length(ac.pos);
+      while (r.route.length > 1 && length(as.fix(r.route[0])!) < out) r.route.shift();
+    }
     return;
   }
   // Already on final when you take over (e.g. a hand-over start): established, cleared for the approach.

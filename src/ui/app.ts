@@ -674,6 +674,7 @@ export class App {
     if (this.settings.perfOverlay) this.perfEl.textContent = overlayText(this.perf.snapshot());
     const sim = this.sim;
     this.updateSendLock();
+    this.flushMenuQueue();
     this.fields.ontime.innerHTML = `ON <b>${formatDuration(this.controlSeconds, true)}</b>`;
     const now = performance.now();
     if (now - this.lastStatsFlush > 30_000) {
@@ -1761,7 +1762,27 @@ export class App {
       this.pick(ac.callsign, phrase, this.picking.group);
       return;
     }
+    // Another crew is still reading back: the instruction waits and goes out as soon as the frequency is free
+    // (it used to be dropped with only a line in the message window - the menu seemed not to react).
+    const pending = this.readbackPending();
+    if (pending) {
+      const q = this.menuQueue.find((m) => m.callsign === ac.callsign);
+      if (q) q.phrases.push(phrase);
+      else this.menuQueue.push({ callsign: ac.callsign, phrases: [phrase] });
+      this.toast(`Frequency busy - read-back of ${pending}. ${ac.callsign} ${phrase}: sent when it is free.`, 3500);
+      return;
+    }
     this.transmit(`${ac.callsign} ${phrase}`);
+  }
+
+  /** Menu instructions waiting for a read-back to finish (in order; one transmission per aircraft). */
+  private menuQueue: { callsign: string; phrases: string[] }[] = [];
+
+  /** Sends the next waiting menu instruction once nobody is reading back. */
+  private flushMenuQueue(): void {
+    if (!this.menuQueue.length || this.paused || this.readbackPending()) return;
+    const next = this.menuQueue.shift()!;
+    if (this.sim.find(next.callsign)) this.transmit(`${next.callsign} ${next.phrases.join(', ')}`);
   }
 
   /** The phrase a menu action would transmit (undefined if it does something else, e.g. opens a menu). */

@@ -444,7 +444,7 @@ Shows all radio traffic on your frequency plus system messages:
 
 Click a line to select the aircraft it belongs to.
 
-There is **one frequency**: only one station talks at a time. Pilots wait until the frequency is free, and read-backs come before new calls. After your instruction **SEND is locked** until the read-back has come (at most 5 s after your transmission; greyed, dashed): the addressed pilot answers first. To cut in anyway, start with `break break` (`break break DLH5AB hold position`) - SEND unlocks as soon as you type it. Your own transmissions go out immediately, so avoid "stepping on" a pilot by answering too fast in a busy situation.
+There is **one frequency**: only one station talks at a time. Pilots wait until the frequency is free, and read-backs come before new calls. After your instruction **SEND is locked** until the read-back has come (at most 5 s after your transmission; greyed, dashed): the addressed pilot answers first. To cut in anyway, start with `break break` (`break break DLH5AB hold position`) - SEND unlocks as soon as you type it. An instruction you pick in a **menu** (or a tag field) while a read-back is pending is not lost: a short note says *Frequency busy*, and it goes out by itself as soon as the read-back has come (several picks for the same aircraft in one transmission). Your own transmissions go out immediately, so avoid "stepping on" a pilot by answering too fast in a busy situation.
 
 ### Command line
 

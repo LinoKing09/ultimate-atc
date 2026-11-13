@@ -19,6 +19,8 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- Menus (e.g. **DCT** on the radar) seemed not to react: an instruction picked while another crew was still reading back was dropped, with only a line in the message window. It now waits (note *Frequency busy* on the scope) and goes out by itself as soon as the frequency is free.
+
 - Radar: selecting an aircraft no longer starts the hand-over of its track by itself (the quick-action bar ran the `XFER` entry while it built its buttons) - for arrivals not yet cleared for the approach that showed the red note *Tower takes arrivals that are cleared for the approach* every time, for departures it offered the track to Center unasked.
 - Radar, take-over start: a departure already above the initial climb (e.g. at 8000 ft) no longer descends back to 5000 ft - the controller before you has cleared it to the release level of its sector and identified it.
 

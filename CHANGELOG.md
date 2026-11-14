@@ -31,6 +31,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Fixed
 
+- Follow-me cars were run over: an aircraft taxiing towards a car that holds (or stands) on its way - the one it leads, or any other - drove through it. Aircraft now stop 10 m behind a car in their way and go on once it has driven off.
 - A crew stopped for opposite traffic that got an instruction just as its way cleared no longer stays silent: the read-back was dropped together with its waiting "blocked" call, and the frequency was free for others while the controller waited for it.
 - Menus (e.g. **DCT** on the radar) seemed not to react: an instruction picked while another crew was still reading back was dropped, with only a line in the message window. It now waits (note *Frequency busy* on the scope) and goes out by itself as soon as the frequency is free.
 

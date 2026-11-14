@@ -198,7 +198,35 @@ export function updateSeparation(sim: Simulation): void {
       a.blockedBy = undefined;
       a.blockedSince = undefined;
     }
+    // Vehicles on the movement area (follow-me cars): the crew stops behind one that stands or drives on its way.
+    const car = vehicleAhead(sim, a);
+    if (car !== undefined && (a.blockDistance === undefined || car < a.blockDistance)) a.blockDistance = car;
   }
+}
+
+/** A follow-me car is this close (m) to the aircraft's path: it is in the way (the car is narrow, the nose gear is not). */
+const VEHICLE_IN_WAY_M = 8;
+/** The crew stops this far (m) behind a car in its way (nose to the car). */
+const VEHICLE_GAP_M = 10;
+
+/**
+ * Distance the aircraft may still roll before a follow-me car in its way (undefined: none). Its own car only while it
+ * holds - leading, it stays ahead by itself.
+ */
+function vehicleAhead(sim: Simulation, a: Aircraft): number | undefined {
+  if (!a.path || !PATH_PHASES.has(a.phase) || a.phase === 'pushback') return undefined;
+  const cars = sim.vehicles.filter((v) => v.state !== 'idle' && (v.aircraft !== a.callsign || v.holding) && distance(v.pos, a.pos) < 250);
+  if (!cars.length) return undefined;
+  const look = Math.min(a.path.length - a.s, (a.speed * a.speed) / (2 * 1.2) + 55 + a.type.lengthM);
+  const moveDir = headingVector(a.path.headingAt(a.s));
+  for (let d = 2; d <= look; d += 3) {
+    const p = a.path.pointAt(a.s + d);
+    for (const v of cars) {
+      if (dot(sub(v.pos, a.pos), moveDir) < 0) continue;
+      if (distance(p, v.pos) < VEHICLE_IN_WAY_M) return Math.max(0, d - a.type.lengthM / 2 - VEHICLE_GAP_M);
+    }
+  }
+  return undefined;
 }
 
 const collided = new WeakMap<Aircraft, Set<string>>();

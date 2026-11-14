@@ -133,6 +133,32 @@ describe('follow-me', () => {
     expect(runUntil(sim, () => v.state === 'idle', 900)).toBe(true);
   });
 
+  it('a follow-me car standing on the taxiway: aircraft stop behind it, never run it over', () => {
+    const sim = makeSim();
+    const ac = sim.traffic.spawnDeparture(0, { type: 'A320', callsign: 'DLH4AB' }) as Aircraft;
+    ac.cleared = true;
+    ac.frequency = 'GND';
+    sim.transmit('DLH4AB push and start approved');
+    expect(runUntil(sim, () => ac.request === 'taxi', 400)).toBe(true);
+    sim.transmit('DLH4AB taxi to holding point A');
+    expect(runUntil(sim, () => ac.phase === 'taxi' && ac.speed > 3, 120)).toBe(true);
+    // The car stops on the way, 120 m ahead (as when you told it to hold position).
+    const v = sim.findVehicle('FME1')!;
+    v.state = 'done';
+    v.speed = 0;
+    v.pos = { ...ac.path!.pointAt(ac.s + 120) };
+    let closest = Infinity;
+    for (let t = 0; t < 120; t++) {
+      sim.tick(1);
+      closest = Math.min(closest, Math.hypot(ac.pos.x - v.pos.x, ac.pos.y - v.pos.y));
+    }
+    expect(ac.speed).toBe(0);
+    expect(closest).toBeGreaterThan(ac.type.lengthM / 2 + 5);
+    // The car drives off: the aircraft continues.
+    v.state = 'idle';
+    expect(runUntil(sim, () => ac.speed > 2, 60)).toBe(true);
+  });
+
   it('drives smoothly and reports its position', () => {
     const sim = makeSim();
     const ac = sim.traffic.spawnArrival(4, { callsign: 'DCEEO', type: 'CL35' }) as Aircraft;

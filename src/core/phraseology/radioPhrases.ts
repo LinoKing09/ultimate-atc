@@ -111,7 +111,11 @@ export function radioPhrases(ctx: PhraseContext): string[] {
       add(`contact ${st.name} ${say(f)}`);
     }
   }
-  for (const hp of ctx.holdingPoints) add(`holding point ${say(hp)}`);
+  for (const hp of ctx.holdingPoints) {
+    add(`holding point ${say(hp)}`);
+    // The runway entry alone: "taxi to alpha six".
+    add(`taxi to ${say(hp)}`);
+  }
   for (const tw of ctx.taxiways) add(say(tw));
   for (const stand of ctx.stands) {
     add(`stand ${say(stand)}`);

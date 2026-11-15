@@ -24,6 +24,8 @@ export interface ParserContext {
   sids?: string[];
   /** Navaids and fixes of the terminal airspace (upper case), for "proceed direct" and holdings (radar). */
   fixes?: string[];
+  /** Runway holding point names of the airport (upper case): "taxi to A6" is short for "taxi to holding point A6". */
+  holdingPoints?: Set<string>;
 }
 
 const NUMBER_WORDS: Record<string, string> = {
@@ -720,6 +722,21 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       c.accept('position');
       const s = readStand(c);
       return s ? { kind: 'stand', stand: s } : undefined;
+    }
+    // The runway entry alone: "taxi to A6", "taxi to entry A6", "taxi to intersection B10 runway 26L".
+    if (ctx.holdingPoints?.size) {
+      const save = c.i;
+      c.accept('entry', 'intersection');
+      const name = readDesignator(c, new Set([...ctx.taxiways, ...ctx.holdingPoints]));
+      if (name && ctx.holdingPoints.has(name)) {
+        let runway: string | undefined;
+        if (c.peek() === 'runway') {
+          c.next();
+          runway = readRunway(c);
+        }
+        return { kind: 'holdingPoint', name, runway };
+      }
+      c.i = save;
     }
     return undefined;
   };

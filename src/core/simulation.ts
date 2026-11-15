@@ -639,11 +639,11 @@ export class Simulation {
     if (/^all stations\b/i.test(trimmed)) return this.broadcast(trimmed);
     const callsigns = this.radioCallsigns;
     const fixes = this.airspace?.fixNames;
-    let parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected, sids: this.sidNames, fixes });
+    let parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected, sids: this.sidNames, fixes, holdingPoints: this.holdingPointNames });
     // Voice-only operation: without callsign and selection, address the pilot who called last.
     if (!parsed.callsign && opts.fallbackToLastCaller) {
       const last = this.lastCaller();
-      if (last) parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected: last.callsign, sids: this.sidNames, fixes });
+      if (last) parsed = parseTransmission(trimmed, { callsigns, taxiways: this.airport.taxiwayNames, selected: last.callsign, sids: this.sidNames, fixes, holdingPoints: this.holdingPointNames });
     }
     const vehicle = this.vehicles.find((v) => v.callsign === parsed.callsign);
     if (vehicle) return executeVehicleTransmission(this, vehicle, parsed, trimmed);
@@ -1247,6 +1247,12 @@ export class Simulation {
   get sidNames(): string[] {
     return this.config.airport.sids.map((s) => s.name.toUpperCase());
   }
+
+  /** Runway holding point names of the airport (for the parser: "taxi to A6"). */
+  get holdingPointNames(): Set<string> {
+    return (this.holdingPointNameCache ??= new Set([...this.airport.holdingPoints.values()].map((n) => n.holdingPoint!.name.toUpperCase())));
+  }
+  private holdingPointNameCache?: Set<string>;
 
   /** True if a system is available at this airport and switched on. */
   systemOn(id: SystemId): boolean {

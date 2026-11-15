@@ -76,3 +76,35 @@ describe('München (EDDM) after the DFS AIP', () => {
     }
   }, 600000);
 });
+
+describe('München: taxi to a runway entry by its name', () => {
+  it('"taxi to A6" (also "entry A6", "intersection B10 runway 08R") is a taxi to that holding point', () => {
+    const sim = new Simulation({ airport: EDDM, position: 'GND', density: 'medium', seed: 3, events: false });
+    const ctx = { callsigns: ['DLH1AB'], taxiways: sim.airport.taxiwayNames, holdingPoints: sim.holdingPointNames };
+    const dest = (t: string) => (parseTransmission(t, ctx).commands[0] as { destination?: unknown }).destination;
+    expect(dest('DLH1AB taxi to A6')).toEqual({ kind: 'holdingPoint', name: 'A6' });
+    expect(dest('DLH1AB taxi to entry A6 via N')).toEqual({ kind: 'holdingPoint', name: 'A6' });
+    expect(dest('DLH1AB taxi to intersection B10 runway 08R')).toEqual({ kind: 'holdingPoint', name: 'B10', runway: '08R' });
+    expect(dest('DLH1AB taxi to alpha six')).toEqual({ kind: 'holdingPoint', name: 'A6' });
+    // A taxiway that is no runway entry is no destination.
+    expect(dest('DLH1AB taxi to N')).toBeUndefined();
+  });
+
+  it('a departure taxis to the entry it is given with the automatic route', () => {
+    const sim = new Simulation({ airport: EDDM, position: 'GND', density: 'medium', seed: 3, events: false });
+    for (let t = 0; t < 2400; t++) {
+      sim.tick(1);
+      for (const a of sim.aircraft) {
+        if (a.request === 'pushback' && sim.time - a.lastCallAt > 3) sim.transmit(`${a.callsign} push and start approved`);
+        if (a.request !== 'taxi' || sim.time - a.lastCallAt <= 3) continue;
+        const hp = sim.airport.runwayOps(sim.departureRunwayOf(a))!.departureEntries.find((e) => e.fullLength)!.holdingPoint;
+        expect(sim.transmit(`${a.callsign} taxi to ${hp}`).ok).toBe(true);
+        sim.tick(8);
+        expect(sim.messages.filter((m) => m.from === a.callsign).at(-1)?.text).toMatch(new RegExp(`^Taxi to holding point ${hp}\\b`));
+        expect(a.routeDestination).toMatchObject({ kind: 'holdingPoint', name: hp });
+        return;
+      }
+    }
+    throw new Error('no departure asked for taxi');
+  }, 60000);
+});

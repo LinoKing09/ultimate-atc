@@ -108,3 +108,34 @@ describe('München: taxi to a runway entry by its name', () => {
     throw new Error('no departure asked for taxi');
   }, 60000);
 });
+
+describe('München: apron entries N1-N4, S1-S8', () => {
+  it('"taxi to N3" takes the aircraft to the line at the apron entry; there it asks for further taxi', () => {
+    const sim = new Simulation({ airport: EDDM, position: 'GND', density: 'medium', seed: 3, events: false });
+    const ctx = { callsigns: ['DLH1AB'], taxiways: sim.airport.taxiwayNames, holdingPoints: sim.holdingPointNames, apronEntries: sim.apronEntryNames };
+    expect((parseTransmission('DLH1AB taxi to N3', ctx).commands[0] as { destination?: unknown }).destination).toEqual({ kind: 'entry', name: 'N3' });
+    expect((parseTransmission('DLH1AB taxi to sierra five via S', ctx).commands[0] as { destination?: unknown }).destination).toEqual({ kind: 'entry', name: 'S5' });
+    for (let t = 0; t < 3000; t++) {
+      sim.tick(1);
+      for (const a of sim.aircraft) {
+        if (a.request === 'pushback' && sim.time - a.lastCallAt > 3) sim.transmit(`${a.callsign} push and start approved`);
+        if (a.request !== 'taxi' || sim.time - a.lastCallAt <= 3) continue;
+        // The entry it can reach (its apron's side).
+        const entry = EDDM.apronEntries!.find((x) => sim.transmit(`${a.callsign} taxi to ${x}`).ok && a.pendingTaxi?.destination?.kind === 'entry');
+        expect(entry).toBeDefined();
+        for (let k = 0; k < 600 && (a.request as string) !== 'route'; k++) sim.tick(1);
+        expect(a.routeDestination).toEqual({ kind: 'entry', name: entry });
+        expect(a.stoppedAt?.kind).toBe('destination');
+        expect(sim.messages.filter((m) => m.from === a.callsign).map((m) => m.text)).toContainEqual(expect.stringMatching(new RegExp(`holding at ${entry}, request further taxi`)));
+        // On to the runway from there.
+        sim.tick(5);
+        expect(sim.transmit(`${a.callsign} taxi to runway ${sim.departureRunwayOf(a)}`).ok).toBe(true);
+        sim.tick(30);
+        expect(a.routeDestination?.kind).toBe('holdingPoint');
+        expect(a.speed).toBeGreaterThan(0);
+        return;
+      }
+    }
+    throw new Error('no departure asked for taxi');
+  }, 60000);
+});

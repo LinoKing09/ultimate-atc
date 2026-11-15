@@ -7,7 +7,9 @@ export type TaxiDestination =
   /** De-icing pad ("DP2"); without `pad` the crew takes a free one (AI Ground). */
   | { kind: 'deicing'; pad?: string }
   /** Clearance limit "hold short of taxiway X" without another destination. */
-  | { kind: 'holdShort'; name: string };
+  | { kind: 'holdShort'; name: string }
+  /** Apron entry (AirportData.apronEntries, München N3): to its holding position line at the apron boundary. */
+  | { kind: 'entry'; name: string };
 
 /** An altitude in feet or a flight level. */
 export type Altitude = { feet: number } | { fl: number };

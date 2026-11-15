@@ -26,6 +26,8 @@ export interface ParserContext {
   fixes?: string[];
   /** Runway holding point names of the airport (upper case): "taxi to A6" is short for "taxi to holding point A6". */
   holdingPoints?: Set<string>;
+  /** Apron entries of the airport (upper case, München N1-N4 / S1-S8): "taxi to N3". */
+  apronEntries?: Set<string>;
 }
 
 const NUMBER_WORDS: Record<string, string> = {
@@ -723,12 +725,15 @@ export function parseTransmission(input: string, ctx: ParserContext): ParsedTran
       const s = readStand(c);
       return s ? { kind: 'stand', stand: s } : undefined;
     }
-    // The runway entry alone: "taxi to A6", "taxi to entry A6", "taxi to intersection B10 runway 26L".
-    if (ctx.holdingPoints?.size) {
+    // An apron entry ("taxi to N3"), or the runway entry alone: "taxi to A6", "taxi to entry A6",
+    // "taxi to intersection B10 runway 26L".
+    if (ctx.holdingPoints?.size || ctx.apronEntries?.size) {
       const save = c.i;
       c.accept('entry', 'intersection');
-      const name = readDesignator(c, new Set([...ctx.taxiways, ...ctx.holdingPoints]));
-      if (name && ctx.holdingPoints.has(name)) {
+      const holdingPoints = ctx.holdingPoints ?? new Set<string>();
+      const name = readDesignator(c, new Set([...ctx.taxiways, ...holdingPoints]));
+      if (name && ctx.apronEntries?.has(name)) return { kind: 'entry', name };
+      if (name && holdingPoints.has(name)) {
         let runway: string | undefined;
         if (c.peek() === 'runway') {
           c.next();

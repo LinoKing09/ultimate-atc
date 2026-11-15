@@ -62,6 +62,8 @@ export interface PhraseContext {
   /** Station names ("Stuttgart Ground") and their frequencies ("121.900"). */
   stations: { name: string; frequencies: string[] }[];
   holdingPoints: string[];
+  /** Apron entries ("N3", München), optional. */
+  apronEntries?: string[];
   taxiways: string[];
   stands: string[];
   /** Runway ends ("25", "26R"). */
@@ -116,6 +118,7 @@ export function radioPhrases(ctx: PhraseContext): string[] {
     // The runway entry alone: "taxi to alpha six".
     add(`taxi to ${say(hp)}`);
   }
+  for (const e of ctx.apronEntries ?? []) add(`taxi to ${say(e)}`);
   for (const tw of ctx.taxiways) add(say(tw));
   for (const stand of ctx.stands) {
     add(`stand ${say(stand)}`);
@@ -154,6 +157,7 @@ export function sessionPhraseContext(sim: Simulation): PhraseContext {
     callsigns: sim.radioCallsigns,
     stations: sim.config.airport.stations.map((st) => ({ name: st.name, frequencies: [st.frequency, ...Object.values(st.runwayFrequencies ?? {})] })),
     holdingPoints: [...sim.airport.holdingPoints.values()].map((n) => n.holdingPoint!.name),
+    apronEntries: sim.config.airport.apronEntries ?? [],
     taxiways: [...sim.airport.taxiwayNames],
     stands: [...sim.airport.stands.keys()],
     runways: [...sim.airport.runwayEnds.keys()],

@@ -103,6 +103,11 @@ export interface AirportData {
    * holding point. A holding point not listed is both (the usual case at smaller airports).
    */
   lvpHoldingPoints?: Record<string, string | string[]>;
+  /**
+   * Apron entries of the aerodrome chart (München N1-N4, S1-S8): the links between the taxiways and the aprons with
+   * a holding position line at the apron boundary. "taxi to N3" takes an aircraft to that line (a clearance limit).
+   */
+  apronEntries?: string[];
   /** Climate for the METAR (default: Central Europe). */
   climate?: { /** Mean temperature of each month (degrees C), January first. */ monthlyMeanC: number[] };
   /**

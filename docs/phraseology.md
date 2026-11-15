@@ -149,6 +149,7 @@ taxi via|along X [,] X ..., hold short of TAXIWAY|runway RWY        (incomplete 
 | ---------------------------------------------- | ------------------------------------------------ |
 | Holding point                                  | `taxi to holding point A via L2, S`              |
 | Holding point with runway                      | `taxi to holding point D runway 25 via H, S`     |
+| Apron entry (München N1-N4, S1-S8)             | `taxi to N3`, `taxi to S5 via S` - to the holding position line at the apron entry; there the crew reports `holding at N3, request further taxi` |
 | Runway entry by its name (short form)          | `taxi to A6`, `taxi to entry A6`, `taxi to intersection B10 runway 08R` - the same as `taxi to holding point A6`; only names of runway holding points (not plain taxiways); the crew reads back the full form |
 | Runway (the pilot picks the full-length holding point on the shortest route) | `taxi to runway 25 via N` |
 | Runway at an intersection                      | `taxi to runway 25 at D`                         |

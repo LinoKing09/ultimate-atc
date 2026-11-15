@@ -496,6 +496,9 @@ export const EDDM: AirportData = {
   ],
   // CAT II/III holding positions (aerodrome chart, AIP AD 2.20 3.2.3.2: used only during low visibility operations);
   // A1 and the high-speed turn-offs A5, A8, A9, B6, B7, B8, B11 have one holding position for all categories.
+  // Apron entries of the aerodrome chart: N1-N4 from N, S1-S8 from S into the aprons, each with a holding position
+  // line at the apron boundary ("taxi to N3").
+  apronEntries: ['N1', 'N2', 'N3', 'N4', 'S1', 'S2', 'S3', 'S4', 'S5', 'S6', 'S7', 'S8'],
   lvpHoldingPoints: {
     A2: 'HP.1736759994',
     A3: 'HP.12569738021',

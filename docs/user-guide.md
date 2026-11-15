@@ -306,7 +306,7 @@ Like in EuroScope, **the tag items are clickable**. Hovered items are highlighte
 | Callsign                      | Flight plan card: **radiotelephony callsign** (e.g. `SPEEDBIRD 947`), type, route, SID, runway, squawk, stand, frequency |
 | Aircraft type                 | Same flight plan card                                                   |
 | SID                           | On your Delivery frequency the clearance menu (IFR clearance with the SID, squawk, start-up), otherwise the flight plan card |
-| Cleared-to (`A`, `S14`, `---`), arrival stand | Taxi menu: holding points for departures, stands for arrivals |
+| Cleared-to (`A`, `S14`, `---`), arrival stand | Taxi menu: holding points for departures, stands for arrivals; at München also the apron entries N1-N4 / S1-S8 (*Apron entry*) |
 | Ground state (`TXG`, `RQST`, ...) | The full [aircraft menu](#7-aircraft-menu)                          |
 
 **Hovering over the callsign** adds a line with the radiotelephony callsign below it, so you know how to address the aircraft. The selected aircraft's telephony is also shown in front of the command line (`[BAW947 SPEEDBIRD 947]`).

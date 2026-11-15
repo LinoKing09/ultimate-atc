@@ -202,7 +202,8 @@ function destinationNode(sim: Simulation, dest: TaxiDestination): TaxiNode | und
 
 /** Where an aircraft should go if it has no route at the moment. */
 function intendedDestination(sim: Simulation, ac: Aircraft): TaxiDestination | undefined {
-  if (ac.routeDestination && ac.routeDestination.kind !== 'holdShort') return ac.routeDestination;
+  // A clearance limit on the way (hold short, an apron entry) is no destination: the stand or the runway after it is.
+  if (ac.routeDestination && ac.routeDestination.kind !== 'holdShort' && ac.routeDestination.kind !== 'entry') return ac.routeDestination;
   if (ac.category === 'arrival' || ac.returnToStand) return ac.assignedStand ? { kind: 'stand', stand: ac.assignedStand } : undefined;
   return { kind: 'runway', runway: sim.departureRunwayOf(ac) };
 }

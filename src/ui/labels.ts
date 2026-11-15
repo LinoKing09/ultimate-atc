@@ -73,6 +73,7 @@ export function clearedTo(ac: Aircraft, manual = false): string {
     if (d.kind === 'runway') return `R${d.runway}`;
     if (d.kind === 'holdShort') return `HS ${d.name}`;
     if (d.kind === 'deicing') return d.pad ?? 'DEICE';
+    if (d.kind === 'entry') return d.name;
     return `S${d.stand}`;
   }
   return '';

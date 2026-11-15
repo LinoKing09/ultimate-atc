@@ -69,7 +69,7 @@ const stoppedSince = new WeakMap<Aircraft, number>();
  */
 function takeOverStopped(sim: Simulation, ac: Aircraft): boolean {
   // ("Give way" ends by itself once the other aircraft has passed.)
-  const stopped = ac.phase === 'taxi' && ac.speed < 0.1 && !ac.giveWayTo && ac.stoppedAt?.kind !== 'runway' && (ac.holdPosition || ac.stoppedAt?.kind === 'holdShort' || ac.routeDestination?.kind === 'holdShort');
+  const stopped = ac.phase === 'taxi' && ac.speed < 0.1 && !ac.giveWayTo && ac.stoppedAt?.kind !== 'runway' && (ac.holdPosition || ac.stoppedAt?.kind === 'holdShort' || ac.routeDestination?.kind === 'holdShort' || ac.routeDestination?.kind === 'entry');
   if (!stopped || headOnPartner(sim, ac)) {
     stoppedSince.delete(ac);
     return false;

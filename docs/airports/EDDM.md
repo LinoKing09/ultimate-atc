@@ -72,7 +72,7 @@ Operating direction 26 is in use about 60 % of the time (westerly winds, estimat
 | **M**, **N** | Parallels south of the northern runway |
 | **S**, **T** | Parallels north of the southern runway |
 | **A1**-**A15** / **B1**-**B15** | To the holding points of the northern / southern runway; A4-A6, A8-A10, A12 and B4, B6-B8, B10-B12 angled (high-speed turn-offs) |
-| **N1**-**N4**, **S1**-**S8** | Links from the parallels to the aprons |
+| **N1**-**N4**, **S1**-**S8** | Links from the parallels to the aprons - apron entries with a holding position line at the apron boundary: `taxi to N3` (or *Apron entry* in the taxi menu) takes an aircraft to that line, where it asks for further taxi |
 | **W1**, **W2**, **E1**-**E3**, **C1**-**C5**, **D1**-**D6**, **CENTER2** | Apron taxiways of Terminal 1 (apron 1) and Terminal 2 (aprons 2 and 3) |
 | **B12WEST** | Between S and T west of B12 - not to be confused with B12 (hot spot) |
 | **R** | Along aprons 6-9 in the west |

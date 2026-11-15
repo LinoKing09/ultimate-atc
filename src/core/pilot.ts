@@ -973,6 +973,21 @@ function resolveDestination(
     }
     case 'holdShort':
       return resolveClearanceLimit(sim, ac, start, via, { kind: 'taxiway', name: dest.name }, forceUTurn);
+    case 'entry': {
+      // An apron entry: its holding position line at the apron boundary (the nearest one where the link forks).
+      const X = dest.name.toUpperCase();
+      const lines = [...sim.airport.nodes.values()].filter((n) => (n.intermediateHold || n.holdLine) && !n.holdingPoint && n.edges.some((e) => e.name.toUpperCase() === X));
+      if (!lines.length) return { error: `confirm ${X}, we can't find it` };
+      let best: TaxiRoute | undefined;
+      let lastErr = '';
+      for (const n of lines) {
+        const r = tryRoute(n);
+        if (isRouteError(r)) lastErr = r.error;
+        else if (r.edges.length && (!best || r.length < best.length)) best = r;
+      }
+      if (!best) return { error: routeErrorText(lastErr || 'no route', via) };
+      return { route: best, dest: { kind: 'entry', name: X } };
+    }
     case 'deicing': {
       if (!sim.airport.deicingPads.length) return { error: 'negative, there are no de-icing pads here' };
       if (ac.category !== 'departure') return { error: 'negative, we do not need de-icing' };
@@ -1550,6 +1565,11 @@ export function onStopReached(sim: Simulation, ac: Aircraft, stop: PathStop): vo
     }
     if (dest?.kind === 'deicing' && dest.pad && ac.deicing === undefined) {
       startDeicing(sim, ac, dest.pad);
+      return;
+    }
+    // At the apron entry it was cleared to (München N3): the crew asks how to go on.
+    if (dest?.kind === 'entry') {
+      if (sim.isOnMyFrequency(ac)) call(sim, ac, 'route', `${sim.tel(ac)}, holding at ${dest.name}, request further taxi`);
       return;
     }
     if (stop.holdingPoint) {

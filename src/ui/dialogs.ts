@@ -427,6 +427,7 @@ const REFERENCE: [string, string][] = [
   ['push and start approved [facing ...]', 'Pushback and engine start in one go.'],
   ['start-up approved', 'Approve engine start on the stand.'],
   ['cancel pushback / stop pushback / continue pushback', 'Cancel a pushback (a moving aircraft is towed back onto the stand), stop a moving pushback, resume it.'],
+  ['taxi to N3 (München apron entries N1-N4, S1-S8)', 'To the holding position line at the apron entry; there the crew asks for further taxi. Also in the taxi menu under Apron entry.'],
   ['taxi to A6 (entry A6 / intersection B10 runway 08R)', 'Short form: taxi to the runway holding point (entry) of that name, with the automatic route or via taxiways - the crew reads back "taxi to holding point A6".'],
   ['taxi to holding point A [runway 25] via L2, S', 'Taxi to a runway holding point along the given taxiways. Two-letter taxiways (Gatwick AN, NA) typed as they are or spoken letter by letter ("november alpha"); München B12WEST typed in one word or spoken "bravo one two west".'],
   ['taxi to runway 25 via L2, S', 'Taxi to the runway; the pilot picks the full-length holding point.'],

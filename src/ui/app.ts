@@ -2023,7 +2023,7 @@ export class App {
   }
 
   private routeItem(ac: Aircraft, label: string, phraseDest: string, hint?: string): MenuItem {
-    const cmd = parseTransmission(`taxi to ${phraseDest}`, { callsigns: [], taxiways: this.sim.airport.taxiwayNames }).commands[0];
+    const cmd = parseTransmission(`taxi to ${phraseDest}`, { callsigns: [], taxiways: this.sim.airport.taxiwayNames, holdingPoints: this.sim.holdingPointNames, apronEntries: this.sim.apronEntryNames }).commands[0];
     const r = cmd && cmd.type === 'taxi' ? previewTaxi(this.sim, ac, cmd) : { error: 'invalid' };
     if ('error' in r) return { label, hint: r.error, disabled: true };
     const destText = r.dest.kind === 'holdingPoint' ? `holding point ${r.dest.name}` : phraseDest;
@@ -2606,6 +2606,7 @@ export class App {
       if (items.length) items.push({ divider: true, label: '' });
       items.push(...entries(o));
     }
+    this.pushApronEntries(ac, items);
     if (others.length) {
       if (items.length) items.push({ divider: true, label: '' });
       items.push({ label: 'Other runways', hint: others.map((o) => o.runway).join(' '), submenu: () => others.flatMap((o, i) => [...(i ? [{ divider: true, label: '' }] : []), ...entries(o)]) });
@@ -2689,7 +2690,16 @@ export class App {
     if (items.length && free.length) items.push({ divider: true, label: '' });
     for (const s of free) items.push(this.routeItem(ac, `Stand ${s.id}`, `stand ${s.id}`, `${s.apron}`));
     if (!items.length) items.push({ label: 'No free stand', disabled: true });
+    this.pushApronEntries(ac, items);
     return items;
+  }
+
+  /** Apron entries of the chart (München N1-N4, S1-S8) as a sub-menu: "taxi to N3" (worked out when it opens). */
+  private pushApronEntries(ac: Aircraft, items: MenuItem[]): void {
+    const entries = this.sim.config.airport.apronEntries ?? [];
+    if (!entries.length) return;
+    if (items.length) items.push({ divider: true, label: '' });
+    items.push({ label: 'Apron entry', hint: entries.join(' '), submenu: () => entries.map((e) => this.routeItem(ac, e, e)) });
   }
 
   private taxiwaysAhead(ac: Aircraft): string[] {

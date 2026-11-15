@@ -38,7 +38,7 @@ The geometry was **digitised by hand**. Positions were measured on the charts, u
 
 **Simplified or not modelled:**
 
-- the run-up areas, the general aviation apron (GAT exits 1-3), the US Army airfield, helipads and helicopter routes,
+- the run-up areas, the general aviation apron (GAT exits 1-3; drawn, no stands), the US Army airfield (its aprons drawn from OpenStreetMap, not used), helipads and helicopter routes,
 - on Apron South (layout since AIRAC 2512) the small stands 300-303 and the new 105-107 between 206 and 207 (the simulator has 100-104, 206 and 207),
 - while a de-icing pad is in use, the real operation closes S next to it (I-H for DP1 / DP2, H-F for DP3 / DP4); the simulator does not,
 - the intersection geometry inside the "circle" (the hot spot west of N/S, chart note 1), reduced to one junction node,

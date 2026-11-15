@@ -186,10 +186,10 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
           ? 'Planned for a later version'
           : has
             ? p.type === 'APP'
-              ? 'Approach / Departure (prototype): the radar scope - vectors, levels, ILS clearances, hand-offs to Tower and Center'
+              ? 'Approach / Departure: the radar scope - vectors, levels, ILS clearances, hand-offs to Tower and Center'
               : 'Click to staff this position; select several for combined positions'
             : radarMissing
-              ? `Approach / Departure is a prototype: so far only at airports with terminal airspace data (Stuttgart)`
+              ? `Approach / Departure: so far only at airports with terminal airspace data (Stuttgart)`
               : `${ap.name} has no ${p.label} position - it is covered by the next position up`;
         if (!has) positions.delete(p.type);
       });
@@ -455,7 +455,7 @@ const REFERENCE: [string, string][] = [
   ['Aircraft menu: Resolve conflict with ...', 'Two aircraft face each other on a taxiway (A-SMGCS CATC alert: flashing red while both roll towards each other): turn one off via a junction, send it to another entry (departure) or a free stand nearby (arrival), or turn it around (a tug for an airliner, several minutes).'],
 ];
 
-/** Approach / Departure (radar, prototype). */
+/** Approach / Departure (radar). */
 const RADAR_REFERENCE: [string, string][] = [
   ['identified [, descend altitude 5000 feet, QNH 1013]', 'Answers the first call of an arrival or departure (C/I in the tag).'],
   ['turn left heading 250 / turn right heading 070 / fly heading 250', 'Vectors (degrees magnetic): the STAR, a direct-to or a holding are cancelled.'],
@@ -570,7 +570,7 @@ export function showHelp(sim: Simulation, tab: HelpTab = lastHelpTab): void {
           h('table.ref', {}, ...DELIVERY_REFERENCE.map(([a, b]) => h('tr', {}, h('td', { text: a }), h('td', { text: b })))),
           ...(sim.airspace
             ? [
-                h('h2', { text: 'Approach / Departure (radar, prototype)' }),
+                h('h2', { text: 'Approach / Departure (radar)' }),
                 h('p', {
                   text: 'Arrivals are handed over by Center at their entry fix and fly the STAR to the IAF (holding there without a clearance); vector them onto the final and hand them to Tower. Departures call after take-off; climb them and hand them to Center. Keep 3 NM or 1000 ft (STCA) and stay above the minimum vectoring altitude (MSAW).',
                 }),

@@ -2,7 +2,7 @@
 
 # User guide
 
-This guide explains the controller client screen by screen. It covers the **Delivery**, **Ground** (since v0.6) and **Tower** (since v0.7) positions at **EDDS** - each alone or combined (since v0.8 also with Tower) - and the **Approach / Departure** prototype (radar, Stuttgart only).
+This guide explains the controller client screen by screen. It covers the **Delivery**, **Ground** (since v0.6) and **Tower** (since v0.7) positions at **EDDS** - each alone or combined (since v0.8 also with Tower) - and the **Approach / Departure** position (radar, Stuttgart only).
 
 - [1. Connecting](#1-connecting)
 - [2. Screen layout](#2-screen-layout)
@@ -16,7 +16,7 @@ This guide explains the controller client screen by screen. It covers the **Deli
 - [10. Your job as Ground](#10-your-job-as-ground)
 - [11. Your job as Delivery](#11-your-job-as-delivery)
 - [12. Your job as Tower](#12-your-job-as-tower)
-- [12a. Your job as Approach / Departure (prototype)](#12a-your-job-as-approach--departure-prototype)
+- [12a. Your job as Approach / Departure](#12a-your-job-as-approach--departure)
 - [13. Score](#13-score)
 - [14. Tips](#14-tips)
 
@@ -29,7 +29,7 @@ When the app starts, the **Connect** dialog opens. It works like the connect dia
 | Field             | Meaning                                                                                              |
 | ----------------- | ---------------------------------------------------------------------------------------------------- |
 | **Airport**       | Airport to control: Stuttgart (EDDS), Cologne/Bonn (EDDK), Nuremberg (EDDN), Leipzig/Halle (EDDP, two parallel runways), München (EDDM, two parallel runways), Bremen (EDDW), Memmingen (EDJA), Sylt (EDXW), San Diego (KSAN), Jackson Hole (KJAC), Phuket (VTSP), Wellington (NZWN), Quito (SEQM), La Paz (SLLP), St. Maarten (TNCM) or London Gatwick (EGKK). The field shows the airport with its country, FIR, runways and traffic bars; click it to open the **airport menu** to the right of the dialog (see below). |
-| **Position**      | Controller position: **Delivery**, **Ground**, **Tower** and - as a **prototype at Stuttgart** - **Approach / Departure** (the radar; the button is greyed out at airports without terminal airspace data); Center is planned. Only the positions the airport has are offered (Nuremberg, Bremen and Memmingen: no Delivery, Ground gives the clearances; Sylt: Tower only). A selected position is coloured (Delivery dark blue, Ground green, Tower red). Click several to staff them together (**combined positions**, for example Delivery + Ground, Ground + Tower or all three, as one controller does at night): the label below the buttons changes from *Single Position* to a purple **Combined Position**, and the toolbar shows all your stations in their colours with `COMBINED`. Positions you don't staff are run by the simulator. |
+| **Position**      | Controller position: **Delivery**, **Ground**, **Tower** and - **at Stuttgart** - **Approach / Departure** (the radar; the button is greyed out at airports without terminal airspace data); Center is planned. Only the positions the airport has are offered (Nuremberg, Bremen and Memmingen: no Delivery, Ground gives the clearances; Sylt: Tower only). A selected position is coloured (Delivery dark blue, Ground green, Tower red). Click several to staff them together (**combined positions**, for example Delivery + Ground, Ground + Tower or all three, as one controller does at night): the label below the buttons changes from *Single Position* to a purple **Combined Position**, and the toolbar shows all your stations in their colours with `COMBINED`. Positions you don't staff are run by the simulator. |
 | **Callsign**      | Shows the resulting station callsigns, frequencies and radio names, for example `EDDS_DEL 121.915 "Stuttgart Delivery" + EDDS_GND 118.605 "Stuttgart Ground"`. |
 | **Traffic**       | Slider in five steps: light, light to medium, medium, medium to heavy, heavy (see [simulation model](simulation.md#traffic-generation)). |
 | **Special events** | Slider: how often medical emergencies (arrivals and departures) and rejected take-offs happen - *never*, *very rare*, *rare* (default), *occasional*, *often*. See [simulation model](simulation.md#special-events). |
@@ -625,7 +625,7 @@ Stuttgart Tower (118.805) owns runway 07/25. When you staff Tower, Ground and De
 
 The A-SMGCS runway monitoring (RMCA) warns when you give a take-off or landing clearance while the runway is occupied.
 
-## 12a. Your job as Approach / Departure (prototype)
+## 12a. Your job as Approach / Departure
 
 *Stuttgart only.* As **Langen Radar** (EDDS_APP 125.050, the southern departure sector 119.200 combined) you work the terminal area: arrivals from Center to the final, departures from Tower to Center. Tower, Ground and Delivery are run by the simulator unless you staff them too (then `RADAR` / `GROUND` in the toolbar or **F4** switches the scopes).
 
@@ -666,7 +666,7 @@ A320/M LTAI 7.4NM selected or hovered: type / wake, origin (departures: SID), di
 
 **Alerts**: STCA (less than 3 NM and 1000 ft, or closing to it within a minute): -25 for a real loss of separation. MSAW (cleared and descending below the MVA): -15.
 
-The radar is a **prototype**: no wind on the final approach, no altitude or speed constraints on the procedures. See [roadmap](roadmap.md#road-to-20).
+Not modelled yet on the radar: wind on the final approach, altitude and speed constraints on the procedures. See [roadmap](roadmap.md#road-to-20).
 
 ## 13. Score
 

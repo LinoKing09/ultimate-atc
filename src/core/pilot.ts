@@ -58,6 +58,9 @@ function compassOf(heading: number): Compass {
 // ====================================================================== transmissions
 
 /** Queues a spontaneous pilot call that represents a request. */
+/** A crew holding short of a runway on its way that has not asked for the crossing asks after this long (s). */
+const RUNWAY_STOP_CALL_S = 20;
+
 export function call(sim: Simulation, ac: Aircraft, request: PilotRequest, text: string): void {
   if (sim.frequency.hasQueued(ac.callsign)) return;
   ac.lastCallAt = sim.time;
@@ -1710,6 +1713,12 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
         return;
       }
     }
+    // Holding short of a runway on the way and not asked yet (the call on stopping can be lost when the crew was still
+    // reading back something): it asks for the crossing.
+    if (ac.stoppedAt?.kind === 'runway' && ac.phase === 'taxi' && ac.speed < 0.1 && now - ac.lastCallAt > RUNWAY_STOP_CALL_S) {
+      call(sim, ac, 'crossing', `${stationName}, ${tel}, holding short runway ${runwayEndsText(sim, ac.stoppedAt.target)} at ${ac.stoppedAt.holdingPoint ?? ''}, request crossing`);
+      return;
+    }
     if (ac.stoppedAt?.kind === 'holdShort' && ac.phase === 'taxi' && now - ac.lastCallAt > 120 && ac.speed === 0) {
       call(sim, ac, 'route', `${tel}, holding short of ${ac.stoppedAt.target}, request to continue`);
       return;
@@ -1717,8 +1726,9 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
     return;
   }
 
-  // The traffic that blocked us has moved on: nothing to ask any more.
-  if (ac.request === 'blocked' && !ac.blockedBy && ac.speed > 0.5) {
+  // The traffic that blocked us has moved on: nothing to ask any more. (Also when we have since reached the holding
+  // point and stopped there: the call for the departure comes next.)
+  if (ac.request === 'blocked' && !ac.blockedBy && !ac.oppositeStop && (ac.speed > 0.5 || ac.phase === 'holding')) {
     ac.request = null;
     return;
   }

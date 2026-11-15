@@ -76,7 +76,9 @@ const built = buildLayout(EGKK_LAYOUT, {
   },
   // ER meets the runway centre line between FR and D without a common node in OpenStreetMap.
   // The guide lines of S for the stands on either side (OpenStreetMap: S EAST RED / S WEST BLUE) are part of S.
-  taxiwayNames: { 'S EAST RED': 'S', 'S WEST BLUE': 'S' },
+  // Lead-in lines OpenStreetMap tags with the stand number as their taxiway ref (10, 41, 68, 159) are unnamed
+  // lines on the chart.
+  taxiwayNames: { 'S EAST RED': 'S', 'S WEST BLUE': 'S', '10': '', '41': '', '68': '', '159': '' },
   // The rapid exit BR from the runway to its holding point (OpenStreetMap: part of P).
   edgeNames: { 'HP.7235256550>B/BR/P': 'BR' },
   dropEdges: [...STANDBY, 'RWY.FR>RWY.D'],

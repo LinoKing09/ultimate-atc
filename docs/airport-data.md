@@ -173,7 +173,7 @@ The data check requires a SID for every destination of the airport's traffic on 
 
 ## Terminal airspace
 
-`airspace` (optional) is what the Approach / Departure position (radar, prototype) needs. Without it the airport has no radar position: the simulator's Approach keeps putting the arrivals on final. Stuttgart:
+`airspace` (optional) is what the Approach / Departure position (radar) needs. Without it the airport has no radar position: the simulator's Approach keeps putting the arrivals on final. Stuttgart:
 
 ```ts
 airspace: {
@@ -308,6 +308,7 @@ Write the facts down with their source. Then make the **gap list**: every chart 
 - **Every exit and junction** leads on the way the chart shows, both ways where the pavement allows (forks in OpenStreetMap are kept behind one holding point).
 - **Never invent designators**: holding points, stands and taxiways carry the names of the chart. Where the chart has none, use the taxiway name and say so in `docs/airports/<ICAO>.md`; never make up suffixes like "EAST".
 - Overlay the chart locally if in doubt.
+- `tests/chartChecks.test.ts` checks the first and the last point for every airport: every dead end of the taxi graph is explained - automatically (stands and their lanes, holding points, de-icing pads, closed taxiways, lead-in lines of OpenStreetMap parking positions, a stub of at most 60 m past the stand lead-ins) or in its list with what the chart shows there - and no taxiway carries a stand number as its name (OpenStreetMap tags some lead-in lines that way). A new dead end fails until it is found on the chart.
 
 **6. Check in the simulation.** The [data checks](#data-checks) run automatically (`tests/airports.test.ts`, `tests/regions.test.ts`): every stand must reach a full-length entry of every runway. Add an hour of traffic per runway direction with a scripted controller (see `tests/eddn.test.ts`): no collisions, departures and arrivals flow. Run `npm run benchmark` if shared code changed.
 

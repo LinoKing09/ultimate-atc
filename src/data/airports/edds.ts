@@ -15,8 +15,8 @@ import { EDDS_BUILDINGS } from './edds.buildings';
  * measured on the charts and converted into the runway-aligned frame below
  * (accuracy roughly +-10 m). Only the network topology and approximate
  * positions are used - no chart graphics are reproduced. Simplifications:
- * the run-up areas, the general aviation apron, the US army airfield and the "A" stands (9A, 24A ...) are
- * not modelled; drive-through stands are modelled as "taxi in from the
+ * the run-up areas, the general aviation apron and the "A" stands (9A, 24A ...) are not modelled (the aprons of
+ * the US army airfield are drawn from OpenStreetMap, not used); drive-through stands are modelled as "taxi in from the
  * north lane, taxi out forwards to the south lane".
  *
  * Frame: along = metres from the runway 07 end towards 25 (chart scale:
@@ -524,6 +524,15 @@ for (const e of b.edges) {
   if (w && (e.kind === 'taxiway' || e.kind === 'taxilane' || e.kind === 'runwayStrip') && e.widthM === undefined) e.widthM = w;
 }
 
+/**
+ * The US Army airfield south of the 07 end (Stuttgart Army Airfield): its aprons from OpenStreetMap (© OpenStreetMap
+ * contributors, ODbL; ways 156890900 and 25908699) - drawn, not used (military).
+ */
+const US_ARMY_APRONS: [number, number][][] = [
+  [[48.6849501, 9.2082543], [48.6848184, 9.2083093], [48.6843322, 9.2084810], [48.6838816, 9.2082023], [48.6837908, 9.2081121], [48.6836940, 9.2079615], [48.6835998, 9.2077326], [48.6833983, 9.2066542], [48.6834076, 9.2065096], [48.6834553, 9.2063751], [48.6835176, 9.2061602], [48.6835163, 9.2059734], [48.6827646, 9.2020415], [48.6827301, 9.2019411], [48.6826797, 9.2018568], [48.6826382, 9.2018027], [48.6825916, 9.2017441], [48.6825423, 9.2016994], [48.6824827, 9.2016636], [48.6823512, 9.2016121], [48.6823246, 9.2015833], [48.6823028, 9.2015417], [48.6822876, 9.2014771], [48.6822564, 9.2013108], [48.6822346, 9.2012205], [48.6822166, 9.2011516], [48.6821835, 9.2010828], [48.6821352, 9.2010068], [48.6820824, 9.2009279], [48.6820178, 9.2008576], [48.6819553, 9.2008017], [48.6818862, 9.2007601], [48.6818197, 9.2004380], [48.6818002, 9.2003311], [48.6816775, 9.1996599], [48.6820865, 9.1994805], [48.6820888, 9.1994908], [48.6821387, 9.1997198], [48.6824140, 9.1995978], [48.6825930, 9.1995184], [48.6824834, 9.1989265], [48.6824058, 9.1985070], [48.6823335, 9.1981167], [48.6820073, 9.1979953], [48.6817764, 9.1967853], [48.6818405, 9.1964427], [48.6819099, 9.1960846], [48.6819295, 9.1960148], [48.6819534, 9.1959318], [48.6820318, 9.1959043], [48.6820645, 9.1958821], [48.6820900, 9.1958613], [48.6821298, 9.1958190], [48.6821710, 9.1957494], [48.6821970, 9.1957064], [48.6822179, 9.1956670], [48.6822330, 9.1956225], [48.6822420, 9.1955594], [48.6822546, 9.1954354], [48.6824688, 9.1954232], [48.6824796, 9.1955809], [48.6824896, 9.1956713], [48.6825037, 9.1957671], [48.6827798, 9.1972434], [48.6833942, 9.2004771], [48.6834738, 9.2006980], [48.6835656, 9.2011005], [48.6836116, 9.2013129]],
+  [[48.6820638, 9.1940101], [48.6820061, 9.1943930], [48.6819404, 9.1947668], [48.6819144, 9.1952547], [48.6817725, 9.1952203], [48.6816914, 9.1951018], [48.6817743, 9.1946111], [48.6816130, 9.1945513], [48.6816105, 9.1945047], [48.6816074, 9.1944478], [48.6817273, 9.1937646], [48.6817663, 9.1936875], [48.6818157, 9.1937115], [48.6818312, 9.1936359], [48.6818824, 9.1936063], [48.6822529, 9.1935640]],
+];
+
 export const EDDS: AirportData = {
   icao: 'EDDS',
   name: 'Stuttgart',
@@ -547,7 +556,7 @@ export const EDDS: AirportData = {
   // Initial climb used in clearances: every SID climbs to 5000 ft (AIP SID charts), also the transition altitude.
   initialClimbFt: 5000,
   dataNotice:
-    'Layout digitised by hand from the AIP Germany aerodrome charts (AD 2 EDDS 2-5 / 2-7, AMDT 10/26), accuracy about +-10 m; some areas simplified. Runway data, declared distances, approaches, taxiway widths and limits from the AIP (facts only); de-icing pads after the VATSIM Germany ground radar data, holding bays P1/P2, the distance of the CAT II/III holding positions from the runway and the buildings from OpenStreetMap (© OpenStreetMap contributors, ODbL). Not for real-world navigation.',
+    'Layout digitised by hand from the AIP Germany aerodrome charts (AD 2 EDDS 2-5 / 2-7, AMDT 10/26), accuracy about +-10 m; some areas simplified. Runway data, declared distances, approaches, taxiway widths and limits from the AIP (facts only); de-icing pads after the VATSIM Germany ground radar data, holding bays P1/P2, the distance of the CAT II/III holding positions from the runway and the buildings and the aprons of the US Army airfield (drawn, not used) from OpenStreetMap (© OpenStreetMap contributors, ODbL). Not for real-world navigation.',
   // De-icing pads DP1-DP4 (see the de-icing comment above).
   deicingPads: DEICING.map(([name, , , , , span]) => ({ name, node: name, maxWingspanM: span })),
   runways: [
@@ -588,6 +597,7 @@ export const EDDS: AirportData = {
       [560 * K, -375],
       [-30 * K, -375],
     ]),
+    ...US_ARMY_APRONS.map((poly) => ({ name: 'US Army airfield', polygon: poly.map(([lat, lon]) => ({ lat, lon })) })),
   ],
   // Buildings: OpenStreetMap (© OpenStreetMap contributors, ODbL), every building on the aerodrome (edds.buildings.ts).
   buildings: EDDS_BUILDINGS.map((bd) => ({ name: bd.name, polygon: bd.polygon.map(([lat, lon]) => ({ lat, lon })) })),

@@ -557,6 +557,6 @@ At US airports (`phraseology: 'faa'` in the airport data, so far San Diego KSAN)
 - `follow` with real follow-the-leader behaviour.
 - Expected-start-up phrases with a time (`expect start-up at 1452`); use `expect start-up in 5 minutes`.
 - Clearance amendments in parts (`climb amended ...`) - give the full clearance again.
-- Radar (prototype): turns by degrees (`turn left by 20 degrees`), `expedite descent`, `when ready descend`, `cleared via <STAR>`, `resume own navigation`, `descend via` constraints, traffic information, `squawk ident`, the Director position.
+- Radar: turns by degrees (`turn left by 20 degrees`), `expedite descent`, `when ready descend`, `cleared via <STAR>`, `resume own navigation`, `descend via` constraints, traffic information, `squawk ident`, the Director position.
 - Non-English phraseology (German "Rollkontrolle" phrases).
 - FAA: progressive taxi, `monitor` hand-offs without a call, and US runway designators in the flight strips and menus (they keep "09"; the toolbar, the ATIS and the pilots say "9").

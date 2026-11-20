@@ -39,6 +39,8 @@ Major releases (1.0, 2.0, ...) come with a statistics section in [benchmarks.md]
 
 ## Road to 2.0
 
+**Version 2.0.0 was released on 2026-11-20** (statistics in [benchmarks.md](benchmarks.md#200-released-2026-11-20)). The text below is the agreement it was released under.
+
 Version 2.0 is the next major version: from a tower simulator with many airports to an **airport and terminal area simulator**. Like 1.0 it is released only when we agree on it: when the criteria below are met, Claude proposes the release. (Criteria agreed on 2026-10-23; the versions on the way there are not fixed.)
 
 **Criteria for 2.0**

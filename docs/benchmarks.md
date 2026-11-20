@@ -65,6 +65,7 @@ Measured on 2026-10-08 with the same benchmark for every version (older versions
 | 1.7.4 (2026-11-03) | 10.8 | 6.5 | 0 | 0 | 0 | 9.8 | 3.4 s |
 | 1.8.0 (2026-11-04) | 10.8 | 6.5 | 0 | 0 | 0 | 9.8 | 5.2 s |
 | 1.9.0 (2026-11-11) | 10.8 | 6.5 | 0 | 0 | 0 | 9.8 | 4.4 s |
+| **2.0.0** (2026-11-20) | 10.8 | 6.5 | 0 | 0 | 0 | 9.8 | 4.3 s |
 
 **Since 0.1** (0.5.0 compared with 0.1.0): 2.6 times as many departures, 1.9 times as many arrivals per hour, no more collisions (11 → 0) and go-arounds (53 → 2) in 20 hours, 44 % fewer deadlock calls. In 0.5.0 the real Stuttgart traffic mix replaced the generic one (more Eurowings and Turkish traffic, fewer small regional jets), which shifts the departure and arrival numbers slightly; the benchmark sessions are otherwise identical. v0.4.0 introduced the crossing-priority rule, which made the simulation about 7 times slower; caching the sampled paths brought it back to 3.7 s per simulated hour (less than 1 % of a CPU core at 1x).
 
@@ -114,6 +115,8 @@ The second part of 1.1.0 (Nuremberg, Memmingen, Sylt, runway backtracking; relea
 
 **1.9.0** (Approach / Departure prototype at Stuttgart: radar scope, SIDs / STARs / transitions, wind aloft, track hand-overs; Real menu style, performance window, measuring tool): the Ground and Tower results are identical to 1.8.0 (10.8 / 6.5 and 12.6 / 11.8 per hour, no collisions, incursions, go-arounds or separation losses; 4.4 s computing time per simulated hour) - the radar flies aircraft only when you staff Approach, and the changes to the final approach (an arrival above the glide path catches up, an unstable approach goes around) do not touch arrivals that start on the glide path. The radar position itself is checked by its own tests (`tests/radar.test.ts`): an hour of heavy traffic with a scripted Approach controller, every arrival flying its STAR and transition onto the ILS, departures to Center, no collisions; a saved radar session replays exactly.
 
+**2.0.0** (Approach / Departure complete: sequencing aid, tutorial, soak test with the radar; heavier heavy traffic with a busy start; gate holding by the AI Ground; crews that ask for a crossing again and drop a stale "blocked" request; chart checks): the Ground results are identical to 1.9.0 (10.8 / 6.5 per hour, 9.8 deadlock calls per hour; 4.3 s computing time per simulated hour) - the benchmark runs at medium traffic, where neither the new heavy rates nor gate holding (6 departures to a runway already on the way) come into play. Tower benchmark 12.9 / 11.4 instead of 12.6 / 11.8: the changes that reach these sessions are the gate holding of the AI Ground and the crews that ask for a crossing again or call ready after a stale "blocked" request; which of them shifts the numbers was not measured separately. No collisions, incursions, go-arounds, separation losses or missed hand-offs.
+
 **1.8.0** (speech recognition of radio phrases, learning from corrections, `disregard`, MIC and pilot voice fixes): the simulation is unchanged, the Ground and Tower results are identical to 1.7.4 (10.8 / 6.5 and 12.6 / 11.8 per hour, no collisions, incursions, go-arounds or separation losses; 5.2 s computing time per simulated hour). How well the speech recogniser understands: see [Speech recognition](#speech-recognition).
 
 ### Tower benchmark (since 0.7)
@@ -144,6 +147,7 @@ The same 20 sessions with you as **Tower** (Ground and Delivery run by the simul
 | 1.7.4 (2026-11-03) | 12.6 | 11.8 | 0 | 0 | 0 | 0 | 0 |
 | 1.8.0 (2026-11-04) | 12.6 | 11.8 | 0 | 0 | 0 | 0 | 0 |
 | 1.9.0 (2026-11-11) | 12.6 | 11.8 | 0 | 0 | 0 | 0 | 0 |
+| **2.0.0** (2026-11-20) | 12.9 | 11.4 | 0 | 0 | 0 | 0 | 0 |
 
 Since the AI Ground hands departures over before the holding point, the scripted controller (which only clears aircraft that have reached the holding point) sees queues on its own frequency that the AI Ground no longer manages; departures dropped by about 1 per hour, arrivals rose slightly. In 0.8.0 the lane priority on the ground brings departures back to 11.2 per hour.
 
@@ -247,6 +251,11 @@ How many hours of traffic have been simulated while developing and testing the s
 | 1.9.0: release benchmark (Ground + Tower) | 40 h | measured: 1 full run of 2 x 20 h |
 | 1.9.0: test-suite runs (with the radar tests) and radar diagnostic sessions | ~650 h | estimate: about 15 runs of about 42 h, plus about 20 h of radar diagnostics |
 | **Total up to 1.9.0** | **~12520 h** | of which about 5440 h exactly measured |
+| 2.0.0: soak tests at medium traffic (every airport, with the radar setups) | 532 h | measured: 2 full runs of 216 h, plus about 100 h of an interrupted one |
+| 2.0.0: soak tests with heavy traffic at Cologne/Bonn, Leipzig/Halle and Stuttgart | 388 h | measured: Cologne/Bonn 264 h, Leipzig/Halle 108 h, Stuttgart with the radar 16 h |
+| 2.0.0: release benchmark (Ground + Tower) | 40 h | measured: 1 full run of 2 x 20 h |
+| 2.0.0: test-suite runs and diagnostics (heavy traffic, runway capacity, dead ends) | ~690 h | estimate: about 14 runs of about 45 h, plus about 60 h of diagnostic sessions |
+| **Total up to 2.0.0** | **~14170 h** | of which about 6400 h exactly measured |
 
 From now on each benchmark, soak test and test-suite run adds its measured hours here when results are recorded.
 
@@ -273,3 +282,31 @@ Measured on 2026-10-13 (see also the [release report](release-1.0-report.md)). 1
 - **Tower position** (since 0.7): 11.4 → 11.2 departures and 10.1 → 10.5 arrivals handed to Ground per hour with the scripted Tower controller, never a collision, incursion, go-around, separation loss or missed hand-off.
 - **Soak test** (special events, more heavies): 0.5.0 11.8 / 6.9 per hour, 2 go-arounds → 1.0.0 12.9 / 7.0 per hour, 2 go-arounds (both from one rejected take-off), never a collision.
 - **Simulated traffic** up to 1.0.0: about **2730 hours** (1480 h exactly measured), see [Simulated traffic](#simulated-traffic).
+
+### 2.0.0 (released 2026-11-20)
+
+![Release benchmark from 1.0 to 2.0: Ground and Tower throughput per version](images/benchmarks-2.0.svg)
+
+Measured on 2026-11-20. 2.0 is compared with **1.0.0**, the previous major release.
+
+| Measure | 1.0.0 | 2.0.0 | Change |
+| ------- | ----: | ----: | ------ |
+| **Ground benchmark** (20 x 1 h): departures airborne / h | 14.0 | 10.8 | -23 % (since 1.7.3 the controller answers when a call has ended, see above) |
+| Arrivals parked / h | 7.2 | 6.5 | -10 % |
+| Deadlock calls / h | 11.3 | 9.8 | -13 % |
+| Collisions / incursions / go-arounds (20 h) | 0 / 0 / 0 | 0 / 0 / 0 | - |
+| Computing time / simulated hour | 6.2 s | 4.3 s | -31 % |
+| **Tower benchmark** (20 x 1 h): departures airborne / h | 11.2 | 12.9 | +15 % |
+| Arrivals handed to Ground / h | 10.5 | 11.4 | +9 % |
+| Separation losses / missed hand-offs (20 h) | 0 / 0 | 0 / 0 | - |
+| **Soak test**, medium traffic | Stuttgart, 20 h | 16 airports, 216 h | 0 collisions, 0 aircraft stuck for good in both |
+| **Soak test**, heavy traffic | - | Cologne/Bonn 48 h, Leipzig/Halle 24 h | 0 collisions, 0 aircraft stuck for good |
+| Airports | 1 | 16 | on every continent of the airport menu |
+| Positions | Delivery, Ground, Tower | + Approach / Departure (Stuttgart) | top-down from Delivery to Approach |
+| Tutorials | 3 | 4 | + Approach |
+
+- **Since 1.0**: 15 more airports (Germany, Europe, the Americas, Asia, Oceania; FAA phraseology at the US airports), parallel and crossing runways in use at the same time, low visibility procedures with stop bars, weather that changes during the session, saved sessions and take-over starts, the own offline speech recogniser and the pilot voices on by default - and the radar position with SIDs, STARs, RNAV transitions, EuroScope track hand-overs, sector lists, a sequencing aid, STCA and MSAW.
+- **Ground benchmark**: fewer movements per hour than 1.0, mostly because the measuring controller has answered like a real one since 1.7.3 (it waits for the end of a call; with the old timing 1.7.3 measured 12.3 departures per hour) and because calls take their real airtime. The simulation needs a third less computing time.
+- **Tower benchmark**: 15 % more departures with the same scripted Tower controller, never a collision, incursion, go-around, separation loss or missed hand-off.
+- **Soak tests**: the medium soak grew from one airport (20 h) to every airport, every runway direction and every staffing including the radar (216 h); the heavy soak of the large cargo airports found and fixed two crew errors on the way to 2.0. The radar setups count a few separation losses because the scripted radar controller clears every arrival straight onto its transition without sequencing.
+- **Simulated traffic** up to 2.0.0: about **14170 hours** (6400 h exactly measured), see [Simulated traffic](#simulated-traffic).

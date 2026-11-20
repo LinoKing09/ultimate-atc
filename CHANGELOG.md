@@ -4,6 +4,10 @@ All notable changes to this project are documented in this file. The format is b
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-11-20
+
+From a tower simulator with many airports to an **airport and terminal area simulator**: the Approach / Departure position at Stuttgart is complete (one controller can work everything from Delivery to Approach), Cologne/Bonn and Leipzig/Halle hold up under heavy traffic, every airport passes the chart checks, and the pilot voices are on by default. All criteria of the [Road to 2.0](docs/roadmap.md#road-to-20) are met; statistics in [benchmarks.md](docs/benchmarks.md#200-released-2026-11-20).
+
 ### Added
 
 - **Flight plan window (FPL)** for every aircraft (*Flight plan (FPL)* in the aircraft menu, `FPL` with *Real* menus): flight rules, type and wake, aerodromes, TOBT / TSAT / CTOT, RFL, route, alternate and remarks - RFL, route, alternate and remarks can be amended - and, for departures, what you **assign** for your next clearance: SID (with its runway), initial climb and squawk (`NEXT` for the next free code). The clearance menu and *Send DCL* use the assigned values, the lists show them (SID, ASSR); the crew acts only on what you say. Invalid values (a code in use, 7700, a SID of a runway not in use) are refused. After take-off a departure climbs to the initial climb of its clearance.

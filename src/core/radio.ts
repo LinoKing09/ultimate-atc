@@ -23,6 +23,8 @@ interface QueuedTransmission {
   /** Earliest time the transmission may start. */
   notBefore: number;
   priority: number;
+  /** Queued as if made this much earlier (seconds): goes ahead of the newer calls of the same priority, not of older ones. */
+  headStart: number;
   onTransmit?: () => void;
   /** Dropped if not transmitted before this time... */
   expiresAt: number;
@@ -135,12 +137,14 @@ export class Frequency {
   /**
    * Queues a pilot transmission.
    * @param priority  higher goes first (read-backs: 10, requests: 0)
+   * @param headStart  among the same priority the call goes ahead of the calls made less than this long (s) before it
+   *                   (an arrival on final cannot wait as long as a start-up request) - never of calls waiting longer
    */
   pilotTransmit(
     now: number,
     callsign: string,
     text: string,
-    opts: { delay?: number; priority?: number; onTransmit?: () => void; ttl?: number; stillValid?: () => boolean } = {},
+    opts: { delay?: number; priority?: number; headStart?: number; onTransmit?: () => void; ttl?: number; stillValid?: () => boolean } = {},
   ): void {
     this.queue.push({
       stillValid: opts.stillValid,
@@ -149,6 +153,7 @@ export class Frequency {
       text,
       notBefore: now + (opts.delay ?? 0),
       priority: opts.priority ?? 0,
+      headStart: opts.headStart ?? 0,
       onTransmit: opts.onTransmit,
       expiresAt: now + (opts.ttl ?? 120),
     });
@@ -199,7 +204,7 @@ export class Frequency {
     if (!waitingFor) this.reserved = undefined;
     const ready = this.queue.filter((q) => q.notBefore <= now && (!waitingFor || q.callsign === waitingFor) && (q.priority >= URGENT_PRIORITY || now >= this.callsFrom));
     if (!ready.length) return;
-    ready.sort((a, b) => b.priority - a.priority || a.notBefore - b.notBefore);
+    ready.sort((a, b) => b.priority - a.priority || a.notBefore - a.headStart - (b.notBefore - b.headStart));
     const q = ready[0];
     this.queue.splice(this.queue.indexOf(q), 1);
     if (this.reserved?.callsign === q.callsign) this.reserved = undefined;

@@ -127,6 +127,8 @@ export interface Stats {
   readbackErrorsMissed: number;
   /** Delivery: wrong readbacks the controller corrected. */
   readbackErrorsCaught: number;
+  /** Crews that took a wrong turn while taxiing (they report it and ask for instructions). */
+  wrongTurns: number;
   /** Departures that missed their CTOT window (-5/+10 min) or took off before it. */
   slotsMissed: number;
   /** Tows brought to their stand. */
@@ -303,6 +305,7 @@ export class Simulation {
     clearancesDelivered: 0,
     readbackErrorsMissed: 0,
     readbackErrorsCaught: 0,
+    wrongTurns: 0,
     towsCompleted: 0,
     departuresToRadar: 0,
     arrivalsToGround: 0,
@@ -343,6 +346,8 @@ export class Simulation {
   forceRejectedTakeoff = false;
   /** Squawk readback errors in voice clearances: at random (4 %), never, or for the next clearance only (tutorials). */
   readbackErrors: 'random' | 'off' | 'next' = 'random';
+  /** Tests and lessons: the next taxi clearance you give gets this crew mistake (then it is cleared). */
+  forceCrewMistake?: 'taxiReadback' | 'wrongTurn';
   /** Voice-only (realistic) control mode: the crews make read-back errors on the radar frequency (see radar.ts). */
   voiceOnly = false;
   /** Stop bars switched off (LVP), by bar node id: when, and for which aircraft (stopbars.ts). */
@@ -1504,7 +1509,9 @@ export class Simulation {
         return !!stand && a.phase === 'taxi' && a.routeDestination?.kind === 'stand' && a.routeDestination.stand === id && distance(a.pos, stand.pos) < 40;
       }
       if (a.assignedStand === id && a.phase !== 'arrived') return true;
-      if (a.stand === id && (a.phase === 'parked' || a.phase === 'arrived' || (a.phase === 'pushback' && a.s < 30))) return true;
+      // An aircraft pushing back occupies its stand until the pushback is complete: the stand is not given out again
+      // while the tug may still have to tow it back (a pushback cancelled because traffic blocks its way).
+      if (a.stand === id && (a.phase === 'parked' || a.phase === 'arrived' || a.phase === 'pushback')) return true;
       // A departure taxiing out of a drive-through stand is still on it for a while.
       if (a.stand === id && a.phase === 'taxi' && !!stand && distance(a.pos, stand.pos) < 60) return true;
       if (a.phase === 'taxi' && a.routeDestination?.kind === 'stand' && a.routeDestination.stand === id) return true;

@@ -88,7 +88,7 @@ export function debrief(sim: Simulation): Debrief {
   if (s.mvaViolations > 0) tips.push('Do not descend aircraft under vectors below the minimum vectoring altitude (4000 ft near Stuttgart, FL70 over the Black Forest) - only the approach clearance takes them lower.');
   if (s.slotsMissed > 0) tips.push('Watch the CTOT column: a departure with a slot must be airborne between CTOT -5 and +10 minutes.');
   if (s.curfewMissed > 0) tips.push('With night rules, get the jets out first in the last half hour before the curfew: a jet still on the ground at 2300 local goes back to its stand.');
-  if (s.readbackErrorsMissed > 0) tips.push('Listen to the squawk in every clearance read-back and correct a wrong one ("negative, squawk 2312").');
+  if (s.readbackErrorsMissed > 0) tips.push('Listen to every read-back - the squawk in a clearance, the holding point in a taxi clearance - and correct a wrong one ("negative, squawk 2312", "negative, taxi to holding point B").');
   if (s.atisNotCorrected > 0) tips.push('When a crew reports an old ATIS letter, tell them the current one ("information K is current, QNH 1018"); after a new ATIS, "all stations, information K is now current" reaches everybody on your frequency.');
   if (!tips.length) tips.push(s.answeredRequests + s.departuresAirborne > 10 ? 'A clean session. Try heavier traffic, a scenario with special events or a combined position next.' : 'Work a longer session to get a meaningful debriefing.');
   const warnings = sim.messages

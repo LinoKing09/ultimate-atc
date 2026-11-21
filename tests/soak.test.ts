@@ -4,6 +4,7 @@ import type { StationType } from '../src/core/airport/types';
 import { distance } from '../src/core/geo';
 import { defaultRunwayKey, usableAlone } from '../src/core/runways';
 import { Simulation } from '../src/core/simulation';
+import { zonedTime } from '../src/core/time';
 import type { Density } from '../src/core/levels';
 import { AIRPORTS } from '../src/data/airports';
 import { createBot } from './bot';
@@ -28,9 +29,21 @@ const AI_GROUND = !!env.SOAK_AI_GROUND;
 /** Session length (s), default one hour. */
 const LENGTH_S = Number(env.SOAK_HOURS ?? 1) * 3600;
 
+/**
+ * Local start time of a session (HHMM): fixed, so a failure can be run again - by seed 08:00, 13:00, 18:00, 11:00 on
+ * a summer day (a session otherwise starts at the real time of day, which changes the traffic, the night rules and the
+ * slots). `SOAK_START=2215` starts every session then.
+ */
+const START_TIMES = ['0800', '1300', '1800', '1100'];
+const SOAK_DAY = new Date('2026-07-01T12:00:00Z');
+function startTime(timeZone: string | undefined, seed: number): Date {
+  const hhmm = env.SOAK_START ?? START_TIMES[(seed - 1) % START_TIMES.length];
+  return timeZone ? zonedTime(hhmm, timeZone, SOAK_DAY) : new Date(`2026-07-01T${hhmm.slice(0, 2)}:${hhmm.slice(2, 4)}:00Z`);
+}
+
 /** An aircraft on the ground that has not moved for this long (s), and is not parked or waiting at a holding point, is stuck. */
 export const STUCK_S = 1200;
-/** An arrival under the radar that has not landed this long after it appeared (s) is stuck in the air. */
+/** An arrival under the radar still without an approach clearance this long after it appeared (s) is stuck in the air. */
 const AIRBORNE_STUCK_S = 2700;
 
 /** Why an aircraft does not move: for the report. */
@@ -68,7 +81,7 @@ describe.skipIf(!RUN)('soak', () => {
       for (const runway of runways) {
         for (const positions of setups) {
           for (let seed = 1; seed <= SEEDS; seed++) {
-            const sim = new Simulation({ airport, position: positions[0], positions, runway, density: DENSITY, seed, events: true, scenario: { heavyLevel: seed % 3 === 0 ? 3 : 0 } });
+            const sim = new Simulation({ airport, position: positions[0], positions, runway, density: DENSITY, seed, events: true, scenario: { heavyLevel: seed % 3 === 0 ? 3 : 0 }, startTime: startTime(airport.timeZone, seed) });
             const groundBot = createBot(sim);
             const radarBot = positions.includes('APP') ? createRadarBot(sim) : undefined;
             const bot = () => {
@@ -86,8 +99,9 @@ describe.skipIf(!RUN)('soak', () => {
               sim.tick(1);
               bot();
               for (const ac of sim.aircraft) {
-                // In the air under the radar: an arrival that has not landed after 45 minutes is stuck too (in a hold for good).
-                if (!ac.onGround && ac.radar && ac.category === 'arrival' && sim.time - ac.spawnedAt > AIRBORNE_STUCK_S && !stuck.has(ac.callsign)) {
+                // In the air under the radar: an arrival still without an approach clearance after 45 minutes is stuck too
+                // (in a hold for good). One cleared for the approach is on its way (also after a go-around and a transition).
+                if (!ac.onGround && ac.radar && !ac.radar.approach && !ac.radar.missedApproach && ac.phase === 'inbound' && ac.category === 'arrival' && sim.time - ac.spawnedAt > AIRBORNE_STUCK_S && !stuck.has(ac.callsign)) {
                   stuck.set(ac.callsign, `${ac.callsign} (arrival, ${ac.phase}, ${ac.frequency}) airborne for ${Math.round((sim.time - ac.spawnedAt) / 60)} min`);
                 }
                 if (!ac.onGround || ac.phase === 'arrived' || ac.phase === 'gone') continue;

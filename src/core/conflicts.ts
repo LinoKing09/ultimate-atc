@@ -275,7 +275,7 @@ export function resolveOptions(sim: Simulation, a: Aircraft, b: Aircraft): Resol
     [b, a],
   ]) {
     // An aircraft pushing back into the other's way: stop and tow it back onto the stand.
-    if (x.phase === 'pushback' && !x.towingIn) {
+    if (x.phase === 'pushback' && !x.towingIn && !(x.stand && sim.standOccupant(x.stand, x))) {
       out.unshift({ aircraft: x, other: y, instruction: 'cancel pushback', tug: false });
       continue;
     }

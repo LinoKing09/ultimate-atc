@@ -1,6 +1,7 @@
 import { STABILISED_NM, finalReductionNm } from './approach';
 import { READBACK_PRIORITY, READBACK_WAIT_S } from './radio';
-import { otherEnd, type TaxiNode } from './airport/airport';
+import { routeAgainstTraffic } from './groundAI';
+import { otherEnd, type TaxiEdge, type TaxiNode } from './airport/airport';
 import { findRoute, isRouteError, type RouteStart, type TaxiRoute } from './airport/routing';
 import type { Compass, StationType } from './airport/types';
 import type { Aircraft, PathStop, PilotRequest } from './aircraft';
@@ -60,6 +61,12 @@ function compassOf(heading: number): Compass {
 /** Queues a spontaneous pilot call that represents a request. */
 /** A crew holding short of a runway on its way that has not asked for the crossing asks after this long (s). */
 const RUNWAY_STOP_CALL_S = 20;
+/**
+ * Head start (s) of an arrival's calls to Tower (initial call, short final) on a busy frequency: they go ahead of the
+ * calls made up to this long before them (start-up, pushback, taxi can wait - an aircraft on final cannot), but not
+ * of calls waiting longer, so no call waits for good. Read-backs and urgent reports still go first.
+ */
+const LANDING_CALL_HEAD_START_S = 120;
 
 export function call(sim: Simulation, ac: Aircraft, request: PilotRequest, text: string): void {
   if (sim.frequency.hasQueued(ac.callsign)) return;
@@ -69,6 +76,7 @@ export function call(sim: Simulation, ac: Aircraft, request: PilotRequest, text:
   const frequency = ac.frequency;
   sim.frequency.pilotTransmit(sim.time, ac.callsign, text, {
     delay: sim.rng.range(0.3, 2.5),
+    headStart: request === 'landing' ? LANDING_CALL_HEAD_START_S : 0,
     ttl: 45,
     // Still waiting where it called from, on the same frequency, and not yet asked: the call stays queued.
     stillValid: () => ac.phase === phase && ac.stoppedAt === stoppedAt && ac.frequency === frequency && ac.request !== request && !ac.phase.startsWith('gone'),
@@ -100,6 +108,25 @@ export function inform(sim: Simulation, ac: Aircraft, text: string): void {
   });
 }
 
+
+/**
+ * The stand a departure with a medical emergency goes back to (the simulator runs Ground): the one allocated for it,
+ * or another free one that fits nearby, whose way does not run head-on into traffic taxiing the other way - on a
+ * single taxiway full of departures there would be no way out for anybody. Undefined if there is none now.
+ */
+function medicalReturnStand(sim: Simulation, ac: Aircraft): string | undefined {
+  const allocated = sim.traffic.allocateStand(ac)?.id;
+  const candidates = [...new Set([allocated, ...sim.freeStands(ac.type.wingspanM, undefined, ac).sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos)).slice(0, MEDICAL_STAND_TRIES).map((s) => s.id)])].filter((s): s is string => !!s);
+  for (const stand of candidates) {
+    for (const turnAround of [false, true]) {
+      const r = previewTaxi(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [], turnAround });
+      if (!('error' in r) && !routeAgainstTraffic(sim, ac, r.route)) return stand;
+    }
+  }
+  return undefined;
+}
+/** Free stands tried for the way back of a medical emergency (nearest first). */
+const MEDICAL_STAND_TRIES = 8;
 
 function readback(sim: Simulation, ac: Aircraft, text: string, after?: () => void): void {
   // Nobody else calls until this pilot has answered.
@@ -154,7 +181,9 @@ export function executeTransmission(sim: Simulation, parsedIn: ParsedTransmissio
     }
   }
 
+  byController = true;
   const results = parsed.commands.map((c) => execute(sim, ac, c));
+  byController = false;
   if (conditionTraffic && parsed.commands.some((c) => ['pushback', 'taxi', 'cross', 'continue', 'lineUp', 'takeoff'].includes(c.type))) {
     // Wait for the traffic to pass, then go (same mechanism as "give way").
     ac.giveWayTo = conditionTraffic.callsign;
@@ -187,6 +216,9 @@ export function executeTransmission(sim: Simulation, parsedIn: ParsedTransmissio
   }
   return { ok, callsign: ac.callsign };
 }
+
+/** True while the instructions of your transmission are executed (crews make mistakes only with yours, not the AI's). */
+let byController = false;
 
 function execute(sim: Simulation, ac: Aircraft, c: Command): ExecResult {
   switch (c.type) {
@@ -503,6 +535,8 @@ function execCancelPushback(sim: Simulation, ac: Aircraft): ExecResult {
     ac.readyAt = sim.time + sim.rng.range(60, 150);
     return { readback: 'pushback cancelled' };
   }
+  // Its stand taken meanwhile by a new departure: there is no way back onto it.
+  if (ac.phase === 'pushback' && ac.path && !ac.towingIn && ac.stand && sim.standOccupant(ac.stand, ac)) return { unable: `unable, stand ${ac.stand} is occupied now` };
   if (ac.phase === 'pushback' && ac.path && !ac.towingIn) {
     // Already moving: the tug pulls the aircraft back onto the stand.
     const pts: Vec2[] = [ac.pos];
@@ -1185,10 +1219,21 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
     if (end && end !== ac.runway) changeDepartureRunway(sim, ac, end);
   }
   const resolved: TaxiCommand = { ...c, destination: res.dest };
+  // A wrong holding point in the last read-back, corrected by this instruction.
+  const rbError = ac.taxiReadbackError;
+  if (rbError) {
+    ac.taxiReadbackError = undefined;
+    if (res.dest.kind === 'holdingPoint' && res.dest.name.toUpperCase() === rbError.correct.toUpperCase()) {
+      sim.stats.readbackErrorsCaught++;
+      sim.updateScore();
+    }
+  }
+  const mistake = byController ? planTaxiMistakes(sim, ac, res.dest, res.route, rbError !== undefined) : {};
   if (ac.phase === 'pushback' || ac.phase === 'startup') {
     ac.pendingTaxi = resolved;
   } else {
     applyRoute(sim, ac, res.route, res.dest, c.holdShort, c.cross);
+    takeWrongTurn(sim, ac);
     if (ac.phase === 'parked') ac.phase = 'taxi';
     if (ac.phase === 'holding') ac.phase = 'taxi';
   }
@@ -1200,6 +1245,7 @@ function execTaxi(sim: Simulation, ac: Aircraft, c: TaxiCommand): ExecResult {
   // ... without the taxiway of the holding point it was cleared to ("to holding point A via S", not "via S, A").
   if (res.route.filled?.length && res.dest.kind === 'holdingPoint' && via[via.length - 1]?.toUpperCase() === res.dest.name.toUpperCase()) via.pop();
   if (via.length) rb += ` via ${via.join(', ')}`;
+  if (mistake.said && res.dest.kind === 'holdingPoint') rb = rb.replace(`holding point ${res.dest.name}`, `holding point ${mistake.said}`);
   for (const h of c.holdShort) rb += `, ${formatHoldShort(h)}`;
   for (const r of c.cross) rb += `, cross runway ${r}`;
   if (res.route.requiresUTurn && ac.type.wingspanM > UTURN_MAX_WINGSPAN && !atHoldingPoint && ac.category !== 'tow') {
@@ -1231,6 +1277,138 @@ function changeDepartureRunway(sim: Simulation, ac: Aircraft, end: string): void
 }
 
 /** Installs a taxi route on an aircraft and computes where it has to stop. */
+// ====================================================================== crew mistakes on the ground
+
+/** Share of taxi clearances to a holding point whose read-back names a neighbouring holding point instead. */
+export const TAXI_READBACK_ERROR_CHANCE = 0.04;
+/** A wrong holding point not corrected within this time (s): the crew taxis there. */
+export const TAXI_READBACK_CATCH_S = 40;
+/** The holding point the crew mixes up is on its way: at most this many nodes off the cleared route at the end. */
+const WRONG_HP_SPUR_NODES = 4;
+/** Share of taxi routes on which the crew takes a wrong turn (times the special-event factor). */
+export const WRONG_TURN_CHANCE = 0.03;
+/** A wrong turn: onto a taxiway this long (m) at least / at most, turning off by at most this much (degrees). */
+const WRONG_TURN_MIN_M = 30;
+const WRONG_TURN_MAX_M = 400;
+const WRONG_TURN_MAX_DEG = 90;
+
+/**
+ * Mistakes a crew makes with your taxi clearance (only with random read-back errors on - tutorials switch them
+ * off): a wrong holding point in the read-back (a neighbouring entry of the same runway), and a wrong turn on the
+ * way (with special events). Returns the holding point the crew reads back instead, if any.
+ */
+function planTaxiMistakes(sim: Simulation, ac: Aircraft, dest: TaxiDestination, route: TaxiRoute, justCorrected: boolean): { said?: string } {
+  const forced = sim.forceCrewMistake;
+  if ((sim.readbackErrors !== 'random' && !forced) || !sim.isOnMyFrequency(ac)) return {};
+  const out: { said?: string } = {};
+  const key = `${ac.callsign}:${Math.floor(sim.time)}`;
+  if (forced === 'wrongTurn' || (!forced && sim.eventFactor > 0 && sim.variation(`${key}:wrongTurn`) < WRONG_TURN_CHANCE * sim.eventFactor)) {
+    ac.wrongTurn = { planned: true };
+    if (forced) sim.forceCrewMistake = undefined;
+  }
+  if (dest.kind !== 'holdingPoint' || ac.category !== 'departure' || justCorrected) return out;
+  if (forced !== 'taxiReadback' && (forced || sim.variation(`${key}:taxiRb`) >= TAXI_READBACK_ERROR_CHANCE)) return out;
+  const hp = sim.airport.holdingPoint(dest.name);
+  const ops = hp?.holdingPoint ? sim.airport.runwayOps(sim.activeEndOn(hp.holdingPoint.runway) ?? '') : undefined;
+  const names = ops?.departureEntries.map((e) => e.holdingPoint) ?? [];
+  const i = names.findIndex((n) => n.toUpperCase() === dest.name.toUpperCase());
+  // The neighbouring entry the crew mixes up: one it passes on its way (the route there is the cleared one up to a
+  // short spur at the end, no turning around) and could depart from (enough take-off run).
+  const onTheWay = (n: string): boolean => {
+    if (isIntersection(sim, n)) {
+      const run = takeoffRunAvailable(sim, n);
+      if (run !== undefined && run < requiredRunway(sim, ac)) return false;
+    }
+    const r = resolveDestination(sim, ac, { kind: 'holdingPoint', name: n }, toRouteStart(sim, routeStart(sim, ac)), [], []);
+    if ('error' in r || r.route.requiresUTurn) return false;
+    let common = 0;
+    while (common < r.route.nodes.length && common < route.nodes.length && r.route.nodes[common] === route.nodes[common]) common++;
+    return common >= 2 && r.route.nodes.length - common <= WRONG_HP_SPUR_NODES;
+  };
+  const alt = [names[i + 1], names[i - 1]].find((n) => n && n !== names[i] && onTheWay(n));
+  if (!alt) return out;
+  ac.taxiReadbackError = { correct: dest.name, said: alt, runway: dest.runway, at: sim.time };
+  if (forced) sim.forceCrewMistake = undefined;
+  out.said = alt;
+  return out;
+}
+
+/** A wrong holding point not corrected in time: the crew taxis to the one it read back. */
+function checkTaxiReadback(sim: Simulation, ac: Aircraft): void {
+  const e = ac.taxiReadbackError;
+  if (!e || sim.time - e.at < TAXI_READBACK_CATCH_S) return;
+  ac.taxiReadbackError = undefined;
+  sim.stats.readbackErrorsMissed++;
+  sim.updateScore();
+  sim.system(`${ac.callsign} read back holding point ${e.said} instead of ${e.correct} and is taxiing there - listen to the read-back and correct it ("negative, taxi to holding point ${e.correct}").`, 'warning', ac.callsign);
+  const dest: TaxiDestination = { kind: 'holdingPoint', name: e.said };
+  if (ac.pendingTaxi) {
+    ac.pendingTaxi = { ...ac.pendingTaxi, destination: dest, via: [] };
+    return;
+  }
+  if (!ac.onGround || ac.phase !== 'taxi') return;
+  const res = resolveDestination(sim, ac, dest, toRouteStart(sim, routeStart(sim, ac)), [], []);
+  // The way there would run head-on into traffic: the crew notices its mistake on the signs and stays on its route.
+  if (!('error' in res) && !routeAgainstTraffic(sim, ac, res.route)) applyRoute(sim, ac, res.route, res.dest);
+}
+
+/**
+ * The crew takes a wrong turn on the route it was just given: at a junction on the way it turns onto another
+ * taxiway (no more than 90 degrees off, not towards a runway, a stand or a closed taxiway, nobody on it) and stops
+ * at its next junction, then owns up and asks for instructions. The destination stays what it was cleared to.
+ */
+function takeWrongTurn(sim: Simulation, ac: Aircraft): void {
+  if (!ac.wrongTurn?.planned) return;
+  ac.wrongTurn = undefined;
+  const route = ac.route;
+  const dest = ac.routeDestination;
+  if (!route || !dest || route.nodes.length < 5) return;
+  const pos = (n: TaxiNode) => n.pos;
+  const dirDeg = (a: TaxiNode, b: TaxiNode) => (Math.atan2(pos(b).x - pos(a).x, pos(b).y - pos(a).y) * 180) / Math.PI;
+  const diff = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
+  const options: { j: number; e: TaxiEdge; to: TaxiNode }[] = [];
+  for (let j = 2; j < route.nodes.length - 2; j++) {
+    const J = route.nodes[j];
+    if (J.holdingPoint || sim.tower.isInRunwayArea(J.pos)) continue;
+    const inEdge = route.edges[j - 1];
+    const outEdge = route.edges[j];
+    if (inEdge.kind === 'runwayStrip' || outEdge.kind === 'runwayStrip') continue;
+    const inDir = dirDeg(route.nodes[j - 1], J);
+    for (const e of J.edges) {
+      if (e === inEdge || e === outEdge || !e.name || e.closed || (e.kind !== 'taxiway' && e.kind !== 'taxilane')) continue;
+      if (e.name === outEdge.name || e.maxWingspanM < ac.type.wingspanM || sim.airport.closedTaxiways.has(e.name.toUpperCase())) continue;
+      const to = e.from === J ? e.to : e.from;
+      if (e.oneWay && e.from !== J) continue;
+      if (e.length < WRONG_TURN_MIN_M || e.length > WRONG_TURN_MAX_M || to.holdingPoint || route.nodes.includes(to)) continue;
+      if (to.id.startsWith('STAND_') || to.edges.some((x) => x.kind === 'runwayStrip' || x.kind === 'runway' || x.kind === 'stand')) continue;
+      if (diff(dirDeg(J, to), inDir) > WRONG_TURN_MAX_DEG) continue;
+      if (sim.aircraft.some((o) => o !== ac && o.onGround && distance(o.pos, to.pos) < 120)) continue;
+      options.push({ j, e, to });
+    }
+  }
+  // From where it stops it must get on to its destination forwards (no dead end, no tug needed).
+  const goesOn = (o: (typeof options)[number]): boolean => {
+    const heading = dirDeg(route.nodes[o.j], o.to);
+    const r = resolveDestination(sim, ac, dest, { node: o.to, heading: (heading + 360) % 360 }, [], []);
+    return !('error' in r) && !r.route.requiresUTurn;
+  };
+  const usable = options.filter(goesOn);
+  if (!usable.length) return;
+  const pick = usable[Math.floor(sim.variation(`${ac.callsign}:wrongTurnAt:${Math.floor(sim.time)}`) * usable.length)];
+  const nodes = [...route.nodes.slice(0, pick.j + 1), pick.to];
+  const edges = [...route.edges.slice(0, pick.j), pick.e];
+  const wrong: TaxiRoute = {
+    nodes,
+    edges,
+    startPosition: route.startPosition,
+    requiresUTurn: route.requiresUTurn,
+    length: edges.reduce((s, e) => s + e.length, 0),
+    taxiways: [...new Set(edges.map((e) => e.name).filter(Boolean))],
+  };
+  applyRoute(sim, ac, wrong, dest);
+  ac.wrongTurn = { taxiway: pick.e.name };
+}
+
 export function applyRoute(
   sim: Simulation,
   ac: Aircraft,
@@ -1365,8 +1543,13 @@ function execCross(sim: Simulation, ac: Aircraft, runway: string): ExecResult {
   ac.clearedToCross.add(name);
   ac.crossClearedAt = sim.time;
   clearStopBarsFor(sim, ac, sim.userControls(ac.frequency));
-  ac.stops = ac.stops.filter((s) => !(s.kind === 'runway' && s.target === name));
+  // The clearance is for this crossing only: holding short there, or else the next one on the route. A route that
+  // crosses the same runway again later (out and back) needs another crossing clearance there.
   if (ac.stoppedAt?.kind === 'runway' && ac.stoppedAt.target === name) ac.stoppedAt = undefined;
+  else {
+    const next = ac.stops.filter((s) => s.kind === 'runway' && s.target === name).sort((a, b) => a.s - b.s)[0];
+    ac.stops = ac.stops.filter((s) => s !== next);
+  }
   // Crossing on Tower frequency: the crew reports the runway vacated afterwards.
   if (sim.userTower && ac.frequency === sim.stationFor('tower') && ac.category !== 'departure') ac.crossingWithTower = 'cleared';
   return { readback: `cross runway ${runway}`, answers: ac.request === 'crossing' };
@@ -1533,6 +1716,8 @@ export function onStopReached(sim: Simulation, ac: Aircraft, stop: PathStop): vo
   if (ac.phase !== 'taxi') return;
 
   if (stop.kind === 'runway') {
+    // Holding short of a runway again: a crossing clearance for it given earlier was used up on the first crossing.
+    ac.clearedToCross.delete(stop.target);
     if (sim.isOnMyFrequency(ac)) {
       call(sim, ac, 'crossing', `${sim.tel(ac)}, holding short runway ${runwayEndsText(sim, stop.target)} at ${stop.holdingPoint ?? ''}`.trim());
     }
@@ -1540,6 +1725,16 @@ export function onStopReached(sim: Simulation, ac: Aircraft, stop: PathStop): vo
   }
   if (stop.kind === 'destination') {
     const dest = ac.routeDestination;
+    // Taken a wrong turn: stopped on the wrong taxiway, the crew owns up and asks for instructions.
+    if (ac.wrongTurn?.taxiway) {
+      const tw = ac.wrongTurn.taxiway;
+      ac.wrongTurn = undefined;
+      // This call is no request to pass a slot flight: the clean-up of that one must not drop it.
+      ac.slotPassAsked = undefined;
+      sim.stats.wrongTurns++;
+      if (sim.isOnMyFrequency(ac)) call(sim, ac, 'route', `${sim.tel(ac)}, sorry, we turned onto taxiway ${tw} by mistake, holding on ${tw}, request instructions`);
+      return;
+    }
     if (dest?.kind === 'stand') {
       ac.phase = 'arrived';
       ac.stand = dest.stand;
@@ -1588,6 +1783,7 @@ function runwayEndsText(sim: Simulation, runway: string): string {
 
 export function updatePilot(sim: Simulation, ac: Aircraft): void {
   const now = sim.time;
+  if (ac.taxiReadbackError) checkTaxiReadback(sim, ac);
 
   if (ac.phase === 'arrived' && now >= ac.timerUntil) {
     // Turnaround over: the aircraft leaves the simulation - or is towed to a remote stand.
@@ -1609,6 +1805,7 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
         ac.stoppedAt = { s: ac.s, kind: 'destination', target: 'none' };
       } else {
         applyRoute(sim, ac, res.route, res.dest, c.holdShort, c.cross);
+        takeWrongTurn(sim, ac);
       }
     } else if (ac.request !== 'taxi' && ac.request !== 'route' && sim.isOnMyFrequency(ac)) {
       call(sim, ac, 'taxi', `${sim.tel(ac)}, ready for taxi${deiceWords(sim, ac)}`);
@@ -1646,12 +1843,17 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
   // The planned medical emergency happens 40 s into the taxi also while the simulator runs Ground: the crew tells
   // Ground, which taxis it back (it used to wait until the crew reached your Tower frequency - deep in the queue to
   // the runway, where there is no way back).
-  if (ac.plannedMedical && !sim.isOnMyFrequency(ac) && ac.phase === 'taxi' && ac.category === 'departure' && ac.taxiStartedAt !== undefined && now - ac.taxiStartedAt > 40) {
+  // It happens once there is a way back that does not run head-on into a queue on a single taxiway (checked every
+  // 5 s); at the holding point without one it does not happen at all.
+  if (ac.plannedMedical && !sim.isOnMyFrequency(ac) && ac.phase === 'holding' && ac.category === 'departure') ac.plannedMedical = false;
+  if (ac.plannedMedical && !sim.isOnMyFrequency(ac) && ac.phase === 'taxi' && ac.category === 'departure' && ac.taxiStartedAt !== undefined && now - ac.taxiStartedAt > 40 && Math.floor(now) % 5 === 0) {
+    const stand = medicalReturnStand(sim, ac);
+    if (!stand) return;
     ac.plannedMedical = false;
     ac.emergency = 'medical';
     ac.emergencySince = now;
     ac.returnToStand = true;
-    ac.assignedStand = sim.traffic.allocateStand(ac)?.id;
+    ac.assignedStand = stand;
     ac.request = null;
     sim.system(`${sim.stationName(ac.frequency)}: ${ac.callsign} has declared a medical emergency while taxiing and returns to its stand.`, 'warning', ac.callsign);
     if (ac.assignedStand && !aiInstruct(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand: ac.assignedStand }, via: [], holdShort: [], cross: [] })) {
@@ -1661,13 +1863,16 @@ export function updatePilot(sim: Simulation, ac: Aircraft): void {
   }
   if (!sim.isOnMyFrequency(ac)) return;
 
-  // Special event: medical emergency while taxiing out.
-  if (ac.plannedMedical && ac.phase === 'taxi' && ac.category === 'departure' && ac.taxiStartedAt !== undefined && now - ac.taxiStartedAt > 40) {
+  // Special event: medical emergency while taxiing out - as above, once there is a way back to a stand without
+  // traffic coming the other way, and not at all at the holding point.
+  if (ac.plannedMedical && ac.phase === 'holding' && ac.category === 'departure') ac.plannedMedical = false;
+  const medicalStand = ac.plannedMedical && ac.phase === 'taxi' && ac.category === 'departure' && ac.taxiStartedAt !== undefined && now - ac.taxiStartedAt > 40 && Math.floor(now) % 5 === 0 ? medicalReturnStand(sim, ac) : undefined;
+  if (medicalStand) {
     ac.plannedMedical = false;
     ac.emergency = 'medical';
     ac.emergencySince = now;
     ac.returnToStand = true;
-    ac.assignedStand = sim.traffic.allocateStand(ac)?.id;
+    ac.assignedStand = medicalStand;
     ac.request = null;
     sim.frequency.cancel(ac.callsign);
     call(sim, ac, 'taxiIn', `${sim.stationName(ac.frequency)}, ${sim.tel(ac)}, PAN PAN, PAN PAN, PAN PAN, medical emergency on board, request immediate return to the stand, ambulance required`);

@@ -5,6 +5,7 @@ import { M_PER_NM, distance } from '../src/core/geo';
 import { parseScenarioCode, formatScenarioCode } from '../src/core/scenario';
 import { Simulation } from '../src/core/simulation';
 import { EDDP } from '../src/data/airports/eddp';
+import { createBot } from './bot';
 
 /** Answers every call: Ground (scripted), and with `tower` Tower too; otherwise the AI Tower flies and clears. */
 function runHour(runway: string, tower: boolean, onTick?: (sim: Simulation) => void): Simulation {
@@ -139,4 +140,25 @@ describe('Leipzig/Halle (EDDP) after the AIP charts', () => {
     expect(dep.get('26L') ?? 0).toBeGreaterThan(2);
     expect((arr.get('26R') ?? 0) + (arr.get('26L') ?? 0)).toBeGreaterThan(4);
   }, 120000);
+});
+
+describe('a crossing clearance is for one crossing', () => {
+  it('a route that crosses the same runway again later still stops there (Leipzig/Halle: out and back across 08R/26L)', () => {
+    const sim = new Simulation({ airport: EDDP, position: 'GND', positions: ['GND', 'TWR'], runway: '26R+26L', density: 'heavy', seed: 1, events: false });
+    const bot = createBot(sim);
+    let ac: ReturnType<Simulation['find']>;
+    for (let t = 0; t < 3600 && !ac; t++) {
+      sim.tick(1);
+      ac = sim.aircraft.find((a) => a.stoppedAt?.kind === 'runway' && !!a.path && a.path.length - a.s > 60);
+      if (!ac) bot();
+    }
+    expect(ac).toBeDefined();
+    const runway = ac!.stoppedAt!.target;
+    // The same runway once more further along the route (as on S1 - H1 ... H5 - S5).
+    const again = { s: ac!.s + Math.min(300, ac!.path!.length - ac!.s - 30), kind: 'runway' as const, target: runway, holdingPoint: 'H5', nodeId: 'X' };
+    ac!.stops = [...ac!.stops, again].sort((a, b) => a.s - b.s);
+    expect(sim.transmit(`${ac!.callsign} cross runway ${sim.activeEndOn(runway) ?? runway.split('/')[0]}`).ok).toBe(true);
+    expect(ac!.stoppedAt).toBeUndefined();
+    expect(ac!.stops).toContain(again);
+  });
 });

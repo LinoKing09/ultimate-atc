@@ -34,8 +34,12 @@ export const CTOT_EARLY_S = 5 * 60;
 export const CTOT_LATE_S = 10 * 60;
 /** A-CDM: estimated taxi-out time used to derive the TSAT from a CTOT (seconds). */
 const EXOT_S = 10 * 60;
-/** Minimum spacing between two TSATs (pre-departure sequencer capacity), seconds. */
+/** Minimum spacing between two TSATs for the same runway (pre-departure sequencer capacity), seconds. */
 const TSAT_SPACING_S = 90;
+/** TSATs are whole minutes: with the spacing above, one every 2 minutes per runway. */
+const TSAT_STEP_S = 60;
+/** A TSAT stays valid up to this long after it has passed (A-CDM: TSAT +-5 min). */
+const TSAT_WINDOW_S = 300;
 /** Share of crews that use datalink (DCL) for the clearance when the service is on. */
 const DCL_SHARE = 0.4;
 /** Squawk codes the simulator assigns (octal; a simulator range, not the real ORCAM allocation). */
@@ -357,7 +361,7 @@ export function sendDcl(sim: Simulation, ac: Aircraft, sidName: string, squawk: 
 /**
  * A-CDM pre-departure sequencer: gives every departure that has not started
  * up yet a TSAT - not before its TOBT, matching its CTOT (CTOT - taxi time),
- * and at least TSAT_SPACING_S after the previous one.
+ * and at least TSAT_SPACING_S after the previous one for the same runway.
  */
 export function updateSequencer(sim: Simulation): void {
   const waiting = sim.aircraft
@@ -368,29 +372,35 @@ export function updateSequencer(sim: Simulation): void {
     for (const w of waiting) w.a.tsat = undefined;
     return;
   }
+  // Each runway used for take-offs has its own sequence (parallel runways depart independently).
+  const rwy = (a: (typeof sim.aircraft)[number]) => sim.departureRunwayOf(a);
   // Start-ups already approved (or flights already off-block) occupy their slots.
   const taken = sim.aircraft
     .filter((a) => a.category === 'departure' && a.tsat !== undefined && (a.startupApproved || a.phase !== 'parked'))
-    .map((a) => a.tsat!);
-  const free = (t: number) => !taken.some((x) => Math.abs(x - t) < TSAT_SPACING_S);
+    .map((a) => ({ t: a.tsat!, rwy: rwy(a) }));
+  const free = (t: number, r: string) => !taken.some((x) => x.rwy === r && Math.abs(x.t - t) < TSAT_SPACING_S);
   // Flights keep an issued TSAT while it is still valid. Only then do the others (new flights, or
   // flights that missed their TSAT) get the earliest free slot - a late flight never bumps one on time.
-  const slotStart = (w: (typeof waiting)[number]) => Math.ceil(Math.max(w.earliest, sim.time) / 60) * 60;
+  const slotStart = (w: (typeof waiting)[number]) => Math.ceil(Math.max(w.earliest, sim.time) / TSAT_STEP_S) * TSAT_STEP_S;
   const keep: typeof waiting = [];
   const reslot: typeof waiting = [];
   for (const w of waiting) {
     const t = w.a.tsat;
-    if (t !== undefined && t >= slotStart(w) && free(t)) {
+    // Valid: not before the flight can go, and not more than the TSAT window ago (the crew may still be waiting
+    // for its start-up approval).
+    const valid = t !== undefined && t >= Math.ceil(w.earliest / TSAT_STEP_S) * TSAT_STEP_S && t >= sim.time - TSAT_WINDOW_S;
+    if (t !== undefined && valid && free(t, rwy(w.a))) {
       keep.push(w);
-      taken.push(t);
+      taken.push({ t, rwy: rwy(w.a) });
     } else reslot.push(w);
   }
   reslot.sort((x, y) => slotStart(x) - slotStart(y));
   for (const w of reslot) {
+    const r = rwy(w.a);
     let t = slotStart(w);
-    while (!free(t)) t += 60;
+    while (!free(t, r)) t += TSAT_STEP_S;
     w.a.tsat = t;
-    taken.push(t);
+    taken.push({ t, rwy: r });
   }
 }
 

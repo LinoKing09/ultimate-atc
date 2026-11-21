@@ -131,6 +131,10 @@ export interface Aircraft {
   routeDestination?: TaxiDestination;
   /** Taxi instruction received during pushback/start-up, executed once the aircraft is ready. */
   pendingTaxi?: Extract<Command, { type: 'taxi' }>;
+  /** The crew read back a wrong holding point (`said` instead of `correct`); not corrected, it taxis there. */
+  taxiReadbackError?: { correct: string; said: string; runway?: string; at: number };
+  /** The crew will take a wrong turn on its next taxi route / has taken one onto `taxiway`. */
+  wrongTurn?: { planned?: boolean; taxiway?: string };
   /** Runways the aircraft is cleared to cross on its current route. */
   clearedToCross: Set<string>;
   /** When the last runway crossing clearance was read back (the AI Tower keeps the runway free for it). */
@@ -201,6 +205,8 @@ export interface Aircraft {
   tsat?: number;
   /** Calculated take-off time from the Network Manager (ATFM slot), sim seconds. */
   ctot?: number;
+  /** The CTOT was given again after a missed slot, while the flight was not yet ready at the holding point (its ready message is still to come). */
+  ctotReadyPending?: boolean;
   pushFacing?: Compass;
   /** Time at which a timed activity (engine start, shutdown, pushback tug) finishes. */
   timerUntil: number;

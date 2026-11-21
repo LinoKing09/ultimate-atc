@@ -174,14 +174,26 @@ describe('A-CDM sequencer', () => {
     const b = sim.traffic.spawnDeparture(0, { stand: '16', callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
     for (let t = 0; t < 600; t++) sim.tick(1);
     a.ctot = b.ctot = undefined;
-    // DLH5AB missed its TSAT; EWG7TK's TSAT is due in a minute and still valid.
+    // DLH5AB missed its TSAT (more than the 5-minute window ago); EWG7TK's TSAT is due in a minute and still valid.
     const now = Math.ceil(sim.time / 60) * 60;
-    a.tsat = now - 300;
+    a.tsat = now - 360;
     b.tsat = now + 60;
     updateSequencer(sim);
     expect(b.tsat).toBe(now + 60);
     expect(a.tsat).toBeGreaterThanOrEqual(now);
-    expect(Math.abs(a.tsat! - b.tsat!)).toBeGreaterThanOrEqual(90);
+    // Runway 25 also takes landings: 120 s between TSATs.
+    expect(Math.abs(a.tsat! - b.tsat!)).toBeGreaterThanOrEqual(120);
+  });
+
+  it('a TSAT that has just passed stays valid (the crew may still wait for its start-up approval)', () => {
+    const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed: 42, generateTraffic: false });
+    const a = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'DLH5AB', type: 'A320' }) as Aircraft;
+    for (let t = 0; t < 600; t++) sim.tick(1);
+    a.ctot = undefined;
+    const now = Math.ceil(sim.time / 30) * 30;
+    a.tsat = now - 120;
+    updateSequencer(sim);
+    expect(a.tsat).toBe(now - 120);
   });
 });
 

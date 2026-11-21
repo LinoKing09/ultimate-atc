@@ -28,7 +28,12 @@ export function createRadarBot(sim: Simulation): () => void {
       if (a.category === 'arrival') {
         const runway = a.runway ?? sim.runway;
         if (!r.approach && a.phase === 'inbound') {
-          say(a.callsign, `${r.identified ? '' : 'identified, '}descend altitude 5000 feet, cleared ${sim.approachTypeFor(runway)} approach runway ${runway}`);
+          // After a go-around (flying the runway heading away from the field): back via the nearest RNAV transition.
+          const transitions = (sim.airspace?.data.transitions ?? []).filter((t) => t.runway === runway);
+          const fixPos = (t: (typeof transitions)[number]) => sim.airspace!.fix(t.route[0]);
+          const back = r.missedApproach ? transitions.filter((t) => fixPos(t)).sort((x, y) => distance(a.pos, fixPos(x)!) - distance(a.pos, fixPos(y)!))[0] : undefined;
+          const via = back ? `via ${back.name} transition, ` : '';
+          say(a.callsign, `${r.identified ? '' : 'identified, '}descend altitude 5000 feet, ${via}cleared ${sim.approachTypeFor(runway)} approach runway ${runway}`);
           continue;
         }
         const e = seq.get(a.callsign);

@@ -197,6 +197,21 @@ describe('tower position', () => {
     expect(sim.messages.some((m) => /EWG8LM took off before its CTOT window/.test(m.text))).toBe(true);
   });
 
+  it('a flight that missed its slot while taxiing gets an earlier one once it is ready at the holding point', () => {
+    const sim = towerSim();
+    const ac = sim.traffic.spawnDeparture(0, { stand: '14', callsign: 'EWG8LM', type: 'A320' }) as Aircraft;
+    // The slot runs out while the crew is still on its way to the runway.
+    ac.ctot = undefined;
+    expect(runUntil(sim, () => ac.phase === 'taxi', 1800)).toBe(true);
+    ac.ctot = Math.round(sim.time - 11 * 60);
+    expect(runUntil(sim, () => ac.ctotReadyPending === true, 600)).toBe(true);
+    expect(ac.ctot - sim.time).toBeGreaterThanOrEqual(20 * 60 - 60);
+    expect(runUntil(sim, () => ac.phase === 'holding', 2100)).toBe(true);
+    sim.tick(1);
+    expect(ac.ctot - sim.time).toBeLessThanOrEqual(15 * 60 + 30);
+    expect(sim.messages.some((m) => /EWG8LM is ready at the holding point: new CTOT/.test(m.text))).toBe(true);
+  });
+
   it('runs an hour of traffic with a simple scripted Tower controller', () => {
     const sim = towerSim(3, true);
     // Time of the last take-off or crossing clearance: the crew acts on it only after the read-back.

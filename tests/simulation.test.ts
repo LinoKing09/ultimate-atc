@@ -86,6 +86,8 @@ describe('departure flow', () => {
 describe('arrival flow', () => {
   it('lands, vacates, calls ground and parks', () => {
     const sim = makeSim();
+    // The normal flow: no crew mistakes (a wrong turn on the way in would stop it short of the stand).
+    sim.readbackErrors = 'off';
     const ac = sim.traffic.spawnArrival(4, { callsign: 'EWG7TK', type: 'A320' }) as Aircraft;
     expect(ac.phase).toBe('approach');
     expect(runUntil(sim, () => ac.request === 'taxiIn', 400)).toBe(true);

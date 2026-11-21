@@ -28,6 +28,15 @@ import { clearStopBarsFor, litStopBarAhead } from './stopbars';
 const GLIDE_SLOPE = Math.tan((3 * Math.PI) / 180);
 const ROLLOUT_DECEL = 1.6; // m/s^2 normal landing roll-out
 const REJECT_DECEL = 3.0; // m/s^2 rejected take-off
+/** Harder braking (m/s^2, about autobrake MED) for an exit that leads on when the normal one would not. */
+const HARD_BRAKING_DECEL = 3.0;
+/**
+ * Wide-bodies (code E / F) brake harder for it whenever no exit they make normally leads on to their stand: they
+ * cannot turn out of a holding area. Aircraft above `HARD_BRAKING_POCKET_WINGSPAN_M` (smaller ones turn on the spot)
+ * only when every exit they make normally leads into a pocket from which no stand at all can be reached.
+ */
+const HARD_BRAKING_MIN_WINGSPAN_M = 52;
+const HARD_BRAKING_POCKET_WINGSPAN_M = 25;
 /** Slowing down to taxi speed behind the exit's holding point (m/s^2). */
 const EXIT_DECEL = 1.0;
 /** After a rejected take-off the crew slows to this speed at once and rolls to the next exit (m/s). */
@@ -279,12 +288,18 @@ export class TowerAI {
     return timeOnFinalS(this.profileOf(ac), d, 0, ac.speed / KT_TO_MS, ac.speedRestriction);
   }
 
-  /** Number of departures waiting for a runway (one, or any): holding or about to reach a holding point. */
+  /**
+   * Number of aircraft waiting for a gap on a runway (one, or any): departures holding or about to reach a holding
+   * point, and aircraft holding short of it to cross.
+   */
   departureDemand(end?: RunwayEnd): number {
     // Crossing runways: a departure from the other runway needs a gap on this one too (to cross it on the way and
     // to pass the intersection on its take-off run - Köln/Bonn 31R + 24).
     const uses = (a: Aircraft) => !end || this.departureEnd(a).runway === end.runway || this.crossingAlong(this.departureEnd(a), end) !== undefined;
-    return this.sim.aircraft.filter((a) => a.category === 'departure' && (a.phase === 'holding' || (a.phase === 'taxi' && a.routeDestination?.kind === 'holdingPoint')) && uses(a)).length;
+    const departures = this.sim.aircraft.filter((a) => a.category === 'departure' && (a.phase === 'holding' || (a.phase === 'taxi' && a.routeDestination?.kind === 'holdingPoint')) && uses(a)).length;
+    // Aircraft waiting to cross the runway need a gap too (Tower asks Approach for one).
+    const crossings = this.sim.aircraft.filter((a) => a.onGround && a.stoppedAt?.kind === 'runway' && (!end || a.stoppedAt.target === end.runway)).length;
+    return departures + crossings;
   }
 
   /** Somebody on the runway (one, or any in use), or landing or taking off there. */
@@ -700,7 +715,12 @@ export class TowerAI {
     // taxiway) the one towards the stand.
     // None can be made: the last ones (at the runway end), the one towards the stand first.
     const last = candidates.filter((c) => c.along >= (candidates.at(-1)?.along ?? 0) - 1);
-    const pool0 = onward.length ? onward : usable.length ? usable : [...last.filter((c) => this.leadsToStand(c.ex.path, ac)), ...last].slice(0, 1);
+    // None of the exits it makes with normal braking leads on to a stand (a wide-body would end up in a pocket it
+    // cannot turn out of, e.g. a holding area at the runway end): the crew brakes harder for the first one that does.
+    const pocket = (c: (typeof usable)[number]) => this.onwardLength(c.ex.path, { ...ac, assignedStand: undefined }) === Infinity;
+    const brakeHarder = ac.type.wingspanM > HARD_BRAKING_MIN_WINGSPAN_M || (ac.type.wingspanM > HARD_BRAKING_POCKET_WINGSPAN_M && usable.length > 0 && usable.every(pocket));
+    const hard = onward.length || brakeNow || !brakeHarder ? [] : candidates.filter((c) => c.along - here >= (v0 * v0 - c.vExit * c.vExit) / (2 * HARD_BRAKING_DECEL) && this.leadsToStand(c.ex.path, ac)).slice(0, 1);
+    const pool0 = onward.length ? onward : hard.length ? hard : usable.length ? usable : [...last.filter((c) => this.leadsToStand(c.ex.path, ac)), ...last].slice(0, 1);
     const pool = pool0.filter((c) => !pool0.some((d) => d !== c && d.node === c.node && this.onwardLength(d.ex.path, ac) < this.onwardLength(c.ex.path, ac)));
     // Parallel runways: vacate on the side of the stand (not back across the runway).
     const stand = ac.assignedStand ? sim.airport.stand(ac.assignedStand) : undefined;
@@ -900,11 +920,22 @@ export class TowerAI {
     const sim = this.sim;
     for (const a of sim.aircraft) {
       if (a.category !== 'departure' || a.ctot === undefined || !a.onGround || ['takeoff', 'climb', 'gone'].includes(a.phase)) continue;
-      if (sim.time <= a.ctot + CTOT_LATE_S) continue;
-      const old = hhmm(sim, a.ctot);
       // A flight ready at the holding point (a "ready" message to the Network Manager) gets an earlier slot.
       const ready = a.phase === 'holding' || a.phase === 'lineup';
+      // Its new slot came while it was still taxiing: the ready message follows once it is at the holding point (it
+      // would block the queue there for half an hour otherwise).
+      if (ready && a.ctotReadyPending) {
+        a.ctotReadyPending = false;
+        const earlier = Math.round((sim.time + sim.rng.range(8 * 60, 15 * 60)) / 60) * 60;
+        if (earlier < a.ctot) {
+          a.ctot = earlier;
+          sim.system(`${a.callsign} is ready at the holding point: new CTOT ${hhmm(sim, a.ctot)} from the Network Manager.`, 'system', a.callsign);
+        }
+      }
+      if (sim.time <= a.ctot + CTOT_LATE_S) continue;
+      const old = hhmm(sim, a.ctot);
       a.ctot = Math.round((sim.time + (ready ? sim.rng.range(8 * 60, 15 * 60) : sim.rng.range(20 * 60, 40 * 60))) / 60) * 60;
+      a.ctotReadyPending = !ready && a.phase !== 'parked';
       sim.stats.slotsMissed++;
       sim.updateScore();
       sim.system(`${a.callsign} missed its CTOT ${old} (window -5/+10 min). New CTOT ${hhmm(sim, a.ctot)} from the Network Manager.`, 'warning', a.callsign);

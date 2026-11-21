@@ -2,7 +2,7 @@ import { formatAltitude } from '../src/core/phraseology/format';
 import { allocateSquawk, initialClimb, sendDcl, suggestedSid } from '../src/core/delivery';
 import { routeHeadOn } from '../src/core/conflicts';
 import { conflictResolution, pushInWay, reachableFreeStand } from '../src/core/groundAI';
-import { previewTaxi } from '../src/core/pilot';
+import { autoRoute, previewTaxi } from '../src/core/pilot';
 import { distance, projectOnSegment } from '../src/core/geo';
 import type { Aircraft } from '../src/core/aircraft';
 import type { TaxiDestination } from '../src/core/phraseology/commands';
@@ -18,6 +18,10 @@ import type { Simulation } from '../src/core/simulation';
  */
 /** A departure with a CTOT is pushed back at the earliest this long (s) before it. */
 const CTOT_LEAD_S = 15 * 60;
+/** A crossing waiting this long (s) gets the next gap: no take-off on that runway meanwhile. */
+const CROSSING_PRIORITY_S = 120;
+/** How far (m) beyond the runway holding point a crossing is checked for opposite traffic. */
+const CROSSING_LOOK_M = 400;
 /** A pushback or taxi waits at most this long (s) for opposite traffic on its way out. */
 const HEAD_ON_WAIT_S = 240;
 /** Departures taxiing out or waiting at the runway at most (more wait on the stand: gate hold). */
@@ -39,7 +43,10 @@ export function createBot(sim: Simulation): () => void {
   const standFor = (ac: Aircraft): string | undefined => {
     // A stand the crew reported blocked (occupied, or a parked neighbour too close) is given up, like the AI Ground does.
     const blocked = ac.standBlocked?.reported ? ac.standBlocked.stand : undefined;
-    const own = (ac.assignedStand !== blocked ? ac.assignedStand : undefined) ?? reachableFreeStand(sim, ac, (s) => s.id !== blocked)?.id;
+    // ... and so is one it cannot reach from where it is (a taxiway on the way too narrow for it).
+    const reachable = (stand: string | undefined) => !!stand && !!autoRoute(sim, ac, { kind: 'stand', stand });
+    const assigned = ac.assignedStand !== blocked && reachable(ac.assignedStand) ? ac.assignedStand : undefined;
+    const own = assigned ?? reachableFreeStand(sim, ac, (s) => s.id !== blocked && s.id !== ac.assignedStand)?.id;
     const clear = (stand: string) => {
       const r = previewTaxi(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] });
       if ('error' in r || r.route.requiresUTurn) return false;
@@ -60,6 +67,30 @@ export function createBot(sim: Simulation): () => void {
     held.set(key, held.get(key) ?? sim.time);
     return sim.time - held.get(key)! < HEAD_ON_WAIT_S ? undefined : own;
   };
+  /** The crew can taxi there forwards. */
+  const canTaxiTo = (ac: Aircraft, stand: string): boolean => !('error' in previewTaxi(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [] }));
+  /** Its stand cannot be reached forwards (it stopped facing a dead end, e.g. a wide-body in a holding area): a tug turns it. */
+  const turnAroundToStand = (ac: Aircraft): void => {
+    const near = sim.freeStands(ac.type.wingspanM, undefined, ac).sort((a, b) => distance(a.pos, ac.pos) - distance(b.pos, ac.pos)).slice(0, 10).map((s) => s.id);
+    for (const stand of [ac.assignedStand, ...near]) {
+      if (!stand) continue;
+      const r = previewTaxi(sim, ac, { type: 'taxi', destination: { kind: 'stand', stand }, via: [], holdShort: [], cross: [], turnAround: true });
+      if ('error' in r) continue;
+      sim.transmit(`${ac.callsign} turn around, taxi to stand ${stand}`);
+      return;
+    }
+  };
+  /** Its way across the runway and on (CROSSING_LOOK_M) meets traffic coming the other way: it waits (at most HEAD_ON_WAIT_S). */
+  const crossingIntoTraffic = (ac: Aircraft): boolean => {
+    if (!ac.path) return false;
+    const pts = [];
+    for (let s = ac.s; s <= Math.min(ac.path.length, ac.s + CROSSING_LOOK_M); s += 10) pts.push(ac.path.pointAt(s));
+    const c = routeHeadOn(sim, ac, pts);
+    if (!c || c.other.blockedBy === ac.callsign) return false;
+    const key = `${ac.callsign}:cross:${ac.requestSince}`;
+    held.set(key, held.get(key) ?? sim.time);
+    return sim.time - held.get(key)! < HEAD_ON_WAIT_S;
+  };
   return () => {
     const t = sim.time;
     // One take-off clearance per runway and round: the aircraft cleared has not moved yet (two backtracks at once).
@@ -67,12 +98,15 @@ export function createBot(sim: Simulation): () => void {
     for (const ac of sim.aircraft) {
       const cs = ac.callsign;
       if (!sim.isOnMyFrequency(ac)) continue;
-      if (tower && (ac.request === 'departure' || (ac.request === 'handoff' && ac.phase === 'holding')) && t - ac.lastCallAt >= 3 && Math.floor(t) % 5 === 0) {
+      // Only at the holding point or lined up (a crew still taxiing in the queue would keep the runway closed to crossings).
+      if (tower && (ac.request === 'departure' || ac.request === 'handoff') && (ac.phase === 'holding' || ac.phase === 'lineup') && ac.frequency === sim.stationFor('tower') && t - ac.lastCallAt >= 3 && Math.floor(t) % 5 === 0) {
         const rwy = sim.airport.runwayNameFor(ac.runway!) ?? '';
         // A backtrack needs the whole runway (and more time before the next arrival).
         const backtrack = /backtrack/.test(ac.lastTransmission ?? '');
         const free = backtrack ? !sim.tower.runwayBusy(ac, sim.tower.departureEnd(ac)) : !sim.tower.runwayBusyForDeparture(ac);
-        if (!clearedNow.has(rwy) && t - (crossed.get(rwy) ?? -999) > 90 && free && sim.tower.spacingRemaining(ac) <= 0 && sim.tower.nextArrivalEta(sim.tower.departureEnd(ac), true) > (backtrack ? 180 : 90)) {
+        // An aircraft waiting long to cross this runway gets the next gap (as the AI Tower does): no take-off meanwhile.
+        const crossingWaits = sim.aircraft.some((o) => o.request === 'crossing' && o.stoppedAt?.kind === 'runway' && o.stoppedAt.target === rwy && t - o.requestSince > CROSSING_PRIORITY_S);
+        if (!crossingWaits && !clearedNow.has(rwy) && t - (crossed.get(rwy) ?? -999) > 90 && free && sim.tower.spacingRemaining(ac) <= 0 && sim.tower.nextArrivalEta(sim.tower.departureEnd(ac), true) > (backtrack ? 180 : 90)) {
           sim.transmit(`${cs} ${backtrack ? 'backtrack ' : ''}runway ${ac.runway}, cleared for take-off`);
           clearedNow.add(rwy);
           continue;
@@ -108,12 +142,16 @@ export function createBot(sim: Simulation): () => void {
         if ('error' in r) return false;
         const pts = sim.airport.polyline(r.route.nodes).points;
         const c = routeHeadOn(sim, ac, pts);
-        // An arrival also waits for an aircraft pushing back or starting up on its way in (it has no route yet).
-        const pushing =
-          destination.kind === 'stand' &&
-          sim.aircraft.some((o) => o !== ac && ['pushback', 'startup'].includes(o.phase) && pts.some((p, i) => i > 0 && projectOnSegment(o.pos, pts[i - 1], p).dist < (o.type.wingspanM + ac.type.wingspanM) * 0.38 + 6));
+        // Also waits for an aircraft pushing back or starting up on its way (it has no route yet) - where it stands, or
+        // where its pushback ends.
+        const near = (o: Aircraft, q: { x: number; y: number }) => pts.some((p, i) => i > 0 && projectOnSegment(q, pts[i - 1], p).dist < (o.type.wingspanM + ac.type.wingspanM) * 0.38 + 6);
+        const pushing = sim.aircraft.some((o) => o !== ac && ['pushback', 'startup'].includes(o.phase) && (near(o, o.pos) || (o.phase === 'pushback' && !!o.path && near(o, o.path.pointAt(o.path.length)))));
+        // A crew waiting on our way out to return to its stand (a medical emergency at the holding point): it goes first.
+        const returning =
+          destination.kind !== 'stand' &&
+          sim.aircraft.some((o) => o !== ac && o.onGround && o.category === 'departure' && o.request === 'taxiIn' && pts.some((p, i) => i > 0 && projectOnSegment(o.pos, pts[i - 1], p).dist < (o.type.wingspanM + ac.type.wingspanM) * 0.38 + 6));
         // Traffic that waits behind us (blocked by us) is no reason to wait: we have to move first.
-        if (!pushing && (!c || c.other.blockedBy === cs)) return false;
+        if (!pushing && !returning && (!c || c.other.blockedBy === cs)) return false;
         // Per request: a new call (after a cancelled pushback, say) waits again.
         const key = `${cs}:${ac.request}:${ac.requestSince}`;
         held.set(key, held.get(key) ?? t);
@@ -127,7 +165,8 @@ export function createBot(sim: Simulation): () => void {
         return n >= QUEUE_MAX || (n >= QUEUE_MAX - 1 && t - lastHeldPush < GATE_HOLD_SPACING_S);
       };
       const nearTaxi = () => sim.aircraft.some((o) => o !== ac && o.phase === 'taxi' && distance(o.pos, ac.pos) < 250);
-      switch (ac.request) {
+      // Holding short of a runway on its way, whatever it called last ("ready for departure" on the way): it needs the crossing.
+      switch (ac.stoppedAt?.kind === 'runway' ? 'crossing' : ac.request) {
         case 'clearance': {
           const sid = suggestedSid(sim, ac) ?? ac.flightPlan.sid;
           const squawk = allocateSquawk(sim);
@@ -153,12 +192,15 @@ export function createBot(sim: Simulation): () => void {
           if (!nearTaxi()) say(`${cs} tow approved`);
           break;
         case 'taxi':
-          if (early || headOn()) break;
+          // A slot flight is held on its stand - not once it has pushed back (its slot changed meanwhile): it would
+          // block the apron lane; it waits at the holding point instead (others pass it there).
+          if ((early && ac.phase === 'parked') || headOn()) break;
           say(`${cs} taxi to runway ${sim.departureRunwayOf(ac)}`);
           break;
         case 'taxiIn': {
           const stand = standFor(ac);
-          if (stand && !headOn({ kind: 'stand', stand })) say(`${cs} taxi to stand ${stand}`);
+          if (stand && canTaxiTo(ac, stand) && !headOn({ kind: 'stand', stand })) say(`${cs} taxi to stand ${stand}`);
+          else if (stand && !canTaxiTo(ac, stand)) turnAroundToStand(ac);
           break;
         }
         case 'route':
@@ -173,7 +215,8 @@ export function createBot(sim: Simulation): () => void {
         // Stopped at a runway it has to cross: a "blocked, request instructions" there asks for the crossing too.
         case 'blocked':
         case 'crossing':
-          if (ac.stoppedAt?.kind === 'runway' && sim.tower.crossingFree(ac.stoppedAt.target)) {
+          // Not into traffic coming the other way just behind the runway: the crew would stop on the runway (CATC).
+          if (ac.stoppedAt?.kind === 'runway' && sim.tower.crossingFree(ac.stoppedAt.target) && !crossingIntoTraffic(ac)) {
             const target = ac.stoppedAt.target;
             say(`${cs} cross runway ${sim.activeEndOn(target) ?? target.split('/')[0]}`);
             crossed.set(target, t);
@@ -191,7 +234,8 @@ export function createBot(sim: Simulation): () => void {
           if (!sim.airport.station('GND') || staffed('GND')) {
             if (ac.category === 'arrival') {
               const stand = standFor(ac);
-              if (stand && !headOn({ kind: 'stand', stand })) say(`${cs} taxi to stand ${stand}`);
+              if (stand && canTaxiTo(ac, stand) && !headOn({ kind: 'stand', stand })) say(`${cs} taxi to stand ${stand}`);
+              else if (stand && !canTaxiTo(ac, stand)) turnAroundToStand(ac);
             } else if (ac.category === 'departure' && !headOn()) say(`${cs} taxi to runway ${sim.departureRunwayOf(ac)}`);
           } else say(`${cs} contact ground`);
           break;

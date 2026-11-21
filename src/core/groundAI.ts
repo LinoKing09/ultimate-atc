@@ -69,7 +69,7 @@ const stoppedSince = new WeakMap<Aircraft, number>();
  */
 function takeOverStopped(sim: Simulation, ac: Aircraft): boolean {
   // ("Give way" ends by itself once the other aircraft has passed.)
-  const stopped = ac.phase === 'taxi' && ac.speed < 0.1 && !ac.giveWayTo && ac.stoppedAt?.kind !== 'runway' && (ac.holdPosition || ac.stoppedAt?.kind === 'holdShort' || ac.routeDestination?.kind === 'holdShort' || ac.routeDestination?.kind === 'entry');
+  const stopped = ac.phase === 'taxi' && ac.speed < 0.1 && !ac.giveWayTo && ac.stoppedAt?.kind !== 'runway' && (ac.holdPosition || ac.stoppedAt?.kind === 'holdShort' || ac.routeDestination?.kind === 'holdShort' || ac.routeDestination?.kind === 'entry' || (ac.request === 'route' && ac.stoppedAt?.kind === 'destination' && ac.stoppedAt.target !== 'vacated'));
   if (!stopped || headOnPartner(sim, ac)) {
     stoppedSince.delete(ac);
     return false;
@@ -227,13 +227,22 @@ const ARRIVAL_LOOKAHEAD_S = 240;
 function headOnAhead(sim: Simulation, ac: Aircraft): boolean {
   const r = previewTaxi(sim, ac, { type: 'taxi', destination: outbound(sim, ac), via: [], holdShort: [], cross: [] });
   if ('error' in r) return false;
-  const ours = directedTaxiwayPairs(sim, r.route);
+  return routeAgainstTraffic(sim, ac, r.route);
+}
+
+/** The route would meet traffic coming the other way on a taxiway (taxiing, vacating, or an arrival about to land). */
+export function routeAgainstTraffic(sim: Simulation, ac: Aircraft, route: TaxiRoute): boolean {
+  const ours = directedTaxiwayPairs(sim, route);
   if (!ours.size) return false;
   const against = (ids: string[]) => ids.some((id, i) => i > 0 && ours.has(`${id}>${ids[i - 1]}`));
   for (const o of sim.aircraft) {
     if (o === ac) continue;
     if (o.onGround && o.path && ['taxi', 'landing', 'vacating'].includes(o.phase)) {
-      if (against(o.path.markers.filter((m) => m.s >= o.s - 1).map((m) => m.id))) return true;
+      // Its path ahead, from the start of the segment it is on (an aircraft right behind us on that segment counts).
+      const markers = o.path.markers;
+      const next = markers.findIndex((m) => m.s >= o.s - 1);
+      const from = next < 0 ? markers.length - 1 : Math.max(0, next - 1);
+      if (against(markers.slice(from).map((m) => m.id))) return true;
     } else if (o.phase === 'approach' && o.category === 'arrival') {
       const eta = sim.distanceToThresholdNm(o) * 1852 / Math.max(o.speed, 1);
       if (eta < ARRIVAL_LOOKAHEAD_S && sim.airport.exits(o.runway ?? sim.runway).some((x) => against(x.path))) return true;
@@ -305,7 +314,10 @@ function arrival(sim: Simulation, ac: Aircraft): void {
     if (!ac.stoppedAt && ac.path) return;
   }
   const stand = ac.assignedStand ?? reachableFreeStand(sim, ac, (s) => s.id !== blocked)?.id;
-  if (stand) aiTaxi(sim, ac, { kind: 'stand', stand });
+  if (stand && aiTaxi(sim, ac, { kind: 'stand', stand })) return;
+  // The stand cannot be reached from here (a taxiway on the way too narrow for it): another free one that can.
+  const other = reachableFreeStand(sim, ac, (s) => s.id !== blocked && s.id !== stand)?.id;
+  if (other && aiTaxi(sim, ac, { kind: 'stand', stand: other })) ac.assignedStand = other;
 }
 
 /** Free stands tried for a route (nearest first) before taking the nearest one anyway. */
@@ -325,6 +337,8 @@ export function reachableFreeStand(sim: Simulation, ac: Aircraft, filter?: (s: S
   return free[0];
 }
 
+/** A conflict the AI Ground cannot resolve on its side of the runway is resolved across it after this long (s). */
+const ACROSS_RUNWAY_AFTER_S = 300;
 /** Time after a resolution before the AI Ground resolves a conflict of the same aircraft again (seconds). */
 const RESOLVE_AGAIN_S = 120;
 /** Time after a tug turnaround before the AI Ground resolves a conflict with that aircraft (seconds). */
@@ -332,7 +346,10 @@ const TUG_SETTLE_S = 60;
 
 /** Head-on: re-route one of the two (as a real Ground controller would). */
 function resolve(sim: Simulation, ac: Aircraft): void {
-  const r = conflictResolution(sim, ac);
+  // A conflict with no way out on this side of the runway for a long time: as a last resort across the runway
+  // (Ground coordinates the crossing with Tower, as in real operations).
+  const waitingSince = ac.blockedSince ?? ac.oppositeStop?.since;
+  const r = conflictResolution(sim, ac, waitingSince !== undefined && sim.time - waitingSince > ACROSS_RUNWAY_AFTER_S);
   if (!r) return;
   const cmd = parseTransmission(r.instruction, { callsigns: [], taxiways: sim.airport.taxiwayNames }).commands[0];
   if (cmd && aiInstruct(sim, r.aircraft, cmd)) r.done();
@@ -360,7 +377,7 @@ export function conflictResolution(sim: Simulation, ac: Aircraft, acrossRunway =
   const recent = (a: Aircraft) => (a.tugUntil ?? 0) > sim.time - TUG_SETTLE_S || sim.time - (a.resolvedAt ?? -Infinity) < RESOLVE_AGAIN_S;
   if (recent(ac) || recent(other)) return undefined;
   // A circle of aircraft waiting for each other with a pushback in it: the tug pulls that one back onto its stand.
-  const pusher = blockCycle(sim, ac)?.find((a) => a.phase === 'pushback' && !a.towingIn);
+  const pusher = blockCycle(sim, ac)?.find((a) => a.phase === 'pushback' && !a.towingIn && !(a.stand && sim.standOccupant(a.stand, a)));
   if (pusher) return { aircraft: pusher, instruction: 'cancel pushback', done: () => (ac.resolvedAt = other.resolvedAt = pusher.resolvedAt = sim.time) };
   // Not across the runway to get out of a conflict - unless the controller also works the runway (Tower).
   // A re-route that was given before and did not help (the conflict is still there) is not repeated; a tug is.

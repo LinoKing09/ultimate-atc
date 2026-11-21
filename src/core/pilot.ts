@@ -1299,7 +1299,8 @@ const WRONG_TURN_MAX_DEG = 90;
  */
 function planTaxiMistakes(sim: Simulation, ac: Aircraft, dest: TaxiDestination, route: TaxiRoute, justCorrected: boolean): { said?: string } {
   const forced = sim.forceCrewMistake;
-  if ((sim.readbackErrors !== 'random' && !forced) || !sim.isOnMyFrequency(ac)) return {};
+  // Only when chosen (start dialog / settings: crew mistakes on the ground), never in tutorials.
+  if ((!forced && (!sim.config.crewMistakes || sim.readbackErrors !== 'random')) || !sim.isOnMyFrequency(ac)) return {};
   const out: { said?: string } = {};
   const key = `${ac.callsign}:${Math.floor(sim.time)}`;
   if (forced === 'wrongTurn' || (!forced && sim.eventFactor > 0 && sim.variation(`${key}:wrongTurn`) < WRONG_TURN_CHANCE * sim.eventFactor)) {

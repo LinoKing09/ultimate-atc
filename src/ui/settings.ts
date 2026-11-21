@@ -14,6 +14,8 @@ export interface Settings {
   density: Density;
   /** Random special events: step 0-4 (never ... often), see core/levels.ts. */
   eventLevel: number;
+  /** Crew mistakes on the ground (wrong holding point in the read-back, wrong turns): only when chosen. */
+  crewMistakes: boolean;
   /** Session start: an empty airport, or taking over traffic in progress from the controller before you. */
   start: 'empty' | 'handover';
   tts: boolean;
@@ -88,6 +90,7 @@ const DEFAULTS: Settings = {
   position: 'GND',
   density: 'medium',
   eventLevel: DEFAULT_EVENT_LEVEL,
+  crewMistakes: false,
   start: 'empty',
   tts: true,
   radioNoise: true,

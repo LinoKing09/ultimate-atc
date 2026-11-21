@@ -167,6 +167,7 @@ export class App {
   /** Density / events last chosen in the settings; the session keeps a scenario's values until they change. */
   private densitySetting: Settings['density'];
   private eventsSetting: number;
+  private crewMistakesSetting: boolean;
   private readonly voices = new PilotVoices();
   /** The browser's speech recognition and the own one (Vosk); `voiceIn` is the one in use. */
   private readonly browserVoice: VoiceInput;
@@ -207,6 +208,7 @@ export class App {
     if (!restored) countSession();
     this.densitySetting = settings.density;
     this.eventsSetting = settings.eventLevel;
+    this.crewMistakesSetting = settings.crewMistakes;
 
     // ---------------------------------------------------------------- toolbar
     const field = (key: string, title: string) => (this.fields[key] = h('span.field', { title }));
@@ -836,6 +838,7 @@ export class App {
     this.browserVoice.lang = s.voiceLang;
     if (s.density !== this.densitySetting) this.act({ k: 'density', density: (this.densitySetting = s.density) });
     if (s.eventLevel !== this.eventsSetting) this.act({ k: 'eventLevel', level: (this.eventsSetting = s.eventLevel) });
+    if (s.crewMistakes !== this.crewMistakesSetting) this.act({ k: 'crewMistakes', on: (this.crewMistakesSetting = s.crewMistakes) });
     // Stop bars (LVP): switched by your clearances or by hand.
     if (this.sim.stopBarsWithClearance !== (s.stopBars !== 'manual')) this.act({ k: 'stopBarsWithClearance', on: s.stopBars !== 'manual' });
     // Realistic control mode: instructions only by voice, the lists kept by hand.

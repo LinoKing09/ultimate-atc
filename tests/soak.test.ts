@@ -81,7 +81,7 @@ describe.skipIf(!RUN)('soak', () => {
       for (const runway of runways) {
         for (const positions of setups) {
           for (let seed = 1; seed <= SEEDS; seed++) {
-            const sim = new Simulation({ airport, position: positions[0], positions, runway, density: DENSITY, seed, events: true, scenario: { heavyLevel: seed % 3 === 0 ? 3 : 0 }, startTime: startTime(airport.timeZone, seed) });
+            const sim = new Simulation({ airport, position: positions[0], positions, runway, density: DENSITY, seed, events: true, scenario: { heavyLevel: seed % 3 === 0 ? 3 : 0 }, crewMistakes: true, startTime: startTime(airport.timeZone, seed) });
             const groundBot = createBot(sim);
             const radarBot = positions.includes('APP') ? createRadarBot(sim) : undefined;
             const bot = () => {

@@ -149,7 +149,7 @@ taxi via|along X [,] X ..., hold short of TAXIWAY|runway RWY        (incomplete 
 | ---------------------------------------------- | ------------------------------------------------ |
 | Holding point                                  | `taxi to holding point A via L2, S`              |
 | Holding point with runway                      | `taxi to holding point D runway 25 via H, S`     |
-| Correcting a wrong holding point in the read-back | `negative, taxi to holding point B` - about 4 % of crews read back the neighbouring entry (`Taxi to holding point C`); not corrected within 40 s they taxi there |
+| Correcting a wrong holding point in the read-back | `negative, taxi to holding point B` - with the option *Crew mistakes on the ground* about 4 % of crews read back the neighbouring entry (`Taxi to holding point C`); not corrected within 40 s they taxi there |
 | Apron entry (München N1-N4, S1-S8)             | `taxi to N3`, `taxi to S5 via S` - to the holding position line at the apron entry; there the crew reports `holding at N3, request further taxi` |
 | Runway entry by its name (short form)          | `taxi to A6`, `taxi to entry A6`, `taxi to intersection B10 runway 08R` - the same as `taxi to holding point A6`; only names of runway holding points (not plain taxiways); the crew reads back the full form |
 | Runway (the pilot picks the full-length holding point on the shortest route) | `taxi to runway 25 via N` |
@@ -454,7 +454,7 @@ Pilots on your frequency call on their own:
 | Runway holding point on the route, no crossing clearance | `Turkish 1734, holding short runway 25 at W`                                        |
 | Opposite traffic seen in time (stops short of a junction) | `Lufthansa 5AB, opposite traffic on taxiway N, Eurowings 7TK, holding short of G, request instructions` |
 | Head-on with other traffic for over a minute            | `Lufthansa 5AB, we have opposite traffic ahead, EWG7TK, request instructions`          |
-| Took a wrong turn (crew mistake, with special events)   | `Lufthansa 5AB, sorry, we turned onto taxiway H by mistake, holding on H, request instructions` - give a new taxi instruction |
+| Took a wrong turn (option crew mistakes, with special events) | `Lufthansa 5AB, sorry, we turned onto taxiway H by mistake, holding on H, request instructions` - give a new taxi instruction |
 | Stopped for over a minute behind an aircraft that waits for instructions (for example at a vacate point) | `Lufthansa 5AB, we are blocked by Eurowings 7TK, waiting on the taxiway ahead, request instructions` |
 | Departure on Tower frequency stuck short of the holding point and far from it | `Stuttgart Ground, Lufthansa 5AB, Tower sent us back to you, we are short of the holding point, request taxi` |
 | Held short of a taxiway for over two minutes            | `Lufthansa 5AB, holding short of D, request to continue`                               |

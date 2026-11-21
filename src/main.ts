@@ -67,6 +67,7 @@ async function start(): Promise<void> {
     settings.density = login.density;
     settings.eventLevel = login.eventLevel;
   }
+  if (login.crewMistakes !== undefined) settings.crewMistakes = login.crewMistakes;
   settings.start = login.start;
   saveSettings(settings);
 
@@ -80,6 +81,7 @@ async function start(): Promise<void> {
     positions: login.positions,
     density: login.density,
     eventLevel: login.eventLevel,
+    crewMistakes: login.crewMistakes,
     start: login.start,
     seed: login.seed,
     runway: login.scenario?.runway,

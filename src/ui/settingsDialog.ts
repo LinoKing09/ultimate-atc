@@ -49,7 +49,7 @@ export function showSettings(
   };
 
   // ---------------------------------------------------------------- controls
-  const check = (key: 'tts' | 'radioNoise' | 'voiceAutoSend' | 'showRoutes', disabled = false) => {
+  const check = (key: 'tts' | 'radioNoise' | 'voiceAutoSend' | 'showRoutes' | 'crewMistakes', disabled = false) => {
     const el = h('input', { type: 'checkbox', disabled });
     el.checked = settings[key];
     el.addEventListener('change', () => {
@@ -312,6 +312,11 @@ export function showSettings(
             changed();
           }).el,
           'Medical emergencies and rejected take-offs: never, very rare ... often',
+        ],
+        [
+          'Crew mistakes on the ground',
+          check('crewMistakes'),
+          'Off unless you switch it on: now and then a crew reads back the wrong holding point in a taxi clearance (correct it within 40 s), and with special events a crew takes a wrong turn and reports it',
         ],
         [
           'Stop bars',

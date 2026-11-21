@@ -73,6 +73,8 @@ export interface SimConfig {
   events?: boolean;
   /** How often random special events happen: step 0-4 of EVENT_LEVELS (overrides `events`). */
   eventLevel?: number;
+  /** Crew mistakes on the ground (a wrong holding point in the taxi read-back, a wrong turn): only when chosen. Default: off. */
+  crewMistakes?: boolean;
   /** Training scenario: traffic mix, more heavies, scheduled events (see scenario.ts). */
   scenario?: ScenarioSetup;
   /**

@@ -38,6 +38,8 @@ export interface LoginResult {
   density: Density;
   /** Random special events, step 0-4 (never ... often). */
   eventLevel: number;
+  /** Crew mistakes on the ground (only when chosen; not in tutorials, a saved session keeps its own). */
+  crewMistakes?: boolean;
   /** An empty airport, or taking over traffic in progress. */
   start: 'empty' | 'handover';
   seed?: number;
@@ -115,6 +117,8 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
     let eventLevel = settings.eventLevel;
     const densitySlider = levelSlider(DENSITIES.map((d) => d.label), densityIndex(density), (i) => (density = DENSITIES[i].value));
     const eventsSlider = levelSlider(EVENT_LEVELS.map((e) => e.label), eventLevel, (i) => (eventLevel = i));
+    const mistakesBox = h('input', { type: 'checkbox' });
+    mistakesBox.checked = settings.crewMistakes;
     // Start: an empty airport, or traffic in progress taken over from the controller before you.
     let start = settings.start;
     const startButtons = (
@@ -280,6 +284,8 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
           densitySlider.el,
           h('label', { text: 'Special events' }),
           eventsSlider.el,
+          h('label', { text: 'Crew mistakes' }),
+          h('label', { title: 'Off unless chosen: now and then a crew reads back the wrong holding point in a taxi clearance (correct it within 40 s), and with special events a crew takes a wrong turn and reports it' }, mistakesBox, ' wrong holding points in read-backs, wrong turns on the ground'),
           h('label', { text: 'Start' }),
           h('div.positions.start', {}, ...startButtons),
           h('label', { text: 'Scenario' }),
@@ -322,6 +328,7 @@ export function showLogin(airports: AirportData[], settings: Settings, initialSc
         positions: selectedPositions(),
         density: r.scenario?.density ?? density,
         eventLevel: r.scenario?.eventLevel ?? eventLevel,
+        crewMistakes: mistakesBox.checked,
         start,
         seed: r.seed,
         scenario: r.scenario,
@@ -441,8 +448,8 @@ const REFERENCE: [string, string][] = [
   ['advise able for departure from intersection D', 'Ask whether the crew can depart from an intersection ("are you able intersection D" works too). Answer: "affirm, able" or "negative, we require full length".'],
   ['... hold short of taxiway D | runway 25', 'Add a hold-short point to a route (or send it on its own). The aircraft stops at the dashed intermediate holding line of the charts, otherwise with its nose 40 m from the centre line of D.'],
   ['cross runway 25', 'Clear an aircraft holding short of the runway to cross (also as part of a taxi instruction). The clearance is for that crossing only: a route that crosses the same runway again stops there again.'],
-  ['negative, taxi to holding point B', 'Correct a wrong holding point in a taxi read-back ("Taxi to holding point C" for B; random read-back errors on). Uncorrected after 40 s, the crew taxis to the holding point it read back.'],
-  ['(crew reports a wrong turn)', '"Sorry, we turned onto taxiway X by mistake, holding on X, request instructions": the crew stops on the wrong taxiway - give it a new taxi instruction from there (special events on).'],
+  ['negative, taxi to holding point B', 'Correct a wrong holding point in a taxi read-back ("Taxi to holding point C" for B; only with the option crew mistakes on the ground). Uncorrected after 40 s, the crew taxis to the holding point it read back.'],
+  ['(crew reports a wrong turn)', '"Sorry, we turned onto taxiway X by mistake, holding on X, request instructions": the crew stops on the wrong taxiway - give it a new taxi instruction from there (option crew mistakes, special events on).'],
   ['behind the A320 passing left to right, ...', 'Conditional clearance (also "behind DLH5AB", "when clear of the Boeing"). The pilot waits for the traffic.'],
   ['hold position', 'Stop immediately.'],
   ['continue taxi', 'Resume after hold position / hold short of a taxiway.'],

@@ -6,7 +6,7 @@ All notable changes to this project are documented in this file. The format is b
 
 ### Added
 
-- **Crews make mistakes on the ground** (with random read-back errors on, not in tutorials): about 4 % of the departures you clear to a holding point read back the neighbouring entry of the same runway (`Taxi to holding point C` for B) - correct it within 40 s (`negative, taxi to holding point B`, +5) or the crew taxis there (-10); and with special events about 3 % of your taxi clearances end with a wrong turn: the crew turns onto another taxiway at a junction, stops and reports `sorry, we turned onto taxiway X by mistake, request instructions`.
+- **Crews make mistakes on the ground** - only when you choose it (*Crew mistakes on the ground* in the start dialog or the settings, off by default; never in tutorials): about 4 % of the departures you clear to a holding point read back the neighbouring entry of the same runway (`Taxi to holding point C` for B) - correct it within 40 s (`negative, taxi to holding point B`, +5) or the crew taxis there (-10); and with special events about 3 % of your taxi clearances end with a wrong turn: the crew turns onto another taxiway at a junction, stops and reports `sorry, we turned onto taxiway X by mistake, request instructions`.
 
 ### Changed
 

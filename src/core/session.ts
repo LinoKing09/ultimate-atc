@@ -47,7 +47,8 @@ export type SessionAction =
   /** Realistic control mode: a mark the controller entered in the lists by hand (see strips.ts). */
   | { k: 'strip'; callsign: string; field: StripField; value?: string | boolean }
   | { k: 'density'; density: Density }
-  | { k: 'eventLevel'; level: number };
+  | { k: 'eventLevel'; level: number }
+  | { k: 'crewMistakes'; on: boolean };
 
 /** What an action returns to the UI: a transmission's result, or an error text. */
 export type ActionResult = TransmitResult | string | undefined;
@@ -127,6 +128,9 @@ function apply(sim: Simulation, a: SessionAction): ActionResult {
     case 'eventLevel':
       sim.config.eventLevel = a.level;
       return undefined;
+    case 'crewMistakes':
+      sim.config.crewMistakes = a.on;
+      return undefined;
   }
 }
 
@@ -149,6 +153,7 @@ export interface SavedSession {
     density: Density;
     events?: boolean;
     eventLevel?: number;
+    crewMistakes?: boolean;
     start?: 'empty' | 'handover';
     seed: number;
     /** Start of the session (Unix ms) as passed to the simulation. */
@@ -206,6 +211,7 @@ export function saveSession(sim: Simulation, name: string, controlSeconds: numbe
       density: c.density,
       events: c.events,
       eventLevel: c.eventLevel,
+      crewMistakes: c.crewMistakes,
       start: c.start,
       seed: sim.seed,
       // The simulation shifts its clock back for a 'handover' start: undo that to get what was passed in.

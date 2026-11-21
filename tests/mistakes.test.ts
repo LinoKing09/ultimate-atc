@@ -4,8 +4,8 @@ import { Simulation } from '../src/core/simulation';
 import { EDDS } from '../src/data/airports/edds';
 
 /** A Ground session at Stuttgart until the first departure asks for taxi (pushback approved on the way). */
-function untilTaxiRequest(seed = 3): { sim: Simulation; ac: Aircraft } {
-  const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed, events: false });
+function untilTaxiRequest(seed = 3, crewMistakes = true): { sim: Simulation; ac: Aircraft } {
+  const sim = new Simulation({ airport: EDDS, position: 'GND', runway: '25', density: 'medium', seed, events: false, crewMistakes });
   for (let t = 0; t < 2400; t++) {
     sim.tick(1);
     for (const a of sim.aircraft) {
@@ -80,6 +80,17 @@ describe('crew mistakes on the ground', () => {
     expect(ac.request).toBe('route');
   });
 
+  it('off unless chosen: no wrong holding point in the read-back, no wrong turn', () => {
+    const { sim, ac } = untilTaxiRequest(3, false);
+    // Even where the chosen option would bring a mistake for sure, none comes without it.
+    sim.variation = () => 0;
+    sim.transmit(`${ac.callsign} taxi to holding point B`);
+    run(sim, 6);
+    expect(ac.taxiReadbackError).toBeUndefined();
+    expect(ac.wrongTurn).toBeUndefined();
+    expect(lastSaid(sim, ac.callsign)).toMatch(/^Taxi to holding point B\b/);
+  });
+
   it('no mistakes in tutorials or with the random read-back errors off, and none in instructions of the simulator', () => {
     const { sim, ac } = untilTaxiRequest();
     sim.readbackErrors = 'off';
@@ -92,7 +103,7 @@ describe('crew mistakes on the ground', () => {
 
 describe('crew mistakes and the AI Ground', () => {
   it('a crew that took a wrong turn is taken on by the AI Ground when you switch Ground off', () => {
-    const sim = new Simulation({ airport: EDDS, position: 'GND', positions: ['GND', 'TWR'], runway: '25', density: 'medium', seed: 3, events: false });
+    const sim = new Simulation({ airport: EDDS, position: 'GND', positions: ['GND', 'TWR'], runway: '25', density: 'medium', seed: 3, events: false, crewMistakes: true });
     let ac: Aircraft | undefined;
     for (let t = 0; t < 2400 && !ac; t++) {
       sim.tick(1);
